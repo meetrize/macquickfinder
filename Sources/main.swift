@@ -49,36 +49,233 @@ extension FocusedValues {
     }
 }
 
+struct TextFieldEditingKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
+extension FocusedValues {
+    var textFieldEditing: Bool? {
+        get { self[TextFieldEditingKey.self] }
+        set { self[TextFieldEditingKey.self] = newValue }
+    }
+}
+
+private enum TextEditingCommands {
+    static func send(_ selector: Selector) {
+        NSApp.sendAction(selector, to: nil, from: nil)
+    }
+    
+    @ViewBuilder
+    static func pasteboardButtons() -> some View {
+        Button("全选") {
+            send(#selector(NSText.selectAll(_:)))
+        }
+        .keyboardShortcut("a", modifiers: .command)
+        
+        Button("剪切") {
+            send(#selector(NSText.cut(_:)))
+        }
+        .keyboardShortcut("x", modifiers: .command)
+        
+        Button("复制") {
+            send(#selector(NSText.copy(_:)))
+        }
+        .keyboardShortcut("c", modifiers: .command)
+        
+        Button("粘贴") {
+            send(#selector(NSText.paste(_:)))
+        }
+        .keyboardShortcut("v", modifiers: .command)
+    }
+}
+
+private enum TextFieldFocusDetection {
+    static func isToolbarSearchFieldFocused(in window: NSWindow?) -> Bool {
+        guard let window else { return false }
+        
+        if let toolbar = window.toolbar {
+            for item in toolbar.items {
+                guard let searchItem = item as? NSSearchToolbarItem else { continue }
+                if isEditing(searchItem.searchField, in: window) {
+                    return true
+                }
+            }
+        }
+        
+        if let searchField = findSearchField(in: window.contentView),
+           isEditing(searchField, in: window) {
+            return true
+        }
+        
+        guard let responder = window.firstResponder as? NSView else { return false }
+        return responder.enclosingToolbarSearchField() != nil
+    }
+    
+    private static func findSearchField(in view: NSView?) -> NSView? {
+        guard let view else { return nil }
+        if view is NSSearchField { return view }
+        let className = String(describing: type(of: view))
+        if className.contains("SearchField") { return view }
+        for subview in view.subviews {
+            if let found = findSearchField(in: subview) { return found }
+        }
+        return nil
+    }
+    
+    private static func isEditing(_ field: NSView, in window: NSWindow) -> Bool {
+        guard let responder = window.firstResponder else { return false }
+        if responder === field { return true }
+        if let view = responder as? NSView, view.isDescendant(of: field) { return true }
+        if let textView = responder as? NSTextView,
+           let delegate = textView.delegate as? NSObject,
+           delegate === field {
+            return true
+        }
+        return false
+    }
+    
+    /// 地址栏未聚焦时，若 field editor 处于活动状态，则视为工具栏搜索栏在编辑。
+    static func isSupplementaryTextFieldFocused(pathFieldFocused: Bool, in window: NSWindow?) -> Bool {
+        guard !pathFieldFocused, let window else { return false }
+        return window.firstResponder is NSTextView
+    }
+}
+
+private extension NSView {
+    func enclosingToolbarSearchField() -> NSView? {
+        var current: NSView? = self
+        while let node = current {
+            if node is NSSearchField { return node }
+            let className = String(describing: type(of: node))
+            if className.contains("SearchField") || className.contains("SearchToolbar") {
+                return node
+            }
+            current = node.superview
+        }
+        return nil
+    }
+}
+
+/// `.searchable` 无法使用 @FocusState；通过事件监听在按键时动态判断搜索栏焦点并处理文本编辑快捷键。
+private struct TextEditingKeyMonitor: NSViewRepresentable {
+    let isPathFieldFocused: Bool
+    @Binding var isSearchFieldFocused: Bool
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isSearchFieldFocused: $isSearchFieldFocused)
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.install(on: view)
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.isPathFieldFocused = isPathFieldFocused
+    }
+    
+    final class Coordinator {
+        @Binding var isSearchFieldFocused: Bool
+        var isPathFieldFocused = false
+        private var monitor: Any?
+        
+        init(isSearchFieldFocused: Binding<Bool>) {
+            _isSearchFieldFocused = isSearchFieldFocused
+        }
+        
+        func install(on view: NSView) {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
+                guard let self else { return event }
+                self.refreshSearchFocus(in: event.window)
+                guard event.type == .keyDown else { return event }
+                return self.handleKeyDown(event)
+            }
+        }
+        
+        private func refreshSearchFocus(in window: NSWindow?) {
+            let focused = TextFieldFocusDetection.isToolbarSearchFieldFocused(in: window)
+                || TextFieldFocusDetection.isSupplementaryTextFieldFocused(
+                    pathFieldFocused: isPathFieldFocused,
+                    in: window
+                )
+            guard isSearchFieldFocused != focused else { return }
+            isSearchFieldFocused = focused
+        }
+        
+        private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+            guard event.modifierFlags.contains(.command) else { return event }
+            guard let key = event.charactersIgnoringModifiers?.lowercased() else { return event }
+            
+            let searchFocused = TextFieldFocusDetection.isToolbarSearchFieldFocused(in: event.window)
+                || TextFieldFocusDetection.isSupplementaryTextFieldFocused(
+                    pathFieldFocused: isPathFieldFocused,
+                    in: event.window
+                )
+            guard isPathFieldFocused || searchFocused else { return event }
+            
+            let selector: Selector?
+            switch key {
+            case "a": selector = #selector(NSText.selectAll(_:))
+            case "c": selector = #selector(NSText.copy(_:))
+            case "v": selector = #selector(NSText.paste(_:))
+            case "x": selector = #selector(NSText.cut(_:))
+            default: selector = nil
+            }
+            
+            guard let selector else { return event }
+            TextEditingCommands.send(selector)
+            return nil
+        }
+        
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
+    }
+}
+
 struct FileCommands: Commands {
     @FocusedValue(\.fileCommandHandlers) private var handlers
+    @FocusedValue(\.textFieldEditing) private var textFieldEditing
+    
+    private var isTextFieldEditing: Bool { textFieldEditing == true }
     
     var body: some Commands {
         CommandGroup(replacing: .pasteboard) {
-            Button("剪切") {
-                handlers?.cut?()
+            if isTextFieldEditing {
+                TextEditingCommands.pasteboardButtons()
+            } else {
+                Button("剪切") {
+                    handlers?.cut?()
+                }
+                .keyboardShortcut("x", modifiers: .command)
+                .disabled(!(handlers?.canCut ?? false))
+                
+                Button("复制") {
+                    handlers?.copy?()
+                }
+                .keyboardShortcut("c", modifiers: .command)
+                .disabled(!(handlers?.canCopy ?? false))
+                
+                Button("粘贴") {
+                    handlers?.paste?()
+                }
+                .keyboardShortcut("v", modifiers: .command)
+                .disabled(!(handlers?.canPaste ?? false))
             }
-            .keyboardShortcut("x", modifiers: .command)
-            .disabled(!(handlers?.canCut ?? false))
-            
-            Button("复制") {
-                handlers?.copy?()
-            }
-            .keyboardShortcut("c", modifiers: .command)
-            .disabled(!(handlers?.canCopy ?? false))
-            
-            Button("粘贴") {
-                handlers?.paste?()
-            }
-            .keyboardShortcut("v", modifiers: .command)
-            .disabled(!(handlers?.canPaste ?? false))
         }
         
         CommandGroup(after: .pasteboard) {
-            Button("删除") {
-                handlers?.delete?()
+            if !isTextFieldEditing {
+                Button("删除") {
+                    handlers?.delete?()
+                }
+                .keyboardShortcut(.delete)
+                .disabled(!(handlers?.canDelete ?? false))
             }
-            .keyboardShortcut(.delete)
-            .disabled(!(handlers?.canDelete ?? false))
         }
     }
 }
@@ -154,6 +351,9 @@ private enum LucideSVG {
     static let folderPlus = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
 """)
+    static let folderUp = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="m9 13 3-3 3 3"/></svg>
+""")
 }
 
 private struct LucideIcon: View {
@@ -161,6 +361,7 @@ private struct LucideIcon: View {
     var size: CGFloat = 16
 
     static let folderPlus = LucideIcon(svgData: LucideSVG.folderPlus)
+    static let folderUp = LucideIcon(svgData: LucideSVG.folderUp)
 
     var body: some View {
         if let image = NSImage(data: svgData) {
@@ -396,10 +597,16 @@ struct ContentView: View {
     @State private var isSyncingSortFromTable = false
     @State private var isLoading = false
     @State private var searchText = ""
+    @State private var isSearchFieldFocused = false
     @State private var showHiddenFiles = false
     @State private var loadGeneration: UInt = 0
     @AppStorage(AppSettings.previewPanelWidthKey) private var storedPreviewPanelWidth = 320.0
     @State private var livePreviewPanelWidth: CGFloat = 320
+    @FocusState private var isPathFieldFocused: Bool
+    
+    private var isTextFieldEditing: Bool {
+        isPathFieldFocused || isSearchFieldFocused
+    }
     
     private let minPreviewPanelWidth: CGFloat = 200
     private let minMainPanelWidth: CGFloat = 360
@@ -420,14 +627,9 @@ struct ContentView: View {
                 HStack(spacing: 0) {
                     VStack(spacing: 0) {
                         HStack {
-                            Button(action: navigateUp) {
-                                Image(systemName: "arrow.up")
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(isLoading)
-                            
                             TextField("Path", text: pathBinding)
                                 .textFieldStyle(.roundedBorder)
+                                .focused($isPathFieldFocused)
                                 .onSubmit(loadItems)
                             
                             Button(action: loadItems) {
@@ -451,6 +653,7 @@ struct ContentView: View {
                                 tableSortOrder: $tableSortOrder,
                                 searchText: searchText,
                                 currentDirectoryPath: path,
+                                canNavigateToParent: FileItem.canNavigateUp(from: path),
                                 onItemOpen: openItem,
                                 onBlankDoubleClick: handleBlankDoubleClick,
                                 onItemsChanged: {
@@ -463,7 +666,12 @@ struct ContentView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .focusedValue(\.textFieldEditing, isTextFieldEditing)
                     .searchable(text: $searchText, prompt: "Search files")
+                    .background(TextEditingKeyMonitor(
+                        isPathFieldFocused: isPathFieldFocused,
+                        isSearchFieldFocused: $isSearchFieldFocused
+                    ))
                     .navigationTitle("Explorer")
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
@@ -675,6 +883,10 @@ struct ContentView: View {
     }
     
     private func openItem(_ item: FileItem) {
+        if item.isParentDirectoryEntry {
+            navigateUp()
+            return
+        }
         FileOperations.open([item]) { path = $0 }
     }
     
@@ -1013,6 +1225,7 @@ struct FileListView: View {
     @Binding var tableSortOrder: [KeyPathComparator<FileItem>]
     let searchText: String
     let currentDirectoryPath: String
+    let canNavigateToParent: Bool
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
     let onItemsChanged: () -> Void
@@ -1021,54 +1234,88 @@ struct FileListView: View {
     @State private var isCurrentDirectoryDropTargeted = false
     @State private var folderDropTargetID: FileItem.ID?
     
+    private var showParentDirectoryRow: Bool {
+        canNavigateToParent && searchText.isEmpty
+    }
+    
+    private var tableRowItems: [FileItem] {
+        guard showParentDirectoryRow else { return items }
+        return [FileItem.parentDirectoryEntry()] + items
+    }
+    
+    private var parentDirectoryURL: URL? {
+        FileItem.parentDirectoryURL(from: currentDirectoryPath)
+    }
+    
     var body: some View {
-        Table(items, selection: $selection, sortOrder: $tableSortOrder) {
+        Table(tableRowItems, selection: $selection, sortOrder: preservedTableSortOrder) {
             TableColumn("Name", value: \.name) { (item: FileItem) in
-                fileRowCell(for: item, enableFolderDrop: true) {
+                fileRowCell(for: item) {
                     HStack(spacing: 6) {
-                        FileItemIcon(item: item)
-                        HighlightedText(
-                            text: item.name,
-                            searchText: searchText,
-                            fontWeight: item.isDirectory ? .medium : .regular,
-                            opacity: item.isHidden ? 0.6 : 1.0
-                        )
+                        if item.isParentDirectoryEntry {
+                            LucideIcon.folderUp
+                                .foregroundStyle(FileIconKind.folder.tint)
+                        } else {
+                            FileItemIcon(item: item)
+                        }
+                        if item.isParentDirectoryEntry {
+                            Text("..")
+                                .fontWeight(.medium)
+                        } else {
+                            HighlightedText(
+                                text: item.name,
+                                searchText: searchText,
+                                fontWeight: item.isDirectory ? .medium : .regular,
+                                opacity: item.isHidden ? 0.6 : 1.0
+                            )
+                        }
                     }
                     .overlay {
-                        FileDragZoneAnchor(item: item)
+                        if !item.isParentDirectoryEntry {
+                            FileDragZoneAnchor(item: item)
+                        }
                     }
                 }
             }
             .width(min: 220, ideal: 300)
             
-            TableColumn("Size") { item in
+            TableColumn("Size") { (item: FileItem) in
                 fileRowCell(for: item) {
-                    Text(item.sizeDisplay)
-                        .foregroundColor(.secondary)
+                    if item.isParentDirectoryEntry {
+                        Text("")
+                    } else {
+                        Text(item.sizeDisplay)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .width(min: 80, ideal: 100)
             
-            TableColumn("Date Modified", value: \.modificationDate) { item in
+            TableColumn("Date Modified", value: \.modificationDate) { (item: FileItem) in
                 fileRowCell(for: item) {
-                    Text(item.dateDisplay)
+                    if item.isParentDirectoryEntry {
+                        Text("")
+                    } else {
+                        Text(item.dateDisplay)
+                    }
                 }
             }
             .width(min: 150, ideal: 180)
         }
         .background(TableDoubleClickHandler(
-            items: items,
+            items: tableRowItems,
             onOpen: onItemOpen,
             onBlankDoubleClick: onBlankDoubleClick
         ))
         .background(TableDeleteKeyHandler(
-            isEnabled: !selection.isEmpty,
+            isEnabled: !selection.isEmpty && !selection.contains(FileItem.parentDirectoryID),
             onDelete: {
-                contextActions.delete(items(for: selection))
+                let deletable = items(for: selection).filter { !$0.isParentDirectoryEntry }
+                contextActions.delete(deletable)
             }
         ))
         .background(TableFileDragDropHandler(
-            items: items,
+            items: tableRowItems,
             selection: selection,
             onItemOpen: onItemOpen,
             onDragEnded: onItemsChanged
@@ -1079,9 +1326,14 @@ struct FileListView: View {
         ))
         .contextMenu(forSelectionType: FileItem.ID.self) { ids in
             let selected = items(for: ids)
+            let fileSelection = selected.filter { !$0.isParentDirectoryEntry }
             let inTrash = contextActions.isInTrash
             
-            if inTrash && selected.isEmpty {
+            if selected.count == 1, let item = selected.first, item.isParentDirectoryEntry {
+                Button("打开") {
+                    onItemOpen(item)
+                }
+            } else if inTrash && selected.isEmpty {
                 Button("清倒废纸篓", role: .destructive) {
                     contextActions.emptyTrash()
                 }
@@ -1114,9 +1366,9 @@ struct FileListView: View {
                 Button("清倒废纸篓", role: .destructive) {
                     contextActions.emptyTrash()
                 }
-            } else if !selected.isEmpty {
+            } else if !fileSelection.isEmpty {
             let destination = FileOperations.pasteDestination(
-                selectedItems: selected,
+                selectedItems: fileSelection,
                 currentDirectoryPath: currentDirectoryPath
             )
             let showPaste = contextActions.canPaste(destination)
@@ -1131,7 +1383,7 @@ struct FileListView: View {
                     Divider()
                 }
                 
-                if selected.count == 1, let item = selected.first {
+                if fileSelection.count == 1, let item = fileSelection.first {
                     Button("打开") {
                         contextActions.open(item)
                     }
@@ -1151,7 +1403,7 @@ struct FileListView: View {
                     Divider()
                 } else {
                     Button("打开") {
-                        for item in selected {
+                        for item in fileSelection {
                             contextActions.open(item)
                         }
                     }
@@ -1159,30 +1411,30 @@ struct FileListView: View {
                 }
                 
                 Button("剪切") {
-                    contextActions.cut(selected)
+                    contextActions.cut(fileSelection)
                 }
                 Button("复制") {
-                    contextActions.copy(selected)
+                    contextActions.copy(fileSelection)
                 }
                 
                 Divider()
                 
-                if selected.count == 1, let item = selected.first {
+                if fileSelection.count == 1, let item = fileSelection.first {
                     Button("复制文件名") {
                         contextActions.copyFilename(item)
                     }
                 }
                 Button("复制完整路径") {
-                    contextActions.copyPaths(selected)
+                    contextActions.copyPaths(fileSelection)
                 }
                 
                 Divider()
                 
                 Button("删除", role: .destructive) {
-                    contextActions.delete(selected)
+                    contextActions.delete(fileSelection)
                 }
                 
-                if selected.count == 1, let item = selected.first {
+                if fileSelection.count == 1, let item = fileSelection.first {
                     Button("重命名") {
                         contextActions.rename(item)
                     }
@@ -1191,12 +1443,16 @@ struct FileListView: View {
                 Divider()
                 
                 Button("属性") {
-                    contextActions.showInfo(selected)
+                    contextActions.showInfo(fileSelection)
                 }
             }
         } primaryAction: { ids in
             guard let item = items(for: ids).first else { return }
-            contextActions.open(item)
+            if item.isParentDirectoryEntry {
+                onItemOpen(item)
+            } else {
+                contextActions.open(item)
+            }
         }
         .transaction { transaction in
             transaction.animation = nil
@@ -1222,22 +1478,30 @@ struct FileListView: View {
         }
     }
     
+    private var preservedTableSortOrder: Binding<[KeyPathComparator<FileItem>]> {
+        Binding(
+            get: { [] },
+            set: { newValue in
+                tableSortOrder = newValue
+            }
+        )
+    }
+    
     @ViewBuilder
     private func fileRowCell<Content: View>(
         for item: FileItem,
-        enableFolderDrop: Bool = false,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        let isFolderDropTarget = folderDropTargetID == item.id
+        let isDropTarget = folderDropTargetID == item.id
         
         let row = content()
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(isFolderDropTarget ? Color.accentColor.opacity(0.18) : Color.clear)
+                    .fill(isDropTarget ? Color.accentColor.opacity(0.18) : Color.clear)
             )
         
-        if enableFolderDrop, item.isDirectory {
+        if let destination = dropDestination(for: item) {
             row.onDrop(
                 of: [.fileURL],
                 delegate: FileDropDelegate(
@@ -1248,12 +1512,22 @@ struct FileListView: View {
                         }
                     )
                 ) { urls, copy in
-                    handleDrop(into: item.url, urls: urls, copy: copy)
+                    handleDrop(into: destination, urls: urls, copy: copy)
                 }
             )
         } else {
             row
         }
+    }
+    
+    private func dropDestination(for item: FileItem) -> URL? {
+        if item.isParentDirectoryEntry {
+            return parentDirectoryURL
+        }
+        if item.isDirectory {
+            return item.url
+        }
+        return nil
     }
     
     private func handleDrop(into destination: URL, urls: [URL], copy: Bool) {
@@ -1262,7 +1536,7 @@ struct FileListView: View {
     }
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
-        items.filter { ids.contains($0.id) }
+        tableRowItems.filter { ids.contains($0.id) }
     }
     
     static func sortingKeyPath(for order: SortOrder) -> [KeyPathComparator<FileItem>] {
@@ -1350,8 +1624,9 @@ struct FileListView: View {
 
 private enum FileDragDrop {
     static func draggedItems(for item: FileItem, in items: [FileItem], selection: Set<FileItem.ID>) -> [FileItem] {
+        guard !item.isParentDirectoryEntry else { return [] }
         if selection.contains(item.id) {
-            return items.filter { selection.contains($0.id) }
+            return items.filter { selection.contains($0.id) && !$0.isParentDirectoryEntry }
         }
         return [item]
     }
@@ -2550,6 +2825,8 @@ enum FileItemFormatters {
 }
 
 struct FileItem: Identifiable, Hashable {
+    static let parentDirectoryID = "__parent_directory__"
+    
     let id: String
     let url: URL
     let name: String
@@ -2559,6 +2836,38 @@ struct FileItem: Identifiable, Hashable {
     let isHidden: Bool
     let sizeDisplay: String
     let dateDisplay: String
+    
+    var isParentDirectoryEntry: Bool {
+        id == Self.parentDirectoryID
+    }
+    
+    static func parentDirectoryEntry() -> FileItem {
+        FileItem(
+            id: parentDirectoryID,
+            url: URL(fileURLWithPath: "/"),
+            name: "..",
+            isDirectory: true,
+            modificationDate: .distantPast,
+            size: 0,
+            isHidden: false,
+            sizeDisplay: "",
+            dateDisplay: ""
+        )
+    }
+    
+    static func canNavigateUp(from path: String) -> Bool {
+        parentDirectoryURL(from: path) != nil
+    }
+    
+    static func parentDirectoryURL(from path: String) -> URL? {
+        if TrashLoader.isTrashPath(path) {
+            return FileManager.default.homeDirectoryForCurrentUser
+        }
+        let url = URL(fileURLWithPath: path)
+        let parent = url.deletingLastPathComponent()
+        guard parent.path != url.path else { return nil }
+        return parent
+    }
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
