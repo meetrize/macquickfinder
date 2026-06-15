@@ -383,6 +383,7 @@ struct ContentView: View {
                                 selection: $selection,
                                 tableSortOrder: $tableSortOrder,
                                 searchText: searchText,
+                                currentDirectoryPath: path,
                                 onItemOpen: openItem,
                                 onBlankDoubleClick: handleBlankDoubleClick,
                                 contextActions: fileContextActions
@@ -613,7 +614,16 @@ struct ContentView: View {
                     loadItems()
                 }
             },
-            showInfo: FileOperations.showInfo
+            showInfo: FileOperations.showInfo,
+            canPaste: { destPath in
+                FileOperations.canPaste(to: URL(fileURLWithPath: destPath))
+            },
+            paste: { destPath in
+                FileOperations.paste(to: URL(fileURLWithPath: destPath)) {
+                    selection.removeAll()
+                    loadItems()
+                }
+            }
         )
     }
     
@@ -794,6 +804,8 @@ struct FileContextActions {
     var delete: ([FileItem]) -> Void = { _ in }
     var rename: (FileItem) -> Void = { _ in }
     var showInfo: ([FileItem]) -> Void = { _ in }
+    var canPaste: (String) -> Bool = { _ in false }
+    var paste: (String) -> Void = { _ in }
 }
 
 struct FileListView: View {
@@ -801,6 +813,7 @@ struct FileListView: View {
     @Binding var selection: Set<FileItem.ID>
     @Binding var tableSortOrder: [KeyPathComparator<FileItem>]
     let searchText: String
+    let currentDirectoryPath: String
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
     let contextActions: FileContextActions
@@ -838,7 +851,20 @@ struct FileListView: View {
         ))
         .contextMenu(forSelectionType: FileItem.ID.self) { ids in
             let selected = items(for: ids)
+            let destination = pasteDestination(for: selected)
+            let showPaste = contextActions.canPaste(destination)
+            
+            if showPaste {
+                Button("粘贴") {
+                    contextActions.paste(destination)
+                }
+            }
+            
             if !selected.isEmpty {
+                if showPaste {
+                    Divider()
+                }
+                
                 if selected.count == 1, let item = selected.first {
                     Button("打开") {
                         contextActions.open(item)
@@ -908,6 +934,13 @@ struct FileListView: View {
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
         items.filter { ids.contains($0.id) }
+    }
+    
+    private func pasteDestination(for selected: [FileItem]) -> String {
+        if selected.count == 1, let item = selected.first, item.isDirectory {
+            return item.url.path
+        }
+        return currentDirectoryPath
     }
     
     static func sortingKeyPath(for order: SortOrder) -> [KeyPathComparator<FileItem>] {
@@ -1650,6 +1683,82 @@ enum SidebarVolumeLoader {
 }
 
 private enum FileOperations {
+    private static let finderCopyPasteboardType = NSPasteboard.PasteboardType("com.apple.finder.copy")
+    
+    struct PasteboardState {
+        let urls: [URL]
+        let isCut: Bool
+    }
+    
+    static func pasteboardState() -> PasteboardState {
+        let pasteboard = NSPasteboard.general
+        let urls = readFileURLs(from: pasteboard)
+        let isCut = pasteboard.types?.contains(finderCopyPasteboardType) == true
+        return PasteboardState(urls: urls, isCut: isCut)
+    }
+    
+    static func canPaste(to destinationDirectory: URL) -> Bool {
+        let state = pasteboardState()
+        guard !state.urls.isEmpty else { return false }
+        
+        let destURL = destinationDirectory.standardizedFileURL
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: destURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            return false
+        }
+        
+        let destPath = destURL.path
+        for sourceURL in state.urls {
+            let srcURL = sourceURL.standardizedFileURL
+            guard FileManager.default.fileExists(atPath: srcURL.path) else { return false }
+            
+            let srcPath = srcURL.path
+            if state.isCut {
+                if srcPath == destPath { return false }
+                if destPath.hasPrefix(srcPath + "/") { return false }
+                if srcURL.deletingLastPathComponent().standardizedFileURL.path == destPath {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+    
+    static func paste(to destinationDirectory: URL, completion: @escaping () -> Void) {
+        let state = pasteboardState()
+        guard canPaste(to: destinationDirectory) else { return }
+        
+        let fileManager = FileManager.default
+        var hadError = false
+        
+        for sourceURL in state.urls {
+            let destinationURL = uniqueDestinationURL(
+                for: sourceURL.lastPathComponent,
+                in: destinationDirectory
+            )
+            
+            do {
+                if state.isCut {
+                    try fileManager.moveItem(at: sourceURL, to: destinationURL)
+                } else {
+                    try fileManager.copyItem(at: sourceURL, to: destinationURL)
+                }
+            } catch {
+                NSAlert(error: error).runModal()
+                hadError = true
+                break
+            }
+        }
+        
+        if state.isCut && !hadError {
+            clearCutPasteboard()
+        }
+        if !hadError {
+            completion()
+        }
+    }
+    
     static func open(_ items: [FileItem], onNavigate: (String) -> Void) {
         guard let first = items.first else { return }
         
@@ -1693,7 +1802,7 @@ private enum FileOperations {
         pasteboard.writeObjects(urls as [NSURL])
         pasteboard.setPropertyList(
             urls.map(\.path),
-            forType: NSPasteboard.PasteboardType("com.apple.finder.copy")
+            forType: finderCopyPasteboardType
         )
     }
     
@@ -1781,6 +1890,43 @@ private enum FileOperations {
             var error: NSDictionary?
             NSAppleScript(source: script)?.executeAndReturnError(&error)
         }
+    }
+    
+    private static func readFileURLs(from pasteboard: NSPasteboard) -> [URL] {
+        guard let objects = pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL] else {
+            return []
+        }
+        return objects.map(\.standardizedFileURL)
+    }
+    
+    private static func uniqueDestinationURL(for name: String, in directory: URL) -> URL {
+        let fileManager = FileManager.default
+        var candidate = directory.appendingPathComponent(name)
+        if !fileManager.fileExists(atPath: candidate.path) {
+            return candidate
+        }
+        
+        let baseName = (name as NSString).deletingPathExtension
+        let pathExtension = (name as NSString).pathExtension
+        var counter = 1
+        while fileManager.fileExists(atPath: candidate.path) {
+            let newName: String
+            if pathExtension.isEmpty {
+                newName = "\(baseName) \(counter)"
+            } else {
+                newName = "\(baseName) \(counter).\(pathExtension)"
+            }
+            candidate = directory.appendingPathComponent(newName)
+            counter += 1
+        }
+        return candidate
+    }
+    
+    private static func clearCutPasteboard() {
+        NSPasteboard.general.clearContents()
     }
 }
 
