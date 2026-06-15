@@ -4272,13 +4272,8 @@ struct FileContentView: View {
                 PDFPreview(document: pdfDoc)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if !textContent.isEmpty {
-                ScrollView {
-                    Text(textContent)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                        .padding()
-                }
+                TextFilePreview(text: textContent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Text("Preview not available for this file type")
                     .foregroundColor(.secondary)
@@ -4353,16 +4348,11 @@ struct FileContentView: View {
         
         if textExtensions.contains(ext) {
             do {
-                let data = try Data(contentsOf: url)
+                let content = try await Task.detached(priority: .userInitiated) {
+                    try TextFilePreviewReader.readPreview(from: url)
+                }.value
                 guard !Task.isCancelled else { return }
-                if let content = String(data: data, encoding: .utf8) {
-                    let limitedContent = content.count > 20000
-                        ? String(content.prefix(20000)) + "\n\n[Content truncated...]"
-                        : content
-                    await finish(text: limitedContent)
-                } else {
-                    await finish(error: "Unable to decode text with UTF-8 encoding")
-                }
+                await finish(text: content)
             } catch {
                 guard !Task.isCancelled else { return }
                 if error is CancellationError { return }
@@ -4373,6 +4363,84 @@ struct FileContentView: View {
         
         // No preview available for other file types
         await finish()
+    }
+}
+
+private enum TextFilePreviewReader {
+    static let maxCharacters = 20_000
+    
+    static func readPreview(from url: URL) throws -> String {
+        let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        
+        let maxBytes = min(max(fileSize, 0), maxCharacters * 4 + 16)
+        var data = handle.readData(ofLength: maxBytes)
+        while !data.isEmpty, String(data: data, encoding: .utf8) == nil {
+            data.removeLast()
+        }
+        
+        guard var content = String(data: data, encoding: .utf8) else {
+            throw CocoaError(.fileReadInapplicableStringEncoding)
+        }
+        
+        if content.count > maxCharacters {
+            content = String(content.prefix(maxCharacters)) + "\n\n[Content truncated...]"
+        } else if fileSize > data.count {
+            content += "\n\n[Content truncated...]"
+        }
+        
+        return content
+    }
+}
+
+private struct TextFilePreview: NSViewRepresentable {
+    let text: String
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+        
+        let textView = NSTextView()
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.drawsBackground = false
+        textView.isRichText = false
+        textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.autoresizingMask = [.width]
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.maxSize = NSSize(
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+        textView.string = text
+        
+        scrollView.documentView = textView
+        context.coordinator.textView = textView
+        return scrollView
+    }
+    
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = context.coordinator.textView else { return }
+        if textView.string != text {
+            textView.string = text
+            textView.scrollToBeginningOfDocument(nil)
+        }
+    }
+    
+    final class Coordinator {
+        weak var textView: NSTextView?
     }
 }
 
