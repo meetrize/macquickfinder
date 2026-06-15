@@ -739,7 +739,7 @@ struct FilePreviewView: View {
                         .help("放大")
                         
                         Button {
-                            imageZoomScale = max(imageZoomScale - 0.25, 0.25)
+                            imageZoomScale = max(imageZoomScale - 0.25, 1.0)
                         } label: {
                             Image(systemName: "minus.magnifyingglass")
                         }
@@ -792,6 +792,10 @@ struct FileContentView: View {
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
     
+    private var isImagePreview: Bool {
+        image != nil && !isLoading && errorMessage == nil
+    }
+    
     var body: some View {
         ZStack {
             if isLoading {
@@ -814,14 +818,7 @@ struct FileContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let image = image {
-                ScrollView([.horizontal, .vertical]) {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .scaleEffect(imageZoomScale)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ImagePreviewContent(image: image, zoomScale: imageZoomScale)
             } else if let pdfDoc = pdfDocument {
                 PDFPreview(document: pdfDoc)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -838,7 +835,7 @@ struct FileContentView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .padding()
+        .padding(isImagePreview ? 0 : 12)
         .task(id: item.id) {
             imageZoomScale = 1.0
             await loadContent()
@@ -925,6 +922,96 @@ struct FileContentView: View {
         
         // No preview available for other file types
         await finish()
+    }
+}
+
+private struct ImagePreviewContent: View {
+    let image: NSImage
+    let zoomScale: CGFloat
+    
+    @State private var panOffset: CGSize = .zero
+    @GestureState private var dragTranslation: CGSize = .zero
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let containerSize = geometry.size
+            let imageSize = resolvedImageSize(image)
+            let fitScale = min(
+                containerSize.width / max(imageSize.width, 1),
+                containerSize.height / max(imageSize.height, 1)
+            )
+            let displaySize = CGSize(
+                width: imageSize.width * fitScale * zoomScale,
+                height: imageSize.height * fitScale * zoomScale
+            )
+            let currentOffset = clampedPanOffset(
+                proposed: CGSize(
+                    width: panOffset.width + dragTranslation.width,
+                    height: panOffset.height + dragTranslation.height
+                ),
+                containerSize: containerSize,
+                displaySize: displaySize
+            )
+            
+            ZStack {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: displaySize.width, height: displaySize.height)
+                    .offset(x: currentOffset.width, y: currentOffset.height)
+            }
+            .frame(width: containerSize.width, height: containerSize.height)
+            .clipped()
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($dragTranslation) { value, state, _ in
+                        state = value.translation
+                    }
+                    .onEnded { value in
+                        panOffset = clampedPanOffset(
+                            proposed: CGSize(
+                                width: panOffset.width + value.translation.width,
+                                height: panOffset.height + value.translation.height
+                            ),
+                            containerSize: containerSize,
+                            displaySize: displaySize
+                        )
+                    }
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: zoomScale) { _ in
+            panOffset = .zero
+        }
+    }
+    
+    private func clampedPanOffset(
+        proposed: CGSize,
+        containerSize: CGSize,
+        displaySize: CGSize
+    ) -> CGSize {
+        let maxX = displaySize.width > containerSize.width
+            ? (displaySize.width - containerSize.width) / 2
+            : 0
+        let maxY = displaySize.height > containerSize.height
+            ? (displaySize.height - containerSize.height) / 2
+            : 0
+        
+        return CGSize(
+            width: min(max(proposed.width, -maxX), maxX),
+            height: min(max(proposed.height, -maxY), maxY)
+        )
+    }
+    
+    private func resolvedImageSize(_ image: NSImage) -> CGSize {
+        if image.size.width > 0, image.size.height > 0 {
+            return image.size
+        }
+        if let rep = image.representations.first {
+            return CGSize(width: max(rep.pixelsWide, 1), height: max(rep.pixelsHigh, 1))
+        }
+        return CGSize(width: 1, height: 1)
     }
 }
 
