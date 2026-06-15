@@ -2,6 +2,8 @@
 
 A fast, native macOS Finder alternative built with SwiftUI.
 
+[简体中文](README.zh-CN.md)
+
 ## Features
 
 - Fast file browsing and searching
