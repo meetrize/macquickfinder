@@ -2265,64 +2265,79 @@ struct SidebarView: View {
     var onItemsChanged: () -> Void = {}
     
     var body: some View {
-        List {
-            Section("Favorites") {
-                ForEach(favoritesStore.items) { location in
-                    SidebarRow(
-                        title: location.name,
-                        icon: location.icon,
-                        isSelected: isSelected(location.path),
-                        dropDestinationPath: location.path,
-                        onDropURLs: handleSidebarDrop
-                    ) {
-                        path = location.path
-                    }
-                    .contextMenu {
-                        Button("取消收藏", role: .destructive) {
-                            favoritesStore.remove(path: location.path)
-                        }
-                    }
-                }
-            }
-            
-            Section("Devices") {
-                if devices.isEmpty {
-                    Text("No devices")
-                        .foregroundColor(.secondary)
-                } else {
-                    ForEach(devices) { device in
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                sidebarSection("Favorites") {
+                    ForEach(favoritesStore.items) { location in
                         SidebarRow(
-                            title: device.name,
-                            icon: device.icon,
-                            isSelected: isSelected(device.path),
-                            dropDestinationPath: device.path,
-                            onDropURLs: handleSidebarDrop
-                        ) {
-                            path = device.path
+                            title: location.name,
+                            icon: location.icon,
+                            isSelected: isSelected(location.path),
+                            dropDestinationPath: location.path,
+                            onDropURLs: handleSidebarDrop,
+                            onSelect: { path = location.path }
+                        )
+                        .contextMenu {
+                            Button("取消收藏", role: .destructive) {
+                                favoritesStore.remove(path: location.path)
+                            }
                         }
                     }
                 }
-            }
-            
-            Section("位置") {
-                SidebarRow(
-                    title: "废纸篓",
-                    icon: "trash",
-                    isSelected: isSelected(trashPath),
-                    dropDestinationPath: trashPath,
-                    onDropURLs: handleSidebarDrop
-                ) {
-                    path = trashPath
+                
+                sidebarSection("Devices") {
+                    if devices.isEmpty {
+                        Text("No devices")
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                    } else {
+                        ForEach(devices) { device in
+                            SidebarRow(
+                                title: device.name,
+                                icon: device.icon,
+                                isSelected: isSelected(device.path),
+                                dropDestinationPath: device.path,
+                                onDropURLs: handleSidebarDrop,
+                                onSelect: { path = device.path }
+                            )
+                        }
+                    }
+                }
+                
+                sidebarSection("位置") {
+                    SidebarRow(
+                        title: "废纸篓",
+                        icon: "trash",
+                        isSelected: isSelected(trashPath),
+                        dropDestinationPath: trashPath,
+                        onDropURLs: handleSidebarDrop,
+                        onSelect: { path = trashPath }
+                    )
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
         }
-        .listStyle(.sidebar)
         .onAppear(perform: refreshDevices)
         .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didMountNotification)) { _ in
             refreshDevices()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didUnmountNotification)) { _ in
             refreshDevices()
+        }
+    }
+    
+    @ViewBuilder
+    private func sidebarSection<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+            content()
         }
     }
     
@@ -2366,28 +2381,26 @@ struct SidebarRow: View {
     let isSelected: Bool
     var dropDestinationPath: String?
     var onDropURLs: (([URL], String, Bool) -> Void)?
-    let action: () -> Void
+    let onSelect: () -> Void
     
     @State private var isDropTargeted = false
     
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                Text(title)
-                Spacer(minLength: 0)
-            }
-            .font(.body)
-            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-            .padding(.vertical, 4)
-            .padding(.horizontal, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(rowBackgroundColor)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+            Text(title)
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
+        .font(.body)
+        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(rowBackgroundColor)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .onTapGesture(perform: onSelect)
         .onDrop(
             of: [.fileURL],
             delegate: FileDropDelegate(isTargeted: $isDropTargeted) { urls, copy in
