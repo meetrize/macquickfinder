@@ -20,6 +20,7 @@ enum BlankDoubleClickAction: String, CaseIterable, Identifiable {
 
 private enum AppSettings {
     static let blankDoubleClickActionKey = "blankDoubleClickAction"
+    static let previewPanelWidthKey = "previewPanelWidth"
 }
 
 extension ToolbarContent {
@@ -147,95 +148,134 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var showHiddenFiles = false
     @State private var loadGeneration: UInt = 0
+    @AppStorage(AppSettings.previewPanelWidthKey) private var storedPreviewPanelWidth = 320.0
+    @State private var livePreviewPanelWidth: CGFloat = 320
+    
+    private let minPreviewPanelWidth: CGFloat = 200
+    private let minMainPanelWidth: CGFloat = 360
     
     var body: some View {
         NavigationSplitView {
             SidebarView(path: $path)
         } detail: {
-            HStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    HStack {
-                        Button(action: navigateUp) {
-                            Image(systemName: "arrow.up")
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(isLoading)
-                        
-                        TextField("Path", text: $path)
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit(loadItems)
-                        
-                        Button(action: loadItems) {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(isLoading)
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    
-                    Divider()
-                    
-                    if isLoading {
-                        ProgressView()
-                            .padding()
-                    } else {
-                        FileListView(
-                            items: filteredItems,
-                            selection: $selection,
-                            tableSortOrder: $tableSortOrder,
-                            onItemOpen: openItem,
-                            onBlankDoubleClick: handleBlankDoubleClick
-                        )
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .searchable(text: $searchText, prompt: "Search files")
-                .navigationTitle("Explorer")
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(action: createNewFolder) {
-                            LucideIcon.folderPlus
-                        }
-                        .buttonStyle(.borderless)
-                        .help("新建文件夹")
-                    }
-                    .hideSharedBackgroundIfAvailable()
-
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(action: {
-                            showHiddenFiles.toggle()
-                            loadItems()
-                        }) {
-                            Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                    .hideSharedBackgroundIfAvailable()
-                    
-                    ToolbarItem(placement: .primaryAction) {
-                        Menu {
-                            Picker("Sort By", selection: $sortOrder) {
-                                ForEach(SortOrder.allCases) { order in
-                                    Text(order.rawValue).tag(order)
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "arrow.up.arrow.down")
-                        }
-                        .menuStyle(.borderlessButton)
-                    }
-                    .hideSharedBackgroundIfAvailable()
-                }
+            GeometryReader { geometry in
+                let maxPreviewWidth = max(
+                    minPreviewPanelWidth,
+                    geometry.size.width - minMainPanelWidth
+                )
                 
-                if showPreview {
-                    Divider()
-                    FilePreviewView(
-                        showPreview: $showPreview,
-                        selection: selection,
-                        items: items
+                HStack(spacing: 0) {
+                    VStack(spacing: 0) {
+                        HStack {
+                            Button(action: navigateUp) {
+                                Image(systemName: "arrow.up")
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(isLoading)
+                            
+                            TextField("Path", text: $path)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit(loadItems)
+                            
+                            Button(action: loadItems) {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(isLoading)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        
+                        Divider()
+                        
+                        if isLoading {
+                            ProgressView()
+                                .padding()
+                        } else {
+                            FileListView(
+                                items: filteredItems,
+                                selection: $selection,
+                                tableSortOrder: $tableSortOrder,
+                                searchText: searchText,
+                                onItemOpen: openItem,
+                                onBlankDoubleClick: handleBlankDoubleClick
+                            )
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .searchable(text: $searchText, prompt: "Search files")
+                    .navigationTitle("Explorer")
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button(action: createNewFolder) {
+                                LucideIcon.folderPlus
+                            }
+                            .buttonStyle(.borderless)
+                            .help("新建文件夹")
+                        }
+                        .hideSharedBackgroundIfAvailable()
+
+                        ToolbarItem(placement: .primaryAction) {
+                            Button(action: {
+                                showHiddenFiles.toggle()
+                                loadItems()
+                            }) {
+                                Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                        .hideSharedBackgroundIfAvailable()
+                        
+                        ToolbarItem(placement: .primaryAction) {
+                            Menu {
+                                Picker("Sort By", selection: $sortOrder) {
+                                    ForEach(SortOrder.allCases) { order in
+                                        Text(order.rawValue).tag(order)
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "arrow.up.arrow.down")
+                            }
+                            .menuStyle(.borderlessButton)
+                        }
+                        .hideSharedBackgroundIfAvailable()
+                    }
+                    
+                    if showPreview {
+                        HorizontalResizeDivider(
+                            trailingWidth: $livePreviewPanelWidth,
+                            minTrailingWidth: minPreviewPanelWidth,
+                            maxTrailingWidth: maxPreviewWidth,
+                            onDragEnded: {
+                                storedPreviewPanelWidth = Double(livePreviewPanelWidth)
+                            }
+                        )
+                        .frame(width: 6)
+                        .frame(maxHeight: .infinity)
+                        
+                        FilePreviewView(
+                            showPreview: $showPreview,
+                            selection: selection,
+                            items: items
+                        )
+                        .frame(width: livePreviewPanelWidth)
+                    }
+                }
+                .animation(nil, value: livePreviewPanelWidth)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    livePreviewPanelWidth = clampPreviewWidth(
+                        CGFloat(storedPreviewPanelWidth),
+                        maxWidth: maxPreviewWidth
                     )
-                        .frame(minWidth: 240, idealWidth: 320)
+                }
+                .onChange(of: geometry.size.width) { newWidth in
+                    let maxPreview = max(minPreviewPanelWidth, newWidth - minMainPanelWidth)
+                    let clamped = clampPreviewWidth(livePreviewPanelWidth, maxWidth: maxPreview)
+                    if clamped != livePreviewPanelWidth {
+                        livePreviewPanelWidth = clamped
+                        storedPreviewPanelWidth = Double(clamped)
+                    }
                 }
             }
         }
@@ -269,6 +309,10 @@ struct ContentView: View {
             return items
         }
         return items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+    
+    private func clampPreviewWidth(_ width: CGFloat, maxWidth: CGFloat) -> CGFloat {
+        min(max(width, minPreviewPanelWidth), max(maxWidth, minPreviewPanelWidth))
     }
     
     private func loadItems() {
@@ -495,10 +539,49 @@ struct SidebarRow: View {
     }
 }
 
+private struct HighlightedText: View {
+    let text: String
+    let searchText: String
+    var fontWeight: Font.Weight = .regular
+    var opacity: Double = 1.0
+    
+    var body: some View {
+        Text(attributedText)
+            .fontWeight(fontWeight)
+            .opacity(opacity)
+    }
+    
+    private var attributedText: AttributedString {
+        guard !searchText.isEmpty else {
+            return AttributedString(text)
+        }
+        
+        var result = AttributedString(text)
+        var searchStart = text.startIndex
+        
+        while searchStart < text.endIndex {
+            guard let range = text.range(
+                of: searchText,
+                options: [.caseInsensitive, .diacriticInsensitive],
+                range: searchStart..<text.endIndex,
+                locale: .current
+            ) else { break }
+            
+            if let attrRange = Range(range, in: result) {
+                result[attrRange].backgroundColor = .yellow.opacity(0.45)
+            }
+            searchStart = range.upperBound
+        }
+        
+        return result
+    }
+}
+
 struct FileListView: View {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
     @Binding var tableSortOrder: [KeyPathComparator<FileItem>]
+    let searchText: String
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
     
@@ -509,9 +592,12 @@ struct FileListView: View {
                     Image(systemName: item.isDirectory ? "folder" : "doc")
                         .foregroundColor(item.isDirectory ? .blue : .gray)
                         .opacity(item.isHidden ? 0.6 : 1.0)
-                    Text(item.name)
-                        .fontWeight(item.isDirectory ? .medium : .regular)
-                        .opacity(item.isHidden ? 0.6 : 1.0)
+                    HighlightedText(
+                        text: item.name,
+                        searchText: searchText,
+                        fontWeight: item.isDirectory ? .medium : .regular,
+                        opacity: item.isHidden ? 0.6 : 1.0
+                    )
                 }
             }
             .width(min: 220, ideal: 300)
@@ -709,6 +795,105 @@ private struct TableDoubleClickHandler: NSViewRepresentable {
             }
             return nil
         }
+    }
+}
+
+private struct HorizontalResizeDivider: NSViewRepresentable {
+    @Binding var trailingWidth: CGFloat
+    let minTrailingWidth: CGFloat
+    let maxTrailingWidth: CGFloat
+    var onDragEnded: (() -> Void)?
+    
+    func makeNSView(context: Context) -> ResizeDividerNSView {
+        ResizeDividerNSView()
+    }
+    
+    func updateNSView(_ nsView: ResizeDividerNSView, context: Context) {
+        context.coordinator.configure(
+            trailingWidth: $trailingWidth,
+            minTrailingWidth: minTrailingWidth,
+            maxTrailingWidth: maxTrailingWidth,
+            onDragEnded: onDragEnded,
+            view: nsView
+        )
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    final class Coordinator {
+        func configure(
+            trailingWidth: Binding<CGFloat>,
+            minTrailingWidth: CGFloat,
+            maxTrailingWidth: CGFloat,
+            onDragEnded: (() -> Void)?,
+            view: ResizeDividerNSView
+        ) {
+            view.onResize = { delta in
+                let newWidth = trailingWidth.wrappedValue - delta
+                trailingWidth.wrappedValue = min(
+                    max(newWidth, minTrailingWidth),
+                    maxTrailingWidth
+                )
+            }
+            view.onDragEnded = onDragEnded
+        }
+    }
+}
+
+private final class ResizeDividerNSView: NSView {
+    var onResize: ((CGFloat) -> Void)?
+    var onDragEnded: (() -> Void)?
+    private var lastMouseX: CGFloat?
+    private var trackingArea: NSTrackingArea?
+    
+    override var isOpaque: Bool { false }
+    
+    override func resetCursorRects() {
+        discardCursorRects()
+        addCursorRect(bounds, cursor: .resizeLeftRight)
+    }
+    
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.activeInKeyWindow, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect],
+            owner: self
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+    
+    override func cursorUpdate(with event: NSEvent) {
+        NSCursor.resizeLeftRight.set()
+    }
+    
+    override func mouseDown(with event: NSEvent) {
+        lastMouseX = event.locationInWindow.x
+    }
+    
+    override func mouseDragged(with event: NSEvent) {
+        guard let lastX = lastMouseX else { return }
+        let currentX = event.locationInWindow.x
+        let delta = currentX - lastX
+        lastMouseX = currentX
+        onResize?(delta)
+    }
+    
+    override func mouseUp(with event: NSEvent) {
+        lastMouseX = nil
+        onDragEnded?()
+    }
+    
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.separatorColor.setFill()
+        let lineX = floor((bounds.width - 1) / 2)
+        dirtyRect.intersection(NSRect(x: lineX, y: 0, width: 1, height: bounds.height)).fill()
     }
 }
 
