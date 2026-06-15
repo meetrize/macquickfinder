@@ -295,7 +295,7 @@ struct FileListView: View {
     
     var body: some View {
         Table(selection: $selection, sortOrder: $sortingKeyPath) {
-            TableColumn("Name") { item in
+            TableColumn("Name") { (item: FileItem) in
                 HStack {
                     Image(systemName: item.isDirectory ? "folder" : "doc")
                         .foregroundColor(item.isDirectory ? .blue : .gray)
@@ -304,15 +304,6 @@ struct FileListView: View {
                         .fontWeight(item.isDirectory ? .medium : .regular)
                         .opacity(item.isHidden ? 0.6 : 1.0)
                 }
-                .contentShape(Rectangle())
-                .onTapGesture(count: 1) {
-                    selection = [item.id]
-                }
-                .simultaneousGesture(
-                    TapGesture(count: 2).onEnded {
-                        onItemOpen(item)
-                    }
-                )
             }
             .width(min: 220, ideal: 300)
             
@@ -331,10 +322,93 @@ struct FileListView: View {
                 TableRow(item)
             }
         }
+        .background(TableDoubleClickHandler(items: items, onOpen: onItemOpen))
         .onChange(of: sortOrder) { _ in
             selection.removeAll()
         }
+        .transaction { transaction in
+            transaction.animation = nil
+        }
         .tableStyle(.inset)
+    }
+}
+
+/// 通过 NSTableView 原生 doubleAction 处理双击，避免 SwiftUI TapGesture(count: 2) 延迟单击选中。
+private struct TableDoubleClickHandler: NSViewRepresentable {
+    let items: [FileItem]
+    let onOpen: (FileItem) -> Void
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(items: items, onOpen: onOpen)
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.installIfNeeded(from: view)
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.items = items
+        context.coordinator.onOpen = onOpen
+        context.coordinator.installIfNeeded(from: nsView)
+    }
+    
+    final class Coordinator: NSObject {
+        var items: [FileItem]
+        var onOpen: (FileItem) -> Void
+        private weak var tableView: NSTableView?
+        
+        init(items: [FileItem], onOpen: @escaping (FileItem) -> Void) {
+            self.items = items
+            self.onOpen = onOpen
+        }
+        
+        func installIfNeeded(from view: NSView) {
+            guard tableView == nil else { return }
+            guard let tableView = findTableView(startingFrom: view) else {
+                DispatchQueue.main.async { [weak self, weak view] in
+                    guard let self, let view else { return }
+                    self.installIfNeeded(from: view)
+                }
+                return
+            }
+            tableView.target = self
+            tableView.doubleAction = #selector(handleDoubleClick(_:))
+            self.tableView = tableView
+        }
+        
+        @objc func handleDoubleClick(_ sender: NSTableView) {
+            let row = sender.clickedRow
+            guard row >= 0, row < items.count else { return }
+            onOpen(items[row])
+        }
+        
+        private func findTableView(startingFrom view: NSView) -> NSTableView? {
+            var current: NSView? = view
+            while let node = current {
+                if let tableView = node as? NSTableView {
+                    return tableView
+                }
+                if let tableView = findTableView(in: node.subviews) {
+                    return tableView
+                }
+                current = node.superview
+            }
+            return nil
+        }
+        
+        private func findTableView(in views: [NSView]) -> NSTableView? {
+            for view in views {
+                if let tableView = view as? NSTableView {
+                    return tableView
+                }
+                if let tableView = findTableView(in: view.subviews) {
+                    return tableView
+                }
+            }
+            return nil
+        }
     }
 }
 
