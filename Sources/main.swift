@@ -1787,6 +1787,7 @@ struct ContentView: View {
                                 searchText: searchText,
                                 currentDirectoryPath: path,
                                 canNavigateToParent: FileItem.canNavigateUp(from: path),
+                                extendsToTrailingEdge: !showPreview,
                                 onItemOpen: openItem,
                                 onBlankDoubleClick: handleBlankDoubleClick,
                                 onItemsChanged: {
@@ -1800,6 +1801,7 @@ struct ContentView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
                     .focusedValue(\.textFieldEditing, isTextFieldEditing)
                     .background(TextEditingKeyMonitor(isBarFieldEditing: isTextFieldEditing))
                     .background(BarTextFieldFocusSync(activeField: $activeBarField))
@@ -2484,16 +2486,12 @@ struct FileListBlankMenuActions {
 }
 
 private enum FileListTableMetrics {
-    static let blankColumnWidth: CGFloat = 30
+    static let blankAreaWidth: CGFloat = 30
+    /// `.tableStyle(.inset)` 会在表格外侧留出边距，抵消后滚动条才能贴到面板右缘。
+    static let tableStyleTrailingMargin: CGFloat = 12
     
-    static func isBlankColumnClick(in tableView: NSTableView, column: Int) -> Bool {
-        guard column >= 0 else { return false }
-        return column == tableView.numberOfColumns - 1
-    }
-    
-    static func isBlankAreaClick(in tableView: NSTableView, at point: NSPoint) -> Bool {
-        if tableView.row(at: point) < 0 { return true }
-        return isBlankColumnClick(in: tableView, column: tableView.column(at: point))
+    static var verticalScrollerWidth: CGFloat {
+        NSScroller.scrollerWidth(for: .regular, scrollerStyle: .overlay)
     }
 }
 
@@ -2504,6 +2502,8 @@ struct FileListView: View {
     let searchText: String
     let currentDirectoryPath: String
     let canNavigateToParent: Bool
+    /// 无预览面板时，表格区域可延伸到主面板右缘（滚动条贴边）。
+    var extendsToTrailingEdge = true
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
     let onItemsChanged: () -> Void
@@ -2527,6 +2527,55 @@ struct FileListView: View {
     }
     
     var body: some View {
+        fileTable
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(
+                .trailing,
+                extendsToTrailingEdge ? -FileListTableMetrics.tableStyleTrailingMargin : 0
+            )
+            .background(
+                TableScrollViewTrailingInsetHandler(
+                    layoutToken: "\(currentDirectoryPath)|\(tableRowItems.count)"
+                )
+            )
+            .overlay(alignment: .trailing) {
+                BlankAreaHitBlocker(
+                    onSingleClick: {
+                        if !selection.isEmpty {
+                            selection.removeAll()
+                        }
+                    },
+                    onDoubleClick: onBlankDoubleClick
+                )
+                .frame(width: FileListTableMetrics.blankAreaWidth)
+                .frame(maxHeight: .infinity)
+                .padding(.trailing, FileListTableMetrics.verticalScrollerWidth)
+                .contextMenu {
+                    blankAreaContextMenu(inTrash: contextActions.isInTrash)
+                }
+            }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onDrop(
+            of: [.fileURL],
+            delegate: FileDropDelegate(isTargeted: $isCurrentDirectoryDropTargeted) { urls, copy in
+                handleDrop(
+                    into: URL(fileURLWithPath: currentDirectoryPath, isDirectory: true),
+                    urls: urls,
+                    copy: copy
+                )
+            }
+        )
+        .overlay {
+            if isCurrentDirectoryDropTargeted {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 2)
+                    .padding(4)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+    
+    private var fileTable: some View {
         Table(tableRowItems, selection: $selection, sortOrder: preservedTableSortOrder) {
             TableColumn("Name", value: \.name) { (item: FileItem) in
                 fileRowCell(for: item) {
@@ -2580,13 +2629,6 @@ struct FileListView: View {
                 }
             }
             .width(min: 150, ideal: 180)
-            
-            TableColumn("") { (_: FileItem) in
-                Color.clear
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-            }
-            .width(min: FileListTableMetrics.blankColumnWidth, ideal: FileListTableMetrics.blankColumnWidth, max: FileListTableMetrics.blankColumnWidth)
         }
         .background(TableDoubleClickHandler(
             items: tableRowItems,
@@ -2745,24 +2787,6 @@ struct FileListView: View {
             transaction.animation = nil
         }
         .tableStyle(.inset)
-        .onDrop(
-            of: [.fileURL],
-            delegate: FileDropDelegate(isTargeted: $isCurrentDirectoryDropTargeted) { urls, copy in
-                handleDrop(
-                    into: URL(fileURLWithPath: currentDirectoryPath, isDirectory: true),
-                    urls: urls,
-                    copy: copy
-                )
-            }
-        )
-        .overlay {
-            if isCurrentDirectoryDropTargeted {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 2)
-                    .padding(4)
-                    .allowsHitTesting(false)
-            }
-        }
     }
     
     private var preservedTableSortOrder: Binding<[KeyPathComparator<FileItem>]> {
@@ -3464,6 +3488,180 @@ private struct TableDeleteKeyHandler: NSViewRepresentable {
     }
 }
 
+/// 表格铺满至分割线，内容区右侧留出空白；滚动条贴在滚动视图右缘（分割线侧）。
+private struct TableScrollViewTrailingInsetHandler: NSViewRepresentable {
+    let layoutToken: String
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.installIfNeeded(from: view)
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.installIfNeeded(from: nsView)
+        context.coordinator.applyInsetsIfNeeded()
+        DispatchQueue.main.async {
+            context.coordinator.applyInsetsIfNeeded()
+        }
+    }
+    
+    final class Coordinator {
+        private weak var scrollView: NSScrollView?
+        private var insetObservers: [NSKeyValueObservation] = []
+        
+        deinit {
+            insetObservers.removeAll()
+        }
+        
+        func installIfNeeded(from view: NSView) {
+            if scrollView == nil || scrollView?.window == nil {
+                insetObservers.removeAll()
+                scrollView = nil
+                
+                guard let tableView = findTableView(startingFrom: view),
+                      let scrollView = findScrollView(containing: tableView) else {
+                    DispatchQueue.main.async { [weak self, weak view] in
+                        guard let self, let view else { return }
+                        self.installIfNeeded(from: view)
+                    }
+                    return
+                }
+                scrollView.automaticallyAdjustsContentInsets = false
+                self.scrollView = scrollView
+                installInsetObservers(for: scrollView)
+            }
+            applyInsetsIfNeeded()
+        }
+        
+        func applyInsetsIfNeeded() {
+            guard let scrollView else { return }
+            let blank = FileListTableMetrics.blankAreaWidth
+            let needsContentInset = scrollView.contentInsets.right != blank
+            let needsScrollerInset = scrollView.scrollerInsets.right != -blank
+            guard needsContentInset || needsScrollerInset else { return }
+            
+            scrollView.automaticallyAdjustsContentInsets = false
+            if needsContentInset {
+                var contentInsets = scrollView.contentInsets
+                contentInsets.right = blank
+                scrollView.contentInsets = contentInsets
+            }
+            if needsScrollerInset {
+                var scrollerInsets = scrollView.scrollerInsets
+                scrollerInsets.right = -blank
+                scrollView.scrollerInsets = scrollerInsets
+            }
+        }
+        
+        private func installInsetObservers(for scrollView: NSScrollView) {
+            guard insetObservers.isEmpty else { return }
+            insetObservers.append(
+                scrollView.observe(\.contentInsets, options: [.new]) { [weak self] _, _ in
+                    self?.applyInsetsIfNeeded()
+                }
+            )
+            insetObservers.append(
+                scrollView.observe(\.scrollerInsets, options: [.new]) { [weak self] _, _ in
+                    self?.applyInsetsIfNeeded()
+                }
+            )
+        }
+        
+        private func findTableView(startingFrom view: NSView) -> NSTableView? {
+            var current: NSView? = view
+            while let node = current {
+                if let tableView = node as? NSTableView {
+                    return tableView
+                }
+                if let tableView = findTableView(in: node.subviews) {
+                    return tableView
+                }
+                current = node.superview
+            }
+            return nil
+        }
+        
+        private func findTableView(in views: [NSView]) -> NSTableView? {
+            for view in views {
+                if let tableView = view as? NSTableView {
+                    return tableView
+                }
+                if let tableView = findTableView(in: view.subviews) {
+                    return tableView
+                }
+            }
+            return nil
+        }
+        
+        private func findScrollView(containing tableView: NSTableView) -> NSScrollView? {
+            var current: NSView? = tableView.superview
+            while let node = current {
+                if let scrollView = node as? NSScrollView {
+                    return scrollView
+                }
+                current = node.superview
+            }
+            return nil
+        }
+    }
+}
+
+/// 拦截空白区鼠标事件，防止点击落入下方表格引发布局变化。
+private struct BlankAreaHitBlocker: NSViewRepresentable {
+    let onSingleClick: () -> Void
+    let onDoubleClick: () -> Void
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onSingleClick: onSingleClick, onDoubleClick: onDoubleClick)
+    }
+    
+    func makeNSView(context: Context) -> BlankAreaCaptureView {
+        let view = BlankAreaCaptureView()
+        view.coordinator = context.coordinator
+        return view
+    }
+    
+    func updateNSView(_ nsView: BlankAreaCaptureView, context: Context) {
+        context.coordinator.onSingleClick = onSingleClick
+        context.coordinator.onDoubleClick = onDoubleClick
+        nsView.coordinator = context.coordinator
+    }
+    
+    final class Coordinator: NSObject {
+        var onSingleClick: () -> Void
+        var onDoubleClick: () -> Void
+        
+        init(onSingleClick: @escaping () -> Void, onDoubleClick: @escaping () -> Void) {
+            self.onSingleClick = onSingleClick
+            self.onDoubleClick = onDoubleClick
+        }
+    }
+    
+    final class BlankAreaCaptureView: NSView {
+        weak var coordinator: Coordinator?
+        
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            bounds.contains(point) ? self : nil
+        }
+        
+        override func mouseDown(with event: NSEvent) {
+            guard let coordinator else { return }
+            if event.clickCount >= 2 {
+                coordinator.onDoubleClick()
+                return
+            }
+            coordinator.onSingleClick()
+        }
+        
+        override func rightMouseDown(with event: NSEvent) {}
+    }
+}
+
 /// 通过 NSTableView 原生 doubleAction 处理双击，避免 SwiftUI TapGesture(count: 2) 延迟单击选中。
 private struct TableDoubleClickHandler: NSViewRepresentable {
     let items: [FileItem]
@@ -3519,7 +3717,7 @@ private struct TableDoubleClickHandler: NSViewRepresentable {
         
         @objc func handleDoubleClick(_ sender: NSTableView) {
             let row = sender.clickedRow
-            if row < 0 || FileListTableMetrics.isBlankColumnClick(in: sender, column: sender.clickedColumn) {
+            if row < 0 {
                 onBlankDoubleClick()
                 return
             }
@@ -3621,8 +3819,7 @@ private struct TableBlankContextMenuHandler: NSViewRepresentable {
                 }
                 
                 let point = tableView.convert(event.locationInWindow, from: nil)
-                guard tableView.bounds.contains(point),
-                      FileListTableMetrics.isBlankAreaClick(in: tableView, at: point) else {
+                guard tableView.bounds.contains(point), tableView.row(at: point) < 0 else {
                     return event
                 }
                 
