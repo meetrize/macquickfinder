@@ -89,80 +89,12 @@ private enum TextEditingCommands {
     }
 }
 
-private enum TextFieldFocusDetection {
-    static func isToolbarSearchFieldFocused(in window: NSWindow?) -> Bool {
-        guard let window else { return false }
-        
-        if let toolbar = window.toolbar {
-            for item in toolbar.items {
-                guard let searchItem = item as? NSSearchToolbarItem else { continue }
-                if isEditing(searchItem.searchField, in: window) {
-                    return true
-                }
-            }
-        }
-        
-        if let searchField = findSearchField(in: window.contentView),
-           isEditing(searchField, in: window) {
-            return true
-        }
-        
-        guard let responder = window.firstResponder as? NSView else { return false }
-        return responder.enclosingToolbarSearchField() != nil
-    }
-    
-    private static func findSearchField(in view: NSView?) -> NSView? {
-        guard let view else { return nil }
-        if view is NSSearchField { return view }
-        let className = String(describing: type(of: view))
-        if className.contains("SearchField") { return view }
-        for subview in view.subviews {
-            if let found = findSearchField(in: subview) { return found }
-        }
-        return nil
-    }
-    
-    private static func isEditing(_ field: NSView, in window: NSWindow) -> Bool {
-        guard let responder = window.firstResponder else { return false }
-        if responder === field { return true }
-        if let view = responder as? NSView, view.isDescendant(of: field) { return true }
-        if let textView = responder as? NSTextView,
-           let delegate = textView.delegate as? NSObject,
-           delegate === field {
-            return true
-        }
-        return false
-    }
-    
-    /// 地址栏未聚焦时，若 field editor 处于活动状态，则视为工具栏搜索栏在编辑。
-    static func isSupplementaryTextFieldFocused(pathFieldFocused: Bool, in window: NSWindow?) -> Bool {
-        guard !pathFieldFocused, let window else { return false }
-        return window.firstResponder is NSTextView
-    }
-}
-
-private extension NSView {
-    func enclosingToolbarSearchField() -> NSView? {
-        var current: NSView? = self
-        while let node = current {
-            if node is NSSearchField { return node }
-            let className = String(describing: type(of: node))
-            if className.contains("SearchField") || className.contains("SearchToolbar") {
-                return node
-            }
-            current = node.superview
-        }
-        return nil
-    }
-}
-
-/// `.searchable` 无法使用 @FocusState；通过事件监听在按键时动态判断搜索栏焦点并处理文本编辑快捷键。
+/// 地址栏、搜索栏共用的极简输入框样式：浅背景 + 1px 细边框，无阴影。
 private struct TextEditingKeyMonitor: NSViewRepresentable {
-    let isPathFieldFocused: Bool
-    @Binding var isSearchFieldFocused: Bool
+    let isBarFieldEditing: Bool
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(isSearchFieldFocused: $isSearchFieldFocused)
+        Coordinator()
     }
     
     func makeNSView(context: Context) -> NSView {
@@ -172,48 +104,25 @@ private struct TextEditingKeyMonitor: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.isPathFieldFocused = isPathFieldFocused
+        context.coordinator.isBarFieldEditing = isBarFieldEditing
     }
     
     final class Coordinator {
-        @Binding var isSearchFieldFocused: Bool
-        var isPathFieldFocused = false
+        var isBarFieldEditing = false
         private var monitor: Any?
-        
-        init(isSearchFieldFocused: Binding<Bool>) {
-            _isSearchFieldFocused = isSearchFieldFocused
-        }
         
         func install(on view: NSView) {
             guard monitor == nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown]) { [weak self] event in
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self else { return event }
-                self.refreshSearchFocus(in: event.window)
-                guard event.type == .keyDown else { return event }
                 return self.handleKeyDown(event)
             }
         }
         
-        private func refreshSearchFocus(in window: NSWindow?) {
-            let focused = TextFieldFocusDetection.isToolbarSearchFieldFocused(in: window)
-                || TextFieldFocusDetection.isSupplementaryTextFieldFocused(
-                    pathFieldFocused: isPathFieldFocused,
-                    in: window
-                )
-            guard isSearchFieldFocused != focused else { return }
-            isSearchFieldFocused = focused
-        }
-        
         private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+            guard isBarFieldEditing else { return event }
             guard event.modifierFlags.contains(.command) else { return event }
             guard let key = event.charactersIgnoringModifiers?.lowercased() else { return event }
-            
-            let searchFocused = TextFieldFocusDetection.isToolbarSearchFieldFocused(in: event.window)
-                || TextFieldFocusDetection.isSupplementaryTextFieldFocused(
-                    pathFieldFocused: isPathFieldFocused,
-                    in: event.window
-                )
-            guard isPathFieldFocused || searchFocused else { return event }
             
             let selector: Selector?
             switch key {
@@ -287,6 +196,16 @@ extension ToolbarContent {
             sharedBackgroundVisibility(.hidden)
         } else {
             self
+        }
+    }
+}
+
+private struct InlineToolbarTitleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 14.0, *) {
+            content.toolbarTitleDisplayMode(.inline)
+        } else {
+            content
         }
     }
 }
@@ -517,7 +436,7 @@ struct ExplorerApp: App {
                 }
         }
         .windowStyle(.titleBar)
-        .windowToolbarStyle(.unified)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: true))
         .commands {
             FileCommands()
             CommandGroup(after: .sidebar) {
@@ -583,6 +502,321 @@ private struct AdvancedSettingsTab: View {
     }
 }
 
+enum BarTextFieldID: Hashable {
+    case path
+    case search
+}
+
+/// 记录各输入框对应的 NSTextField，供工具栏搜索栏等无法使用 SwiftUI FocusState 的场景聚焦。
+private enum BarTextFieldFocusRegistry {
+    private static weak var pathField: NSTextField?
+    private static weak var searchField: NSTextField?
+    
+    static func register(_ field: NSTextField, for id: BarTextFieldID) {
+        switch id {
+        case .path: pathField = field
+        case .search: searchField = field
+        }
+    }
+    
+    static func focus(_ id: BarTextFieldID) {
+        let field: NSTextField?
+        switch id {
+        case .path: field = pathField
+        case .search: field = searchField
+        }
+        guard let field, let window = field.window else { return }
+        window.makeFirstResponder(field)
+    }
+    
+    static func currentEditingField() -> BarTextFieldID? {
+        if let searchField, isFieldEditing(searchField) { return .search }
+        if let pathField, isFieldEditing(pathField) { return .path }
+        return nil
+    }
+    
+    private static func isFieldEditing(_ field: NSTextField) -> Bool {
+        guard let window = field.window, let responder = window.firstResponder else { return false }
+        if responder === field { return true }
+        if let view = responder as? NSView, view.isDescendant(of: field) { return true }
+        if let textView = responder as? NSTextView,
+           let delegate = textView.delegate as AnyObject?,
+           delegate === field {
+            return true
+        }
+        return false
+    }
+}
+
+/// 根据当前 firstResponder 同步高亮状态，避免 SwiftUI FocusState 与工具栏输入框冲突。
+private struct BarTextFieldFocusSync: NSViewRepresentable {
+    @Binding var activeField: BarTextFieldID?
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(activeField: $activeField)
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.start()
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.syncFromResponder()
+    }
+    
+    final class Coordinator {
+        @Binding var activeField: BarTextFieldID?
+        private var monitor: Any?
+        
+        init(activeField: Binding<BarTextFieldID?>) {
+            _activeField = activeField
+        }
+        
+        func start() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown]) { [weak self] event in
+                DispatchQueue.main.async {
+                    self?.syncFromResponder()
+                }
+                return event
+            }
+        }
+        
+        fileprivate func syncFromResponder() {
+            let current = BarTextFieldFocusRegistry.currentEditingField()
+            guard activeField != current else { return }
+            activeField = current
+        }
+        
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
+    }
+}
+
+enum BarTextFieldShape {
+    case rounded
+    case capsule
+}
+
+/// 工具栏内的 TextField 有时无法可靠同步 @FocusState，通过 NSTextField 编辑状态驱动边框高亮。
+private struct BarTextFieldFocusObserver: NSViewRepresentable {
+    let fieldID: BarTextFieldID
+    @Binding var activeField: BarTextFieldID?
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(fieldID: fieldID, activeField: $activeField)
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.attach(to: view)
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.refreshEditingState()
+    }
+    
+    final class Coordinator {
+        let fieldID: BarTextFieldID
+        @Binding var activeField: BarTextFieldID?
+        private weak var anchorView: NSView?
+        private weak var textField: NSTextField?
+        private var observers: [NSObjectProtocol] = []
+        private var retryCount = 0
+        private var isHooked = false
+        
+        init(fieldID: BarTextFieldID, activeField: Binding<BarTextFieldID?>) {
+            self.fieldID = fieldID
+            _activeField = activeField
+        }
+        
+        func attach(to view: NSView) {
+            guard !isHooked else { return }
+            anchorView = view
+            retryCount = 0
+            hookTextFieldIfNeeded()
+        }
+        
+        private func hookTextFieldIfNeeded() {
+            guard !isHooked, let anchorView else { return }
+            
+            guard let field = findAssociatedTextField(from: anchorView) else {
+                guard retryCount < 20 else { return }
+                retryCount += 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                    self?.hookTextFieldIfNeeded()
+                }
+                return
+            }
+            
+            isHooked = true
+            textField = field
+            BarTextFieldFocusRegistry.register(field, for: fieldID)
+            let center = NotificationCenter.default
+            observers.append(
+                center.addObserver(
+                    forName: NSControl.textDidBeginEditingNotification,
+                    object: field,
+                    queue: .main
+                ) { [weak self] _ in
+                    self?.activateField()
+                }
+            )
+            observers.append(
+                center.addObserver(
+                    forName: NSControl.textDidEndEditingNotification,
+                    object: field,
+                    queue: .main
+                ) { [weak self] _ in
+                    self?.refreshEditingState()
+                }
+            )
+            observers.append(
+                center.addObserver(
+                    forName: NSWindow.didBecomeKeyNotification,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    self?.refreshEditingState()
+                }
+            )
+            refreshEditingState()
+        }
+        
+        private func activateField() {
+            activeField = fieldID
+        }
+        
+        private func deactivateFieldIfNeeded() {
+            guard activeField == fieldID else { return }
+            activeField = BarTextFieldFocusRegistry.currentEditingField()
+        }
+        
+        fileprivate func refreshEditingState() {
+            guard textField != nil else { return }
+            if BarTextFieldFocusRegistry.currentEditingField() == fieldID {
+                activateField()
+            } else {
+                deactivateFieldIfNeeded()
+            }
+        }
+        
+        private func findAssociatedTextField(from anchor: NSView) -> NSTextField? {
+            if let field = anchor as? NSTextField { return field }
+            
+            var current: NSView? = anchor
+            while let node = current {
+                for subview in node.subviews {
+                    guard subview === anchor || anchor.isDescendant(of: subview) else { continue }
+                    if let field = subview as? NSTextField { return field }
+                    if let field = findTextField(in: subview) { return field }
+                }
+                current = node.superview
+            }
+            return nil
+        }
+        
+        private func findTextField(in view: NSView) -> NSTextField? {
+            if let field = view as? NSTextField { return field }
+            for subview in view.subviews {
+                if let field = findTextField(in: subview) { return field }
+            }
+            return nil
+        }
+        
+        deinit {
+            observers.forEach { NotificationCenter.default.removeObserver($0) }
+        }
+    }
+}
+
+struct BarTextField: View {
+    let fieldID: BarTextFieldID
+    let prompt: String
+    @Binding var text: String
+    @Binding var activeField: BarTextFieldID?
+    var icon: String? = nil
+    var shape: BarTextFieldShape = .rounded
+    var showsClearButton = false
+    var onSubmit: (() -> Void)? = nil
+    
+    private let cornerRadius: CGFloat = 7
+    private let fieldHeight: CGFloat = 28
+    
+    private var showsFocusBorder: Bool {
+        activeField == fieldID
+    }
+    
+    private var borderColor: Color {
+        showsFocusBorder ? Color.accentColor : Color(nsColor: .separatorColor)
+    }
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+                .onSubmit { onSubmit?() }
+                .background(
+                    BarTextFieldFocusObserver(fieldID: fieldID, activeField: $activeField)
+                )
+            
+            if showsClearButton, !text.isEmpty {
+                Button {
+                    text = ""
+                    activeField = fieldID
+                    BarTextFieldFocusRegistry.focus(fieldID)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("清除")
+            }
+        }
+        .padding(.horizontal, shape == .capsule ? 10 : 8)
+        .frame(height: fieldHeight)
+        .background {
+            Group {
+                switch shape {
+                case .rounded:
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                case .capsule:
+                    Capsule(style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                }
+            }
+            .allowsHitTesting(false)
+        }
+        .overlay {
+            Group {
+                switch shape {
+                case .rounded:
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(borderColor, lineWidth: 1)
+                case .capsule:
+                    Capsule(style: .continuous)
+                        .strokeBorder(borderColor, lineWidth: 1)
+                }
+            }
+            .allowsHitTesting(false)
+        }
+    }
+}
+
 struct ContentView: View {
     @Binding var showPreview: Bool
     @AppStorage(AppSettings.blankDoubleClickActionKey)
@@ -597,15 +831,14 @@ struct ContentView: View {
     @State private var isSyncingSortFromTable = false
     @State private var isLoading = false
     @State private var searchText = ""
-    @State private var isSearchFieldFocused = false
     @State private var showHiddenFiles = false
     @State private var loadGeneration: UInt = 0
     @AppStorage(AppSettings.previewPanelWidthKey) private var storedPreviewPanelWidth = 320.0
     @State private var livePreviewPanelWidth: CGFloat = 320
-    @FocusState private var isPathFieldFocused: Bool
+    @State private var activeBarField: BarTextFieldID?
     
     private var isTextFieldEditing: Bool {
-        isPathFieldFocused || isSearchFieldFocused
+        activeBarField != nil
     }
     
     private let minPreviewPanelWidth: CGFloat = 200
@@ -626,11 +859,14 @@ struct ContentView: View {
                 
                 HStack(spacing: 0) {
                     VStack(spacing: 0) {
-                        HStack {
-                            TextField("Path", text: pathBinding)
-                                .textFieldStyle(.roundedBorder)
-                                .focused($isPathFieldFocused)
-                                .onSubmit(loadItems)
+                        HStack(spacing: 8) {
+                            BarTextField(
+                                fieldID: .path,
+                                prompt: "Path",
+                                text: pathBinding,
+                                activeField: $activeBarField,
+                                onSubmit: loadItems
+                            )
                             
                             Button(action: loadItems) {
                                 Image(systemName: "arrow.clockwise")
@@ -639,7 +875,7 @@ struct ContentView: View {
                             .disabled(isLoading)
                         }
                         .padding(.horizontal)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                         
                         Divider()
                         
@@ -667,12 +903,10 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .focusedValue(\.textFieldEditing, isTextFieldEditing)
-                    .searchable(text: $searchText, prompt: "Search files")
-                    .background(TextEditingKeyMonitor(
-                        isPathFieldFocused: isPathFieldFocused,
-                        isSearchFieldFocused: $isSearchFieldFocused
-                    ))
+                    .background(TextEditingKeyMonitor(isBarFieldEditing: isTextFieldEditing))
+                    .background(BarTextFieldFocusSync(activeField: $activeBarField))
                     .navigationTitle("Explorer")
+                    .modifier(InlineToolbarTitleModifier())
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
                             Button(action: createNewFolder) {
@@ -707,6 +941,34 @@ struct ContentView: View {
                             .menuStyle(.borderlessButton)
                         }
                         .hideSharedBackgroundIfAvailable()
+                        
+                        ToolbarItem(placement: .primaryAction) {
+                            BarTextField(
+                                fieldID: .search,
+                                prompt: "Search files",
+                                text: $searchText,
+                                activeField: $activeBarField,
+                                icon: "magnifyingglass",
+                                shape: .capsule,
+                                showsClearButton: true
+                            )
+                            .frame(width: 220)
+                        }
+                        .hideSharedBackgroundIfAvailable()
+                    }
+                    .onChange(of: activeBarField) { field in
+                        guard let field else { return }
+                        BarTextFieldFocusRegistry.focus(field)
+                    }
+                    .background {
+                        Button("Focus Search") {
+                            activeBarField = .search
+                        }
+                        .keyboardShortcut("f", modifiers: .command)
+                        .labelsHidden()
+                        .opacity(0)
+                        .frame(width: 0, height: 0)
+                        .accessibilityHidden(true)
                     }
                     
                     if showPreview {
@@ -727,6 +989,7 @@ struct ContentView: View {
                             items: items
                         )
                         .frame(width: livePreviewPanelWidth)
+                        .frame(maxHeight: .infinity, alignment: .top)
                     }
                 }
                 .animation(nil, value: livePreviewPanelWidth)
@@ -1279,7 +1542,7 @@ struct FileListView: View {
             }
             .width(min: 220, ideal: 300)
             
-            TableColumn("Size") { (item: FileItem) in
+            TableColumn("Size", value: \.size) { (item: FileItem) in
                 fileRowCell(for: item) {
                     if item.isParentDirectoryEntry {
                         Text("")
@@ -1549,8 +1812,10 @@ struct FileListView: View {
             return [KeyPathComparator(\.modificationDate, order: .reverse)]
         case .dateOldest:
             return [KeyPathComparator(\.modificationDate, order: .forward)]
-        default:
-            return []
+        case .sizeSmallest:
+            return [KeyPathComparator(\.size, order: .forward)]
+        case .sizeLargest:
+            return [KeyPathComparator(\.size, order: .reverse)]
         }
     }
     
@@ -1558,21 +1823,15 @@ struct FileListView: View {
         guard let first = path.first else { return nil }
         let direction = first.order
         
-        var byPath = sortProbeItems
-        byPath.sort(using: path)
-        
-        var byName = sortProbeItems
-        byName.sort(using: [KeyPathComparator(\.name, order: direction)])
-        if byPath.map(\.id) == byName.map(\.id) {
+        if first.keyPath == \FileItem.name {
             return direction == .reverse ? .nameDescending : .nameAscending
         }
-        
-        var byDate = sortProbeItems
-        byDate.sort(using: [KeyPathComparator(\.modificationDate, order: direction)])
-        if byPath.map(\.id) == byDate.map(\.id) {
+        if first.keyPath == \FileItem.modificationDate {
             return direction == .reverse ? .dateNewest : .dateOldest
         }
-        
+        if first.keyPath == \FileItem.size {
+            return direction == .reverse ? .sizeLargest : .sizeSmallest
+        }
         return nil
     }
     
@@ -1584,42 +1843,6 @@ struct FileListView: View {
         guard let mapped = sortOrder(from: lhs) else { return false }
         return mapped == sortOrder(from: rhs)
     }
-    
-    private static let sortProbeItems: [FileItem] = [
-        FileItem(
-            id: "sort-probe-m",
-            url: URL(fileURLWithPath: "/m"),
-            name: "Middle",
-            isDirectory: false,
-            modificationDate: Date(timeIntervalSince1970: 200),
-            size: 200,
-            isHidden: false,
-            sizeDisplay: "200",
-            dateDisplay: ""
-        ),
-        FileItem(
-            id: "sort-probe-a",
-            url: URL(fileURLWithPath: "/a"),
-            name: "Alpha",
-            isDirectory: false,
-            modificationDate: Date(timeIntervalSince1970: 300),
-            size: 300,
-            isHidden: false,
-            sizeDisplay: "300",
-            dateDisplay: ""
-        ),
-        FileItem(
-            id: "sort-probe-z",
-            url: URL(fileURLWithPath: "/z"),
-            name: "Zulu",
-            isDirectory: false,
-            modificationDate: Date(timeIntervalSince1970: 100),
-            size: 100,
-            isHidden: false,
-            sizeDisplay: "100",
-            dateDisplay: ""
-        )
-    ]
 }
 
 private enum FileDragDrop {
@@ -2458,62 +2681,68 @@ struct FilePreviewView: View {
     let items: [FileItem]
     @State private var imageZoomScale: CGFloat = 1.0
     
+    private var selectedItem: FileItem? {
+        guard let selectedID = selection.first else { return nil }
+        return items.first(where: { $0.id == selectedID })
+    }
+    
     var body: some View {
-        if let selectedID = selection.first, let selectedItem = items.first(where: { $0.id == selectedID }) {
-            VStack(spacing: 0) {
-                HStack(spacing: 6) {
-                    Text(selectedItem.name)
-                        .font(.callout)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    
-                    Spacer(minLength: 0)
-                    
-                    if isImageFile(selectedItem) {
-                        Button {
-                            imageZoomScale = min(imageZoomScale + 0.25, 5.0)
-                        } label: {
-                            Image(systemName: "plus.magnifyingglass")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("放大")
-                        
-                        Button {
-                            imageZoomScale = max(imageZoomScale - 0.25, 1.0)
-                        } label: {
-                            Image(systemName: "minus.magnifyingglass")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("缩小")
-                    }
-                    
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Text(selectedItem?.name ?? "")
+                    .font(.callout)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                
+                Spacer(minLength: 0)
+                
+                if let selectedItem, isImageFile(selectedItem) {
                     Button {
-                        showPreview = false
+                        imageZoomScale = min(imageZoomScale + 0.25, 5.0)
                     } label: {
-                        Image(systemName: "xmark")
+                        Image(systemName: "plus.magnifyingglass")
                     }
                     .buttonStyle(.borderless)
-                    .help("关闭预览")
+                    .help("放大")
+                    
+                    Button {
+                        imageZoomScale = max(imageZoomScale - 0.25, 1.0)
+                    } label: {
+                        Image(systemName: "minus.magnifyingglass")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("缩小")
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
                 
-                Divider()
-                
+                Button {
+                    showPreview = false
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .help("关闭预览")
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            
+            Divider()
+            
+            if let selectedItem {
                 if !selectedItem.isDirectory {
                     FileContentView(item: selectedItem, imageZoomScale: $imageZoomScale)
                         .id(selectedItem.id)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else {
-                    Spacer()
+                    Spacer(minLength: 0)
                 }
+            } else {
+                Text("Select a file to preview")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onChange(of: selectedItem.id) { _ in
-                imageZoomScale = 1.0
-            }
-        } else {
-            Text("Select a file to preview")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onChange(of: selectedItem?.id) { _ in
+            imageZoomScale = 1.0
         }
     }
     
@@ -2540,6 +2769,7 @@ struct FileContentView: View {
         ZStack {
             if isLoading {
                 ProgressView("Loading preview...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let errorMsg = errorMessage {
                 VStack {
                     Image(systemName: "exclamationmark.triangle")
@@ -2573,8 +2803,10 @@ struct FileContentView: View {
             } else {
                 Text("Preview not available for this file type")
                     .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(isImagePreview ? 0 : 12)
         .task(id: item.id) {
             imageZoomScale = 1.0
