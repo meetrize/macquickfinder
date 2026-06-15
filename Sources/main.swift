@@ -768,6 +768,7 @@ struct FilePreviewView: View {
                 // File preview
                 if !selectedItem.isDirectory {
                     FileContentView(item: selectedItem)
+                        .id(selectedItem.id)
                 }
                 
                 Spacer()
@@ -885,85 +886,91 @@ struct FileContentView: View {
             }
         }
         .padding()
-        .onAppear(perform: loadContent)
+        .task(id: item.id) {
+            await loadContent()
+        }
     }
     
-    private func loadContent() {
-        isLoading = true
-        errorMessage = nil
+    private func loadContent() async {
+        let url = item.url
+        let ext = url.pathExtension.lowercased()
+        let itemID = item.id
         
-        let ext = item.url.pathExtension.lowercased()
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+            textContent = ""
+            image = nil
+            pdfDocument = nil
+        }
         
-        // Run on a background thread to avoid UI freezes
-        Task {
-            // Load image files
-            if ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic"].contains(ext) {
-                let nsImage = NSImage(contentsOf: item.url)
-                
-                await MainActor.run {
-                    if let loadedImage = nsImage {
-                        self.image = loadedImage
-                    } else {
-                        self.errorMessage = "Unable to decode image format"
-                    }
-                    self.isLoading = false
-                }
-                return
-            }
-            
-            // Load PDF files
-            if ext == "pdf" {
-                let pdfDoc = PDFDocument(url: item.url)
-                
-                await MainActor.run {
-                    if let loadedPDF = pdfDoc {
-                        self.pdfDocument = loadedPDF
-                    } else {
-                        self.errorMessage = "Unable to load PDF document"
-                    }
-                    self.isLoading = false
-                }
-                return
-            }
-            
-            // Load text files
-            let textExtensions = ["txt", "md", "swift", "java", "py", "js", "html", "css", 
-                                 "json", "xml", "c", "cpp", "h", "sh", "yaml", "yml", 
-                                 "config", "ini", "gitignore", "properties", "log"]
-            
-            if textExtensions.contains(ext) {
-                do {
-                    let data = try Data(contentsOf: item.url)
-                    if let content = String(data: data, encoding: .utf8) {
-                        // Limit text preview to avoid performance issues
-                        let limitedContent = content.count > 20000 
-                            ? String(content.prefix(20000)) + "\n\n[Content truncated...]" 
-                            : content
-                        
-                        await MainActor.run {
-                            self.textContent = limitedContent
-                            self.isLoading = false
-                        }
-                    } else {
-                        await MainActor.run {
-                            self.errorMessage = "Unable to decode text with UTF-8 encoding"
-                            self.isLoading = false
-                        }
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.errorMessage = error.localizedDescription
-                        self.isLoading = false
-                    }
-                }
-                return
-            }
-            
-            // No preview available for other file types
+        func finish(
+            image loadedImage: NSImage? = nil,
+            pdf loadedPDF: PDFDocument? = nil,
+            text content: String? = nil,
+            error: String? = nil
+        ) async {
             await MainActor.run {
-                self.isLoading = false
+                guard !Task.isCancelled, item.id == itemID else { return }
+                image = loadedImage
+                pdfDocument = loadedPDF
+                if let content { textContent = content }
+                errorMessage = error
+                isLoading = false
             }
         }
+        
+        // Load image files
+        if ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic"].contains(ext) {
+            let nsImage = NSImage(contentsOf: url)
+            guard !Task.isCancelled else { return }
+            if let loadedImage = nsImage {
+                await finish(image: loadedImage)
+            } else {
+                await finish(error: "Unable to decode image format")
+            }
+            return
+        }
+        
+        // Load PDF files
+        if ext == "pdf" {
+            let pdfDoc = PDFDocument(url: url)
+            guard !Task.isCancelled else { return }
+            if let loadedPDF = pdfDoc {
+                await finish(pdf: loadedPDF)
+            } else {
+                await finish(error: "Unable to load PDF document")
+            }
+            return
+        }
+        
+        // Load text files
+        let textExtensions = ["txt", "md", "swift", "java", "py", "js", "html", "css",
+                             "json", "xml", "c", "cpp", "h", "sh", "yaml", "yml",
+                             "config", "ini", "gitignore", "properties", "log"]
+        
+        if textExtensions.contains(ext) {
+            do {
+                let data = try Data(contentsOf: url)
+                guard !Task.isCancelled else { return }
+                if let content = String(data: data, encoding: .utf8) {
+                    let limitedContent = content.count > 20000
+                        ? String(content.prefix(20000)) + "\n\n[Content truncated...]"
+                        : content
+                    await finish(text: limitedContent)
+                } else {
+                    await finish(error: "Unable to decode text with UTF-8 encoding")
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                if error is CancellationError { return }
+                await finish(error: error.localizedDescription)
+            }
+            return
+        }
+        
+        // No preview available for other file types
+        await finish()
     }
 }
 
