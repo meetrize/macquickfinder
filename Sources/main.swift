@@ -22,6 +22,7 @@ struct ContentView: View {
     @State private var isLoading = false
     @State private var searchText = ""
     @State private var showHiddenFiles = false
+    @State private var loadGeneration: UInt = 0
     
     var body: some View {
         NavigationSplitView {
@@ -100,6 +101,12 @@ struct ContentView: View {
             FilePreviewView(selection: selection, items: items)
         }
         .onAppear(perform: loadItems)
+        .onChange(of: path) { _ in
+            loadItems()
+        }
+        .onChange(of: sortOrder) { newOrder in
+            items.sort(by: newOrder.comparator)
+        }
     }
     
     private var filteredItems: [FileItem] {
@@ -110,67 +117,66 @@ struct ContentView: View {
     }
     
     private func loadItems() {
-        guard !isLoading else { return }
-        
+        loadGeneration += 1
+        let currentGeneration = loadGeneration
         isLoading = true
         selection.removeAll()
         
-        // Capture values before going into background task
-        let currentPath = path 
+        let currentPath = path
         let shouldShowHiddenFiles = showHiddenFiles
         let currentSortOrder = sortOrder
         
         Task {
-            // Run file operations in a background task
             var loadedItems: [FileItem] = []
-            
             let url = URL(fileURLWithPath: currentPath)
-            var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants, .skipsSubdirectoryDescendants]
+            let propertyKeys: Set<URLResourceKey> = [
+                .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
+            ]
+            let options: FileManager.DirectoryEnumerationOptions = shouldShowHiddenFiles
+                ? [.skipsPackageDescendants]
+                : [.skipsHiddenFiles, .skipsPackageDescendants]
             
-            if !shouldShowHiddenFiles {
-                options.insert(.skipsHiddenFiles)
-            }
-            
-            if let fileEnumerator = FileManager.default.enumerator(
-                at: url,
-                includingPropertiesForKeys: [
-                    .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
-                ],
-                options: options
-            ) {
-                for case let fileURL as URL in fileEnumerator {
-                    do {
-                        let resourceValues = try fileURL.resourceValues(forKeys: [
-                            .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
-                        ])
-                        
-                        let isDirectory = resourceValues.isDirectory ?? false
-                        let modDate = resourceValues.contentModificationDate ?? Date.distantPast
-                        let size = Int64(resourceValues.fileSize ?? 0)
-                        let isHidden = resourceValues.isHidden ?? false
-                        
-                        // Add the item if it's not hidden or if we're showing hidden files
-                        if !isHidden || shouldShowHiddenFiles {
-                            let item = FileItem(
-                                id: fileURL.path,
-                                url: fileURL,
-                                name: fileURL.lastPathComponent,
-                                isDirectory: isDirectory,
-                                modificationDate: modDate,
-                                size: size,
-                                isHidden: isHidden
-                            )
-                            loadedItems.append(item)
-                        }
-                    } catch {
-                        print("Error getting resource values: \(error)")
-                    }
+            do {
+                let urls = try FileManager.default.contentsOfDirectory(
+                    at: url,
+                    includingPropertiesForKeys: Array(propertyKeys),
+                    options: options
+                )
+                
+                for fileURL in urls {
+                    try Task.checkCancellation()
+                    
+                    let resourceValues = try fileURL.resourceValues(forKeys: propertyKeys)
+                    let isDirectory = resourceValues.isDirectory ?? false
+                    let modDate = resourceValues.contentModificationDate ?? Date.distantPast
+                    let size = Int64(resourceValues.fileSize ?? 0)
+                    let isHidden = resourceValues.isHidden ?? false
+                    
+                    loadedItems.append(FileItem(
+                        id: fileURL.path,
+                        url: fileURL,
+                        name: fileURL.lastPathComponent,
+                        isDirectory: isDirectory,
+                        modificationDate: modDate,
+                        size: size,
+                        isHidden: isHidden,
+                        sizeDisplay: isDirectory ? "--" : FileItemFormatters.formatSize(size),
+                        dateDisplay: FileItemFormatters.formatDate(modDate)
+                    ))
                 }
+            } catch is CancellationError {
+                return
+            } catch {
+                print("Error loading directory: \(error)")
             }
             
-            // Update UI on the main thread
+            guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
+            
+            let sorted = loadedItems.sorted(by: currentSortOrder.comparator)
+            
             await MainActor.run {
-                items = loadedItems.sorted(by: currentSortOrder.comparator)
+                guard currentGeneration == loadGeneration else { return }
+                items = sorted
                 isLoading = false
             }
         }
@@ -181,14 +187,12 @@ struct ContentView: View {
         let parent = url.deletingLastPathComponent().path
         if parent != path {
             path = parent
-            loadItems()
         }
     }
     
     private func openItem(_ item: FileItem) {
         if item.isDirectory {
             path = item.url.path
-            loadItems()
         } else {
             NSWorkspace.shared.open(item.url)
         }
@@ -283,13 +287,13 @@ struct FileListView: View {
             .width(min: 220, ideal: 300)
             
             TableColumn("Size") { item in
-                Text(item.isDirectory ? "--" : item.sizeString)
+                Text(item.sizeDisplay)
                     .foregroundColor(.secondary)
             }
             .width(min: 80, ideal: 100)
             
             TableColumn("Date Modified") { item in
-                Text(item.modificationDateString)
+                Text(item.dateDisplay)
             }
             .width(min: 150, ideal: 180)
         } rows: {
@@ -349,8 +353,8 @@ struct FilePreviewView: View {
                         .foregroundColor(.secondary)
                         
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(selectedItem.sizeString)
-                            Text(selectedItem.modificationDateString)
+                            Text(selectedItem.sizeDisplay)
+                            Text(selectedItem.dateDisplay)
                             Text(selectedItem.url.deletingLastPathComponent().path)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
@@ -608,6 +612,30 @@ enum SortOrder: String, CaseIterable, Identifiable {
     }
 }
 
+enum FileItemFormatters {
+    private static let sizeFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useAll]
+        formatter.countStyle = .file
+        return formatter
+    }()
+    
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+    
+    static func formatSize(_ bytes: Int64) -> String {
+        sizeFormatter.string(fromByteCount: bytes)
+    }
+    
+    static func formatDate(_ date: Date) -> String {
+        dateFormatter.string(from: date)
+    }
+}
+
 struct FileItem: Identifiable, Hashable {
     let id: String
     let url: URL
@@ -616,20 +644,8 @@ struct FileItem: Identifiable, Hashable {
     let modificationDate: Date
     let size: Int64
     let isHidden: Bool
-    
-    var sizeString: String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useAll]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: size)
-    }
-    
-    var modificationDateString: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: modificationDate)
-    }
+    let sizeDisplay: String
+    let dateDisplay: String
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
