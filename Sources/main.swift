@@ -34,17 +34,73 @@ extension ToolbarContent {
     }
 }
 
+// Lucide icons (ISC License) — https://lucide.dev
+private enum LucideSVG {
+    static func make(_ svg: String) -> Data {
+        Data(svg.utf8)
+    }
+
+    static let folder = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+""")
+    static let file = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></svg>
+""")
+    static let fileImage = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><circle cx="10" cy="12" r="2"/><path d="m20 17-1.296-1.296a2.41 2.41 0 0 0-3.408 0L9 22"/></svg>
+""")
+    static let fileVideo = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M15.033 13.44a.647.647 0 0 1 0 1.12l-4.065 2.352a.645.645 0 0 1-.968-.56v-4.704a.645.645 0 0 1 .967-.56z"/></svg>
+""")
+    static let fileAudio = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.835V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2h-.343"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M2 19a2 2 0 0 1 4 0v1a2 2 0 0 1-4 0v-4a6 6 0 0 1 12 0v4a2 2 0 0 1-4 0v-1a2 2 0 0 1 4 0"/></svg>
+""")
+    static let fileText = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+""")
+    static let fileCode = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/></svg>
+""")
+    static let fileArchive = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v11.5"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M8 12v-1"/><path d="M8 18v-2"/><path d="M8 7V6"/><circle cx="8" cy="20" r="2"/></svg>
+""")
+    static let fileSpreadsheet = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
+""")
+    static let presentation = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></svg>
+""")
+    static let fileJson = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"/><path d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"/></svg>
+""")
+    static let fileType = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M11 18h2"/><path d="M12 12v6"/><path d="M9 13v-.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5v.5"/></svg>
+""")
+    static let appWindow = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/></svg>
+""")
+    static let box = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+""")
+    static let terminal = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></svg>
+""")
+    static let database = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+""")
+    static let settings = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
+""")
+    static let folderPlus = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+""")
+}
+
 private struct LucideIcon: View {
     let svgData: Data
     var size: CGFloat = 16
 
-    static let folderPlus = LucideIcon(
-        svgData: Data(
-            """
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
-            """.utf8
-        )
-    )
+    static let folderPlus = LucideIcon(svgData: LucideSVG.folderPlus)
 
     var body: some View {
         if let image = NSImage(data: svgData) {
@@ -54,6 +110,135 @@ private struct LucideIcon: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: size, height: size)
         }
+    }
+}
+
+private enum FileIconKind {
+    case folder, generic, image, video, audio, document, pdf, code, json
+    case archive, spreadsheet, presentation, application, package, shell, database, config
+
+    var svgData: Data {
+        switch self {
+        case .folder: LucideSVG.folder
+        case .generic: LucideSVG.file
+        case .image: LucideSVG.fileImage
+        case .video: LucideSVG.fileVideo
+        case .audio: LucideSVG.fileAudio
+        case .document: LucideSVG.fileText
+        case .pdf: LucideSVG.fileType
+        case .code: LucideSVG.fileCode
+        case .json: LucideSVG.fileJson
+        case .archive: LucideSVG.fileArchive
+        case .spreadsheet: LucideSVG.fileSpreadsheet
+        case .presentation: LucideSVG.presentation
+        case .application: LucideSVG.appWindow
+        case .package: LucideSVG.box
+        case .shell: LucideSVG.terminal
+        case .database: LucideSVG.database
+        case .config: LucideSVG.settings
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .folder: .blue
+        case .generic: .secondary
+        case .image: Color(red: 0.2, green: 0.65, blue: 0.45)
+        case .video: Color(red: 0.85, green: 0.25, blue: 0.35)
+        case .audio: Color(red: 0.55, green: 0.35, blue: 0.85)
+        case .document: .secondary
+        case .pdf: Color(red: 0.9, green: 0.3, blue: 0.25)
+        case .code: Color(red: 0.25, green: 0.55, blue: 0.9)
+        case .json: Color(red: 0.85, green: 0.65, blue: 0.15)
+        case .archive: Color(red: 0.6, green: 0.45, blue: 0.3)
+        case .spreadsheet: Color(red: 0.2, green: 0.7, blue: 0.35)
+        case .presentation: Color(red: 0.95, green: 0.5, blue: 0.15)
+        case .application: Color(red: 0.3, green: 0.55, blue: 0.95)
+        case .package: Color(red: 0.5, green: 0.5, blue: 0.55)
+        case .shell: Color(red: 0.35, green: 0.35, blue: 0.4)
+        case .database: Color(red: 0.3, green: 0.65, blue: 0.75)
+        case .config: .secondary
+        }
+    }
+}
+
+private enum FileIconResolver {
+    private static let imageExtensions: Set<String> = [
+        "jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff", "tif", "heic", "heif", "svg", "ico", "avif", "raw"
+    ]
+    private static let videoExtensions: Set<String> = [
+        "mp4", "mov", "m4v", "avi", "mkv", "webm", "wmv", "flv", "mpg", "mpeg", "3gp"
+    ]
+    private static let audioExtensions: Set<String> = [
+        "mp3", "wav", "aiff", "aif", "flac", "m4a", "aac", "ogg", "wma", "opus", "caf"
+    ]
+    private static let documentExtensions: Set<String> = [
+        "txt", "md", "markdown", "rtf", "doc", "docx", "pages", "odt", "tex"
+    ]
+    private static let codeExtensions: Set<String> = [
+        "swift", "py", "js", "ts", "jsx", "tsx", "html", "htm", "css", "scss", "less",
+        "xml", "yaml", "yml", "rb", "go", "rs", "java", "kt", "c", "cpp", "h", "hpp",
+        "m", "mm", "php", "sql", "vue", "svelte", "r", "lua", "pl"
+    ]
+    private static let archiveExtensions: Set<String> = [
+        "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "tgz", "dmg", "iso"
+    ]
+    private static let spreadsheetExtensions: Set<String> = [
+        "xls", "xlsx", "numbers", "ods", "csv", "tsv"
+    ]
+    private static let presentationExtensions: Set<String> = [
+        "ppt", "pptx", "key", "odp"
+    ]
+    private static let packageExtensions: Set<String> = [
+        "bundle", "framework", "appex", "plugin", "kext"
+    ]
+    private static let shellExtensions: Set<String> = [
+        "sh", "bash", "zsh", "command", "tool"
+    ]
+    private static let databaseExtensions: Set<String> = [
+        "db", "sqlite", "sqlite3", "mdb"
+    ]
+    private static let configExtensions: Set<String> = [
+        "plist", "env", "ini", "conf", "cfg", "toml", "properties"
+    ]
+
+    static func kind(for item: FileItem) -> FileIconKind {
+        let ext = item.url.pathExtension.lowercased()
+
+        if ext == "app" { return .application }
+        if packageExtensions.contains(ext) { return .package }
+        if item.isDirectory { return .folder }
+
+        switch ext {
+        case "pdf": return .pdf
+        case "json", "jsonc": return .json
+        case _ where imageExtensions.contains(ext): return .image
+        case _ where videoExtensions.contains(ext): return .video
+        case _ where audioExtensions.contains(ext): return .audio
+        case _ where documentExtensions.contains(ext): return .document
+        case _ where shellExtensions.contains(ext): return .shell
+        case _ where codeExtensions.contains(ext): return .code
+        case _ where archiveExtensions.contains(ext): return .archive
+        case _ where spreadsheetExtensions.contains(ext): return .spreadsheet
+        case _ where presentationExtensions.contains(ext): return .presentation
+        case _ where databaseExtensions.contains(ext): return .database
+        case _ where configExtensions.contains(ext): return .config
+        default: return .generic
+        }
+    }
+}
+
+private struct FileItemIcon: View {
+    let item: FileItem
+
+    private var kind: FileIconKind {
+        FileIconResolver.kind(for: item)
+    }
+
+    var body: some View {
+        LucideIcon(svgData: kind.svgData)
+            .foregroundStyle(kind.tint)
+            .opacity(item.isHidden ? 0.6 : 1.0)
     }
 }
 
@@ -589,9 +774,7 @@ struct FileListView: View {
         Table(items, selection: $selection, sortOrder: $tableSortOrder) {
             TableColumn("Name", value: \.name) { (item: FileItem) in
                 HStack {
-                    Image(systemName: item.isDirectory ? "folder" : "doc")
-                        .foregroundColor(item.isDirectory ? .blue : .gray)
-                        .opacity(item.isHidden ? 0.6 : 1.0)
+                    FileItemIcon(item: item)
                     HighlightedText(
                         text: item.name,
                         searchText: searchText,
