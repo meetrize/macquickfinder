@@ -64,7 +64,17 @@ if [ -f "$ICON_PNG" ]; then
     
     echo "App icon created successfully at $RESOURCES_DIR/AppIcon.icns"
 else
-    echo "PNG icon file not found at $ICON_PNG. Using a placeholder icon instead."
+    echo "PNG icon file not found at $ICON_PNG."
+    # Reuse existing icon from a previous build if available
+    EXISTING_ICON="Explorer.app/Contents/Resources/AppIcon.icns"
+    if [ -f "$EXISTING_ICON" ] && [ "$EXISTING_ICON" != "$ICON_PATH" ]; then
+        cp "$EXISTING_ICON" "$ICON_PATH"
+        echo "Copied existing icon from $EXISTING_ICON"
+    elif [ -f "$EXISTING_ICON" ]; then
+        echo "Using existing icon at $EXISTING_ICON"
+    else
+        echo "No icon available. You can add Explorer/Resources/icon.png to generate one."
+    fi
 fi
 
 # Use a placeholder if icon creation failed
