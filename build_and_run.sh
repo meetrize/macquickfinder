@@ -88,8 +88,15 @@ fi
 # Make the binary executable
 chmod +x "$MACOS_DIR/Explorer"
 
-# Ad-hoc 签名，便于系统识别应用身份（TCC、Gatekeeper 等）
-codesign --force --deep --sign - "./$APP_NAME" 2>/dev/null || echo "Warning: codesign failed (Terminal open still works without automation permission)"
+# Ad-hoc 签名（含 Apple Events entitlement，废纸篓需自动化权限）
+ENTITLEMENTS="Explorer/Explorer.entitlements"
+if [ -f "$ENTITLEMENTS" ]; then
+    codesign --force --deep --sign - --entitlements "$ENTITLEMENTS" "./$APP_NAME" 2>/dev/null \
+        || echo "Warning: codesign with entitlements failed"
+else
+    codesign --force --deep --sign - "./$APP_NAME" 2>/dev/null \
+        || echo "Warning: codesign failed"
+fi
 
 echo "Application bundle created at ./$APP_NAME"
 

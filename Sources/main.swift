@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ApplicationServices
 import PDFKit
 import UniformTypeIdentifiers
 
@@ -23,6 +24,7 @@ private enum AppSettings {
     static let blankDoubleClickActionKey = "blankDoubleClickAction"
     static let previewPanelWidthKey = "previewPanelWidth"
     static let favoritesKey = "favoriteLocations"
+    static let trashRestoreRecordsKey = "trashRestoreRecords"
 }
 
 struct FileCommandHandlers {
@@ -308,6 +310,10 @@ struct ExplorerApp: App {
         WindowGroup {
             ContentView(showPreview: $showPreview)
                 .frame(minWidth: 800, minHeight: 600)
+                .onAppear {
+                    FileDragDebug.resetLogFile()
+                    FileDragDebug.log("app launched logPath=\(FileDragDebug.logPath)")
+                }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
@@ -400,7 +406,10 @@ struct ContentView: View {
     
     var body: some View {
         NavigationSplitView {
-            SidebarView(path: $path)
+            SidebarView(path: $path, onItemsChanged: {
+                selection.removeAll()
+                loadItems()
+            })
         } detail: {
             GeometryReader { geometry in
                 let maxPreviewWidth = max(
@@ -417,7 +426,7 @@ struct ContentView: View {
                             .buttonStyle(.bordered)
                             .disabled(isLoading)
                             
-                            TextField("Path", text: $path)
+                            TextField("Path", text: pathBinding)
                                 .textFieldStyle(.roundedBorder)
                                 .onSubmit(loadItems)
                             
@@ -444,6 +453,10 @@ struct ContentView: View {
                                 currentDirectoryPath: path,
                                 onItemOpen: openItem,
                                 onBlankDoubleClick: handleBlankDoubleClick,
+                                onItemsChanged: {
+                                    selection.removeAll()
+                                    loadItems()
+                                },
                                 contextActions: fileContextActions
                             )
                             .focusedValue(\.fileCommandHandlers, fileCommandHandlers)
@@ -558,6 +571,19 @@ struct ContentView: View {
         return items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
     
+    private var pathBinding: Binding<String> {
+        Binding(
+            get: {
+                TrashLoader.isTrashPath(path) ? TrashLoader.displayName : path
+            },
+            set: { newValue in
+                if newValue != TrashLoader.displayName {
+                    path = newValue
+                }
+            }
+        )
+    }
+    
     private func clampPreviewWidth(_ width: CGFloat, maxWidth: CGFloat) -> CGFloat {
         min(max(width, minPreviewPanelWidth), max(maxWidth, minPreviewPanelWidth))
     }
@@ -574,46 +600,40 @@ struct ContentView: View {
         
         Task {
             var loadedItems: [FileItem] = []
-            let url = URL(fileURLWithPath: currentPath)
-            let propertyKeys: Set<URLResourceKey> = [
-                .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
-            ]
-            let options: FileManager.DirectoryEnumerationOptions = shouldShowHiddenFiles
-                ? [.skipsPackageDescendants]
-                : [.skipsHiddenFiles, .skipsPackageDescendants]
             
-            do {
-                let urls = try FileManager.default.contentsOfDirectory(
-                    at: url,
-                    includingPropertiesForKeys: Array(propertyKeys),
-                    options: options
-                )
+            if TrashLoader.isTrashPath(currentPath) {
+                loadedItems = await TrashLoader.loadItems(showHiddenFiles: shouldShowHiddenFiles)
+            } else {
+                let url = URL(fileURLWithPath: currentPath)
+                let propertyKeys: Set<URLResourceKey> = [
+                    .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
+                ]
+                let options: FileManager.DirectoryEnumerationOptions = shouldShowHiddenFiles
+                    ? [.skipsPackageDescendants]
+                    : [.skipsHiddenFiles, .skipsPackageDescendants]
                 
-                for fileURL in urls {
-                    try Task.checkCancellation()
+                do {
+                    let urls = try FileManager.default.contentsOfDirectory(
+                        at: url,
+                        includingPropertiesForKeys: Array(propertyKeys),
+                        options: options
+                    )
                     
-                    let resourceValues = try fileURL.resourceValues(forKeys: propertyKeys)
-                    let isDirectory = resourceValues.isDirectory ?? false
-                    let modDate = resourceValues.contentModificationDate ?? Date.distantPast
-                    let size = Int64(resourceValues.fileSize ?? 0)
-                    let isHidden = resourceValues.isHidden ?? false
-                    
-                    loadedItems.append(FileItem(
-                        id: fileURL.path,
-                        url: fileURL,
-                        name: fileURL.lastPathComponent,
-                        isDirectory: isDirectory,
-                        modificationDate: modDate,
-                        size: size,
-                        isHidden: isHidden,
-                        sizeDisplay: isDirectory ? "--" : FileItemFormatters.formatSize(size),
-                        dateDisplay: FileItemFormatters.formatDate(modDate)
-                    ))
+                    for fileURL in urls {
+                        try Task.checkCancellation()
+                        
+                        guard let item = TrashLoader.fileItem(
+                            from: fileURL,
+                            propertyKeys: propertyKeys
+                        ) else { continue }
+                        
+                        loadedItems.append(item)
+                    }
+                } catch is CancellationError {
+                    return
+                } catch {
+                    print("Error loading directory: \(error)")
                 }
-            } catch is CancellationError {
-                return
-            } catch {
-                print("Error loading directory: \(error)")
             }
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
@@ -642,6 +662,11 @@ struct ContentView: View {
     }
     
     private func navigateUp() {
+        if TrashLoader.isTrashPath(path) {
+            path = FileManager.default.homeDirectoryForCurrentUser.path
+            return
+        }
+        
         let url = URL(fileURLWithPath: path)
         let parent = url.deletingLastPathComponent().path
         if parent != path {
@@ -716,7 +741,26 @@ struct ContentView: View {
                 }
             },
             isFavorited: { FavoritesStore.shared.contains(path: $0.url.path) },
-            addToFavorites: { FavoritesStore.shared.addDirectory(at: $0.url.path) }
+            addToFavorites: { FavoritesStore.shared.addDirectory(at: $0.url.path) },
+            isInTrash: TrashLoader.isTrashPath(path),
+            emptyTrash: {
+                FileOperations.emptyTrash {
+                    selection.removeAll()
+                    loadItems()
+                }
+            },
+            putBack: { items in
+                FileOperations.putBack(items) {
+                    selection.removeAll()
+                    loadItems()
+                }
+            },
+            deleteImmediately: { items in
+                FileOperations.deleteImmediately(items) {
+                    selection.removeAll()
+                    loadItems()
+                }
+            }
         )
     }
     
@@ -756,6 +800,7 @@ struct SidebarView: View {
     @Binding var path: String
     @ObservedObject private var favoritesStore = FavoritesStore.shared
     @State private var devices: [SidebarVolume] = []
+    var onItemsChanged: () -> Void = {}
     
     var body: some View {
         List {
@@ -764,7 +809,9 @@ struct SidebarView: View {
                     SidebarRow(
                         title: location.name,
                         icon: location.icon,
-                        isSelected: isSelected(location.path)
+                        isSelected: isSelected(location.path),
+                        dropDestinationPath: location.path,
+                        onDropURLs: handleSidebarDrop
                     ) {
                         path = location.path
                     }
@@ -785,11 +832,25 @@ struct SidebarView: View {
                         SidebarRow(
                             title: device.name,
                             icon: device.icon,
-                            isSelected: isSelected(device.path)
+                            isSelected: isSelected(device.path),
+                            dropDestinationPath: device.path,
+                            onDropURLs: handleSidebarDrop
                         ) {
                             path = device.path
                         }
                     }
+                }
+            }
+            
+            Section("位置") {
+                SidebarRow(
+                    title: "废纸篓",
+                    icon: "trash",
+                    isSelected: isSelected(trashPath),
+                    dropDestinationPath: trashPath,
+                    onDropURLs: handleSidebarDrop
+                ) {
+                    path = trashPath
                 }
             }
         }
@@ -807,8 +868,15 @@ struct SidebarView: View {
         devices = SidebarVolumeLoader.load()
     }
     
+    private var trashPath: String {
+        TrashLoader.userTrashPath
+    }
+    
     private func isSelected(_ sidebarPath: String) -> Bool {
-        Self.pathsRepresentSameLocation(path, sidebarPath)
+        if TrashLoader.isTrashPath(sidebarPath) {
+            return TrashLoader.isTrashPath(path)
+        }
+        return Self.pathsRepresentSameLocation(path, sidebarPath)
     }
     
     private static func pathsRepresentSameLocation(_ lhs: String, _ rhs: String) -> Bool {
@@ -819,13 +887,26 @@ struct SidebarView: View {
         let systemVolumeRoots: Set<String> = ["/", "/System/Volumes/Data"]
         return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
     }
+    
+    private func handleSidebarDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
+        if TrashLoader.isTrashPath(destinationPath) {
+            FileOperations.trashItems(urls, completion: onItemsChanged)
+            return
+        }
+        let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
+        FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
+    }
 }
 
 struct SidebarRow: View {
     let title: String
     let icon: String
     let isSelected: Bool
+    var dropDestinationPath: String?
+    var onDropURLs: (([URL], String, Bool) -> Void)?
     let action: () -> Void
+    
+    @State private var isDropTargeted = false
     
     var body: some View {
         Button(action: action) {
@@ -840,11 +921,34 @@ struct SidebarRow: View {
             .padding(.horizontal, 8)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(isSelected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor) : .clear)
+                    .fill(rowBackgroundColor)
             )
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .buttonStyle(.plain)
+        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+            guard let destinationPath = dropDestinationPath,
+                  let onDropURLs else {
+                return false
+            }
+            let copy = FileDragDrop.shouldCopyFromCurrentEvent()
+            Task { @MainActor in
+                let urls = await FileDragDrop.loadFileURLs(from: providers)
+                guard !urls.isEmpty else { return }
+                onDropURLs(urls, destinationPath, copy)
+            }
+            return true
+        }
+    }
+    
+    private var rowBackgroundColor: Color {
+        if isDropTargeted {
+            return Color.accentColor.opacity(0.2)
+        }
+        if isSelected {
+            return Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
+        }
+        return .clear
     }
 }
 
@@ -900,6 +1004,10 @@ struct FileContextActions {
     var paste: (String) -> Void = { _ in }
     var isFavorited: (FileItem) -> Bool = { _ in false }
     var addToFavorites: (FileItem) -> Void = { _ in }
+    var isInTrash: Bool = false
+    var emptyTrash: () -> Void = {}
+    var putBack: ([FileItem]) -> Void = { _ in }
+    var deleteImmediately: ([FileItem]) -> Void = { _ in }
 }
 
 struct FileListView: View {
@@ -910,31 +1018,44 @@ struct FileListView: View {
     let currentDirectoryPath: String
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
+    let onItemsChanged: () -> Void
     let contextActions: FileContextActions
+    
+    @State private var isCurrentDirectoryDropTargeted = false
+    @State private var folderDropTargetID: FileItem.ID?
     
     var body: some View {
         Table(items, selection: $selection, sortOrder: $tableSortOrder) {
             TableColumn("Name", value: \.name) { (item: FileItem) in
-                HStack {
-                    FileItemIcon(item: item)
-                    HighlightedText(
-                        text: item.name,
-                        searchText: searchText,
-                        fontWeight: item.isDirectory ? .medium : .regular,
-                        opacity: item.isHidden ? 0.6 : 1.0
-                    )
+                fileRowCell(for: item, enableFolderDrop: true) {
+                    HStack(spacing: 6) {
+                        FileItemIcon(item: item)
+                        HighlightedText(
+                            text: item.name,
+                            searchText: searchText,
+                            fontWeight: item.isDirectory ? .medium : .regular,
+                            opacity: item.isHidden ? 0.6 : 1.0
+                        )
+                    }
+                    .overlay {
+                        FileDragZoneAnchor(item: item)
+                    }
                 }
             }
             .width(min: 220, ideal: 300)
             
             TableColumn("Size") { item in
-                Text(item.sizeDisplay)
-                    .foregroundColor(.secondary)
+                fileRowCell(for: item) {
+                    Text(item.sizeDisplay)
+                        .foregroundColor(.secondary)
+                }
             }
             .width(min: 80, ideal: 100)
             
             TableColumn("Date Modified", value: \.modificationDate) { item in
-                Text(item.dateDisplay)
+                fileRowCell(for: item) {
+                    Text(item.dateDisplay)
+                }
             }
             .width(min: 150, ideal: 180)
         }
@@ -949,8 +1070,54 @@ struct FileListView: View {
                 contextActions.delete(items(for: selection))
             }
         ))
+        .background(TableFileDragDropHandler(
+            items: items,
+            selection: selection,
+            onItemOpen: onItemOpen,
+            onDragEnded: onItemsChanged
+        ))
+        .background(TableTrashBlankContextMenuHandler(
+            isEnabled: contextActions.isInTrash,
+            onEmptyTrash: contextActions.emptyTrash
+        ))
         .contextMenu(forSelectionType: FileItem.ID.self) { ids in
             let selected = items(for: ids)
+            let inTrash = contextActions.isInTrash
+            
+            if inTrash && selected.isEmpty {
+                Button("清倒废纸篓", role: .destructive) {
+                    contextActions.emptyTrash()
+                }
+            }
+            
+            if inTrash && !selected.isEmpty {
+                if selected.count == 1, let item = selected.first {
+                    Button("打开") {
+                        contextActions.open(item)
+                    }
+                } else {
+                    Button("打开") {
+                        for item in selected {
+                            contextActions.open(item)
+                        }
+                    }
+                }
+                
+                Divider()
+                
+                Button("放回原处") {
+                    contextActions.putBack(selected)
+                }
+                Button("立刻删除", role: .destructive) {
+                    contextActions.deleteImmediately(selected)
+                }
+                
+                Divider()
+                
+                Button("清倒废纸篓", role: .destructive) {
+                    contextActions.emptyTrash()
+                }
+            } else if !selected.isEmpty {
             let destination = FileOperations.pasteDestination(
                 selectedItems: selected,
                 currentDirectoryPath: currentDirectoryPath
@@ -963,7 +1130,6 @@ struct FileListView: View {
                 }
             }
             
-            if !selected.isEmpty {
                 if showPaste {
                     Divider()
                 }
@@ -1039,6 +1205,60 @@ struct FileListView: View {
             transaction.animation = nil
         }
         .tableStyle(.inset)
+        .onDrop(of: [.fileURL], isTargeted: $isCurrentDirectoryDropTargeted) { providers in
+            handleDrop(into: URL(fileURLWithPath: currentDirectoryPath, isDirectory: true), providers: providers)
+        }
+        .overlay {
+            if isCurrentDirectoryDropTargeted {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 2)
+                    .padding(4)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func fileRowCell<Content: View>(
+        for item: FileItem,
+        enableFolderDrop: Bool = false,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let isFolderDropTarget = folderDropTargetID == item.id
+        
+        let row = content()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(isFolderDropTarget ? Color.accentColor.opacity(0.18) : Color.clear)
+            )
+        
+        if enableFolderDrop, item.isDirectory {
+            row.onDrop(
+                of: [.fileURL],
+                isTargeted: Binding(
+                    get: { folderDropTargetID == item.id },
+                    set: { isTargeted in
+                        folderDropTargetID = isTargeted ? item.id : nil
+                    }
+                )
+            ) { providers in
+                handleDrop(into: item.url, providers: providers)
+            }
+        } else {
+            row
+        }
+    }
+    
+    private func handleDrop(into destination: URL, providers: [NSItemProvider]) -> Bool {
+        let copy = FileDragDrop.shouldCopyFromCurrentEvent()
+        Task { @MainActor in
+            let urls = await FileDragDrop.loadFileURLs(from: providers)
+            guard !urls.isEmpty else { return }
+            guard FileOperations.canMoveItems(urls, to: destination) else { return }
+            FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
+        }
+        return true
     }
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
@@ -1126,6 +1346,369 @@ struct FileListView: View {
             dateDisplay: ""
         )
     ]
+}
+
+private enum FileDragDrop {
+    static func draggedItems(for item: FileItem, in items: [FileItem], selection: Set<FileItem.ID>) -> [FileItem] {
+        if selection.contains(item.id) {
+            return items.filter { selection.contains($0.id) }
+        }
+        return [item]
+    }
+    
+    static func draggedItemProviders(
+        for item: FileItem,
+        in items: [FileItem],
+        selection: Set<FileItem.ID>
+    ) -> NSItemProvider {
+        let draggedItems = draggedItems(for: item, in: items, selection: selection)
+        let provider = NSItemProvider()
+        for draggedItem in draggedItems {
+            provider.registerObject(draggedItem.url as NSURL, visibility: .all)
+        }
+        return provider
+    }
+    
+    static func shouldCopyFromCurrentEvent() -> Bool {
+        NSApp.currentEvent?.modifierFlags.contains(.option) == true
+    }
+    
+    static func loadFileURLs(from providers: [NSItemProvider]) async -> [URL] {
+        var urls: [URL] = []
+        for provider in providers {
+            if let url = await loadFileURL(from: provider) {
+                urls.append(url)
+            }
+        }
+        return urls
+    }
+    
+    private static func loadFileURL(from provider: NSItemProvider) async -> URL? {
+        await withCheckedContinuation { continuation in
+            _ = provider.loadObject(ofClass: URL.self) { item, _ in
+                continuation.resume(returning: item?.standardizedFileURL)
+            }
+        }
+    }
+}
+
+private enum FileDragDebug {
+    /// 调试完成后可改为 `false`
+    static var isEnabled = true
+    static let logPath = "/tmp/macquickfinder-filedrag.log"
+    
+    static func resetLogFile() {
+        let header = "=== FileDrag log started \(ISO8601DateFormatter().string(from: Date())) ===\n"
+        try? header.write(toFile: logPath, atomically: true, encoding: .utf8)
+    }
+    
+    static func log(_ message: @autoclosure () -> String) {
+        guard isEnabled else { return }
+        let line = "[FileDrag] \(message())"
+        appendToLogFile(line)
+        // 仅当 stderr 是终端时才打印，避免管道/grep 影响 GUI 启动
+        if isatty(STDERR_FILENO) != 0 {
+            fputs(line + "\n", stderr)
+        }
+    }
+    
+    private static func appendToLogFile(_ line: String) {
+        let url = URL(fileURLWithPath: logPath)
+        guard let data = (line + "\n").data(using: .utf8) else { return }
+        if FileManager.default.fileExists(atPath: logPath) {
+            guard let handle = try? FileHandle(forWritingTo: url) else { return }
+            defer { try? handle.close() }
+            handle.seekToEndOfFile()
+            handle.write(data)
+        } else {
+            try? data.write(to: url)
+        }
+    }
+}
+
+/// 标记图标+文件名区域；在此视图上直接处理文件拖拽（SwiftUIOutlineTableView 会吞掉全局 mouseDragged）。
+private struct FileDragZoneAnchor: NSViewRepresentable {
+    static let zoneIdentifier = NSUserInterfaceItemIdentifier("FileDragZone")
+    let item: FileItem
+    
+    func makeNSView(context: Context) -> FileDragZoneView {
+        let view = FileDragZoneView()
+        view.item = item
+        return view
+    }
+    
+    func updateNSView(_ nsView: FileDragZoneView, context: Context) {
+        nsView.item = item
+    }
+}
+
+private final class FileDragZoneRegistry {
+    static let shared = FileDragZoneRegistry()
+    private var framesByItemID: [String: CGRect] = [:]
+    
+    func update(itemID: String, frameInWindow: CGRect) {
+        framesByItemID[itemID] = frameInWindow
+        FileDragDebug.log(
+            "registry update item=\(itemID.suffix(24)) frame=\(NSStringFromRect(frameInWindow))"
+        )
+    }
+    
+    func contains(itemID: String, pointInWindow: NSPoint) -> Bool {
+        guard let frame = framesByItemID[itemID], frame.width > 0, frame.height > 0 else {
+            return false
+        }
+        return frame.contains(pointInWindow)
+    }
+    
+    func frame(for itemID: String) -> CGRect? {
+        framesByItemID[itemID]
+    }
+}
+
+private final class FileDragZoneView: NSView {
+    var item: FileItem?
+    
+    private var mouseDownLocation: NSPoint?
+    private var dragSessionActive = false
+    private let dragThreshold: CGFloat = 4
+    
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        identifier = FileDragZoneAnchor.zoneIdentifier
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        identifier = FileDragZoneAnchor.zoneIdentifier
+    }
+    
+    override func layout() {
+        super.layout()
+        guard let item, !item.id.isEmpty else { return }
+        if bounds.width <= 1 || bounds.height <= 1 {
+            FileDragDebug.log(
+                "zone layout skip item=\(item.id.suffix(24)) bounds=\(NSStringFromRect(bounds))"
+            )
+            return
+        }
+        let frameInWindow = convert(bounds, to: nil)
+        FileDragZoneRegistry.shared.update(itemID: item.id, frameInWindow: frameInWindow)
+    }
+    
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        needsLayout = true
+    }
+    
+    override func mouseDown(with event: NSEvent) {
+        guard let item else { return }
+        mouseDownLocation = event.locationInWindow
+        dragSessionActive = false
+        
+        if event.clickCount >= 2 {
+            FileDragDebug.log("zone doubleClick item=\(item.name)")
+            TableFileDragCoordinator.shared?.openItem(item)
+            return
+        }
+        
+        TableFileDragCoordinator.shared?.selectRow(for: item, event: event)
+        FileDragDebug.log("zone mouseDown item=\(item.name)")
+    }
+    
+    override func mouseDragged(with event: NSEvent) {
+        guard let item, !dragSessionActive, let start = mouseDownLocation else { return }
+        let distance = hypot(
+            event.locationInWindow.x - start.x,
+            event.locationInWindow.y - start.y
+        )
+        guard distance >= dragThreshold else { return }
+        
+        FileDragDebug.log(
+            "zone mouseDragged START item=\(item.name) distance=\(String(format: "%.1f", distance))"
+        )
+        dragSessionActive = true
+        TableFileDragCoordinator.shared?.beginFileDrag(for: item, event: event, dragZoneView: self)
+    }
+    
+    override func mouseUp(with event: NSEvent) {
+        mouseDownLocation = nil
+        dragSessionActive = false
+    }
+}
+
+/// 共享的文件拖拽协调器（热区视图 + 拖拽会话）。
+private final class TableFileDragCoordinator: NSObject, NSDraggingSource {
+    static weak var shared: TableFileDragCoordinator?
+    
+    weak var tableView: NSTableView?
+    var items: [FileItem] = []
+    var selection: Set<FileItem.ID> = []
+    var onItemOpen: ((FileItem) -> Void)?
+    var onDragEnded: (() -> Void)?
+    
+    func openItem(_ item: FileItem) {
+        onItemOpen?(item)
+    }
+    
+    func selectRow(for item: FileItem, event: NSEvent) {
+        guard let tableView else { return }
+        guard let row = items.firstIndex(where: { $0.id == item.id }) else { return }
+        
+        let rowIndex = IndexSet(integer: row)
+        let flags = event.modifierFlags
+        if flags.contains(.command) {
+            var selected = tableView.selectedRowIndexes
+            if selected.contains(row) {
+                selected.remove(row)
+            } else {
+                selected.insert(row)
+            }
+            tableView.selectRowIndexes(selected, byExtendingSelection: false)
+        } else if flags.contains(.shift) {
+            tableView.selectRowIndexes(rowIndex, byExtendingSelection: true)
+        } else {
+            tableView.selectRowIndexes(rowIndex, byExtendingSelection: false)
+        }
+    }
+    
+    func beginFileDrag(for item: FileItem, event: NSEvent, dragZoneView: NSView) {
+        guard let tableView else {
+            FileDragDebug.log("beginFileDrag fail no tableView item=\(item.name)")
+            return
+        }
+        
+        let selectedIDs = Set(
+            tableView.selectedRowIndexes.compactMap { row -> FileItem.ID? in
+                guard row >= 0, row < items.count else { return nil }
+                return items[row].id
+            }
+        )
+        let draggedItems = FileDragDrop.draggedItems(
+            for: item,
+            in: items,
+            selection: selectedIDs
+        )
+        guard !draggedItems.isEmpty else {
+            FileDragDebug.log("beginFileDrag fail empty draggedItems item=\(item.name)")
+            return
+        }
+        
+        FileDragDebug.log(
+            "beginFileDrag OK item=\(item.name) draggingCount=\(draggedItems.count)"
+        )
+        
+        let frameInTable = dragZoneView.convert(dragZoneView.bounds, to: tableView)
+        var draggingItems: [NSDraggingItem] = []
+        for (index, fileItem) in draggedItems.enumerated() {
+            let offset = CGFloat(index * 4)
+            let frame = NSRect(
+                x: frameInTable.minX + offset,
+                y: frameInTable.minY - offset,
+                width: frameInTable.width,
+                height: frameInTable.height
+            )
+            let draggingItem = NSDraggingItem(pasteboardWriter: fileItem.url as NSURL)
+            draggingItem.setDraggingFrame(frame, contents: nil)
+            draggingItems.append(draggingItem)
+        }
+        
+        tableView.beginDraggingSession(with: draggingItems, event: event, source: self)
+    }
+    
+    func draggingSession(
+        _ session: NSDraggingSession,
+        sourceOperationMaskFor context: NSDraggingContext
+    ) -> NSDragOperation {
+        switch context {
+        case .outsideApplication:
+            return .copy
+        default:
+            return [.copy, .move]
+        }
+    }
+    
+    func draggingSession(
+        _ session: NSDraggingSession,
+        endedAt screenPoint: NSPoint,
+        operation: NSDragOperation
+    ) {
+        FileDragDebug.log("dragSession ended operation=\(operation.rawValue)")
+        if operation != [] {
+            DispatchQueue.main.async { [weak self] in
+                self?.onDragEnded?()
+            }
+        }
+    }
+}
+
+/// 安装表格引用与拖拽协调器；文件拖放在 FileDragZoneView 上触发。
+private struct TableFileDragDropHandler: NSViewRepresentable {
+    let items: [FileItem]
+    let selection: Set<FileItem.ID>
+    let onItemOpen: (FileItem) -> Void
+    let onDragEnded: () -> Void
+    
+    func makeCoordinator() -> TableFileDragCoordinator {
+        let coordinator = TableFileDragCoordinator()
+        TableFileDragCoordinator.shared = coordinator
+        return coordinator
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        installTableView(into: context.coordinator, from: view)
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.items = items
+        coordinator.selection = selection
+        coordinator.onItemOpen = onItemOpen
+        coordinator.onDragEnded = onDragEnded
+        TableFileDragCoordinator.shared = coordinator
+        installTableView(into: coordinator, from: nsView)
+    }
+    
+    private func installTableView(into coordinator: TableFileDragCoordinator, from view: NSView) {
+        guard coordinator.tableView == nil else { return }
+        guard let tableView = findTableView(startingFrom: view) else {
+            DispatchQueue.main.async {
+                installTableView(into: coordinator, from: view)
+            }
+            return
+        }
+        coordinator.tableView = tableView
+        FileDragDebug.log(
+            "installed tableView=\(type(of: tableView)) columns=\(tableView.tableColumns.map(\.title))"
+        )
+    }
+    
+    private func findTableView(startingFrom view: NSView) -> NSTableView? {
+        var current: NSView? = view
+        while let node = current {
+            if let tableView = node as? NSTableView {
+                return tableView
+            }
+            if let tableView = findTableView(in: node.subviews) {
+                return tableView
+            }
+            current = node.superview
+        }
+        return nil
+    }
+    
+    private func findTableView(in views: [NSView]) -> NSTableView? {
+        for view in views {
+            if let tableView = view as? NSTableView {
+                return tableView
+            }
+            if let tableView = findTableView(in: view.subviews) {
+                return tableView
+            }
+        }
+        return nil
+    }
 }
 
 /// 在文件列表获得焦点时响应 Delete / Forward Delete，与 Finder 行为一致。
@@ -1281,6 +1864,115 @@ private struct TableDoubleClickHandler: NSViewRepresentable {
             }
             guard row < items.count else { return }
             onOpen(items[row])
+        }
+        
+        private func findTableView(startingFrom view: NSView) -> NSTableView? {
+            var current: NSView? = view
+            while let node = current {
+                if let tableView = node as? NSTableView {
+                    return tableView
+                }
+                if let tableView = findTableView(in: node.subviews) {
+                    return tableView
+                }
+                current = node.superview
+            }
+            return nil
+        }
+        
+        private func findTableView(in views: [NSView]) -> NSTableView? {
+            for view in views {
+                if let tableView = view as? NSTableView {
+                    return tableView
+                }
+                if let tableView = findTableView(in: view.subviews) {
+                    return tableView
+                }
+            }
+            return nil
+        }
+    }
+}
+
+/// 废纸篓视图空白处右键菜单（NSTableView 空白区域不一定会触发 SwiftUI contextMenu）。
+private struct TableTrashBlankContextMenuHandler: NSViewRepresentable {
+    let isEnabled: Bool
+    let onEmptyTrash: () -> Void
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isEnabled: isEnabled, onEmptyTrash: onEmptyTrash)
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.installIfNeeded(from: view)
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.isEnabled = isEnabled
+        context.coordinator.onEmptyTrash = onEmptyTrash
+        context.coordinator.installIfNeeded(from: nsView)
+    }
+    
+    final class Coordinator: NSObject {
+        var isEnabled: Bool
+        var onEmptyTrash: () -> Void
+        private weak var tableView: NSTableView?
+        private var eventMonitor: Any?
+        
+        init(isEnabled: Bool, onEmptyTrash: @escaping () -> Void) {
+            self.isEnabled = isEnabled
+            self.onEmptyTrash = onEmptyTrash
+        }
+        
+        deinit {
+            if let eventMonitor {
+                NSEvent.removeMonitor(eventMonitor)
+            }
+        }
+        
+        func installIfNeeded(from view: NSView) {
+            guard tableView == nil else { return }
+            guard let tableView = findTableView(startingFrom: view) else {
+                DispatchQueue.main.async { [weak self, weak view] in
+                    guard let self, let view else { return }
+                    self.installIfNeeded(from: view)
+                }
+                return
+            }
+            self.tableView = tableView
+            installEventMonitorIfNeeded()
+        }
+        
+        private func installEventMonitorIfNeeded() {
+            guard eventMonitor == nil else { return }
+            eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
+                guard let self, self.isEnabled, let tableView = self.tableView,
+                      event.window == tableView.window else {
+                    return event
+                }
+                
+                let point = tableView.convert(event.locationInWindow, from: nil)
+                guard tableView.bounds.contains(point), tableView.row(at: point) < 0 else {
+                    return event
+                }
+                
+                let menu = NSMenu()
+                let item = NSMenuItem(
+                    title: "清倒废纸篓",
+                    action: #selector(self.handleEmptyTrash(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                menu.addItem(item)
+                NSMenu.popUpContextMenu(menu, with: event, for: tableView)
+                return nil
+            }
+        }
+        
+        @objc func handleEmptyTrash(_ sender: Any?) {
+            onEmptyTrash()
         }
         
         private func findTableView(startingFrom view: NSView) -> NSTableView? {
@@ -1896,6 +2588,278 @@ struct SidebarVolume: Identifiable, Equatable {
     }
 }
 
+enum FinderAutomationPermission {
+    private static let finderBundleID = "com.apple.finder"
+    
+    @MainActor
+    static func ensureAccess() async -> Bool {
+        activateFinder()
+        
+        if hasAccess() {
+            return true
+        }
+        
+        if requestAccessPromptingUser() {
+            return true
+        }
+        
+        if await runProbeScript() {
+            return true
+        }
+        
+        showAccessDeniedAlert()
+        return false
+    }
+    
+    @MainActor
+    private static func hasAccess() -> Bool {
+        let target = NSAppleEventDescriptor(bundleIdentifier: finderBundleID)
+        return AEDeterminePermissionToAutomateTarget(
+            target.aeDesc,
+            typeWildCard,
+            typeWildCard,
+            false
+        ) == noErr
+    }
+    
+    @MainActor
+    private static func launchFinderIfNeeded() {
+        if NSRunningApplication.runningApplications(withBundleIdentifier: finderBundleID).isEmpty {
+            let finderURL = URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app")
+            NSWorkspace.shared.openApplication(at: finderURL, configuration: NSWorkspace.OpenConfiguration())
+        }
+    }
+    
+    @MainActor
+    private static func requestAccessPromptingUser() -> Bool {
+        var status = determinePermission(promptUser: true)
+        
+        if status == procNotFound {
+            launchFinderIfNeeded()
+            Thread.sleep(forTimeInterval: 0.6)
+            status = determinePermission(promptUser: true)
+        }
+        
+        return status == noErr
+    }
+    
+    @MainActor
+    private static func determinePermission(promptUser: Bool) -> OSStatus {
+        let target = NSAppleEventDescriptor(bundleIdentifier: finderBundleID)
+        return AEDeterminePermissionToAutomateTarget(
+            target.aeDesc,
+            typeWildCard,
+            typeWildCard,
+            promptUser
+        )
+    }
+    
+    @MainActor
+    private static func activateFinder() {
+        if let finder = NSRunningApplication.runningApplications(withBundleIdentifier: finderBundleID).first {
+            finder.activate(options: [.activateIgnoringOtherApps])
+        } else {
+            launchFinderIfNeeded()
+        }
+    }
+    
+    @MainActor
+    private static func runProbeScript() async -> Bool {
+        let scriptSource = """
+        tell application "Finder"
+            return name
+        end tell
+        """
+        
+        var error: NSDictionary?
+        guard let appleScript = NSAppleScript(source: scriptSource) else { return false }
+        _ = appleScript.executeAndReturnError(&error)
+        return error == nil
+    }
+    
+    @MainActor
+    private static func showAccessDeniedAlert() {
+        let alert = NSAlert()
+        alert.messageText = "需要自动化权限"
+        alert.informativeText = """
+        Explorer 需要「控制 Finder」的权限才能显示废纸篓内容。
+
+        请在「系统设置 → 隐私与安全性 → 自动化」中，允许 Explorer 控制 Finder。
+        """
+        alert.addButton(withTitle: "打开系统设置")
+        alert.addButton(withTitle: "取消")
+        
+        if alert.runModal() == .alertFirstButtonReturn {
+            openAutomationSettings()
+        }
+    }
+    
+    @MainActor
+    private static func openAutomationSettings() {
+        let candidates = [
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation",
+            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Automation"
+        ]
+        for candidate in candidates {
+            if let url = URL(string: candidate), NSWorkspace.shared.open(url) {
+                return
+            }
+        }
+    }
+}
+
+enum TrashLoader {
+    static let displayName = "废纸篓"
+    
+    static var userTrashPath: String {
+        resolvedTrashPaths().first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash").path
+    }
+    
+    static func resolvedTrashPaths() -> [String] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let candidates: [String] = [
+            FileManager.default.urls(for: .trashDirectory, in: .userDomainMask).first?.path,
+            (home as NSString).appendingPathComponent(".Trash"),
+            "/System/Volumes/Data\(home)/.Trash"
+        ].compactMap { $0 }
+        
+        var paths: [String] = []
+        var seen = Set<String>()
+        for raw in candidates {
+            let path = (raw as NSString).standardizingPath
+            guard seen.insert(path).inserted else { continue }
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue {
+                paths.append(path)
+            }
+        }
+        return paths
+    }
+    
+    static func isTrashPath(_ path: String) -> Bool {
+        let normalized = (path as NSString).standardizingPath
+        return resolvedTrashPaths().contains {
+            ( $0 as NSString).standardizingPath == normalized
+        }
+    }
+    
+    static func trashDirectoryURLs() -> [URL] {
+        var urls = resolvedTrashPaths().map { URL(fileURLWithPath: $0, isDirectory: true) }
+        var seenPaths = Set(urls.map(\.path))
+        
+        let uid = getuid()
+        guard let volumeURLs = FileManager.default.mountedVolumeURLs(
+            includingResourceValuesForKeys: nil,
+            options: [.skipHiddenVolumes]
+        ) else {
+            return urls
+        }
+        
+        for volumeURL in volumeURLs {
+            let trashURL = volumeURL.appendingPathComponent(".Trashes/\(uid)", isDirectory: true)
+            let path = trashURL.standardizedFileURL.path
+            guard seenPaths.insert(path).inserted else { continue }
+            
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue {
+                urls.append(trashURL)
+            }
+        }
+        
+        return urls
+    }
+    
+    static func loadItems(showHiddenFiles: Bool) async -> [FileItem] {
+        let propertyKeys: Set<URLResourceKey> = [
+            .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
+        ]
+        var itemsByPath: [String: FileItem] = [:]
+        
+        let options: FileManager.DirectoryEnumerationOptions = showHiddenFiles
+            ? [.skipsPackageDescendants]
+            : [.skipsHiddenFiles, .skipsPackageDescendants]
+        
+        for trashURL in trashDirectoryURLs() {
+            do {
+                let urls = try FileManager.default.contentsOfDirectory(
+                    at: trashURL,
+                    includingPropertiesForKeys: Array(propertyKeys),
+                    options: options
+                )
+                for fileURL in urls {
+                    guard let item = fileItem(from: fileURL, propertyKeys: propertyKeys) else { continue }
+                    itemsByPath[item.id] = item
+                }
+            } catch {
+                print("Error loading trash at \(trashURL.path): \(error)")
+            }
+        }
+        
+        let finderPaths = await MainActor.run { trashItemPathsViaFinder() }
+        for filePath in finderPaths {
+            let fileURL = URL(fileURLWithPath: filePath)
+            guard let item = fileItem(from: fileURL, propertyKeys: propertyKeys) else { continue }
+            if !showHiddenFiles && item.isHidden { continue }
+            itemsByPath[item.id] = item
+        }
+        
+        return Array(itemsByPath.values)
+    }
+    
+    static func fileItem(from fileURL: URL, propertyKeys: Set<URLResourceKey>) -> FileItem? {
+        let resourceValues = try? fileURL.resourceValues(forKeys: propertyKeys)
+        let isDirectory = resourceValues?.isDirectory ?? false
+        let modDate = resourceValues?.contentModificationDate ?? Date.distantPast
+        let size = Int64(resourceValues?.fileSize ?? 0)
+        let isHidden = resourceValues?.isHidden ?? fileURL.lastPathComponent.hasPrefix(".")
+        
+        return FileItem(
+            id: fileURL.path,
+            url: fileURL,
+            name: fileURL.lastPathComponent,
+            isDirectory: isDirectory,
+            modificationDate: modDate,
+            size: size,
+            isHidden: isHidden,
+            sizeDisplay: isDirectory ? "--" : FileItemFormatters.formatSize(size),
+            dateDisplay: FileItemFormatters.formatDate(modDate)
+        )
+    }
+    
+    @MainActor
+    private static func trashItemPathsViaFinder() -> [String] {
+        let scriptSource = """
+        tell application "Finder"
+            set output to ""
+            repeat with anItem in trash
+                set output to output & (POSIX path of (anItem as alias)) & linefeed
+            end repeat
+            return output
+        end tell
+        """
+        
+        var error: NSDictionary?
+        guard let appleScript = NSAppleScript(source: scriptSource) else { return [] }
+        let result = appleScript.executeAndReturnError(&error)
+        
+        if let error {
+            let errorNumber = error[NSAppleScript.errorNumber] as? Int
+            print("Finder trash script error (\(errorNumber ?? 0)): \(error)")
+            if errorNumber == errAEEventNotPermitted {
+                Task { await FinderAutomationPermission.ensureAccess() }
+            }
+            return []
+        }
+        
+        guard let text = result.stringValue, !text.isEmpty else { return [] }
+        return text
+            .split(whereSeparator: \.isNewline)
+            .map { String($0) }
+            .filter { !$0.isEmpty }
+    }
+}
+
 enum SidebarVolumeLoader {
     private static let propertyKeys: Set<URLResourceKey> = [
         .volumeNameKey,
@@ -1952,6 +2916,70 @@ enum SidebarVolumeLoader {
     }
 }
 
+private struct TrashRestoreRecord: Codable, Equatable {
+    let trashedPath: String
+    let originalDirectory: String
+    let originalName: String
+}
+
+/// 记录通过本应用删除的文件原位置，用于「放回原处」。
+private enum TrashRestoreStore {
+    private static func normalized(_ path: String) -> String {
+        (path as NSString).standardizingPath
+    }
+    
+    private static func loadRecords() -> [TrashRestoreRecord] {
+        guard let data = UserDefaults.standard.data(forKey: AppSettings.trashRestoreRecordsKey),
+              let records = try? JSONDecoder().decode([TrashRestoreRecord].self, from: data) else {
+            return []
+        }
+        return records
+    }
+    
+    private static func saveRecords(_ records: [TrashRestoreRecord]) {
+        guard let data = try? JSONEncoder().encode(records) else { return }
+        UserDefaults.standard.set(data, forKey: AppSettings.trashRestoreRecordsKey)
+    }
+    
+    static func recordTrash(source: URL, resultingTrashedURL: URL?) {
+        let trashedPath = normalized((resultingTrashedURL ?? defaultTrashedURL(for: source)).path)
+        let record = TrashRestoreRecord(
+            trashedPath: trashedPath,
+            originalDirectory: source.deletingLastPathComponent().path,
+            originalName: source.lastPathComponent
+        )
+        
+        var records = loadRecords().filter { normalized($0.trashedPath) != trashedPath }
+        records.append(record)
+        saveRecords(records)
+    }
+    
+    static func record(forTrashedPath path: String) -> TrashRestoreRecord? {
+        let target = normalized(path)
+        return loadRecords().first { normalized($0.trashedPath) == target }
+    }
+    
+    static func canRestore(trashedPath: String) -> Bool {
+        record(forTrashedPath: trashedPath) != nil
+    }
+    
+    static func removeRecord(forTrashedPath path: String) {
+        let target = normalized(path)
+        let records = loadRecords().filter { normalized($0.trashedPath) != target }
+        saveRecords(records)
+    }
+    
+    static func removeAllRecords() {
+        UserDefaults.standard.removeObject(forKey: AppSettings.trashRestoreRecordsKey)
+    }
+    
+    private static func defaultTrashedURL(for source: URL) -> URL {
+        let trashRoot = FileManager.default.urls(for: .trashDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash", isDirectory: true)
+        return trashRoot.appendingPathComponent(source.lastPathComponent)
+    }
+}
+
 private enum FileOperations {
     private static let finderCopyPasteboardType = NSPasteboard.PasteboardType("com.apple.finder.copy")
     
@@ -1979,7 +3007,18 @@ private enum FileOperations {
     static func canPaste(to destinationDirectory: URL) -> Bool {
         let state = pasteboardState()
         guard !state.urls.isEmpty else { return false }
-        
+        return canMoveItems(
+            state.urls,
+            to: destinationDirectory,
+            allowSameDirectory: !state.isCut
+        )
+    }
+    
+    static func canMoveItems(
+        _ sourceURLs: [URL],
+        to destinationDirectory: URL,
+        allowSameDirectory: Bool = false
+    ) -> Bool {
         let destURL = destinationDirectory.standardizedFileURL
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: destURL.path, isDirectory: &isDirectory),
@@ -1988,20 +3027,217 @@ private enum FileOperations {
         }
         
         let destPath = destURL.path
-        for sourceURL in state.urls {
+        for sourceURL in sourceURLs {
             let srcURL = sourceURL.standardizedFileURL
             guard FileManager.default.fileExists(atPath: srcURL.path) else { return false }
             
             let srcPath = srcURL.path
-            if state.isCut {
-                if srcPath == destPath { return false }
-                if destPath.hasPrefix(srcPath + "/") { return false }
-                if srcURL.deletingLastPathComponent().standardizedFileURL.path == destPath {
-                    return false
-                }
+            if srcPath == destPath { return false }
+            if destPath.hasPrefix(srcPath + "/") { return false }
+            if !allowSameDirectory,
+               srcURL.deletingLastPathComponent().standardizedFileURL.path == destPath {
+                return false
             }
         }
         return true
+    }
+    
+    static func moveItems(
+        _ sourceURLs: [URL],
+        to destinationDirectory: URL,
+        copy: Bool,
+        completion: @escaping () -> Void
+    ) {
+        guard canMoveItems(sourceURLs, to: destinationDirectory) else { return }
+        
+        let fileManager = FileManager.default
+        var hadError = false
+        
+        for sourceURL in sourceURLs {
+            let destinationURL = uniqueDestinationURL(
+                for: sourceURL.lastPathComponent,
+                in: destinationDirectory
+            )
+            
+            do {
+                if copy {
+                    try fileManager.copyItem(at: sourceURL, to: destinationURL)
+                } else {
+                    try fileManager.moveItem(at: sourceURL, to: destinationURL)
+                }
+            } catch {
+                NSAlert(error: error).runModal()
+                hadError = true
+                break
+            }
+        }
+        
+        if !hadError {
+            completion()
+        }
+    }
+    
+    static func trashItems(_ sourceURLs: [URL], completion: @escaping () -> Void) {
+        var hadError = false
+        for sourceURL in sourceURLs {
+            do {
+                var resultingURL: NSURL?
+                try FileManager.default.trashItem(at: sourceURL, resultingItemURL: &resultingURL)
+                TrashRestoreStore.recordTrash(
+                    source: sourceURL,
+                    resultingTrashedURL: resultingURL as URL?
+                )
+            } catch {
+                NSAlert(error: error).runModal()
+                hadError = true
+                break
+            }
+        }
+        if !hadError {
+            completion()
+        }
+    }
+    
+    static func emptyTrash(completion: @escaping () -> Void) {
+        let alert = NSAlert()
+        alert.messageText = "清倒废纸篓？"
+        alert.informativeText = "废纸篓中的所有项目将被永久删除，此操作无法撤销。"
+        alert.alertStyle = .warning
+        let emptyButton = alert.addButton(withTitle: "清倒废纸篓")
+        alert.addButton(withTitle: "取消")
+        alert.window.initialFirstResponder = emptyButton
+        
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        
+        let script = """
+        tell application "Finder"
+            empty trash
+        end tell
+        """
+        if runFinderAppleScript(script) {
+            TrashRestoreStore.removeAllRecords()
+            completion()
+        }
+    }
+    
+    static func putBack(_ items: [FileItem], completion: @escaping () -> Void) {
+        guard !items.isEmpty else { return }
+        
+        var restoredCount = 0
+        var failedItems: [FileItem] = []
+        
+        for item in items {
+            if restoreItem(item) {
+                restoredCount += 1
+            } else {
+                failedItems.append(item)
+            }
+        }
+        
+        if failedItems.isEmpty {
+            completion()
+            return
+        }
+        
+        if restoredCount > 0 {
+            completion()
+        }
+        
+        let alert = NSAlert()
+        if failedItems.count == 1 {
+            alert.messageText = "无法放回原处"
+            alert.informativeText = "「\(failedItems[0].name)」没有可用的原始位置记录，且 Finder 无法恢复此项目。"
+        } else {
+            alert.informativeText = "\(failedItems.count) 个项目无法放回原处。"
+        }
+        alert.alertStyle = .warning
+        alert.runModal()
+    }
+    
+    private static func restoreItem(_ item: FileItem) -> Bool {
+        let escapedPath = appleScriptEscapedPath(item.url.path)
+        let finderScript = """
+        tell application "Finder"
+            put (POSIX file "\(escapedPath)") back
+        end tell
+        """
+        if runFinderAppleScript(finderScript, showError: false) {
+            TrashRestoreStore.removeRecord(forTrashedPath: item.url.path)
+            return true
+        }
+        
+        guard let record = TrashRestoreStore.record(forTrashedPath: item.url.path) else {
+            return false
+        }
+        
+        let destinationDirectory = URL(fileURLWithPath: record.originalDirectory, isDirectory: true)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: destinationDirectory.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            return false
+        }
+        
+        let destinationURL = uniqueDestinationURL(for: record.originalName, in: destinationDirectory)
+        do {
+            try FileManager.default.moveItem(at: item.url, to: destinationURL)
+            TrashRestoreStore.removeRecord(forTrashedPath: item.url.path)
+            return true
+        } catch {
+            NSAlert(error: error).runModal()
+            return false
+        }
+    }
+    
+    static func deleteImmediately(_ items: [FileItem], completion: @escaping () -> Void) {
+        guard !items.isEmpty else { return }
+        
+        let alert = NSAlert()
+        if items.count == 1 {
+            alert.messageText = "立刻删除「\(items[0].name)」？"
+        } else {
+            alert.messageText = "立刻删除 \(items.count) 个项目？"
+        }
+        alert.informativeText = "这些项目将被永久删除，无法恢复。"
+        alert.alertStyle = .warning
+        let deleteButton = alert.addButton(withTitle: "立刻删除")
+        alert.addButton(withTitle: "取消")
+        alert.window.initialFirstResponder = deleteButton
+        
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        
+        for item in items {
+            do {
+                try FileManager.default.removeItem(at: item.url)
+                TrashRestoreStore.removeRecord(forTrashedPath: item.url.path)
+            } catch {
+                NSAlert(error: error).runModal()
+                return
+            }
+        }
+        completion()
+    }
+    
+    private static func runFinderAppleScript(_ source: String, showError: Bool = true) -> Bool {
+        var error: NSDictionary?
+        guard let script = NSAppleScript(source: source) else { return false }
+        _ = script.executeAndReturnError(&error)
+        
+        if let error {
+            guard showError else { return false }
+            let message = error[NSAppleScript.errorMessage] as? String ?? "操作失败"
+            let alert = NSAlert()
+            alert.messageText = "操作失败"
+            alert.informativeText = message
+            alert.alertStyle = .warning
+            alert.runModal()
+            return false
+        }
+        return true
+    }
+    
+    private static func appleScriptEscapedPath(_ path: String) -> String {
+        path.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
     
     static func paste(to destinationDirectory: URL, completion: @escaping () -> Void) {
@@ -2121,7 +3357,12 @@ private enum FileOperations {
         
         for item in items {
             do {
-                try FileManager.default.trashItem(at: item.url, resultingItemURL: nil)
+                var resultingURL: NSURL?
+                try FileManager.default.trashItem(at: item.url, resultingItemURL: &resultingURL)
+                TrashRestoreStore.recordTrash(
+                    source: item.url,
+                    resultingTrashedURL: resultingURL as URL?
+                )
             } catch {
                 NSAlert(error: error).runModal()
                 return
