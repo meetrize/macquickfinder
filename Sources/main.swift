@@ -22,6 +22,63 @@ enum BlankDoubleClickAction: String, CaseIterable, Identifiable {
 private enum AppSettings {
     static let blankDoubleClickActionKey = "blankDoubleClickAction"
     static let previewPanelWidthKey = "previewPanelWidth"
+    static let favoritesKey = "favoriteLocations"
+}
+
+struct FileCommandHandlers {
+    var copy: (() -> Void)?
+    var cut: (() -> Void)?
+    var paste: (() -> Void)?
+    var delete: (() -> Void)?
+    var canCopy = false
+    var canCut = false
+    var canPaste = false
+    var canDelete = false
+}
+
+struct FileCommandHandlersKey: FocusedValueKey {
+    typealias Value = FileCommandHandlers
+}
+
+extension FocusedValues {
+    var fileCommandHandlers: FileCommandHandlers? {
+        get { self[FileCommandHandlersKey.self] }
+        set { self[FileCommandHandlersKey.self] = newValue }
+    }
+}
+
+struct FileCommands: Commands {
+    @FocusedValue(\.fileCommandHandlers) private var handlers
+    
+    var body: some Commands {
+        CommandGroup(replacing: .pasteboard) {
+            Button("剪切") {
+                handlers?.cut?()
+            }
+            .keyboardShortcut("x", modifiers: .command)
+            .disabled(!(handlers?.canCut ?? false))
+            
+            Button("复制") {
+                handlers?.copy?()
+            }
+            .keyboardShortcut("c", modifiers: .command)
+            .disabled(!(handlers?.canCopy ?? false))
+            
+            Button("粘贴") {
+                handlers?.paste?()
+            }
+            .keyboardShortcut("v", modifiers: .command)
+            .disabled(!(handlers?.canPaste ?? false))
+        }
+        
+        CommandGroup(after: .pasteboard) {
+            Button("删除") {
+                handlers?.delete?()
+            }
+            .keyboardShortcut(.delete)
+            .disabled(!(handlers?.canDelete ?? false))
+        }
+    }
 }
 
 extension ToolbarContent {
@@ -255,6 +312,7 @@ struct ExplorerApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
         .commands {
+            FileCommands()
             CommandGroup(after: .sidebar) {
                 Button(showPreview ? "关闭预览" : "显示预览") {
                     showPreview.toggle()
@@ -388,6 +446,7 @@ struct ContentView: View {
                                 onBlankDoubleClick: handleBlankDoubleClick,
                                 contextActions: fileContextActions
                             )
+                            .focusedValue(\.fileCommandHandlers, fileCommandHandlers)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -594,6 +653,38 @@ struct ContentView: View {
         FileOperations.open([item]) { path = $0 }
     }
     
+    private var selectedItems: [FileItem] {
+        filteredItems.filter { selection.contains($0.id) }
+    }
+    
+    private var fileCommandHandlers: FileCommandHandlers {
+        let selected = selectedItems
+        let destPath = FileOperations.pasteDestination(
+            selectedItems: selected,
+            currentDirectoryPath: path
+        )
+        return FileCommandHandlers(
+            copy: { FileOperations.copy(selected) },
+            cut: { FileOperations.cut(selected) },
+            paste: {
+                FileOperations.paste(to: URL(fileURLWithPath: destPath)) {
+                    selection.removeAll()
+                    loadItems()
+                }
+            },
+            delete: {
+                FileOperations.delete(selected) {
+                    selection.removeAll()
+                    loadItems()
+                }
+            },
+            canCopy: !selected.isEmpty,
+            canCut: !selected.isEmpty,
+            canPaste: FileOperations.canPaste(to: URL(fileURLWithPath: destPath)),
+            canDelete: !selected.isEmpty
+        )
+    }
+    
     private var fileContextActions: FileContextActions {
         FileContextActions(
             open: { FileOperations.open([$0]) { path = $0 } },
@@ -623,7 +714,9 @@ struct ContentView: View {
                     selection.removeAll()
                     loadItems()
                 }
-            }
+            },
+            isFavorited: { FavoritesStore.shared.contains(path: $0.url.path) },
+            addToFavorites: { FavoritesStore.shared.addDirectory(at: $0.url.path) }
         )
     }
     
@@ -661,25 +754,24 @@ struct ContentView: View {
 
 struct SidebarView: View {
     @Binding var path: String
+    @ObservedObject private var favoritesStore = FavoritesStore.shared
     @State private var devices: [SidebarVolume] = []
-    
-    private let favoriteLocations = [
-        SidebarItem(name: "Home", path: FileManager.default.homeDirectoryForCurrentUser.path, icon: "house"),
-        SidebarItem(name: "Desktop", path: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop").path, icon: "desktopcomputer"),
-        SidebarItem(name: "Documents", path: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Documents").path, icon: "doc"),
-        SidebarItem(name: "Downloads", path: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads").path, icon: "arrow.down.circle")
-    ]
     
     var body: some View {
         List {
             Section("Favorites") {
-                ForEach(favoriteLocations) { location in
+                ForEach(favoritesStore.items) { location in
                     SidebarRow(
                         title: location.name,
                         icon: location.icon,
                         isSelected: isSelected(location.path)
                     ) {
                         path = location.path
+                    }
+                    .contextMenu {
+                        Button("取消收藏", role: .destructive) {
+                            favoritesStore.remove(path: location.path)
+                        }
                     }
                 }
             }
@@ -806,6 +898,8 @@ struct FileContextActions {
     var showInfo: ([FileItem]) -> Void = { _ in }
     var canPaste: (String) -> Bool = { _ in false }
     var paste: (String) -> Void = { _ in }
+    var isFavorited: (FileItem) -> Bool = { _ in false }
+    var addToFavorites: (FileItem) -> Void = { _ in }
 }
 
 struct FileListView: View {
@@ -849,9 +943,18 @@ struct FileListView: View {
             onOpen: onItemOpen,
             onBlankDoubleClick: onBlankDoubleClick
         ))
+        .background(TableDeleteKeyHandler(
+            isEnabled: !selection.isEmpty,
+            onDelete: {
+                contextActions.delete(items(for: selection))
+            }
+        ))
         .contextMenu(forSelectionType: FileItem.ID.self) { ids in
             let selected = items(for: ids)
-            let destination = pasteDestination(for: selected)
+            let destination = FileOperations.pasteDestination(
+                selectedItems: selected,
+                currentDirectoryPath: currentDirectoryPath
+            )
             let showPaste = contextActions.canPaste(destination)
             
             if showPaste {
@@ -873,6 +976,12 @@ struct FileListView: View {
                     if !item.isDirectory {
                         Button("打开方式…") {
                             contextActions.openWith(item)
+                        }
+                    }
+                    
+                    if item.isDirectory, !contextActions.isFavorited(item) {
+                        Button("收藏") {
+                            contextActions.addToFavorites(item)
                         }
                     }
                     
@@ -934,13 +1043,6 @@ struct FileListView: View {
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
         items.filter { ids.contains($0.id) }
-    }
-    
-    private func pasteDestination(for selected: [FileItem]) -> String {
-        if selected.count == 1, let item = selected.first, item.isDirectory {
-            return item.url.path
-        }
-        return currentDirectoryPath
     }
     
     static func sortingKeyPath(for order: SortOrder) -> [KeyPathComparator<FileItem>] {
@@ -1024,6 +1126,98 @@ struct FileListView: View {
             dateDisplay: ""
         )
     ]
+}
+
+/// 在文件列表获得焦点时响应 Delete / Forward Delete，与 Finder 行为一致。
+private struct TableDeleteKeyHandler: NSViewRepresentable {
+    let isEnabled: Bool
+    let onDelete: () -> Void
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onDelete: onDelete)
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.startMonitoring(from: view)
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.isEnabled = isEnabled
+        context.coordinator.onDelete = onDelete
+    }
+    
+    final class Coordinator {
+        var isEnabled: Bool
+        var onDelete: () -> Void
+        private var monitor: Any?
+        private weak var tableView: NSTableView?
+        
+        init(isEnabled: Bool = false, onDelete: @escaping () -> Void) {
+            self.isEnabled = isEnabled
+            self.onDelete = onDelete
+        }
+        
+        func startMonitoring(from view: NSView) {
+            guard monitor == nil else { return }
+            guard let tableView = findTableView(startingFrom: view) else {
+                DispatchQueue.main.async { [weak self, weak view] in
+                    guard let self, let view else { return }
+                    self.startMonitoring(from: view)
+                }
+                return
+            }
+            self.tableView = tableView
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, self.isEnabled else { return event }
+                guard self.isTableFocused(event) else { return event }
+                guard event.keyCode == 51 || event.keyCode == 117 else { return event }
+                guard !event.modifierFlags.contains(.command) else { return event }
+                self.onDelete()
+                return nil
+            }
+        }
+        
+        private func isTableFocused(_ event: NSEvent) -> Bool {
+            guard let tableView,
+                  let window = tableView.window ?? event.window else { return false }
+            guard let responder = window.firstResponder as? NSView else { return false }
+            return responder === tableView || responder.isDescendant(of: tableView)
+        }
+        
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
+        
+        private func findTableView(startingFrom view: NSView) -> NSTableView? {
+            var current: NSView? = view
+            while let node = current {
+                if let tableView = node as? NSTableView {
+                    return tableView
+                }
+                if let tableView = findTableView(in: node.subviews) {
+                    return tableView
+                }
+                current = node.superview
+            }
+            return nil
+        }
+        
+        private func findTableView(in views: [NSView]) -> NSTableView? {
+            for view in views {
+                if let tableView = view as? NSTableView {
+                    return tableView
+                }
+                if let tableView = findTableView(in: view.subviews) {
+                    return tableView
+                }
+            }
+            return nil
+        }
+    }
 }
 
 /// 通过 NSTableView 原生 doubleAction 处理双击，避免 SwiftUI TapGesture(count: 2) 延迟单击选中。
@@ -1608,11 +1802,87 @@ struct FileItem: Identifiable, Hashable {
     }
 }
 
-struct SidebarItem: Identifiable {
-    let id = UUID()
-    let name: String
+struct FavoriteItem: Codable, Identifiable, Equatable {
     let path: String
+    let name: String
     let icon: String
+    
+    var id: String { path }
+}
+
+@MainActor
+final class FavoritesStore: ObservableObject {
+    static let shared = FavoritesStore()
+    
+    @Published private(set) var items: [FavoriteItem] = []
+    
+    private init() {
+        load()
+    }
+    
+    static func defaultItems() -> [FavoriteItem] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return [
+            FavoriteItem(path: home, name: "Home", icon: "house"),
+            FavoriteItem(
+                path: (home as NSString).appendingPathComponent("Desktop"),
+                name: "Desktop",
+                icon: "desktopcomputer"
+            ),
+            FavoriteItem(
+                path: (home as NSString).appendingPathComponent("Documents"),
+                name: "Documents",
+                icon: "doc"
+            ),
+            FavoriteItem(
+                path: (home as NSString).appendingPathComponent("Downloads"),
+                name: "Downloads",
+                icon: "arrow.down.circle"
+            )
+        ]
+    }
+    
+    func contains(path: String) -> Bool {
+        let normalized = (path as NSString).standardizingPath
+        return items.contains { Self.pathsRepresentSameLocation($0.path, normalized) }
+    }
+    
+    func addDirectory(at path: String) {
+        let normalized = (path as NSString).standardizingPath
+        guard !contains(path: normalized) else { return }
+        let name = (normalized as NSString).lastPathComponent
+        items.append(FavoriteItem(path: normalized, name: name, icon: "folder"))
+        save()
+    }
+    
+    func remove(path: String) {
+        let normalized = (path as NSString).standardizingPath
+        items.removeAll { Self.pathsRepresentSameLocation($0.path, normalized) }
+        save()
+    }
+    
+    private func load() {
+        guard let data = UserDefaults.standard.data(forKey: AppSettings.favoritesKey),
+              let decoded = try? JSONDecoder().decode([FavoriteItem].self, from: data) else {
+            items = Self.defaultItems()
+            return
+        }
+        items = decoded
+    }
+    
+    private func save() {
+        guard let data = try? JSONEncoder().encode(items) else { return }
+        UserDefaults.standard.set(data, forKey: AppSettings.favoritesKey)
+    }
+    
+    private static func pathsRepresentSameLocation(_ lhs: String, _ rhs: String) -> Bool {
+        let normalizedLHS = (lhs as NSString).standardizingPath
+        let normalizedRHS = (rhs as NSString).standardizingPath
+        if normalizedLHS == normalizedRHS { return true }
+        
+        let systemVolumeRoots: Set<String> = ["/", "/System/Volumes/Data"]
+        return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
+    }
 }
 
 struct SidebarVolume: Identifiable, Equatable {
@@ -1695,6 +1965,15 @@ private enum FileOperations {
         let urls = readFileURLs(from: pasteboard)
         let isCut = pasteboard.types?.contains(finderCopyPasteboardType) == true
         return PasteboardState(urls: urls, isCut: isCut)
+    }
+    
+    static func pasteDestination(selectedItems: [FileItem], currentDirectoryPath: String) -> String {
+        if selectedItems.count == 1,
+           let item = selectedItems.first,
+           item.isDirectory {
+            return item.url.path
+        }
+        return currentDirectoryPath
     }
     
     static func canPaste(to destinationDirectory: URL) -> Bool {
@@ -1834,8 +2113,9 @@ private enum FileOperations {
         }
         alert.informativeText = "项目将移至废纸篓。"
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "删除")
+        let deleteButton = alert.addButton(withTitle: "删除")
         alert.addButton(withTitle: "取消")
+        alert.window.initialFirstResponder = deleteButton
         
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         
@@ -1877,19 +2157,93 @@ private enum FileOperations {
     }
     
     static func showInfo(_ items: [FileItem]) {
-        for item in items {
-            let escapedPath = item.url.path
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "\"", with: "\\\"")
-            let script = """
-            tell application "Finder"
-                activate
-                open information window of (POSIX file "\(escapedPath)" as alias)
-            end tell
-            """
-            var error: NSDictionary?
-            NSAppleScript(source: script)?.executeAndReturnError(&error)
+        guard !items.isEmpty else { return }
+        
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        
+        if items.count == 1, let item = items.first {
+            alert.messageText = item.name
+            alert.informativeText = buildInfoText(for: item)
+        } else {
+            alert.messageText = "已选择 \(items.count) 个项目"
+            let preview = items.prefix(20).map { item in
+                let kind = item.isDirectory ? "文件夹" : "文件"
+                return "• \(item.name)（\(kind)，\(item.sizeDisplay)）"
+            }.joined(separator: "\n")
+            alert.informativeText = items.count > 20 ? preview + "\n…" : preview
         }
+        
+        alert.addButton(withTitle: "好")
+        alert.runModal()
+    }
+    
+    private static func buildInfoText(for item: FileItem) -> String {
+        var lines: [String] = []
+        
+        if item.isDirectory {
+            lines.append("种类：文件夹")
+        } else if item.url.pathExtension.isEmpty {
+            lines.append("种类：文件")
+        } else {
+            lines.append("种类：\(item.url.pathExtension.uppercased()) 文件")
+        }
+        
+        lines.append("大小：\(item.sizeDisplay)")
+        lines.append("位置：\(item.url.deletingLastPathComponent().path)")
+        
+        let keys: Set<URLResourceKey> = [
+            .creationDateKey,
+            .contentModificationDateKey,
+            .isHiddenKey,
+            .isReadableKey,
+            .isWritableKey,
+            .isExecutableKey,
+            .typeIdentifierKey
+        ]
+        
+        if let values = try? item.url.resourceValues(forKeys: keys) {
+            if let created = values.creationDate {
+                lines.append("创建时间：\(FileItemFormatters.formatDate(created))")
+            }
+            lines.append("修改时间：\(item.dateDisplay)")
+            lines.append("隐藏：\(item.isHidden ? "是" : "否")")
+            
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: item.url.path),
+               let permissions = attributes[.posixPermissions] as? Int {
+                lines.append(
+                    "权限：\(posixPermissionString(permissions))（\(String(format: "%04o", permissions))）"
+                )
+            }
+            
+            var access: [String] = []
+            if values.isReadable == true { access.append("可读") }
+            if values.isWritable == true { access.append("可写") }
+            if values.isExecutable == true { access.append("可执行") }
+            if !access.isEmpty {
+                lines.append("访问：\(access.joined(separator: "、"))")
+            }
+            
+            if let typeIdentifier = values.typeIdentifier {
+                lines.append("类型标识：\(typeIdentifier)")
+            }
+        }
+        
+        lines.append("路径：\(item.url.path)")
+        return lines.joined(separator: "\n")
+    }
+    
+    private static func posixPermissionString(_ permissions: Int) -> String {
+        let mode = permissions & 0o777
+        let symbols = ["r", "w", "x"]
+        var result = ""
+        for shift in stride(from: 6, through: 0, by: -3) {
+            for (index, symbol) in symbols.enumerated() {
+                let bit = 1 << (shift + (2 - index))
+                result += (mode & bit) != 0 ? symbol : "-"
+            }
+        }
+        return result
     }
     
     private static func readFileURLs(from pasteboard: NSPasteboard) -> [URL] {
