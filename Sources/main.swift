@@ -2542,6 +2542,7 @@ struct FileListView: View {
                 BlankAreaHitBlocker(
                     items: tableRowItems,
                     selection: $selection,
+                    menuActions: blankMenuActions,
                     onSingleClick: {
                         if !selection.isEmpty {
                             selection.removeAll()
@@ -2552,9 +2553,6 @@ struct FileListView: View {
                 .frame(width: FileListTableMetrics.blankAreaWidth)
                 .frame(maxHeight: .infinity)
                 .padding(.trailing, FileListTableMetrics.verticalScrollerWidth)
-                .contextMenu {
-                    blankAreaContextMenu(inTrash: contextActions.isInTrash)
-                }
             }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDrop(
@@ -3613,10 +3611,95 @@ private struct TableScrollViewTrailingInsetHandler: NSViewRepresentable {
     }
 }
 
+/// 文件列表空白处右键菜单（返回、向上、粘贴、新建等）。
+private final class FileListBlankMenuController: NSObject {
+    var actions: FileListBlankMenuActions
+    
+    private enum MenuAction: Int {
+        case goBack = 1
+        case goUp
+        case paste
+        case newFolder
+        case newFile
+        case openTerminal
+        case emptyTrash
+    }
+    
+    init(actions: FileListBlankMenuActions) {
+        self.actions = actions
+    }
+    
+    func makeMenu() -> NSMenu {
+        let menu = NSMenu()
+        
+        menu.addItem(makeItem(title: "返回", action: .goBack, enabled: actions.canGoBack))
+        menu.addItem(makeItem(title: "向上", action: .goUp, enabled: actions.canGoUp))
+        
+        if actions.isInTrash {
+            menu.addItem(.separator())
+            menu.addItem(makeItem(title: "清倒废纸篓", action: .emptyTrash, enabled: true))
+            return menu
+        }
+        
+        if actions.canPaste {
+            menu.addItem(.separator())
+            menu.addItem(makeItem(title: "粘贴", action: .paste, enabled: true))
+        }
+        
+        menu.addItem(.separator())
+        menu.addItem(makeItem(title: "新建文件夹", action: .newFolder, enabled: true))
+        menu.addItem(makeItem(title: "新建文件", action: .newFile, enabled: true))
+        menu.addItem(.separator())
+        menu.addItem(makeItem(title: "在此处打开终端", action: .openTerminal, enabled: true))
+        
+        return menu
+    }
+    
+    func popUp(with event: NSEvent, for view: NSView) {
+        guard actions.isEnabled else { return }
+        let menu = makeMenu()
+        guard !menu.items.isEmpty else { return }
+        NSMenu.popUpContextMenu(menu, with: event, for: view)
+    }
+    
+    private func makeItem(title: String, action: MenuAction, enabled: Bool) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: title,
+            action: #selector(handleMenuAction(_:)),
+            keyEquivalent: ""
+        )
+        item.target = self
+        item.tag = action.rawValue
+        item.isEnabled = enabled
+        return item
+    }
+    
+    @objc private func handleMenuAction(_ sender: NSMenuItem) {
+        guard let action = MenuAction(rawValue: sender.tag) else { return }
+        switch action {
+        case .goBack:
+            actions.goBack()
+        case .goUp:
+            actions.goUp()
+        case .paste:
+            actions.paste()
+        case .newFolder:
+            actions.newFolder()
+        case .newFile:
+            actions.newFile()
+        case .openTerminal:
+            actions.openTerminal()
+        case .emptyTrash:
+            actions.emptyTrash()
+        }
+    }
+}
+
 /// 拦截空白区鼠标事件，防止点击落入下方表格引发布局变化。
 private struct BlankAreaHitBlocker: NSViewRepresentable {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
+    let menuActions: FileListBlankMenuActions
     let onSingleClick: () -> Void
     let onDoubleClick: () -> Void
     
@@ -3624,6 +3707,7 @@ private struct BlankAreaHitBlocker: NSViewRepresentable {
         Coordinator(
             items: items,
             selection: $selection,
+            menuActions: menuActions,
             onSingleClick: onSingleClick,
             onDoubleClick: onDoubleClick
         )
@@ -3638,6 +3722,7 @@ private struct BlankAreaHitBlocker: NSViewRepresentable {
     func updateNSView(_ nsView: BlankAreaCaptureView, context: Context) {
         context.coordinator.items = items
         context.coordinator.selection = $selection
+        context.coordinator.menuActions = menuActions
         context.coordinator.onSingleClick = onSingleClick
         context.coordinator.onDoubleClick = onDoubleClick
         nsView.coordinator = context.coordinator
@@ -3646,17 +3731,24 @@ private struct BlankAreaHitBlocker: NSViewRepresentable {
     final class Coordinator: NSObject {
         var items: [FileItem]
         var selection: Binding<Set<FileItem.ID>>
+        private let menuController: FileListBlankMenuController
+        var menuActions: FileListBlankMenuActions {
+            didSet { menuController.actions = menuActions }
+        }
         var onSingleClick: () -> Void
         var onDoubleClick: () -> Void
         
         init(
             items: [FileItem],
             selection: Binding<Set<FileItem.ID>>,
+            menuActions: FileListBlankMenuActions,
             onSingleClick: @escaping () -> Void,
             onDoubleClick: @escaping () -> Void
         ) {
             self.items = items
             self.selection = selection
+            self.menuActions = menuActions
+            self.menuController = FileListBlankMenuController(actions: menuActions)
             self.onSingleClick = onSingleClick
             self.onDoubleClick = onDoubleClick
         }
@@ -3687,6 +3779,10 @@ private struct BlankAreaHitBlocker: NSViewRepresentable {
                 }
             }
             return rows
+        }
+        
+        func popUpContextMenu(with event: NSEvent, for view: NSView) {
+            menuController.popUp(with: event, for: view)
         }
     }
     
@@ -3740,7 +3836,9 @@ private struct BlankAreaHitBlocker: NSViewRepresentable {
             isDragSelecting = false
         }
         
-        override func rightMouseDown(with event: NSEvent) {}
+        override func rightMouseDown(with event: NSEvent) {
+            coordinator?.popUpContextMenu(with: event, for: self)
+        }
         
         private func resolveTableView() -> NSTableView? {
             if let tableView { return tableView }
@@ -3875,22 +3973,16 @@ private struct TableBlankContextMenuHandler: NSViewRepresentable {
     }
     
     final class Coordinator: NSObject {
-        var actions: FileListBlankMenuActions
+        var actions: FileListBlankMenuActions {
+            didSet { menuController.actions = actions }
+        }
+        private let menuController: FileListBlankMenuController
         private weak var tableView: NSTableView?
         private var eventMonitor: Any?
         
-        private enum MenuAction: Int {
-            case goBack = 1
-            case goUp
-            case paste
-            case newFolder
-            case newFile
-            case openTerminal
-            case emptyTrash
-        }
-        
         init(actions: FileListBlankMenuActions) {
             self.actions = actions
+            self.menuController = FileListBlankMenuController(actions: actions)
         }
         
         deinit {
@@ -3925,80 +4017,11 @@ private struct TableBlankContextMenuHandler: NSViewRepresentable {
                     return event
                 }
                 
-                let menu = self.buildMenu()
+                self.menuController.actions = self.actions
+                let menu = self.menuController.makeMenu()
                 guard !menu.items.isEmpty else { return event }
                 NSMenu.popUpContextMenu(menu, with: event, for: tableView)
                 return nil
-            }
-        }
-        
-        private func buildMenu() -> NSMenu {
-            let menu = NSMenu()
-            
-            menu.addItem(makeItem(
-                title: "返回",
-                action: .goBack,
-                enabled: actions.canGoBack
-            ))
-            menu.addItem(makeItem(
-                title: "向上",
-                action: .goUp,
-                enabled: actions.canGoUp
-            ))
-            
-            if actions.isInTrash {
-                menu.addItem(.separator())
-                menu.addItem(makeItem(
-                    title: "清倒废纸篓",
-                    action: .emptyTrash,
-                    enabled: true
-                ))
-                return menu
-            }
-            
-            if actions.canPaste {
-                menu.addItem(.separator())
-                menu.addItem(makeItem(title: "粘贴", action: .paste, enabled: true))
-            }
-            
-            menu.addItem(.separator())
-            menu.addItem(makeItem(title: "新建文件夹", action: .newFolder, enabled: true))
-            menu.addItem(makeItem(title: "新建文件", action: .newFile, enabled: true))
-            menu.addItem(.separator())
-            menu.addItem(makeItem(title: "在此处打开终端", action: .openTerminal, enabled: true))
-            
-            return menu
-        }
-        
-        private func makeItem(title: String, action: MenuAction, enabled: Bool) -> NSMenuItem {
-            let item = NSMenuItem(
-                title: title,
-                action: #selector(handleMenuAction(_:)),
-                keyEquivalent: ""
-            )
-            item.target = self
-            item.tag = action.rawValue
-            item.isEnabled = enabled
-            return item
-        }
-        
-        @objc func handleMenuAction(_ sender: NSMenuItem) {
-            guard let action = MenuAction(rawValue: sender.tag) else { return }
-            switch action {
-            case .goBack:
-                actions.goBack()
-            case .goUp:
-                actions.goUp()
-            case .paste:
-                actions.paste()
-            case .newFolder:
-                actions.newFolder()
-            case .newFile:
-                actions.newFile()
-            case .openTerminal:
-                actions.openTerminal()
-            case .emptyTrash:
-                actions.emptyTrash()
             }
         }
         
