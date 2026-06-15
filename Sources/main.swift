@@ -22,6 +22,17 @@ private enum AppSettings {
     static let blankDoubleClickActionKey = "blankDoubleClickAction"
 }
 
+extension ToolbarContent {
+    @ToolbarContentBuilder
+    func hideSharedBackgroundIfAvailable() -> some ToolbarContent {
+        if #available(macOS 26.0, *) {
+            sharedBackgroundVisibility(.hidden)
+        } else {
+            self
+        }
+    }
+}
+
 private struct LucideIcon: View {
     let svgData: Data
     var size: CGFloat = 16
@@ -186,8 +197,10 @@ struct ContentView: View {
                         Button(action: createNewFolder) {
                             LucideIcon.folderPlus
                         }
+                        .buttonStyle(.borderless)
                         .help("新建文件夹")
                     }
+                    .hideSharedBackgroundIfAvailable()
 
                     ToolbarItem(placement: .primaryAction) {
                         Button(action: {
@@ -196,7 +209,9 @@ struct ContentView: View {
                         }) {
                             Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
                         }
+                        .buttonStyle(.borderless)
                     }
+                    .hideSharedBackgroundIfAvailable()
                     
                     ToolbarItem(placement: .primaryAction) {
                         Menu {
@@ -208,7 +223,9 @@ struct ContentView: View {
                         } label: {
                             Image(systemName: "arrow.up.arrow.down")
                         }
+                        .menuStyle(.borderlessButton)
                     }
+                    .hideSharedBackgroundIfAvailable()
                 }
                 
                 if showPreview {
