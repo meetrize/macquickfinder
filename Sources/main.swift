@@ -529,6 +529,52 @@ private enum BarTextFieldFocusRegistry {
         window.makeFirstResponder(field)
     }
     
+    static func selectAll(_ id: BarTextFieldID) {
+        guard let field = field(for: id), let window = field.window else { return }
+        window.makeFirstResponder(field)
+        if let editor = field.currentEditor() {
+            editor.selectAll(nil)
+        } else {
+            field.selectText(nil)
+        }
+    }
+    
+    static func focusWhenReady(
+        _ id: BarTextFieldID,
+        selectAll: Bool = false,
+        attempt: Int = 0
+    ) {
+        guard attempt < 12 else { return }
+        guard let field = field(for: id), field.window != nil else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
+                focusWhenReady(id, selectAll: selectAll, attempt: attempt + 1)
+            }
+            return
+        }
+        focus(id)
+        guard selectAll else { return }
+        DispatchQueue.main.async {
+            if let editor = field.currentEditor() {
+                editor.selectAll(nil)
+            } else {
+                field.selectText(nil)
+            }
+        }
+    }
+    
+    static func resign(_ id: BarTextFieldID) {
+        guard let field = field(for: id), let window = field.window else { return }
+        guard isFieldEditing(field) else { return }
+        window.makeFirstResponder(nil)
+    }
+    
+    private static func field(for id: BarTextFieldID) -> NSTextField? {
+        switch id {
+        case .path: return pathField
+        case .search: return searchField
+        }
+    }
+    
     static func currentEditingField() -> BarTextFieldID? {
         if let searchField, isFieldEditing(searchField) { return .search }
         if let pathField, isFieldEditing(pathField) { return .path }
@@ -817,6 +863,668 @@ struct BarTextField: View {
     }
 }
 
+// MARK: - Path Bar
+
+private enum PanelTopBarMetrics {
+    static let contentHeight: CGFloat = 28
+    static let verticalPadding: CGFloat = 6
+}
+
+private enum PathBarMode {
+    case breadcrumb
+    case text
+}
+
+private struct PathSegment: Identifiable, Equatable {
+    let id: Int
+    let name: String
+    let path: String
+}
+
+private enum PathSegmentBuilder {
+    static func showsLeadingRootSlash(for path: String) -> Bool {
+        guard !TrashLoader.isTrashPath(path) else { return false }
+        return (path as NSString).standardizingPath.hasPrefix("/")
+    }
+    
+    static func segments(for path: String) -> [PathSegment] {
+        if TrashLoader.isTrashPath(path) {
+            return [PathSegment(id: 0, name: TrashLoader.displayName, path: path)]
+        }
+        
+        let standardized = (path as NSString).standardizingPath
+        if standardized == "/" {
+            return []
+        }
+        
+        let components = standardized.split(separator: "/").map(String.init)
+        guard !components.isEmpty else {
+            return [PathSegment(id: 0, name: standardized, path: standardized)]
+        }
+        
+        var segments: [PathSegment] = []
+        var built = ""
+        
+        for component in components {
+            built = built.isEmpty
+                ? "/\(component)"
+                : (built as NSString).appendingPathComponent(component)
+            segments.append(
+                PathSegment(id: segments.count, name: component, path: built)
+            )
+        }
+        
+        return segments
+    }
+}
+
+private struct PathSubdirectory: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let path: String
+}
+
+private enum PathSubdirectoryCache {
+    private struct Entry {
+        let subdirectories: [PathSubdirectory]
+        let timestamp: Date
+    }
+    
+    private static var storage: [String: Entry] = [:]
+    private static let lock = NSLock()
+    private static let ttl: TimeInterval = 60
+    
+    static func invalidate() {
+        lock.lock()
+        storage.removeAll()
+        lock.unlock()
+    }
+    
+    static func preloadBreadcrumbPaths(_ path: String, showHiddenFiles: Bool) {
+        var parentPaths = PathSegmentBuilder.segments(for: path).dropLast().map(\.path)
+        if PathSegmentBuilder.showsLeadingRootSlash(for: path), path != "/" {
+            if parentPaths.first != "/" {
+                parentPaths.insert("/", at: 0)
+            }
+        }
+        guard !parentPaths.isEmpty else { return }
+        
+        Task.detached(priority: .utility) {
+            for parentPath in parentPaths {
+                _ = load(parentPath: parentPath, showHiddenFiles: showHiddenFiles)
+            }
+        }
+    }
+    
+    static func load(
+        parentPath: String,
+        showHiddenFiles: Bool
+    ) -> [PathSubdirectory] {
+        let key = cacheKey(parentPath: parentPath, showHiddenFiles: showHiddenFiles)
+        
+        lock.lock()
+        if let entry = storage[key], Date().timeIntervalSince(entry.timestamp) < ttl {
+            let cached = entry.subdirectories
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+        
+        let subdirectories = enumerateSubdirectories(
+            parentPath: parentPath,
+            showHiddenFiles: showHiddenFiles
+        )
+        
+        lock.lock()
+        storage[key] = Entry(subdirectories: subdirectories, timestamp: Date())
+        lock.unlock()
+        return subdirectories
+    }
+    
+    private static func cacheKey(parentPath: String, showHiddenFiles: Bool) -> String {
+        "\(parentPath)|\(showHiddenFiles)"
+    }
+    
+    private static func enumerateSubdirectories(
+        parentPath: String,
+        showHiddenFiles: Bool
+    ) -> [PathSubdirectory] {
+        let parentURL = URL(fileURLWithPath: parentPath, isDirectory: true)
+        let propertyKeys: [URLResourceKey] = [.isDirectoryKey]
+        let options: FileManager.DirectoryEnumerationOptions = showHiddenFiles
+            ? [.skipsPackageDescendants]
+            : [.skipsHiddenFiles, .skipsPackageDescendants]
+        
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: parentURL,
+            includingPropertiesForKeys: propertyKeys,
+            options: options
+        ) else {
+            return []
+        }
+        
+        var subdirectories: [PathSubdirectory] = []
+        subdirectories.reserveCapacity(urls.count)
+        for url in urls {
+            guard let isDirectory = try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory,
+                  isDirectory else { continue }
+            let resolvedPath = url.standardizedFileURL.path
+            subdirectories.append(
+                PathSubdirectory(id: resolvedPath, name: url.lastPathComponent, path: resolvedPath)
+            )
+        }
+        
+        return subdirectories.sorted {
+            $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+    }
+}
+
+private struct PathBarView: View {
+    @Binding var path: String
+    @Binding var activeField: BarTextFieldID?
+    var showHiddenFiles: Bool
+    var onSubmit: () -> Void
+    
+    @State private var mode: PathBarMode = .breadcrumb
+    @State private var editingText = ""
+    @State private var committedViaSubmit = false
+    @State private var previousActiveField: BarTextFieldID?
+    
+    private let cornerRadius: CGFloat = 7
+    private let fieldHeight: CGFloat = 28
+    
+    private var showsFocusBorder: Bool {
+        activeField == .path
+    }
+    
+    private var borderColor: Color {
+        showsFocusBorder ? Color.accentColor : Color(nsColor: .separatorColor)
+    }
+    
+    private var displayPath: String {
+        path
+    }
+    
+    var body: some View {
+        ZStack(alignment: .leading) {
+            TextField("Path", text: $editingText)
+                .textFieldStyle(.plain)
+                .opacity(mode == .text ? 1 : 0)
+                .allowsHitTesting(mode == .text)
+                .frame(maxHeight: .infinity, alignment: .center)
+                .onSubmit(commitPath)
+                .background(
+                    BarTextFieldFocusObserver(fieldID: .path, activeField: $activeField)
+                )
+            
+            if mode == .breadcrumb {
+                PathBreadcrumbView(
+                    path: path,
+                    showHiddenFiles: showHiddenFiles,
+                    onNavigate: { path = $0 },
+                    onRequestEdit: enterTextMode
+                )
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: fieldHeight)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+                .allowsHitTesting(false)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(borderColor, lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .onAppear {
+            editingText = displayPath
+            previousActiveField = activeField
+            PathSubdirectoryCache.preloadBreadcrumbPaths(path, showHiddenFiles: showHiddenFiles)
+        }
+        .onChange(of: path) { _ in
+            if mode == .breadcrumb || activeField != .path {
+                editingText = displayPath
+            }
+            PathSubdirectoryCache.preloadBreadcrumbPaths(path, showHiddenFiles: showHiddenFiles)
+        }
+        .onChange(of: showHiddenFiles) { _ in
+            PathSubdirectoryCache.invalidate()
+            PathSubdirectoryCache.preloadBreadcrumbPaths(path, showHiddenFiles: showHiddenFiles)
+        }
+        .onChange(of: activeField) { newValue in
+            let oldValue = previousActiveField
+            previousActiveField = newValue
+            
+            if newValue == .path {
+                if mode != .text {
+                    editingText = displayPath
+                    mode = .text
+                }
+                return
+            }
+            
+            if oldValue == .path, mode == .text {
+                if !committedViaSubmit {
+                    editingText = displayPath
+                }
+                committedViaSubmit = false
+                mode = .breadcrumb
+            }
+        }
+    }
+    
+    private func enterTextMode() {
+        editingText = path
+        mode = .text
+        DispatchQueue.main.async {
+            BarTextFieldFocusRegistry.focusWhenReady(.path, selectAll: true)
+        }
+    }
+    
+    private func commitPath() {
+        committedViaSubmit = true
+        let newValue = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !newValue.isEmpty {
+            if newValue == TrashLoader.displayName {
+                path = TrashLoader.userTrashPath
+            } else {
+                path = newValue
+            }
+        }
+        onSubmit()
+        BarTextFieldFocusRegistry.resign(.path)
+        activeField = BarTextFieldFocusRegistry.currentEditingField()
+        mode = .breadcrumb
+    }
+}
+
+private struct PathBreadcrumbMetrics {
+    let contentWidth: CGFloat
+    let isOverflowing: Bool
+    let trailingClickWidth: CGFloat
+    
+    static func compute(
+        segments: [PathSegment],
+        availableWidth: CGFloat,
+        clickGap: CGFloat,
+        clickReserve: CGFloat,
+        showsLeadingRootSlash: Bool
+    ) -> PathBreadcrumbMetrics {
+        let contentWidth = PathBreadcrumbLayout.estimatedBreadcrumbWidth(
+            for: segments,
+            showsLeadingRootSlash: showsLeadingRootSlash
+        )
+        let isOverflowing = contentWidth + clickGap > availableWidth
+        let trailingClickWidth: CGFloat
+        if isOverflowing {
+            trailingClickWidth = clickReserve
+        } else {
+            trailingClickWidth = max(clickReserve, availableWidth - contentWidth - clickGap)
+        }
+        return PathBreadcrumbMetrics(
+            contentWidth: contentWidth,
+            isOverflowing: isOverflowing,
+            trailingClickWidth: trailingClickWidth
+        )
+    }
+}
+
+private struct PathBreadcrumbView: View {
+    let path: String
+    let showHiddenFiles: Bool
+    let onNavigate: (String) -> Void
+    let onRequestEdit: () -> Void
+    
+    @State private var hoveredSegmentID: Int?
+    
+    private let clickGap: CGFloat = 8
+    private let clickReserve: CGFloat = 40
+    private let minTailCount = 2
+    private let fieldHeight: CGFloat = 28
+    
+    private var segments: [PathSegment] {
+        PathSegmentBuilder.segments(for: path)
+    }
+    
+    private var showsLeadingRootSlash: Bool {
+        PathSegmentBuilder.showsLeadingRootSlash(for: path)
+    }
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let metrics = PathBreadcrumbMetrics.compute(
+                segments: segments,
+                availableWidth: geometry.size.width,
+                clickGap: clickGap,
+                clickReserve: clickReserve,
+                showsLeadingRootSlash: showsLeadingRootSlash
+            )
+            let layout = PathBreadcrumbLayout.compute(
+                segments: segments,
+                availableWidth: geometry.size.width,
+                reservedTrailingWidth: metrics.isOverflowing ? clickReserve : 0,
+                minTailCount: minTailCount,
+                showsLeadingRootSlash: showsLeadingRootSlash
+            )
+            
+            ZStack(alignment: .leading) {
+                ScrollViewReader { scrollProxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(alignment: .center, spacing: 0) {
+                            if showsLeadingRootSlash {
+                                PathRootSlashButton(
+                                    onNavigate: { onNavigate("/") }
+                                )
+                            }
+                            
+                            if layout.showsLeadingEllipsis {
+                                PathBreadcrumbEllipsisMenu(
+                                    hiddenSegments: layout.hiddenSegments,
+                                    onNavigate: onNavigate
+                                )
+                            }
+                            
+                            ForEach(layout.visibleSegments) { segment in
+                                let isLast = segment.id == segments.last?.id
+                                
+                                PathSegmentButton(
+                                    segment: segment,
+                                    isHighlighted: isSegmentHighlighted(segment),
+                                    onNavigate: onNavigate
+                                )
+                                .id(segment.id)
+                                .onHover { hovering in
+                                    if hovering {
+                                        hoveredSegmentID = segment.id
+                                    }
+                                }
+                                
+                                if !isLast {
+                                    PathSeparatorMenu(
+                                        parentPath: segment.path,
+                                        showHiddenFiles: showHiddenFiles,
+                                        onNavigate: onNavigate
+                                    )
+                                }
+                            }
+                        }
+                        .frame(height: fieldHeight)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .onChange(of: path) { _ in
+                        if let lastID = segments.last?.id {
+                            scrollProxy.scrollTo(lastID, anchor: .trailing)
+                        }
+                    }
+                    .onAppear {
+                        if let lastID = segments.last?.id {
+                            scrollProxy.scrollTo(lastID, anchor: .trailing)
+                        }
+                    }
+                }
+                
+                HStack(spacing: 0) {
+                    Color.clear
+                        .frame(
+                            width: metrics.isOverflowing
+                                ? max(0, geometry.size.width - metrics.trailingClickWidth)
+                                : min(geometry.size.width, metrics.contentWidth + clickGap)
+                        )
+                        .allowsHitTesting(false)
+                    
+                    Color.clear
+                        .frame(width: metrics.trailingClickWidth, height: fieldHeight)
+                        .contentShape(Rectangle())
+                        .onTapGesture(perform: onRequestEdit)
+                        .help("点击编辑完整路径")
+                }
+                .frame(width: geometry.size.width, height: fieldHeight)
+            }
+        }
+        .frame(height: fieldHeight)
+        .onHover { hovering in
+            if !hovering {
+                hoveredSegmentID = nil
+            }
+        }
+    }
+    
+    private func isSegmentHighlighted(_ segment: PathSegment) -> Bool {
+        guard let hoveredSegmentID else { return false }
+        return segment.id <= hoveredSegmentID
+    }
+}
+
+private struct PathBreadcrumbLayout {
+    let showsLeadingEllipsis: Bool
+    let hiddenSegments: [PathSegment]
+    let visibleSegments: [PathSegment]
+    
+    static func compute(
+        segments: [PathSegment],
+        availableWidth: CGFloat,
+        reservedTrailingWidth: CGFloat,
+        minTailCount: Int,
+        showsLeadingRootSlash: Bool
+    ) -> PathBreadcrumbLayout {
+        guard !segments.isEmpty || showsLeadingRootSlash else {
+            return PathBreadcrumbLayout(
+                showsLeadingEllipsis: false,
+                hiddenSegments: [],
+                visibleSegments: []
+            )
+        }
+        
+        let rootPrefixWidth = showsLeadingRootSlash ? estimatedRootSlashWidth() : 0
+        let usableWidth = max(0, availableWidth - reservedTrailingWidth - rootPrefixWidth)
+        let ellipsisWidth: CGFloat = 28
+        let segmentWidths = segments.map(estimatedWidth(for:))
+        let totalWidth = estimatedBreadcrumbWidth(
+            for: segments,
+            showsLeadingRootSlash: showsLeadingRootSlash
+        )
+        
+        if totalWidth <= usableWidth + rootPrefixWidth {
+            return PathBreadcrumbLayout(
+                showsLeadingEllipsis: false,
+                hiddenSegments: [],
+                visibleSegments: segments
+            )
+        }
+        
+        let tailCount = min(minTailCount, segments.count)
+        var startIndex = 0
+        let maxStart = segments.count - tailCount
+        
+        while startIndex < maxStart {
+            let nextStart = startIndex + 1
+            let visibleWidth = segmentWidths[nextStart...].reduce(0, +)
+                + separatorWidth * CGFloat(max(0, segmentWidths[nextStart...].count - 1))
+                + ellipsisWidth
+            if visibleWidth <= usableWidth {
+                startIndex = nextStart
+            } else {
+                break
+            }
+        }
+        
+        if startIndex == 0, segments.count > tailCount {
+            startIndex = max(0, segments.count - tailCount)
+            while startIndex > 0 {
+                let visibleWidth = segmentWidths[startIndex...].reduce(0, +)
+                    + separatorWidth * CGFloat(max(0, segmentWidths[startIndex...].count - 1))
+                    + ellipsisWidth
+                if visibleWidth <= usableWidth { break }
+                startIndex -= 1
+            }
+            let fallbackWidth = segmentWidths[startIndex...].reduce(0, +)
+                + separatorWidth * CGFloat(max(0, segmentWidths[startIndex...].count - 1))
+                + ellipsisWidth
+            if fallbackWidth > usableWidth {
+                startIndex = max(0, segments.count - 1)
+            }
+        }
+        
+        let hidden = startIndex > 0 ? Array(segments.prefix(startIndex)) : []
+        let visible = Array(segments.suffix(from: startIndex))
+        return PathBreadcrumbLayout(
+            showsLeadingEllipsis: !hidden.isEmpty,
+            hiddenSegments: hidden,
+            visibleSegments: visible
+        )
+    }
+    
+    static let separatorWidth: CGFloat = 14
+    
+    static func estimatedBreadcrumbWidth(
+        for segments: [PathSegment],
+        showsLeadingRootSlash: Bool
+    ) -> CGFloat {
+        var width: CGFloat = 0
+        if showsLeadingRootSlash {
+            width += estimatedRootSlashWidth()
+        }
+        guard !segments.isEmpty else { return width }
+        let segmentWidths = segments.map(estimatedWidth(for:))
+        let separators = separatorWidth * CGFloat(max(0, segments.count - 1))
+        return width + segmentWidths.reduce(0, +) + separators
+    }
+    
+    private static func estimatedRootSlashWidth() -> CGFloat {
+        separatorWidth
+    }
+    
+    private static func estimatedWidth(for segment: PathSegment) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let textWidth = (segment.name as NSString).size(withAttributes: [.font: font]).width
+        return textWidth + 12
+    }
+}
+
+private struct PathRootSlashButton: View {
+    let onNavigate: () -> Void
+    
+    var body: some View {
+        Text("/")
+            .font(.system(size: NSFont.systemFontSize))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .padding(.horizontal, 2)
+            .frame(width: 14, height: 28)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onNavigate)
+            .help("/")
+    }
+}
+
+private struct PathSegmentButton: View {
+    let segment: PathSegment
+    let isHighlighted: Bool
+    let onNavigate: (String) -> Void
+    
+    var body: some View {
+        Button {
+            onNavigate(segment.path)
+        } label: {
+            Text(segment.name)
+                .font(.system(size: NSFont.systemFontSize))
+                .lineLimit(1)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 3)
+                .background {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(isHighlighted ? Color.accentColor.opacity(0.18) : Color.clear)
+                }
+        }
+        .buttonStyle(.plain)
+        .frame(height: 28)
+        .help(segment.path)
+    }
+}
+
+private struct PathSeparatorMenu: View {
+    let parentPath: String
+    let showHiddenFiles: Bool
+    let onNavigate: (String) -> Void
+    
+    var body: some View {
+        Menu {
+            PathSeparatorMenuItems(
+                parentPath: parentPath,
+                showHiddenFiles: showHiddenFiles,
+                onNavigate: onNavigate
+            )
+        } label: {
+            Text("/")
+                .font(.system(size: NSFont.systemFontSize))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 2)
+                .frame(width: 14, height: 28)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("显示子目录")
+    }
+}
+
+private struct PathSeparatorMenuItems: View {
+    let parentPath: String
+    let showHiddenFiles: Bool
+    let onNavigate: (String) -> Void
+    
+    private var subdirectories: [PathSubdirectory] {
+        PathSubdirectoryCache.load(
+            parentPath: parentPath,
+            showHiddenFiles: showHiddenFiles
+        )
+    }
+    
+    var body: some View {
+        if subdirectories.isEmpty {
+            Text("无子文件夹")
+                .disabled(true)
+        } else {
+            ForEach(subdirectories) { subdirectory in
+                Button(subdirectory.name) {
+                    onNavigate(subdirectory.path)
+                }
+            }
+        }
+    }
+}
+
+private struct PathBreadcrumbEllipsisMenu: View {
+    let hiddenSegments: [PathSegment]
+    let onNavigate: (String) -> Void
+    
+    var body: some View {
+        Menu {
+            ForEach(hiddenSegments) { segment in
+                Button(segment.name) {
+                    onNavigate(segment.path)
+                }
+            }
+        } label: {
+            Text("…")
+                .font(.system(size: NSFont.systemFontSize, weight: .medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+                .frame(height: 28)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("显示上级路径")
+    }
+}
+
 struct ContentView: View {
     @Binding var showPreview: Bool
     @AppStorage(AppSettings.blankDoubleClickActionKey)
@@ -833,6 +1541,9 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var showHiddenFiles = false
     @State private var loadGeneration: UInt = 0
+    @State private var navigationBackStack: [String] = []
+    @State private var isApplyingHistoryNavigation = false
+    @State private var lastRecordedPath: String?
     @AppStorage(AppSettings.previewPanelWidthKey) private var storedPreviewPanelWidth = 320.0
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
@@ -859,23 +1570,15 @@ struct ContentView: View {
                 
                 HStack(spacing: 0) {
                     VStack(spacing: 0) {
-                        HStack(spacing: 8) {
-                            BarTextField(
-                                fieldID: .path,
-                                prompt: "Path",
-                                text: pathBinding,
-                                activeField: $activeBarField,
-                                onSubmit: loadItems
-                            )
-                            
-                            Button(action: loadItems) {
-                                Image(systemName: "arrow.clockwise")
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(isLoading)
-                        }
+                        PathBarView(
+                            path: $path,
+                            activeField: $activeBarField,
+                            showHiddenFiles: showHiddenFiles,
+                            onSubmit: loadItems
+                        )
+                        .frame(height: PanelTopBarMetrics.contentHeight)
                         .padding(.horizontal)
-                        .padding(.vertical, 6)
+                        .padding(.vertical, PanelTopBarMetrics.verticalPadding)
                         
                         Divider()
                         
@@ -896,7 +1599,8 @@ struct ContentView: View {
                                     selection.removeAll()
                                     loadItems()
                                 },
-                                contextActions: fileContextActions
+                                contextActions: fileContextActions,
+                                blankMenuActions: blankMenuActions
                             )
                             .focusedValue(\.fileCommandHandlers, fileCommandHandlers)
                         }
@@ -930,9 +1634,15 @@ struct ContentView: View {
                         
                         ToolbarItem(placement: .primaryAction) {
                             Menu {
-                                Picker("Sort By", selection: $sortOrder) {
-                                    ForEach(SortOrder.allCases) { order in
-                                        Text(order.rawValue).tag(order)
+                                ForEach(SortOrder.allCases) { order in
+                                    Button {
+                                        sortOrder = order
+                                    } label: {
+                                        if sortOrder == order {
+                                            Label(order.rawValue, systemImage: "checkmark")
+                                        } else {
+                                            Text(order.rawValue)
+                                        }
                                     }
                                 }
                             } label: {
@@ -1010,8 +1720,15 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear(perform: loadItems)
-        .onChange(of: path) { _ in
+        .onAppear {
+            lastRecordedPath = path
+            loadItems()
+        }
+        .onChange(of: path) { newPath in
+            if let oldPath = lastRecordedPath, oldPath != newPath, !isApplyingHistoryNavigation {
+                navigationBackStack.append(oldPath)
+            }
+            lastRecordedPath = newPath
             loadItems()
         }
         .onChange(of: sortOrder) { newOrder in
@@ -1040,19 +1757,6 @@ struct ContentView: View {
             return items
         }
         return items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-    }
-    
-    private var pathBinding: Binding<String> {
-        Binding(
-            get: {
-                TrashLoader.isTrashPath(path) ? TrashLoader.displayName : path
-            },
-            set: { newValue in
-                if newValue != TrashLoader.displayName {
-                    path = newValue
-                }
-            }
-        )
     }
     
     private func clampPreviewWidth(_ width: CGFloat, maxWidth: CGFloat) -> CGFloat {
@@ -1132,6 +1836,17 @@ struct ContentView: View {
         }
     }
     
+    private var canNavigateBack: Bool {
+        !navigationBackStack.isEmpty
+    }
+    
+    private func navigateBack() {
+        guard let previous = navigationBackStack.popLast() else { return }
+        isApplyingHistoryNavigation = true
+        path = previous
+        isApplyingHistoryNavigation = false
+    }
+    
     private func navigateUp() {
         if TrashLoader.isTrashPath(path) {
             path = FileManager.default.homeDirectoryForCurrentUser.path
@@ -1182,6 +1897,37 @@ struct ContentView: View {
             canCut: !selected.isEmpty,
             canPaste: FileOperations.canPaste(to: URL(fileURLWithPath: destPath)),
             canDelete: !selected.isEmpty
+        )
+    }
+    
+    private var blankMenuActions: FileListBlankMenuActions {
+        let inTrash = TrashLoader.isTrashPath(path)
+        let pasteDestination = URL(fileURLWithPath: path, isDirectory: true)
+        let canPaste = !inTrash && FileOperations.canPaste(to: pasteDestination)
+        
+        return FileListBlankMenuActions(
+            isEnabled: searchText.isEmpty,
+            canGoBack: canNavigateBack,
+            goBack: navigateBack,
+            canGoUp: FileItem.canNavigateUp(from: path),
+            goUp: navigateUp,
+            canPaste: canPaste,
+            paste: {
+                FileOperations.paste(to: pasteDestination) {
+                    selection.removeAll()
+                    loadItems()
+                }
+            },
+            newFolder: createNewFolder,
+            newFile: createNewFile,
+            openTerminal: { TerminalHelper.open(at: path) },
+            isInTrash: inTrash,
+            emptyTrash: {
+                FileOperations.emptyTrash {
+                    selection.removeAll()
+                    loadItems()
+                }
+            }
         )
     }
     
@@ -1241,15 +1987,15 @@ struct ContentView: View {
     
     private func createNewFolder() {
         let alert = NSAlert()
-        alert.messageText = "Create New Folder"
-        alert.informativeText = "Enter a name for the new folder:"
+        alert.messageText = "新建文件夹"
+        alert.informativeText = "输入新文件夹名称："
         
         let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        textField.placeholderString = "Folder Name"
+        textField.placeholderString = "文件夹名称"
         alert.accessoryView = textField
         
-        alert.addButton(withTitle: "Create")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "创建")
+        alert.addButton(withTitle: "取消")
         
         alert.window.initialFirstResponder = textField
         
@@ -1266,6 +2012,38 @@ struct ContentView: View {
                     let errorAlert = NSAlert(error: error)
                     errorAlert.runModal()
                 }
+            }
+        }
+    }
+    
+    private func createNewFile() {
+        let alert = NSAlert()
+        alert.messageText = "新建文件"
+        alert.informativeText = "输入新文件名称："
+        
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        textField.placeholderString = "文件名称"
+        alert.accessoryView = textField
+        
+        alert.addButton(withTitle: "创建")
+        alert.addButton(withTitle: "取消")
+        
+        alert.window.initialFirstResponder = textField
+        
+        if alert.runModal() == .alertFirstButtonReturn {
+            let fileName = textField.stringValue
+            
+            if !fileName.isEmpty {
+                let fileURL = URL(fileURLWithPath: path).appendingPathComponent(fileName)
+                
+                guard FileManager.default.createFile(atPath: fileURL.path, contents: Data()) else {
+                    let errorAlert = NSAlert()
+                    errorAlert.messageText = "无法创建文件"
+                    errorAlert.informativeText = "请检查名称是否合法，或目标位置是否可写。"
+                    errorAlert.runModal()
+                    return
+                }
+                loadItems()
             }
         }
     }
@@ -1482,6 +2260,21 @@ struct FileContextActions {
     var deleteImmediately: ([FileItem]) -> Void = { _ in }
 }
 
+struct FileListBlankMenuActions {
+    var isEnabled = true
+    var canGoBack = false
+    var goBack: () -> Void = {}
+    var canGoUp = false
+    var goUp: () -> Void = {}
+    var canPaste = false
+    var paste: () -> Void = {}
+    var newFolder: () -> Void = {}
+    var newFile: () -> Void = {}
+    var openTerminal: () -> Void = {}
+    var isInTrash = false
+    var emptyTrash: () -> Void = {}
+}
+
 struct FileListView: View {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
@@ -1493,6 +2286,7 @@ struct FileListView: View {
     let onBlankDoubleClick: () -> Void
     let onItemsChanged: () -> Void
     let contextActions: FileContextActions
+    let blankMenuActions: FileListBlankMenuActions
     
     @State private var isCurrentDirectoryDropTargeted = false
     @State private var folderDropTargetID: FileItem.ID?
@@ -1583,10 +2377,7 @@ struct FileListView: View {
             onItemOpen: onItemOpen,
             onDragEnded: onItemsChanged
         ))
-        .background(TableTrashBlankContextMenuHandler(
-            isEnabled: contextActions.isInTrash,
-            onEmptyTrash: contextActions.emptyTrash
-        ))
+        .background(TableBlankContextMenuHandler(actions: blankMenuActions))
         .contextMenu(forSelectionType: FileItem.ID.self) { ids in
             let selected = items(for: ids)
             let fileSelection = selected.filter { !$0.isParentDirectoryEntry }
@@ -1596,10 +2387,8 @@ struct FileListView: View {
                 Button("打开") {
                     onItemOpen(item)
                 }
-            } else if inTrash && selected.isEmpty {
-                Button("清倒废纸篓", role: .destructive) {
-                    contextActions.emptyTrash()
-                }
+            } else if selected.isEmpty {
+                blankAreaContextMenu(inTrash: inTrash)
             }
             
             if inTrash && !selected.isEmpty {
@@ -1800,6 +2589,50 @@ struct FileListView: View {
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
         tableRowItems.filter { ids.contains($0.id) }
+    }
+    
+    @ViewBuilder
+    private func blankAreaContextMenu(inTrash: Bool) -> some View {
+        if blankMenuActions.isEnabled {
+            Button("返回") {
+                blankMenuActions.goBack()
+            }
+            .disabled(!blankMenuActions.canGoBack)
+            
+            Button("向上") {
+                blankMenuActions.goUp()
+            }
+            .disabled(!blankMenuActions.canGoUp)
+            
+            if inTrash {
+                Divider()
+                Button("清倒废纸篓", role: .destructive) {
+                    blankMenuActions.emptyTrash()
+                }
+            } else {
+                if blankMenuActions.canPaste {
+                    Divider()
+                    Button("粘贴") {
+                        blankMenuActions.paste()
+                    }
+                }
+                
+                Divider()
+                
+                Button("新建文件夹") {
+                    blankMenuActions.newFolder()
+                }
+                Button("新建文件") {
+                    blankMenuActions.newFile()
+                }
+                
+                Divider()
+                
+                Button("在此处打开终端") {
+                    blankMenuActions.openTerminal()
+                }
+            }
+        }
     }
     
     static func sortingKeyPath(for order: SortOrder) -> [KeyPathComparator<FileItem>] {
@@ -2467,13 +3300,12 @@ private struct TableDoubleClickHandler: NSViewRepresentable {
     }
 }
 
-/// 废纸篓视图空白处右键菜单（NSTableView 空白区域不一定会触发 SwiftUI contextMenu）。
-private struct TableTrashBlankContextMenuHandler: NSViewRepresentable {
-    let isEnabled: Bool
-    let onEmptyTrash: () -> Void
+/// 文件列表空白处右键菜单（NSTableView 空白区域不一定会触发 SwiftUI contextMenu）。
+private struct TableBlankContextMenuHandler: NSViewRepresentable {
+    let actions: FileListBlankMenuActions
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(isEnabled: isEnabled, onEmptyTrash: onEmptyTrash)
+        Coordinator(actions: actions)
     }
     
     func makeNSView(context: Context) -> NSView {
@@ -2483,20 +3315,27 @@ private struct TableTrashBlankContextMenuHandler: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.isEnabled = isEnabled
-        context.coordinator.onEmptyTrash = onEmptyTrash
+        context.coordinator.actions = actions
         context.coordinator.installIfNeeded(from: nsView)
     }
     
     final class Coordinator: NSObject {
-        var isEnabled: Bool
-        var onEmptyTrash: () -> Void
+        var actions: FileListBlankMenuActions
         private weak var tableView: NSTableView?
         private var eventMonitor: Any?
         
-        init(isEnabled: Bool, onEmptyTrash: @escaping () -> Void) {
-            self.isEnabled = isEnabled
-            self.onEmptyTrash = onEmptyTrash
+        private enum MenuAction: Int {
+            case goBack = 1
+            case goUp
+            case paste
+            case newFolder
+            case newFile
+            case openTerminal
+            case emptyTrash
+        }
+        
+        init(actions: FileListBlankMenuActions) {
+            self.actions = actions
         }
         
         deinit {
@@ -2521,7 +3360,7 @@ private struct TableTrashBlankContextMenuHandler: NSViewRepresentable {
         private func installEventMonitorIfNeeded() {
             guard eventMonitor == nil else { return }
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
-                guard let self, self.isEnabled, let tableView = self.tableView,
+                guard let self, self.actions.isEnabled, let tableView = self.tableView,
                       event.window == tableView.window else {
                     return event
                 }
@@ -2531,21 +3370,81 @@ private struct TableTrashBlankContextMenuHandler: NSViewRepresentable {
                     return event
                 }
                 
-                let menu = NSMenu()
-                let item = NSMenuItem(
-                    title: "清倒废纸篓",
-                    action: #selector(self.handleEmptyTrash(_:)),
-                    keyEquivalent: ""
-                )
-                item.target = self
-                menu.addItem(item)
+                let menu = self.buildMenu()
+                guard !menu.items.isEmpty else { return event }
                 NSMenu.popUpContextMenu(menu, with: event, for: tableView)
                 return nil
             }
         }
         
-        @objc func handleEmptyTrash(_ sender: Any?) {
-            onEmptyTrash()
+        private func buildMenu() -> NSMenu {
+            let menu = NSMenu()
+            
+            menu.addItem(makeItem(
+                title: "返回",
+                action: .goBack,
+                enabled: actions.canGoBack
+            ))
+            menu.addItem(makeItem(
+                title: "向上",
+                action: .goUp,
+                enabled: actions.canGoUp
+            ))
+            
+            if actions.isInTrash {
+                menu.addItem(.separator())
+                menu.addItem(makeItem(
+                    title: "清倒废纸篓",
+                    action: .emptyTrash,
+                    enabled: true
+                ))
+                return menu
+            }
+            
+            if actions.canPaste {
+                menu.addItem(.separator())
+                menu.addItem(makeItem(title: "粘贴", action: .paste, enabled: true))
+            }
+            
+            menu.addItem(.separator())
+            menu.addItem(makeItem(title: "新建文件夹", action: .newFolder, enabled: true))
+            menu.addItem(makeItem(title: "新建文件", action: .newFile, enabled: true))
+            menu.addItem(.separator())
+            menu.addItem(makeItem(title: "在此处打开终端", action: .openTerminal, enabled: true))
+            
+            return menu
+        }
+        
+        private func makeItem(title: String, action: MenuAction, enabled: Bool) -> NSMenuItem {
+            let item = NSMenuItem(
+                title: title,
+                action: #selector(handleMenuAction(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.tag = action.rawValue
+            item.isEnabled = enabled
+            return item
+        }
+        
+        @objc func handleMenuAction(_ sender: NSMenuItem) {
+            guard let action = MenuAction(rawValue: sender.tag) else { return }
+            switch action {
+            case .goBack:
+                actions.goBack()
+            case .goUp:
+                actions.goUp()
+            case .paste:
+                actions.paste()
+            case .newFolder:
+                actions.newFolder()
+            case .newFile:
+                actions.newFile()
+            case .openTerminal:
+                actions.openTerminal()
+            case .emptyTrash:
+                actions.emptyTrash()
+            }
         }
         
         private func findTableView(startingFrom view: NSView) -> NSTableView? {
@@ -2722,8 +3621,10 @@ struct FilePreviewView: View {
                 .buttonStyle(.borderless)
                 .help("关闭预览")
             }
+            .frame(height: PanelTopBarMetrics.contentHeight)
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.vertical, PanelTopBarMetrics.verticalPadding)
             
             Divider()
             
