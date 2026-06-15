@@ -2,6 +2,36 @@ import SwiftUI
 import AppKit
 import PDFKit
 
+enum BlankDoubleClickAction: String, CaseIterable, Identifiable {
+    case navigateToParent
+    case openTerminal
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .navigateToParent:
+            return "返回上级目录"
+        case .openTerminal:
+            return "在本目录打开终端"
+        }
+    }
+}
+
+private enum AppSettings {
+    static let blankDoubleClickActionKey = "blankDoubleClickAction"
+}
+
+private enum AppSettingsOpener {
+    static func open() {
+        let settingsSelector = Selector(("showSettingsWindow:"))
+        if NSApp.sendAction(settingsSelector, to: nil, from: nil) {
+            return
+        }
+        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+    }
+}
+
 @main
 struct ExplorerApp: App {
     @State private var showPreview = true
@@ -14,17 +44,49 @@ struct ExplorerApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
         .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("设置…") {
+                    AppSettingsOpener.open()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+            
             CommandGroup(after: .sidebar) {
                 Button(showPreview ? "关闭预览" : "显示预览") {
                     showPreview.toggle()
                 }
             }
         }
+        
+        Settings {
+            SettingsView()
+        }
+    }
+}
+
+struct SettingsView: View {
+    @AppStorage(AppSettings.blankDoubleClickActionKey)
+    private var blankDoubleClickAction = BlankDoubleClickAction.navigateToParent.rawValue
+    
+    var body: some View {
+        Form {
+            Picker("空白处双击", selection: $blankDoubleClickAction) {
+                ForEach(BlankDoubleClickAction.allCases) { action in
+                    Text(action.displayName).tag(action.rawValue)
+                }
+            }
+            .pickerStyle(.radioGroup)
+        }
+        .formStyle(.grouped)
+        .padding()
+        .frame(width: 420)
     }
 }
 
 struct ContentView: View {
     @Binding var showPreview: Bool
+    @AppStorage(AppSettings.blankDoubleClickActionKey)
+    private var blankDoubleClickActionRaw = BlankDoubleClickAction.navigateToParent.rawValue
     @State private var path = FileManager.default.homeDirectoryForCurrentUser.path
     @State private var items: [FileItem] = []
     @State private var selection: Set<FileItem.ID> = []
@@ -70,7 +132,8 @@ struct ContentView: View {
                             items: filteredItems,
                             selection: $selection,
                             sortOrder: $sortOrder,
-                            onItemOpen: openItem
+                            onItemOpen: openItem,
+                            onBlankDoubleClick: handleBlankDoubleClick
                         )
                     }
                 }
@@ -196,6 +259,19 @@ struct ContentView: View {
                 items = sorted
                 isLoading = false
             }
+        }
+    }
+    
+    private var blankDoubleClickAction: BlankDoubleClickAction {
+        BlankDoubleClickAction(rawValue: blankDoubleClickActionRaw) ?? .navigateToParent
+    }
+    
+    private func handleBlankDoubleClick() {
+        switch blankDoubleClickAction {
+        case .navigateToParent:
+            navigateUp()
+        case .openTerminal:
+            TerminalHelper.open(at: path)
         }
     }
     
@@ -349,6 +425,7 @@ struct FileListView: View {
     @Binding var selection: Set<FileItem.ID>
     @Binding var sortOrder: SortOrder
     let onItemOpen: (FileItem) -> Void
+    let onBlankDoubleClick: () -> Void
     
     @State private var sortingKeyPath: [KeyPathComparator<FileItem>] = []
     
@@ -381,7 +458,11 @@ struct FileListView: View {
                 TableRow(item)
             }
         }
-        .background(TableDoubleClickHandler(items: items, onOpen: onItemOpen))
+        .background(TableDoubleClickHandler(
+            items: items,
+            onOpen: onItemOpen,
+            onBlankDoubleClick: onBlankDoubleClick
+        ))
         .onAppear {
             sortingKeyPath = Self.sortingKeyPath(for: sortOrder)
         }
@@ -428,9 +509,10 @@ struct FileListView: View {
 private struct TableDoubleClickHandler: NSViewRepresentable {
     let items: [FileItem]
     let onOpen: (FileItem) -> Void
+    let onBlankDoubleClick: () -> Void
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(items: items, onOpen: onOpen)
+        Coordinator(items: items, onOpen: onOpen, onBlankDoubleClick: onBlankDoubleClick)
     }
     
     func makeNSView(context: Context) -> NSView {
@@ -442,17 +524,24 @@ private struct TableDoubleClickHandler: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         context.coordinator.items = items
         context.coordinator.onOpen = onOpen
+        context.coordinator.onBlankDoubleClick = onBlankDoubleClick
         context.coordinator.installIfNeeded(from: nsView)
     }
     
     final class Coordinator: NSObject {
         var items: [FileItem]
         var onOpen: (FileItem) -> Void
+        var onBlankDoubleClick: () -> Void
         private weak var tableView: NSTableView?
         
-        init(items: [FileItem], onOpen: @escaping (FileItem) -> Void) {
+        init(
+            items: [FileItem],
+            onOpen: @escaping (FileItem) -> Void,
+            onBlankDoubleClick: @escaping () -> Void
+        ) {
             self.items = items
             self.onOpen = onOpen
+            self.onBlankDoubleClick = onBlankDoubleClick
         }
         
         func installIfNeeded(from view: NSView) {
@@ -471,7 +560,11 @@ private struct TableDoubleClickHandler: NSViewRepresentable {
         
         @objc func handleDoubleClick(_ sender: NSTableView) {
             let row = sender.clickedRow
-            guard row >= 0, row < items.count else { return }
+            if row < 0 {
+                onBlankDoubleClick()
+                return
+            }
+            guard row < items.count else { return }
             onOpen(items[row])
         }
         
@@ -922,5 +1015,32 @@ enum SidebarVolumeLoader {
     
     private static func isMainInternalVolume(path: String, isInternal: Bool) -> Bool {
         isInternal && (path == "/" || path == "/System/Volumes/Data")
+    }
+}
+
+enum TerminalHelper {
+    static func open(at directoryPath: String) {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: directoryPath, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            return
+        }
+        
+        let escapedPath = directoryPath
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let scriptSource = """
+        tell application "Terminal"
+            activate
+            do script "cd \\"\(escapedPath)\\""
+        end tell
+        """
+        
+        guard let script = NSAppleScript(source: scriptSource) else { return }
+        var error: NSDictionary?
+        script.executeAndReturnError(&error)
+        if let error {
+            print("Failed to open Terminal: \(error)")
+        }
     }
 }

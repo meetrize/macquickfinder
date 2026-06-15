@@ -90,5 +90,9 @@ chmod +x "$MACOS_DIR/Explorer"
 
 echo "Application bundle created at ./$APP_NAME"
 
+# Quit any running instance so the new binary is loaded on launch
+osascript -e 'tell application "Explorer" to quit' >/dev/null 2>&1 || true
+sleep 0.3
+
 # Open the app
 open "./$APP_NAME"
