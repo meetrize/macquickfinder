@@ -4,17 +4,27 @@ import PDFKit
 
 @main
 struct ExplorerApp: App {
+    @State private var showPreview = true
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(showPreview: $showPreview)
                 .frame(minWidth: 800, minHeight: 600)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
+        .commands {
+            CommandGroup(after: .sidebar) {
+                Button(showPreview ? "关闭预览" : "显示预览") {
+                    showPreview.toggle()
+                }
+            }
+        }
     }
 }
 
 struct ContentView: View {
+    @Binding var showPreview: Bool
     @State private var path = FileManager.default.homeDirectoryForCurrentUser.path
     @State private var items: [FileItem] = []
     @State private var selection: Set<FileItem.ID> = []
@@ -27,78 +37,85 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(path: $path)
-        } content: {
-            VStack(spacing: 0) {
-                HStack {
-                    Button(action: navigateUp) {
-                        Image(systemName: "arrow.up")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isLoading)
-                    
-                    TextField("Path", text: $path)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit(loadItems)
-                    
-                    Button(action: loadItems) {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isLoading)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                
-                Divider()
-                
-                if isLoading {
-                    ProgressView()
-                        .padding()
-                } else {
-                    FileListView(
-                        items: filteredItems,
-                        selection: $selection,
-                        sortOrder: $sortOrder,
-                        onItemOpen: openItem
-                    )
-                }
-            }
-            .searchable(text: $searchText, prompt: "Search files")
-            .navigationTitle("Explorer")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button("New Folder") {
-                            createNewFolder()
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: {
-                        showHiddenFiles.toggle()
-                        loadItems()
-                    }) {
-                        Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
-                    }
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Picker("Sort By", selection: $sortOrder) {
-                            ForEach(SortOrder.allCases) { order in
-                                Text(order.rawValue).tag(order)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
-                    }
-                }
-            }
         } detail: {
-            FilePreviewView(selection: selection, items: items)
+            HStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    HStack {
+                        Button(action: navigateUp) {
+                            Image(systemName: "arrow.up")
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isLoading)
+                        
+                        TextField("Path", text: $path)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit(loadItems)
+                        
+                        Button(action: loadItems) {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isLoading)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    
+                    Divider()
+                    
+                    if isLoading {
+                        ProgressView()
+                            .padding()
+                    } else {
+                        FileListView(
+                            items: filteredItems,
+                            selection: $selection,
+                            sortOrder: $sortOrder,
+                            onItemOpen: openItem
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .searchable(text: $searchText, prompt: "Search files")
+                .navigationTitle("Explorer")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Menu {
+                            Button("New Folder") {
+                                createNewFolder()
+                            }
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                    }
+                    
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {
+                            showHiddenFiles.toggle()
+                            loadItems()
+                        }) {
+                            Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
+                        }
+                    }
+                    
+                    ToolbarItem(placement: .primaryAction) {
+                        Menu {
+                            Picker("Sort By", selection: $sortOrder) {
+                                ForEach(SortOrder.allCases) { order in
+                                    Text(order.rawValue).tag(order)
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                        }
+                    }
+                }
+                
+                if showPreview {
+                    Divider()
+                    FilePreviewView(selection: selection, items: items)
+                        .frame(minWidth: 240, idealWidth: 320)
+                }
+            }
         }
         .onAppear(perform: loadItems)
         .onChange(of: path) { _ in
