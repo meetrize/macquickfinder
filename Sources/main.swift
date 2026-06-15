@@ -48,21 +48,52 @@ struct ExplorerApp: App {
 }
 
 struct SettingsView: View {
+    var body: some View {
+        TabView {
+            GeneralSettingsTab()
+                .tabItem {
+                    Label("通用", systemImage: "gearshape")
+                }
+            
+            AdvancedSettingsTab()
+                .tabItem {
+                    Label("高级", systemImage: "slider.horizontal.3")
+                }
+        }
+        .frame(width: 480, height: 300)
+    }
+}
+
+private struct GeneralSettingsTab: View {
     @AppStorage(AppSettings.blankDoubleClickActionKey)
     private var blankDoubleClickAction = BlankDoubleClickAction.navigateToParent.rawValue
     
     var body: some View {
         Form {
-            Picker("空白处双击", selection: $blankDoubleClickAction) {
-                ForEach(BlankDoubleClickAction.allCases) { action in
-                    Text(action.displayName).tag(action.rawValue)
+            Section {
+                Picker("空白处双击", selection: $blankDoubleClickAction) {
+                    ForEach(BlankDoubleClickAction.allCases) { action in
+                        Text(action.displayName).tag(action.rawValue)
+                    }
                 }
+                .pickerStyle(.radioGroup)
             }
-            .pickerStyle(.radioGroup)
         }
         .formStyle(.grouped)
         .padding()
-        .frame(width: 420)
+    }
+}
+
+private struct AdvancedSettingsTab: View {
+    var body: some View {
+        Form {
+            Section {
+                Text("暂无高级选项")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
     }
 }
 
@@ -1003,19 +1034,19 @@ enum SidebarVolumeLoader {
 
 enum TerminalHelper {
     static func open(at directoryPath: String) {
+        let standardizedPath = (directoryPath as NSString).standardizingPath
         var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: directoryPath, isDirectory: &isDirectory),
+        guard FileManager.default.fileExists(atPath: standardizedPath, isDirectory: &isDirectory),
               isDirectory.boolValue else {
             return
         }
         
-        let escapedPath = directoryPath
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedPath = escapeForAppleScript(standardizedPath)
+        // 始终新建窗口；用 quoted form of 生成可安全传给 shell 的路径
         let scriptSource = """
         tell application "Terminal"
             activate
-            do script "cd \\"\(escapedPath)\\""
+            do script "cd " & quoted form of "\(escapedPath)" in (make new window)
         end tell
         """
         
@@ -1025,5 +1056,11 @@ enum TerminalHelper {
         if let error {
             print("Failed to open Terminal: \(error)")
         }
+    }
+    
+    private static func escapeForAppleScript(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 }
