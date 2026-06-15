@@ -232,6 +232,7 @@ struct ContentView: View {
 
 struct SidebarView: View {
     @Binding var path: String
+    @State private var devices: [SidebarVolume] = []
     
     private let favoriteLocations = [
         SidebarItem(name: "Home", path: FileManager.default.homeDirectoryForCurrentUser.path, icon: "house"),
@@ -254,10 +255,33 @@ struct SidebarView: View {
             }
             
             Section("Devices") {
-                Label("Macintosh HD", systemImage: "externaldrive")
+                if devices.isEmpty {
+                    Text("No devices")
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(devices) { device in
+                        Button(action: {
+                            path = device.path
+                        }) {
+                            Label(device.name, systemImage: device.icon)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
         }
         .listStyle(.sidebar)
+        .onAppear(perform: refreshDevices)
+        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didMountNotification)) { _ in
+            refreshDevices()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didUnmountNotification)) { _ in
+            refreshDevices()
+        }
+    }
+    
+    private func refreshDevices() {
+        devices = SidebarVolumeLoader.load()
     }
 }
 
@@ -661,4 +685,71 @@ struct SidebarItem: Identifiable {
     let name: String
     let path: String
     let icon: String
+}
+
+struct SidebarVolume: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let path: String
+    let isExternal: Bool
+    
+    var icon: String {
+        isExternal ? "externaldrive" : "internaldrive"
+    }
+}
+
+enum SidebarVolumeLoader {
+    private static let propertyKeys: Set<URLResourceKey> = [
+        .volumeNameKey,
+        .volumeLocalizedNameKey,
+        .volumeIsInternalKey,
+        .volumeIsBrowsableKey
+    ]
+    
+    static func load() -> [SidebarVolume] {
+        guard let urls = FileManager.default.mountedVolumeURLs(
+            includingResourceValuesForKeys: Array(propertyKeys),
+            options: [.skipHiddenVolumes]
+        ) else { return [] }
+        
+        var volumes: [SidebarVolume] = []
+        var seenPaths = Set<String>()
+        
+        for url in urls {
+            guard let values = try? url.resourceValues(forKeys: propertyKeys) else { continue }
+            guard values.volumeIsBrowsable ?? true else { continue }
+            
+            let name = values.volumeLocalizedName ?? values.volumeName ?? url.lastPathComponent
+            guard !name.isEmpty else { continue }
+            
+            let volumePath = url.path
+            let isInternal = values.volumeIsInternal ?? false
+            let isExternal = volumePath.hasPrefix("/Volumes/")
+            
+            guard isMainInternalVolume(path: volumePath, isInternal: isInternal) || isExternal else {
+                continue
+            }
+            
+            guard !seenPaths.contains(volumePath) else { continue }
+            seenPaths.insert(volumePath)
+            
+            volumes.append(SidebarVolume(
+                id: volumePath,
+                name: name,
+                path: volumePath,
+                isExternal: isExternal
+            ))
+        }
+        
+        return volumes.sorted { lhs, rhs in
+            if lhs.isExternal != rhs.isExternal {
+                return !lhs.isExternal
+            }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+    }
+    
+    private static func isMainInternalVolume(path: String, isInternal: Bool) -> Bool {
+        isInternal && (path == "/" || path == "/System/Volumes/Data")
+    }
 }

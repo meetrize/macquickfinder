@@ -6,5 +6,7 @@
 Explorer.app/
 
 # IDE / local config
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 .vscode/
