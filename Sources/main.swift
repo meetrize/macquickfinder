@@ -22,16 +22,6 @@ private enum AppSettings {
     static let blankDoubleClickActionKey = "blankDoubleClickAction"
 }
 
-private enum AppSettingsOpener {
-    static func open() {
-        let settingsSelector = Selector(("showSettingsWindow:"))
-        if NSApp.sendAction(settingsSelector, to: nil, from: nil) {
-            return
-        }
-        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-    }
-}
-
 @main
 struct ExplorerApp: App {
     @State private var showPreview = true
@@ -44,13 +34,6 @@ struct ExplorerApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
         .commands {
-            CommandGroup(replacing: .appSettings) {
-                Button("设置…") {
-                    AppSettingsOpener.open()
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
-            
             CommandGroup(after: .sidebar) {
                 Button(showPreview ? "关闭预览" : "显示预览") {
                     showPreview.toggle()
