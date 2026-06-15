@@ -2681,8 +2681,9 @@ struct FileListView: View {
 private enum FileDragDrop {
     static func draggedItems(for item: FileItem, in items: [FileItem], selection: Set<FileItem.ID>) -> [FileItem] {
         guard !item.isParentDirectoryEntry else { return [] }
-        if selection.contains(item.id) {
-            return items.filter { selection.contains($0.id) && !$0.isParentDirectoryEntry }
+        let effectiveSelection = selection.subtracting([FileItem.parentDirectoryID])
+        if effectiveSelection.contains(item.id) {
+            return items.filter { effectiveSelection.contains($0.id) && !$0.isParentDirectoryEntry }
         }
         return [item]
     }
@@ -2711,9 +2712,13 @@ private enum FileDragDrop {
     
     static func loadFileURLs(from providers: [NSItemProvider]) async -> [URL] {
         var urls: [URL] = []
+        var seen = Set<String>()
         for provider in providers {
             if let url = await loadFileURL(from: provider) {
-                urls.append(url)
+                let path = url.standardizedFileURL.path
+                if seen.insert(path).inserted {
+                    urls.append(url)
+                }
             }
         }
         return urls
@@ -2954,7 +2959,6 @@ private final class TableFileDragCoordinator: NSObject, NSDraggingSource {
         guard let tableView else { return }
         guard let row = items.firstIndex(where: { $0.id == item.id }) else { return }
         
-        let rowIndex = IndexSet(integer: row)
         let flags = event.modifierFlags
         if flags.contains(.command) {
             var selected = tableView.selectedRowIndexes
@@ -2964,11 +2968,32 @@ private final class TableFileDragCoordinator: NSObject, NSDraggingSource {
                 selected.insert(row)
             }
             tableView.selectRowIndexes(selected, byExtendingSelection: false)
-        } else if flags.contains(.shift) {
-            tableView.selectRowIndexes(rowIndex, byExtendingSelection: true)
-        } else {
-            tableView.selectRowIndexes(rowIndex, byExtendingSelection: false)
+            return
         }
+        if flags.contains(.shift) {
+            tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: true)
+            return
+        }
+        
+        // 点击已选中的项时保留多选，便于批量拖拽
+        if effectiveSelectionIDs().contains(item.id) {
+            return
+        }
+        
+        tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+    }
+    
+    private func effectiveSelectionIDs() -> Set<FileItem.ID> {
+        var ids = selection
+        ids.remove(FileItem.parentDirectoryID)
+        guard let tableView else { return ids }
+        for row in tableView.selectedRowIndexes {
+            guard row >= 0, row < items.count else { continue }
+            let rowItem = items[row]
+            guard !rowItem.isParentDirectoryEntry else { continue }
+            ids.insert(rowItem.id)
+        }
+        return ids
     }
     
     func beginFileDrag(for item: FileItem, event: NSEvent, dragZoneView: NSView) {
@@ -2977,12 +3002,7 @@ private final class TableFileDragCoordinator: NSObject, NSDraggingSource {
             return
         }
         
-        let selectedIDs = Set(
-            tableView.selectedRowIndexes.compactMap { row -> FileItem.ID? in
-                guard row >= 0, row < items.count else { return nil }
-                return items[row].id
-            }
-        )
+        let selectedIDs = effectiveSelectionIDs()
         let draggedItems = FileDragDrop.draggedItems(
             for: item,
             in: items,
