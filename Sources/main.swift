@@ -1041,26 +1041,16 @@ enum TerminalHelper {
             return
         }
         
-        let escapedPath = escapeForAppleScript(standardizedPath)
-        // 始终新建窗口；用 quoted form of 生成可安全传给 shell 的路径
-        let scriptSource = """
-        tell application "Terminal"
-            activate
-            do script "cd " & quoted form of "\(escapedPath)" in (make new window)
-        end tell
-        """
+        // 使用 open 而非 AppleScript，无需「自动化」权限；
+        // -n 在 Terminal 已运行时仍新建窗口，-a 指定应用。
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-na", "Terminal", standardizedPath]
         
-        guard let script = NSAppleScript(source: scriptSource) else { return }
-        var error: NSDictionary?
-        script.executeAndReturnError(&error)
-        if let error {
+        do {
+            try process.run()
+        } catch {
             print("Failed to open Terminal: \(error)")
         }
-    }
-    
-    private static func escapeForAppleScript(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 }

@@ -37,5 +37,7 @@
     </array>
     <key>NSFileProviderDomainUsageDescription</key>
     <string>Explorer needs access to browse your files</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Explorer 需要向终端发送指令，以便在指定目录中打开终端窗口。</string>
 </dict>
 </plist>

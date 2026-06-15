@@ -88,6 +88,9 @@ fi
 # Make the binary executable
 chmod +x "$MACOS_DIR/Explorer"
 
+# Ad-hoc 签名，便于系统识别应用身份（TCC、Gatekeeper 等）
+codesign --force --deep --sign - "./$APP_NAME" 2>/dev/null || echo "Warning: codesign failed (Terminal open still works without automation permission)"
+
 echo "Application bundle created at ./$APP_NAME"
 
 # Quit any running instance so the new binary is loaded on launch
