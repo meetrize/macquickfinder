@@ -230,7 +230,11 @@ struct ContentView: View {
                 
                 if showPreview {
                     Divider()
-                    FilePreviewView(selection: selection, items: items)
+                    FilePreviewView(
+                        showPreview: $showPreview,
+                        selection: selection,
+                        items: items
+                    )
                         .frame(minWidth: 240, idealWidth: 320)
                 }
             }
@@ -709,124 +713,79 @@ private struct TableDoubleClickHandler: NSViewRepresentable {
 }
 
 struct FilePreviewView: View {
+    @Binding var showPreview: Bool
     let selection: Set<FileItem.ID>
     let items: [FileItem]
+    @State private var imageZoomScale: CGFloat = 1.0
     
     var body: some View {
         if let selectedID = selection.first, let selectedItem = items.first(where: { $0.id == selectedID }) {
             VStack(spacing: 0) {
-                // File header
-                HStack {
-                    Image(systemName: getSystemImageName(for: selectedItem))
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 30, height: 30)
-                        .foregroundColor(selectedItem.isDirectory ? .blue : .gray)
+                HStack(spacing: 6) {
+                    Text(selectedItem.name)
+                        .font(.callout)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                     
-                    VStack(alignment: .leading) {
-                        Text(selectedItem.name)
-                            .font(.headline)
-                        Text(getFileType(for: selectedItem))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+                    Spacer(minLength: 0)
                     
-                    Spacer()
-                    
-                    Button("Open") {
-                        NSWorkspace.shared.open(selectedItem.url)
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .padding()
-                
-                Divider()
-                
-                // File metadata
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Size:")
-                            Text("Modified:")
-                            Text("Location:")
+                    if isImageFile(selectedItem) {
+                        Button {
+                            imageZoomScale = min(imageZoomScale + 0.25, 5.0)
+                        } label: {
+                            Image(systemName: "plus.magnifyingglass")
                         }
-                        .foregroundColor(.secondary)
+                        .buttonStyle(.borderless)
+                        .help("放大")
                         
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(selectedItem.sizeDisplay)
-                            Text(selectedItem.dateDisplay)
-                            Text(selectedItem.url.deletingLastPathComponent().path)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                        Button {
+                            imageZoomScale = max(imageZoomScale - 0.25, 0.25)
+                        } label: {
+                            Image(systemName: "minus.magnifyingglass")
                         }
+                        .buttonStyle(.borderless)
+                        .help("缩小")
                     }
+                    
+                    Button {
+                        showPreview = false
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("关闭预览")
                 }
-                .padding()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 
                 Divider()
                 
-                // File preview
                 if !selectedItem.isDirectory {
-                    FileContentView(item: selectedItem)
+                    FileContentView(item: selectedItem, imageZoomScale: $imageZoomScale)
                         .id(selectedItem.id)
+                } else {
+                    Spacer()
                 }
-                
-                Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onChange(of: selectedItem.id) { _ in
+                imageZoomScale = 1.0
+            }
         } else {
             Text("Select a file to preview")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
     
-    private func getSystemImageName(for item: FileItem) -> String {
-        if item.isDirectory {
-            return "folder"
-        }
-        
+    private func isImageFile(_ item: FileItem) -> Bool {
         let ext = item.url.pathExtension.lowercased()
-        
-        if ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "webp"].contains(ext) {
-            return "photo"
-        } else if ext == "pdf" {
-            return "doc.text"
-        } else if ["txt", "md", "swift", "java", "py", "js", "html", "css"].contains(ext) {
-            return "doc.text.fill"
-        } else if ["mp4", "mov", "avi"].contains(ext) {
-            return "film"
-        } else if ["mp3", "wav", "aac"].contains(ext) {
-            return "music.note"
-        } else {
-            return "doc"
-        }
-    }
-    
-    private func getFileType(for item: FileItem) -> String {
-        if item.isDirectory {
-            return "Folder"
-        }
-        
-        let ext = item.url.pathExtension.lowercased()
-        
-        if ["jpg", "jpeg"].contains(ext) {
-            return "JPEG Image"
-        } else if ext == "png" {
-            return "PNG Image"
-        } else if ext == "pdf" {
-            return "PDF Document"
-        } else if ext == "txt" {
-            return "Text File"
-        } else if ext == "" {
-            return "File"
-        } else {
-            return "\(ext.uppercased()) File"
-        }
+        return ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"].contains(ext)
     }
 }
 
 struct FileContentView: View {
     let item: FileItem
+    @Binding var imageZoomScale: CGFloat
     @State private var textContent: String = ""
     @State private var image: NSImage? = nil
     @State private var pdfDocument: PDFDocument? = nil
@@ -855,24 +814,18 @@ struct FileContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let image = image {
-                // Image preview
-                VStack {
+                ScrollView([.horizontal, .vertical]) {
                     Image(nsImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: 400)
-                    
-                    Text("\(Int(image.size.width)) × \(Int(image.size.height))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .scaleEffect(imageZoomScale)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let pdfDoc = pdfDocument {
-                // PDF preview
                 PDFPreview(document: pdfDoc)
-                    .frame(maxWidth: .infinity, maxHeight: 400)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if !textContent.isEmpty {
-                // Text preview
                 ScrollView {
                     Text(textContent)
                         .font(.system(.body, design: .monospaced))
@@ -887,6 +840,7 @@ struct FileContentView: View {
         }
         .padding()
         .task(id: item.id) {
+            imageZoomScale = 1.0
             await loadContent()
         }
     }
