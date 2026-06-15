@@ -66,7 +66,10 @@ if [ -f "$ICON_PNG" ]; then
 else
     echo "PNG icon file not found at $ICON_PNG."
     # Reuse existing icon from a previous build if available
-    EXISTING_ICON="Explorer.app/Contents/Resources/AppIcon.icns"
+    EXISTING_ICON="Explorer/Resources/AppIcon.icns"
+    if [ ! -f "$EXISTING_ICON" ]; then
+        EXISTING_ICON="Explorer.app/Contents/Resources/AppIcon.icns"
+    fi
     if [ -f "$EXISTING_ICON" ] && [ "$EXISTING_ICON" != "$ICON_PATH" ]; then
         cp "$EXISTING_ICON" "$ICON_PATH"
         echo "Copied existing icon from $EXISTING_ICON"

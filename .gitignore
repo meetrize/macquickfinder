@@ -1,0 +1,10 @@
+.DS_Store
+.build/
+.swiftpm/
+
+# Generated app bundle (produced by build_and_run.sh)
+Explorer.app/
+
+# IDE / local config
+.cursor/
+.vscode/
