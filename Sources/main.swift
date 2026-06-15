@@ -2540,6 +2540,8 @@ struct FileListView: View {
             )
             .overlay(alignment: .trailing) {
                 BlankAreaHitBlocker(
+                    items: tableRowItems,
+                    selection: $selection,
                     onSingleClick: {
                         if !selection.isEmpty {
                             selection.removeAll()
@@ -3613,11 +3615,18 @@ private struct TableScrollViewTrailingInsetHandler: NSViewRepresentable {
 
 /// 拦截空白区鼠标事件，防止点击落入下方表格引发布局变化。
 private struct BlankAreaHitBlocker: NSViewRepresentable {
+    let items: [FileItem]
+    @Binding var selection: Set<FileItem.ID>
     let onSingleClick: () -> Void
     let onDoubleClick: () -> Void
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(onSingleClick: onSingleClick, onDoubleClick: onDoubleClick)
+        Coordinator(
+            items: items,
+            selection: $selection,
+            onSingleClick: onSingleClick,
+            onDoubleClick: onDoubleClick
+        )
     }
     
     func makeNSView(context: Context) -> BlankAreaCaptureView {
@@ -3627,23 +3636,66 @@ private struct BlankAreaHitBlocker: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: BlankAreaCaptureView, context: Context) {
+        context.coordinator.items = items
+        context.coordinator.selection = $selection
         context.coordinator.onSingleClick = onSingleClick
         context.coordinator.onDoubleClick = onDoubleClick
         nsView.coordinator = context.coordinator
     }
     
     final class Coordinator: NSObject {
+        var items: [FileItem]
+        var selection: Binding<Set<FileItem.ID>>
         var onSingleClick: () -> Void
         var onDoubleClick: () -> Void
         
-        init(onSingleClick: @escaping () -> Void, onDoubleClick: @escaping () -> Void) {
+        init(
+            items: [FileItem],
+            selection: Binding<Set<FileItem.ID>>,
+            onSingleClick: @escaping () -> Void,
+            onDoubleClick: @escaping () -> Void
+        ) {
+            self.items = items
+            self.selection = selection
             self.onSingleClick = onSingleClick
             self.onDoubleClick = onDoubleClick
+        }
+        
+        func applyRowSelection(_ rows: IndexSet, tableView: NSTableView) {
+            let ids = Set(
+                rows.compactMap { row -> FileItem.ID? in
+                    guard row >= 0, row < items.count else { return nil }
+                    return items[row].id
+                }
+            )
+            selection.wrappedValue = ids
+            tableView.selectRowIndexes(rows, byExtendingSelection: false)
+        }
+        
+        static func rowsInVerticalRange(
+            minY: CGFloat,
+            maxY: CGFloat,
+            tableView: NSTableView
+        ) -> IndexSet {
+            let lower = min(minY, maxY)
+            let upper = max(minY, maxY)
+            var rows = IndexSet()
+            for row in 0..<tableView.numberOfRows {
+                let rowRect = tableView.rect(ofRow: row)
+                if rowRect.maxY >= lower && rowRect.minY <= upper {
+                    rows.insert(row)
+                }
+            }
+            return rows
         }
     }
     
     final class BlankAreaCaptureView: NSView {
         weak var coordinator: Coordinator?
+        private weak var tableView: NSTableView?
+        private var mouseDownEvent: NSEvent?
+        private var isDragSelecting = false
+        private let dragThreshold: CGFloat = 4
         
         override func hitTest(_ point: NSPoint) -> NSView? {
             bounds.contains(point) ? self : nil
@@ -3652,13 +3704,63 @@ private struct BlankAreaHitBlocker: NSViewRepresentable {
         override func mouseDown(with event: NSEvent) {
             guard let coordinator else { return }
             if event.clickCount >= 2 {
+                mouseDownEvent = nil
+                isDragSelecting = false
                 coordinator.onDoubleClick()
                 return
             }
+            mouseDownEvent = event
+            isDragSelecting = false
             coordinator.onSingleClick()
         }
         
+        override func mouseDragged(with event: NSEvent) {
+            guard let coordinator, let mouseDownEvent else { return }
+            if !isDragSelecting {
+                let deltaX = event.locationInWindow.x - mouseDownEvent.locationInWindow.x
+                let deltaY = event.locationInWindow.y - mouseDownEvent.locationInWindow.y
+                guard hypot(deltaX, deltaY) >= dragThreshold else { return }
+                guard resolveTableView() != nil else { return }
+                isDragSelecting = true
+            }
+            guard let tableView else { return }
+            window?.makeFirstResponder(tableView)
+            let startY = tableView.convert(mouseDownEvent.locationInWindow, from: nil).y
+            let currentY = tableView.convert(event.locationInWindow, from: nil).y
+            let rows = Coordinator.rowsInVerticalRange(
+                minY: startY,
+                maxY: currentY,
+                tableView: tableView
+            )
+            coordinator.applyRowSelection(rows, tableView: tableView)
+        }
+        
+        override func mouseUp(with event: NSEvent) {
+            mouseDownEvent = nil
+            isDragSelecting = false
+        }
+        
         override func rightMouseDown(with event: NSEvent) {}
+        
+        private func resolveTableView() -> NSTableView? {
+            if let tableView { return tableView }
+            guard let root = window?.contentView else { return nil }
+            let found = Self.findTableView(startingFrom: root)
+            tableView = found
+            return found
+        }
+        
+        private static func findTableView(startingFrom view: NSView) -> NSTableView? {
+            if let tableView = view as? NSTableView {
+                return tableView
+            }
+            for subview in view.subviews {
+                if let tableView = findTableView(startingFrom: subview) {
+                    return tableView
+                }
+            }
+            return nil
+        }
     }
 }
 
