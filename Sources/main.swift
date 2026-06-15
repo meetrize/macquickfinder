@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import PDFKit
+import UniformTypeIdentifiers
 
 enum BlankDoubleClickAction: String, CaseIterable, Identifiable {
     case navigateToParent
@@ -383,7 +384,8 @@ struct ContentView: View {
                                 tableSortOrder: $tableSortOrder,
                                 searchText: searchText,
                                 onItemOpen: openItem,
-                                onBlankDoubleClick: handleBlankDoubleClick
+                                onBlankDoubleClick: handleBlankDoubleClick,
+                                contextActions: fileContextActions
                             )
                         }
                     }
@@ -588,11 +590,31 @@ struct ContentView: View {
     }
     
     private func openItem(_ item: FileItem) {
-        if item.isDirectory {
-            path = item.url.path
-        } else {
-            NSWorkspace.shared.open(item.url)
-        }
+        FileOperations.open([item]) { path = $0 }
+    }
+    
+    private var fileContextActions: FileContextActions {
+        FileContextActions(
+            open: { FileOperations.open([$0]) { path = $0 } },
+            openWith: FileOperations.openWith,
+            cut: FileOperations.cut,
+            copy: FileOperations.copy,
+            copyFilename: FileOperations.copyFilename,
+            copyPaths: FileOperations.copyPaths,
+            delete: { items in
+                FileOperations.delete(items) {
+                    selection.removeAll()
+                    loadItems()
+                }
+            },
+            rename: { item in
+                FileOperations.rename(item) {
+                    selection.removeAll()
+                    loadItems()
+                }
+            },
+            showInfo: FileOperations.showInfo
+        )
     }
     
     private func createNewFolder() {
@@ -762,6 +784,18 @@ private struct HighlightedText: View {
     }
 }
 
+struct FileContextActions {
+    var open: (FileItem) -> Void = { _ in }
+    var openWith: (FileItem) -> Void = { _ in }
+    var cut: ([FileItem]) -> Void = { _ in }
+    var copy: ([FileItem]) -> Void = { _ in }
+    var copyFilename: (FileItem) -> Void = { _ in }
+    var copyPaths: ([FileItem]) -> Void = { _ in }
+    var delete: ([FileItem]) -> Void = { _ in }
+    var rename: (FileItem) -> Void = { _ in }
+    var showInfo: ([FileItem]) -> Void = { _ in }
+}
+
 struct FileListView: View {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
@@ -769,6 +803,7 @@ struct FileListView: View {
     let searchText: String
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
+    let contextActions: FileContextActions
     
     var body: some View {
         Table(items, selection: $selection, sortOrder: $tableSortOrder) {
@@ -801,10 +836,78 @@ struct FileListView: View {
             onOpen: onItemOpen,
             onBlankDoubleClick: onBlankDoubleClick
         ))
+        .contextMenu(forSelectionType: FileItem.ID.self) { ids in
+            let selected = items(for: ids)
+            if !selected.isEmpty {
+                if selected.count == 1, let item = selected.first {
+                    Button("打开") {
+                        contextActions.open(item)
+                    }
+                    
+                    if !item.isDirectory {
+                        Button("打开方式…") {
+                            contextActions.openWith(item)
+                        }
+                    }
+                    
+                    Divider()
+                } else {
+                    Button("打开") {
+                        for item in selected {
+                            contextActions.open(item)
+                        }
+                    }
+                    Divider()
+                }
+                
+                Button("剪切") {
+                    contextActions.cut(selected)
+                }
+                Button("复制") {
+                    contextActions.copy(selected)
+                }
+                
+                Divider()
+                
+                if selected.count == 1, let item = selected.first {
+                    Button("复制文件名") {
+                        contextActions.copyFilename(item)
+                    }
+                }
+                Button("复制完整路径") {
+                    contextActions.copyPaths(selected)
+                }
+                
+                Divider()
+                
+                Button("删除", role: .destructive) {
+                    contextActions.delete(selected)
+                }
+                
+                if selected.count == 1, let item = selected.first {
+                    Button("重命名") {
+                        contextActions.rename(item)
+                    }
+                }
+                
+                Divider()
+                
+                Button("属性") {
+                    contextActions.showInfo(selected)
+                }
+            }
+        } primaryAction: { ids in
+            guard let item = items(for: ids).first else { return }
+            contextActions.open(item)
+        }
         .transaction { transaction in
             transaction.animation = nil
         }
         .tableStyle(.inset)
+    }
+    
+    private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
+        items.filter { ids.contains($0.id) }
     }
     
     static func sortingKeyPath(for order: SortOrder) -> [KeyPathComparator<FileItem>] {
@@ -1543,6 +1646,141 @@ enum SidebarVolumeLoader {
     
     private static func isMainInternalVolume(path: String, isInternal: Bool) -> Bool {
         isInternal && (path == "/" || path == "/System/Volumes/Data")
+    }
+}
+
+private enum FileOperations {
+    static func open(_ items: [FileItem], onNavigate: (String) -> Void) {
+        guard let first = items.first else { return }
+        
+        if items.count == 1 {
+            if first.isDirectory {
+                onNavigate(first.url.path)
+            } else {
+                NSWorkspace.shared.open(first.url)
+            }
+            return
+        }
+        
+        for item in items where !item.isDirectory {
+            NSWorkspace.shared.open(item.url)
+        }
+        if let directory = items.first(where: \.isDirectory) {
+            onNavigate(directory.url.path)
+        }
+    }
+    
+    static func openWith(_ item: FileItem) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application, .applicationBundle]
+        panel.allowsOtherFileTypes = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.message = "选择用于打开「\(item.name)」的应用"
+        panel.prompt = "打开"
+        
+        guard panel.runModal() == .OK, let appURL = panel.url else { return }
+        
+        let configuration = NSWorkspace.OpenConfiguration()
+        NSWorkspace.shared.open([item.url], withApplicationAt: appURL, configuration: configuration)
+    }
+    
+    static func cut(_ items: [FileItem]) {
+        let urls = items.map(\.url)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects(urls as [NSURL])
+        pasteboard.setPropertyList(
+            urls.map(\.path),
+            forType: NSPasteboard.PasteboardType("com.apple.finder.copy")
+        )
+    }
+    
+    static func copy(_ items: [FileItem]) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects(items.map(\.url) as [NSURL])
+    }
+    
+    static func copyFilename(_ item: FileItem) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(item.name, forType: .string)
+    }
+    
+    static func copyPaths(_ items: [FileItem]) {
+        let paths = items.map(\.url.path).joined(separator: "\n")
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(paths, forType: .string)
+    }
+    
+    static func delete(_ items: [FileItem], completion: @escaping () -> Void) {
+        let alert = NSAlert()
+        if items.count == 1 {
+            alert.messageText = "确认删除「\(items[0].name)」？"
+        } else {
+            alert.messageText = "确认删除 \(items.count) 个项目？"
+        }
+        alert.informativeText = "项目将移至废纸篓。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "删除")
+        alert.addButton(withTitle: "取消")
+        
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        
+        for item in items {
+            do {
+                try FileManager.default.trashItem(at: item.url, resultingItemURL: nil)
+            } catch {
+                NSAlert(error: error).runModal()
+                return
+            }
+        }
+        completion()
+    }
+    
+    static func rename(_ item: FileItem, completion: @escaping () -> Void) {
+        let alert = NSAlert()
+        alert.messageText = "重命名"
+        alert.informativeText = "请输入新名称："
+        
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        textField.stringValue = item.name
+        alert.accessoryView = textField
+        alert.addButton(withTitle: "确定")
+        alert.addButton(withTitle: "取消")
+        alert.window.initialFirstResponder = textField
+        
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        
+        let newName = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty, newName != item.name else { return }
+        
+        let newURL = item.url.deletingLastPathComponent().appendingPathComponent(newName)
+        do {
+            try FileManager.default.moveItem(at: item.url, to: newURL)
+            completion()
+        } catch {
+            NSAlert(error: error).runModal()
+        }
+    }
+    
+    static func showInfo(_ items: [FileItem]) {
+        for item in items {
+            let escapedPath = item.url.path
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+            let script = """
+            tell application "Finder"
+                activate
+                open information window of (POSIX file "\(escapedPath)" as alias)
+            end tell
+            """
+            var error: NSDictionary?
+            NSAppleScript(source: script)?.executeAndReturnError(&error)
+        }
     }
 }
 
