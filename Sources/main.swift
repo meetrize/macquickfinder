@@ -568,6 +568,14 @@ private enum BarTextFieldFocusRegistry {
         window.makeFirstResponder(nil)
     }
     
+    static func isClickInside(_ id: BarTextFieldID, event: NSEvent) -> Bool {
+        guard let field = field(for: id) else { return false }
+        guard let window = field.window ?? event.window,
+              let contentView = window.contentView else { return false }
+        guard let hitView = contentView.hitTest(event.locationInWindow) else { return false }
+        return hitView === field || hitView.isDescendant(of: field)
+    }
+    
     private static func field(for id: BarTextFieldID) -> NSTextField? {
         switch id {
         case .path: return pathField
@@ -591,6 +599,163 @@ private enum BarTextFieldFocusRegistry {
             return true
         }
         return false
+    }
+}
+
+/// 地址栏/搜索栏有焦点时，点击外部同步失焦；点击文件列表时在同一次点击中选中对应行。
+private struct BarFieldOutsideClickHandler: NSViewRepresentable {
+    @Binding var activeField: BarTextFieldID?
+    @Binding var isPathBarTextMode: Bool
+    let tableItems: [FileItem]
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(
+            activeField: $activeField,
+            isPathBarTextMode: $isPathBarTextMode,
+            tableItems: tableItems
+        )
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.start()
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.tableItems = tableItems
+    }
+    
+    final class Coordinator {
+        @Binding var activeField: BarTextFieldID?
+        @Binding var isPathBarTextMode: Bool
+        var tableItems: [FileItem]
+        private var monitor: Any?
+        
+        init(
+            activeField: Binding<BarTextFieldID?>,
+            isPathBarTextMode: Binding<Bool>,
+            tableItems: [FileItem]
+        ) {
+            _activeField = activeField
+            _isPathBarTextMode = isPathBarTextMode
+            self.tableItems = tableItems
+        }
+        
+        func start() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+                self?.handleMouseDown(event)
+                return event
+            }
+        }
+        
+        private func handleMouseDown(_ event: NSEvent) {
+            let editingField = BarTextFieldFocusRegistry.currentEditingField()
+            let shouldDismissPathText = isPathBarTextMode
+            guard editingField != nil || shouldDismissPathText else { return }
+            
+            if let editingField, BarTextFieldFocusRegistry.isClickInside(editingField, event: event) {
+                return
+            }
+            
+            if let editingField {
+                BarTextFieldFocusRegistry.resign(editingField)
+                if activeField == editingField {
+                    activeField = nil
+                }
+            }
+            
+            if shouldDismissPathText {
+                isPathBarTextMode = false
+            }
+            
+            guard let tableView = tableView(at: event) else { return }
+            guard let window = tableView.window ?? event.window else { return }
+            window.makeFirstResponder(tableView)
+            
+            let point = tableView.convert(event.locationInWindow, from: nil)
+            let row = tableView.row(at: point)
+            Self.selectRow(
+                row,
+                in: tableView,
+                event: event,
+                items: tableItems
+            )
+        }
+        
+        private func tableView(at event: NSEvent) -> NSTableView? {
+            guard let window = event.window,
+                  let contentView = window.contentView,
+                  let hitView = contentView.hitTest(event.locationInWindow) else {
+                return nil
+            }
+            return findTableView(from: hitView)
+        }
+        
+        private func findTableView(from view: NSView) -> NSTableView? {
+            var current: NSView? = view
+            while let node = current {
+                if let tableView = node as? NSTableView {
+                    return tableView
+                }
+                current = node.superview
+            }
+            return nil
+        }
+        
+        private static func selectRow(
+            _ row: Int,
+            in tableView: NSTableView,
+            event: NSEvent,
+            items: [FileItem]
+        ) {
+            guard row >= 0, row < items.count else {
+                if row < 0 {
+                    tableView.deselectAll(nil)
+                }
+                return
+            }
+            
+            let item = items[row]
+            let flags = event.modifierFlags
+            
+            if flags.contains(.command) {
+                var selected = tableView.selectedRowIndexes
+                if selected.contains(row) {
+                    selected.remove(row)
+                } else {
+                    selected.insert(row)
+                }
+                tableView.selectRowIndexes(selected, byExtendingSelection: false)
+                return
+            }
+            
+            if flags.contains(.shift) {
+                tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: true)
+                return
+            }
+            
+            var effectiveIDs = Set<FileItem.ID>()
+            for selectedRow in tableView.selectedRowIndexes {
+                guard selectedRow >= 0, selectedRow < items.count else { continue }
+                let rowItem = items[selectedRow]
+                guard !rowItem.isParentDirectoryEntry else { continue }
+                effectiveIDs.insert(rowItem.id)
+            }
+            
+            if effectiveIDs.contains(item.id) {
+                return
+            }
+            
+            tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        }
+        
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
     }
 }
 
@@ -623,8 +788,12 @@ private struct BarTextFieldFocusSync: NSViewRepresentable {
         func start() {
             guard monitor == nil else { return }
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown]) { [weak self] event in
-                DispatchQueue.main.async {
+                if event.type == .leftMouseDown {
                     self?.syncFromResponder()
+                } else {
+                    DispatchQueue.main.async {
+                        self?.syncFromResponder()
+                    }
                 }
                 return event
             }
@@ -1023,6 +1192,7 @@ private enum PathSubdirectoryCache {
 private struct PathBarView: View {
     @Binding var path: String
     @Binding var activeField: BarTextFieldID?
+    @Binding var isTextMode: Bool
     var showHiddenFiles: Bool
     var onSubmit: () -> Void
     
@@ -1083,6 +1253,7 @@ private struct PathBarView: View {
         .onAppear {
             editingText = displayPath
             previousActiveField = activeField
+            isTextMode = mode == .text
             PathSubdirectoryCache.preloadBreadcrumbPaths(path, showHiddenFiles: showHiddenFiles)
         }
         .onChange(of: path) { _ in
@@ -1094,6 +1265,19 @@ private struct PathBarView: View {
         .onChange(of: showHiddenFiles) { _ in
             PathSubdirectoryCache.invalidate()
             PathSubdirectoryCache.preloadBreadcrumbPaths(path, showHiddenFiles: showHiddenFiles)
+        }
+        .onChange(of: mode) { newMode in
+            isTextMode = newMode == .text
+        }
+        .onChange(of: isTextMode) { active in
+            guard !active, mode == .text else { return }
+            editingText = displayPath
+            committedViaSubmit = false
+            mode = .breadcrumb
+            BarTextFieldFocusRegistry.resign(.path)
+            if activeField == .path {
+                activeField = BarTextFieldFocusRegistry.currentEditingField()
+            }
         }
         .onChange(of: activeField) { newValue in
             let oldValue = previousActiveField
@@ -1547,9 +1731,18 @@ struct ContentView: View {
     @AppStorage(AppSettings.previewPanelWidthKey) private var storedPreviewPanelWidth = 320.0
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
+    @State private var isPathBarTextMode = false
     
     private var isTextFieldEditing: Bool {
         activeBarField != nil
+    }
+    
+    private var fileListTableItems: [FileItem] {
+        let showParent = FileItem.canNavigateUp(from: path) && searchText.isEmpty
+        if showParent {
+            return [FileItem.parentDirectoryEntry()] + filteredItems
+        }
+        return filteredItems
     }
     
     private let minPreviewPanelWidth: CGFloat = 200
@@ -1573,6 +1766,7 @@ struct ContentView: View {
                         PathBarView(
                             path: $path,
                             activeField: $activeBarField,
+                            isTextMode: $isPathBarTextMode,
                             showHiddenFiles: showHiddenFiles,
                             onSubmit: loadItems
                         )
@@ -1720,6 +1914,13 @@ struct ContentView: View {
                 }
             }
         }
+        .background(
+            BarFieldOutsideClickHandler(
+                activeField: $activeBarField,
+                isPathBarTextMode: $isPathBarTextMode,
+                tableItems: fileListTableItems
+            )
+        )
         .onAppear {
             lastRecordedPath = path
             loadItems()
@@ -1981,6 +2182,12 @@ struct ContentView: View {
                     selection.removeAll()
                     loadItems()
                 }
+            },
+            openTerminal: { item in
+                let directoryPath = item.isDirectory
+                    ? item.url.path
+                    : item.url.deletingLastPathComponent().path
+                TerminalHelper.open(at: directoryPath)
             }
         )
     }
@@ -2258,6 +2465,7 @@ struct FileContextActions {
     var emptyTrash: () -> Void = {}
     var putBack: ([FileItem]) -> Void = { _ in }
     var deleteImmediately: ([FileItem]) -> Void = { _ in }
+    var openTerminal: (FileItem) -> Void = { _ in }
 }
 
 struct FileListBlankMenuActions {
@@ -2273,6 +2481,20 @@ struct FileListBlankMenuActions {
     var openTerminal: () -> Void = {}
     var isInTrash = false
     var emptyTrash: () -> Void = {}
+}
+
+private enum FileListTableMetrics {
+    static let blankColumnWidth: CGFloat = 30
+    
+    static func isBlankColumnClick(in tableView: NSTableView, column: Int) -> Bool {
+        guard column >= 0 else { return false }
+        return column == tableView.numberOfColumns - 1
+    }
+    
+    static func isBlankAreaClick(in tableView: NSTableView, at point: NSPoint) -> Bool {
+        if tableView.row(at: point) < 0 { return true }
+        return isBlankColumnClick(in: tableView, column: tableView.column(at: point))
+    }
 }
 
 struct FileListView: View {
@@ -2358,6 +2580,13 @@ struct FileListView: View {
                 }
             }
             .width(min: 150, ideal: 180)
+            
+            TableColumn("") { (_: FileItem) in
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+            }
+            .width(min: FileListTableMetrics.blankColumnWidth, ideal: FileListTableMetrics.blankColumnWidth, max: FileListTableMetrics.blankColumnWidth)
         }
         .background(TableDoubleClickHandler(
             items: tableRowItems,
@@ -2493,6 +2722,12 @@ struct FileListView: View {
                 }
                 
                 Divider()
+                
+                if fileSelection.count == 1, let item = fileSelection.first {
+                    Button("在此处打开终端") {
+                        contextActions.openTerminal(item)
+                    }
+                }
                 
                 Button("属性") {
                     contextActions.showInfo(fileSelection)
@@ -3284,7 +3519,7 @@ private struct TableDoubleClickHandler: NSViewRepresentable {
         
         @objc func handleDoubleClick(_ sender: NSTableView) {
             let row = sender.clickedRow
-            if row < 0 {
+            if row < 0 || FileListTableMetrics.isBlankColumnClick(in: sender, column: sender.clickedColumn) {
                 onBlankDoubleClick()
                 return
             }
@@ -3386,7 +3621,8 @@ private struct TableBlankContextMenuHandler: NSViewRepresentable {
                 }
                 
                 let point = tableView.convert(event.locationInWindow, from: nil)
-                guard tableView.bounds.contains(point), tableView.row(at: point) < 0 else {
+                guard tableView.bounds.contains(point),
+                      FileListTableMetrics.isBlankAreaClick(in: tableView, at: point) else {
                     return event
                 }
                 
