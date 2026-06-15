@@ -304,9 +304,15 @@ struct FileListView: View {
                         .fontWeight(item.isDirectory ? .medium : .regular)
                         .opacity(item.isHidden ? 0.6 : 1.0)
                 }
-                .onTapGesture(count: 2) {
-                    onItemOpen(item)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 1) {
+                    selection = [item.id]
                 }
+                .simultaneousGesture(
+                    TapGesture(count: 2).onEnded {
+                        onItemOpen(item)
+                    }
+                )
             }
             .width(min: 220, ideal: 300)
             
