@@ -926,19 +926,16 @@ struct SidebarRow: View {
             .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .buttonStyle(.plain)
-        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
-            guard let destinationPath = dropDestinationPath,
-                  let onDropURLs else {
-                return false
-            }
-            let copy = FileDragDrop.shouldCopyFromCurrentEvent()
-            Task { @MainActor in
-                let urls = await FileDragDrop.loadFileURLs(from: providers)
-                guard !urls.isEmpty else { return }
+        .onDrop(
+            of: [.fileURL],
+            delegate: FileDropDelegate(isTargeted: $isDropTargeted) { urls, copy in
+                guard let destinationPath = dropDestinationPath,
+                      let onDropURLs else {
+                    return
+                }
                 onDropURLs(urls, destinationPath, copy)
             }
-            return true
-        }
+        )
     }
     
     private var rowBackgroundColor: Color {
@@ -1205,9 +1202,16 @@ struct FileListView: View {
             transaction.animation = nil
         }
         .tableStyle(.inset)
-        .onDrop(of: [.fileURL], isTargeted: $isCurrentDirectoryDropTargeted) { providers in
-            handleDrop(into: URL(fileURLWithPath: currentDirectoryPath, isDirectory: true), providers: providers)
-        }
+        .onDrop(
+            of: [.fileURL],
+            delegate: FileDropDelegate(isTargeted: $isCurrentDirectoryDropTargeted) { urls, copy in
+                handleDrop(
+                    into: URL(fileURLWithPath: currentDirectoryPath, isDirectory: true),
+                    urls: urls,
+                    copy: copy
+                )
+            }
+        )
         .overlay {
             if isCurrentDirectoryDropTargeted {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -1236,29 +1240,25 @@ struct FileListView: View {
         if enableFolderDrop, item.isDirectory {
             row.onDrop(
                 of: [.fileURL],
-                isTargeted: Binding(
-                    get: { folderDropTargetID == item.id },
-                    set: { isTargeted in
-                        folderDropTargetID = isTargeted ? item.id : nil
-                    }
-                )
-            ) { providers in
-                handleDrop(into: item.url, providers: providers)
-            }
+                delegate: FileDropDelegate(
+                    isTargeted: Binding(
+                        get: { folderDropTargetID == item.id },
+                        set: { isTargeted in
+                            folderDropTargetID = isTargeted ? item.id : nil
+                        }
+                    )
+                ) { urls, copy in
+                    handleDrop(into: item.url, urls: urls, copy: copy)
+                }
+            )
         } else {
             row
         }
     }
     
-    private func handleDrop(into destination: URL, providers: [NSItemProvider]) -> Bool {
-        let copy = FileDragDrop.shouldCopyFromCurrentEvent()
-        Task { @MainActor in
-            let urls = await FileDragDrop.loadFileURLs(from: providers)
-            guard !urls.isEmpty else { return }
-            guard FileOperations.canMoveItems(urls, to: destination) else { return }
-            FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
-        }
-        return true
+    private func handleDrop(into destination: URL, urls: [URL], copy: Bool) {
+        guard FileOperations.canMoveItems(urls, to: destination) else { return }
+        FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
     }
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
@@ -1373,6 +1373,11 @@ private enum FileDragDrop {
         NSApp.currentEvent?.modifierFlags.contains(.option) == true
     }
     
+    static func shouldCopyFromDropInfo(_ info: DropInfo) -> Bool {
+        _ = info
+        return shouldCopyFromCurrentEvent()
+    }
+    
     static func loadFileURLs(from providers: [NSItemProvider]) async -> [URL] {
         var urls: [URL] = []
         for provider in providers {
@@ -1389,6 +1394,70 @@ private enum FileDragDrop {
                 continuation.resume(returning: item?.standardizedFileURL)
             }
         }
+    }
+    
+    static let dragIconSize: CGFloat = 32
+    static let dragGhostOpacity: CGFloat = 0.72
+    
+    static func dragGhostImage(for url: URL) -> NSImage {
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        let size = NSSize(width: dragIconSize, height: dragIconSize)
+        icon.size = size
+        
+        let ghost = NSImage(size: size)
+        ghost.lockFocus()
+        if let context = NSGraphicsContext.current {
+            context.imageInterpolation = .high
+        }
+        icon.draw(
+            in: NSRect(origin: .zero, size: size),
+            from: NSRect(origin: .zero, size: icon.size),
+            operation: .sourceOver,
+            fraction: dragGhostOpacity
+        )
+        ghost.unlockFocus()
+        return ghost
+    }
+    
+    static func dragIconFrame(anchor: NSRect, index: Int) -> NSRect {
+        let offset = CGFloat(index * 6)
+        return NSRect(
+            x: anchor.midX - dragIconSize / 2 + offset,
+            y: anchor.midY - dragIconSize / 2 - offset,
+            width: dragIconSize,
+            height: dragIconSize
+        )
+    }
+}
+
+/// 拖放目标显式提议 .move，避免 SwiftUI 默认 .copy 导致绿色加号光标。
+private struct FileDropDelegate: DropDelegate {
+    @Binding var isTargeted: Bool
+    let onDrop: ([URL], Bool) -> Void
+    
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [.fileURL])
+    }
+    
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        isTargeted = validateDrop(info: info)
+        let copy = FileDragDrop.shouldCopyFromDropInfo(info)
+        return DropProposal(operation: copy ? .copy : .move)
+    }
+    
+    func dropExited(info: DropInfo) {
+        isTargeted = false
+    }
+    
+    func performDrop(info: DropInfo) -> Bool {
+        isTargeted = false
+        let copy = FileDragDrop.shouldCopyFromDropInfo(info)
+        Task { @MainActor in
+            let urls = await FileDragDrop.loadFileURLs(from: info.itemProviders(for: [.fileURL]))
+            guard !urls.isEmpty else { return }
+            onDrop(urls, copy)
+        }
+        return true
     }
 }
 
@@ -1597,33 +1666,39 @@ private final class TableFileDragCoordinator: NSObject, NSDraggingSource {
             "beginFileDrag OK item=\(item.name) draggingCount=\(draggedItems.count)"
         )
         
-        let frameInTable = dragZoneView.convert(dragZoneView.bounds, to: tableView)
+        let anchorInTable = dragZoneView.convert(dragZoneView.bounds, to: tableView)
         var draggingItems: [NSDraggingItem] = []
         for (index, fileItem) in draggedItems.enumerated() {
-            let offset = CGFloat(index * 4)
-            let frame = NSRect(
-                x: frameInTable.minX + offset,
-                y: frameInTable.minY - offset,
-                width: frameInTable.width,
-                height: frameInTable.height
-            )
+            let frame = FileDragDrop.dragIconFrame(anchor: anchorInTable, index: index)
+            let ghostImage = FileDragDrop.dragGhostImage(for: fileItem.url)
             let draggingItem = NSDraggingItem(pasteboardWriter: fileItem.url as NSURL)
             draggingItem.setDraggingFrame(frame, contents: nil)
+            draggingItem.imageComponentsProvider = {
+                let icon = NSDraggingImageComponent(key: .icon)
+                icon.contents = ghostImage
+                icon.frame = NSRect(origin: .zero, size: frame.size)
+                return [icon]
+            }
             draggingItems.append(draggingItem)
         }
         
-        tableView.beginDraggingSession(with: draggingItems, event: event, source: self)
+        let session = tableView.beginDraggingSession(with: draggingItems, event: event, source: self)
+        session.animatesToStartingPositionsOnCancelOrFail = true
+        session.draggingFormation = draggedItems.count > 1 ? .pile : .none
     }
     
     func draggingSession(
         _ session: NSDraggingSession,
         sourceOperationMaskFor context: NSDraggingContext
     ) -> NSDragOperation {
-        switch context {
-        case .outsideApplication:
+        if NSApp.currentEvent?.modifierFlags.contains(.option) == true {
             return .copy
+        }
+        switch context {
+        case .withinApplication:
+            return .move
         default:
-            return [.copy, .move]
+            return .move
         }
     }
     
