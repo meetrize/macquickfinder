@@ -22,6 +22,29 @@ private enum AppSettings {
     static let blankDoubleClickActionKey = "blankDoubleClickAction"
 }
 
+private struct LucideIcon: View {
+    let svgData: Data
+    var size: CGFloat = 16
+
+    static let folderPlus = LucideIcon(
+        svgData: Data(
+            """
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+            """.utf8
+        )
+    )
+
+    var body: some View {
+        if let image = NSImage(data: svgData) {
+            Image(nsImage: image)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+        }
+    }
+}
+
 @main
 struct ExplorerApp: App {
     @State private var showPreview = true
@@ -105,6 +128,10 @@ struct ContentView: View {
     @State private var items: [FileItem] = []
     @State private var selection: Set<FileItem.ID> = []
     @State private var sortOrder: SortOrder = .nameAscending
+    @State private var tableSortOrder: [KeyPathComparator<FileItem>] = [
+        KeyPathComparator(\.name, order: .forward)
+    ]
+    @State private var isSyncingSortFromTable = false
     @State private var isLoading = false
     @State private var searchText = ""
     @State private var showHiddenFiles = false
@@ -145,7 +172,7 @@ struct ContentView: View {
                         FileListView(
                             items: filteredItems,
                             selection: $selection,
-                            sortOrder: $sortOrder,
+                            tableSortOrder: $tableSortOrder,
                             onItemOpen: openItem,
                             onBlankDoubleClick: handleBlankDoubleClick
                         )
@@ -156,15 +183,12 @@ struct ContentView: View {
                 .navigationTitle("Explorer")
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
-                        Menu {
-                            Button("New Folder") {
-                                createNewFolder()
-                            }
-                        } label: {
-                            Image(systemName: "plus")
+                        Button(action: createNewFolder) {
+                            LucideIcon.folderPlus
                         }
+                        .help("新建文件夹")
                     }
-                    
+
                     ToolbarItem(placement: .primaryAction) {
                         Button(action: {
                             showHiddenFiles.toggle()
@@ -200,6 +224,22 @@ struct ContentView: View {
         }
         .onChange(of: sortOrder) { newOrder in
             items.sort(by: newOrder.comparator)
+            guard !isSyncingSortFromTable else { return }
+            let newPath = FileListView.sortingKeyPath(for: newOrder)
+            if !FileListView.pathsProduceSameSortOrder(tableSortOrder, newPath) {
+                tableSortOrder = newPath
+            }
+        }
+        .onChange(of: tableSortOrder) { newPath in
+            guard let mapped = FileListView.sortOrder(from: newPath) else {
+                items.sort(using: newPath)
+                return
+            }
+            items.sort(by: mapped.comparator)
+            guard mapped != sortOrder else { return }
+            isSyncingSortFromTable = true
+            sortOrder = mapped
+            isSyncingSortFromTable = false
         }
     }
     
@@ -437,15 +477,13 @@ struct SidebarRow: View {
 struct FileListView: View {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
-    @Binding var sortOrder: SortOrder
+    @Binding var tableSortOrder: [KeyPathComparator<FileItem>]
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
     
-    @State private var sortingKeyPath: [KeyPathComparator<FileItem>] = []
-    
     var body: some View {
-        Table(selection: $selection, sortOrder: $sortingKeyPath) {
-            TableColumn("Name") { (item: FileItem) in
+        Table(items, selection: $selection, sortOrder: $tableSortOrder) {
+            TableColumn("Name", value: \.name) { (item: FileItem) in
                 HStack {
                     Image(systemName: item.isDirectory ? "folder" : "doc")
                         .foregroundColor(item.isDirectory ? .blue : .gray)
@@ -467,38 +505,24 @@ struct FileListView: View {
                 Text(item.dateDisplay)
             }
             .width(min: 150, ideal: 180)
-        } rows: {
-            ForEach(items) { item in
-                TableRow(item)
-            }
         }
         .background(TableDoubleClickHandler(
             items: items,
             onOpen: onItemOpen,
             onBlankDoubleClick: onBlankDoubleClick
         ))
-        .onAppear {
-            sortingKeyPath = Self.sortingKeyPath(for: sortOrder)
-        }
-        .onChange(of: sortOrder) { newOrder in
-            let newPath = Self.sortingKeyPath(for: newOrder)
-            if sortingKeyPath != newPath {
-                sortingKeyPath = newPath
-            }
-            selection.removeAll()
-        }
-        .onChange(of: sortingKeyPath) { newPath in
-            guard let newOrder = Self.sortOrder(from: newPath), newOrder != sortOrder else { return }
-            sortOrder = newOrder
-        }
         .transaction { transaction in
             transaction.animation = nil
         }
         .tableStyle(.inset)
     }
     
-    private static func sortingKeyPath(for order: SortOrder) -> [KeyPathComparator<FileItem>] {
+    static func sortingKeyPath(for order: SortOrder) -> [KeyPathComparator<FileItem>] {
         switch order {
+        case .nameAscending:
+            return [KeyPathComparator(\.name, order: .forward)]
+        case .nameDescending:
+            return [KeyPathComparator(\.name, order: .reverse)]
         case .dateNewest:
             return [KeyPathComparator(\.modificationDate, order: .reverse)]
         case .dateOldest:
@@ -508,15 +532,72 @@ struct FileListView: View {
         }
     }
     
-    private static func sortOrder(from path: [KeyPathComparator<FileItem>]) -> SortOrder? {
-        if path == [KeyPathComparator(\.modificationDate, order: .reverse)] {
-            return .dateNewest
+    static func sortOrder(from path: [KeyPathComparator<FileItem>]) -> SortOrder? {
+        guard let first = path.first else { return nil }
+        let direction = first.order
+        
+        var byPath = sortProbeItems
+        byPath.sort(using: path)
+        
+        var byName = sortProbeItems
+        byName.sort(using: [KeyPathComparator(\.name, order: direction)])
+        if byPath.map(\.id) == byName.map(\.id) {
+            return direction == .reverse ? .nameDescending : .nameAscending
         }
-        if path == [KeyPathComparator(\.modificationDate, order: .forward)] {
-            return .dateOldest
+        
+        var byDate = sortProbeItems
+        byDate.sort(using: [KeyPathComparator(\.modificationDate, order: direction)])
+        if byPath.map(\.id) == byDate.map(\.id) {
+            return direction == .reverse ? .dateNewest : .dateOldest
         }
+        
         return nil
     }
+    
+    static func pathsProduceSameSortOrder(
+        _ lhs: [KeyPathComparator<FileItem>],
+        _ rhs: [KeyPathComparator<FileItem>]
+    ) -> Bool {
+        guard !lhs.isEmpty, !rhs.isEmpty else { return lhs.isEmpty && rhs.isEmpty }
+        guard let mapped = sortOrder(from: lhs) else { return false }
+        return mapped == sortOrder(from: rhs)
+    }
+    
+    private static let sortProbeItems: [FileItem] = [
+        FileItem(
+            id: "sort-probe-m",
+            url: URL(fileURLWithPath: "/m"),
+            name: "Middle",
+            isDirectory: false,
+            modificationDate: Date(timeIntervalSince1970: 200),
+            size: 200,
+            isHidden: false,
+            sizeDisplay: "200",
+            dateDisplay: ""
+        ),
+        FileItem(
+            id: "sort-probe-a",
+            url: URL(fileURLWithPath: "/a"),
+            name: "Alpha",
+            isDirectory: false,
+            modificationDate: Date(timeIntervalSince1970: 300),
+            size: 300,
+            isHidden: false,
+            sizeDisplay: "300",
+            dateDisplay: ""
+        ),
+        FileItem(
+            id: "sort-probe-z",
+            url: URL(fileURLWithPath: "/z"),
+            name: "Zulu",
+            isDirectory: false,
+            modificationDate: Date(timeIntervalSince1970: 100),
+            size: 100,
+            isHidden: false,
+            sizeDisplay: "100",
+            dateDisplay: ""
+        )
+    ]
 }
 
 /// 通过 NSTableView 原生 doubleAction 处理双击，避免 SwiftUI TapGesture(count: 2) 延迟单击选中。
