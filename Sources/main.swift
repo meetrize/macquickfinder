@@ -245,12 +245,13 @@ struct SidebarView: View {
         List {
             Section("Favorites") {
                 ForEach(favoriteLocations) { location in
-                    Button(action: {
+                    SidebarRow(
+                        title: location.name,
+                        icon: location.icon,
+                        isSelected: isSelected(location.path)
+                    ) {
                         path = location.path
-                    }) {
-                        Label(location.name, systemImage: location.icon)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             
@@ -260,12 +261,13 @@ struct SidebarView: View {
                         .foregroundColor(.secondary)
                 } else {
                     ForEach(devices) { device in
-                        Button(action: {
+                        SidebarRow(
+                            title: device.name,
+                            icon: device.icon,
+                            isSelected: isSelected(device.path)
+                        ) {
                             path = device.path
-                        }) {
-                            Label(device.name, systemImage: device.icon)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -282,6 +284,46 @@ struct SidebarView: View {
     
     private func refreshDevices() {
         devices = SidebarVolumeLoader.load()
+    }
+    
+    private func isSelected(_ sidebarPath: String) -> Bool {
+        Self.pathsRepresentSameLocation(path, sidebarPath)
+    }
+    
+    private static func pathsRepresentSameLocation(_ lhs: String, _ rhs: String) -> Bool {
+        let normalizedLHS = (lhs as NSString).standardizingPath
+        let normalizedRHS = (rhs as NSString).standardizingPath
+        if normalizedLHS == normalizedRHS { return true }
+        
+        let systemVolumeRoots: Set<String> = ["/", "/System/Volumes/Data"]
+        return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
+    }
+}
+
+struct SidebarRow: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                Text(title)
+                Spacer(minLength: 0)
+            }
+            .font(.body)
+            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isSelected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor) : .clear)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -313,7 +355,7 @@ struct FileListView: View {
             }
             .width(min: 80, ideal: 100)
             
-            TableColumn("Date Modified") { item in
+            TableColumn("Date Modified", value: \.modificationDate) { item in
                 Text(item.dateDisplay)
             }
             .width(min: 150, ideal: 180)
@@ -323,13 +365,45 @@ struct FileListView: View {
             }
         }
         .background(TableDoubleClickHandler(items: items, onOpen: onItemOpen))
-        .onChange(of: sortOrder) { _ in
+        .onAppear {
+            sortingKeyPath = Self.sortingKeyPath(for: sortOrder)
+        }
+        .onChange(of: sortOrder) { newOrder in
+            let newPath = Self.sortingKeyPath(for: newOrder)
+            if sortingKeyPath != newPath {
+                sortingKeyPath = newPath
+            }
             selection.removeAll()
+        }
+        .onChange(of: sortingKeyPath) { newPath in
+            guard let newOrder = Self.sortOrder(from: newPath), newOrder != sortOrder else { return }
+            sortOrder = newOrder
         }
         .transaction { transaction in
             transaction.animation = nil
         }
         .tableStyle(.inset)
+    }
+    
+    private static func sortingKeyPath(for order: SortOrder) -> [KeyPathComparator<FileItem>] {
+        switch order {
+        case .dateNewest:
+            return [KeyPathComparator(\.modificationDate, order: .reverse)]
+        case .dateOldest:
+            return [KeyPathComparator(\.modificationDate, order: .forward)]
+        default:
+            return []
+        }
+    }
+    
+    private static func sortOrder(from path: [KeyPathComparator<FileItem>]) -> SortOrder? {
+        if path == [KeyPathComparator(\.modificationDate, order: .reverse)] {
+            return .dateNewest
+        }
+        if path == [KeyPathComparator(\.modificationDate, order: .forward)] {
+            return .dateOldest
+        }
+        return nil
     }
 }
 
