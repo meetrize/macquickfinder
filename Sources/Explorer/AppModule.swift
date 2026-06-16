@@ -3458,11 +3458,26 @@ private struct FileListAutoFocusRequester: NSViewRepresentable {
         func requestFocusIfNeeded(token: UInt, view: NSView) {
             guard token != lastToken else { return }
             lastToken = token
-            DispatchQueue.main.async {
+            
+            // 左侧点击切目录时，NSTableView 可能尚未完成挂载或 firstResponder 仍被侧栏占用；
+            // 这里做几次轻量重试（短延迟），不阻塞也不影响目录大小计算。
+            scheduleFocusAttempt(token: token, view: view, delay: 0)
+            scheduleFocusAttempt(token: token, view: view, delay: 0.03)
+            scheduleFocusAttempt(token: token, view: view, delay: 0.12)
+        }
+        
+        private func scheduleFocusAttempt(token: UInt, view: NSView, delay: TimeInterval) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak view] in
+                guard let self, let view else { return }
+                guard token == self.lastToken else { return }
                 guard let window = view.window,
                       let contentView = window.contentView,
                       let tableView = Self.findFileListTableView(in: contentView)
                 else { return }
+                
+                if window.firstResponder === tableView {
+                    return
+                }
                 window.makeFirstResponder(tableView)
             }
         }
