@@ -23,6 +23,8 @@ final class FileListTableView: NSTableView {
             super.mouseDown(with: event)
         } else {
             window?.makeFirstResponder(self)
+            interactionController?.syncSelectionFromTable()
+            interactionController?.refreshVisibleRowContentClip()
         }
         
         interactionController?.didHandleMouseDown(event, row: row)
@@ -38,6 +40,7 @@ final class FileListTableView: NSTableView {
     override func mouseUp(with event: NSEvent) {
         interactionController?.handleBlankMouseUp()
         super.mouseUp(with: event)
+        interactionController?.finishPointerInteractionIfNeeded()
     }
     
     override func keyDown(with event: NSEvent) {

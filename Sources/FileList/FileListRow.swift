@@ -56,4 +56,21 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             && isParentDirectoryEntry == other.isParentDirectoryEntry
             && iconPath == other.iconPath
     }
+    
+    func withDirectorySizeDisplay(_ info: DirectorySizeDisplayInfo) -> FileListRow {
+        guard isDirectory, !isParentDirectoryEntry else { return self }
+        return FileListRow(
+            id: id,
+            name: name,
+            fileType: fileType,
+            sizeDisplay: info.text,
+            dateDisplay: dateDisplay,
+            size: info.sortableSize,
+            modificationDate: modificationDate,
+            isDirectory: isDirectory,
+            isHidden: isHidden,
+            isParentDirectoryEntry: isParentDirectoryEntry,
+            iconPath: iconPath
+        )
+    }
 }

@@ -45,6 +45,9 @@ public final class FileListTableController: NSObject {
     private var lastFillLayoutClipWidth: CGFloat = -1
     private var lastListingSignature = ""
     private var pendingScrollToTop = false
+    private var lastDirectorySizeRevision: UInt = 0
+    private var pendingDirectorySizeRefresh = false
+    private var directorySizeDisplay: ((String) -> DirectorySizeDisplayInfo)?
     
     private let userResizing = NSTableColumn.ResizingOptions(rawValue: 1 << 1)
     
@@ -143,6 +146,7 @@ public final class FileListTableController: NSObject {
         let listingChanged = listingSignature != lastListingSignature
         if listingChanged {
             lastListingSignature = listingSignature
+            lastDirectorySizeRevision = 0
         }
         
         let sizeOnlyChanged = !orderChanged
@@ -176,8 +180,74 @@ public final class FileListTableController: NSObject {
         updateSortIndicators(for: sort)
         
         schedulePaddingColumnLayout()
-        syncSelectionToTable()
+        if orderChanged || searchChanged || listingChanged {
+            syncSelectionToTable()
+        }
         scheduleVisibleDirectoryPathsNotify()
+    }
+    
+    func refreshDirectorySizeColumnIfNeeded(_ provider: DirectorySizeColumnProvider?) {
+        directorySizeDisplay = provider?.display
+        guard let provider else { return }
+        guard provider.revision != lastDirectorySizeRevision else {
+            flushPendingDirectorySizeRefreshIfNeeded()
+            return
+        }
+        lastDirectorySizeRevision = provider.revision
+        applyDirectorySizeDisplayUpdates()
+    }
+    
+    private var isUserPointerActive: Bool {
+        mouseDownEvent != nil || blankMouseDownEvent != nil || dragSessionActive
+    }
+    
+    func finishPointerInteractionIfNeeded() {
+        mouseDownEvent = nil
+        mouseDownRow = -1
+        mouseDownLocation = nil
+        flushPendingDirectorySizeRefreshIfNeeded()
+    }
+    
+    private func flushPendingDirectorySizeRefreshIfNeeded() {
+        guard pendingDirectorySizeRefresh else { return }
+        applyDirectorySizeDisplayUpdates()
+    }
+    
+    private func applyDirectorySizeDisplayUpdates() {
+        guard let directorySizeDisplay else { return }
+        if isUserPointerActive {
+            pendingDirectorySizeRefresh = true
+            return
+        }
+        pendingDirectorySizeRefresh = false
+        
+        var updatedSource = sourceRows
+        var changed = false
+        for index in updatedSource.indices {
+            let row = updatedSource[index]
+            guard row.isDirectory, !row.isParentDirectoryEntry else { continue }
+            let updated = row.withDirectorySizeDisplay(directorySizeDisplay(row.iconPath))
+            if updated != row {
+                updatedSource[index] = updated
+                changed = true
+            }
+        }
+        guard changed else { return }
+        
+        sourceRows = updatedSource
+        let sort = preferencesStore?.sort ?? FileListSortState.default
+        let previousOrder = displayRows.map(\.id)
+        displayRows = FileListSortEngine.sorted(sourceRows, by: sort)
+        let orderChanged = displayRows.map(\.id) != previousOrder
+        
+        if orderChanged {
+            FileListTableAnimations.performWithoutAnimation {
+                tableView?.reloadData()
+            }
+            syncSelectionToTable()
+        } else {
+            reloadSizeColumnPreservingScroll()
+        }
     }
     
     private func sizeColumnIndex(in tableView: NSTableView) -> Int? {
@@ -645,8 +715,19 @@ public final class FileListTableController: NSObject {
     // MARK: - Selection
     
     private func syncSelectionToTable() {
-        guard let tableView, let selectionGet else { return }
+        guard let tableView, let selectionGet, let selectionSet else { return }
         let selected = selectionGet()
+        let tableSelectedIDs = Set(
+            tableView.selectedRowIndexes.compactMap { row -> String? in
+                guard row >= 0, row < displayRows.count else { return nil }
+                return displayRows[row].id
+            }
+        )
+        // 用户点击后 binding 可能尚未刷新；此时不要用空 binding 覆盖表格选中。
+        if selected.isEmpty, !tableSelectedIDs.isEmpty {
+            selectionSet(tableSelectedIDs)
+            return
+        }
         var indexes = IndexSet()
         for (index, row) in displayRows.enumerated() where selected.contains(row.id) {
             indexes.insert(index)

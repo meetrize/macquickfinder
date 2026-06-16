@@ -43,11 +43,11 @@ enum FileListDragSupport {
         return ghost
     }
     
-    static func iconFrame(anchor: NSRect, index: Int) -> NSRect {
+    static func iconFrame(at point: NSPoint, index: Int) -> NSRect {
         let offset = CGFloat(index * 6)
         return NSRect(
-            x: anchor.midX - iconSize / 2 + offset,
-            y: anchor.midY - iconSize / 2 - offset,
+            x: point.x - iconSize / 2 + offset,
+            y: point.y - iconSize / 2 - offset,
             width: iconSize,
             height: iconSize
         )

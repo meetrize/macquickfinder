@@ -1595,7 +1595,7 @@ struct ContentView: View {
     @State private var selection: Set<FileItem.ID> = []
     @State private var sortOrder: SortOrder = .nameAscending
     @ObservedObject private var fileListPreferences = FileListPreferencesStore.shared
-    @ObservedObject private var directorySizeOverlay = DirectorySizeOverlay.shared
+    private let directorySizeOverlay = DirectorySizeOverlay.shared
     @State private var isSyncingSortFromPreferences = false
     @State private var isLoading = false
     @State private var searchText = ""
@@ -2445,6 +2445,21 @@ struct FileContextActions {
     var openTerminal: (FileItem) -> Void = { _ in }
 }
 
+/// 将目录大小回填限制在表格内部，避免 overlay 发布时触发整表选中同步。
+private struct DirectorySizeTableBridge<Content: View>: View {
+    @ObservedObject var overlay: DirectorySizeOverlay
+    @ViewBuilder let content: (DirectorySizeColumnProvider) -> Content
+    
+    var body: some View {
+        content(
+            DirectorySizeColumnProvider(
+                revision: overlay.revision,
+                display: { overlay.sizeDisplay(for: $0) }
+            )
+        )
+    }
+}
+
 struct FileListView: View {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
@@ -2452,7 +2467,7 @@ struct FileListView: View {
     let currentDirectoryPath: String
     let canNavigateToParent: Bool
     let showHiddenFiles: Bool
-    @ObservedObject var directorySizeOverlay: DirectorySizeOverlay
+    let directorySizeOverlay: DirectorySizeOverlay
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
     let onItemsChanged: ([String]) -> Void
@@ -2503,12 +2518,7 @@ struct FileListView: View {
     }
     
     private var fileTable: some View {
-        let listRows = tableRowItems.map { item in
-            FileListRow(
-                item: item,
-                directorySizeDisplay: directorySizeOverlay.sizeDisplay(for: item.id)
-            )
-        }
+        let listRows = tableRowItems.map { FileListRow(item: $0) }
         let tableInteraction = FileListTableInteraction(
             searchText: searchText,
             blankMenuActions: blankMenuActions,
@@ -2554,22 +2564,25 @@ struct FileListView: View {
             }
         )
         
-        return FileListTableHost(
-            rows: listRows,
-            interaction: tableInteraction,
-            selection: Binding(
-                get: { selection },
-                set: { selection = $0 }
-            ),
-            preferencesStore: preferencesStore,
-            onOpenRow: { row in
-                guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
-                onItemOpen(item)
-            },
-            onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes
-        )
-        .onAppear {
-            preferencesStore.resetToDefaultIfNeeded()
+        return DirectorySizeTableBridge(overlay: directorySizeOverlay) { sizeProvider in
+            FileListTableHost(
+                rows: listRows,
+                interaction: tableInteraction,
+                selection: Binding(
+                    get: { selection },
+                    set: { selection = $0 }
+                ),
+                preferencesStore: preferencesStore,
+                onOpenRow: { row in
+                    guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
+                    onItemOpen(item)
+                },
+                onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
+                directorySizeProvider: sizeProvider
+            )
+            .onAppear {
+                preferencesStore.resetToDefaultIfNeeded()
+            }
         }
     }
     

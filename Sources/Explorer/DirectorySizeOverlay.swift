@@ -9,6 +9,8 @@ final class DirectorySizeOverlay: ObservableObject {
     
     @Published private(set) var sizes: [String: Int64] = [:]
     @Published private(set) var lowerBoundPaths: Set<String> = []
+    /// 每次回填大小后递增，供表格仅刷新 Size 列。
+    @Published private(set) var revision: UInt = 0
     private(set) var sessionGeneration: UInt = 0
     
     private init() {}
@@ -17,6 +19,7 @@ final class DirectorySizeOverlay: ObservableObject {
         sessionGeneration = generation
         sizes.removeAll()
         lowerBoundPaths.removeAll()
+        revision = 0
     }
     
     func apply(path: String, result: DirectorySizeComputeResult, generation: UInt) {
@@ -29,6 +32,7 @@ final class DirectorySizeOverlay: ObservableObject {
             lowerBoundPaths.insert(path)
             sizes[path] = size
         }
+        revision &+= 1
     }
     
     func remove(paths: [String]) {

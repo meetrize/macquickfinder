@@ -19,7 +19,9 @@ extension FileListTableController {
         if event.clickCount >= 2 { return true }
         let flags = event.modifierFlags
         if flags.contains(.command) || flags.contains(.shift) { return true }
-        return !effectiveSelectionIDs().contains(displayRows[row].id)
+        // 以表格实际选中状态为准；binding 可能尚未同步，误用 effectiveSelectionIDs 会吞掉首次点击。
+        guard let tableView else { return true }
+        return !tableView.selectedRowIndexes.contains(row)
     }
     
     func didHandleMouseDown(_ event: NSEvent, row: Int) {
@@ -93,7 +95,7 @@ extension FileListTableController {
         
         guard !dragSessionActive,
               let start = mouseDownLocation,
-              let mouseDownEvent else { return false }
+              mouseDownEvent != nil else { return false }
         
         let distance = hypot(
             event.locationInWindow.x - start.x,
@@ -104,7 +106,7 @@ extension FileListTableController {
         guard row >= 0, row < displayRows.count else { return false }
         
         dragSessionActive = true
-        beginDrag(for: displayRows[row], rowIndex: row, event: mouseDownEvent)
+        beginDrag(for: displayRows[row], rowIndex: row, event: event)
         return true
     }
     
@@ -155,20 +157,14 @@ extension FileListTableController {
         )
         guard !dragged.isEmpty else { return }
         
-        let anchor = tableView.rect(ofRow: rowIndex)
+        let mousePoint = tableView.convert(event.locationInWindow, from: nil)
         var draggingItems: [NSDraggingItem] = []
         for (index, draggedRow) in dragged.enumerated() {
-            let frame = FileListDragSupport.iconFrame(anchor: anchor, index: index)
+            let frame = FileListDragSupport.iconFrame(at: mousePoint, index: index)
             let url = URL(fileURLWithPath: draggedRow.iconPath) as NSURL
             let ghostImage = FileListDragSupport.ghostImage(for: draggedRow.iconPath)
             let draggingItem = NSDraggingItem(pasteboardWriter: url)
-            draggingItem.setDraggingFrame(frame, contents: nil)
-            draggingItem.imageComponentsProvider = {
-                let icon = NSDraggingImageComponent(key: .icon)
-                icon.contents = ghostImage
-                icon.frame = NSRect(origin: .zero, size: frame.size)
-                return [icon]
-            }
+            draggingItem.setDraggingFrame(frame, contents: ghostImage)
             draggingItems.append(draggingItem)
         }
         
@@ -249,6 +245,7 @@ extension FileListTableController: NSDraggingSource {
         dragSessionActive = false
         mouseDownLocation = nil
         mouseDownEvent = nil
+        finishPointerInteractionIfNeeded()
         if operation != [] {
             DispatchQueue.main.async { [weak self] in
                 self?.interaction.onDragEnded()
