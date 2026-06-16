@@ -3,6 +3,22 @@ import AppKit
 final class FileListTableView: NSTableView {
     weak var interactionController: FileListTableController?
     
+    override func becomeFirstResponder() -> Bool {
+        let focused = super.becomeFirstResponder()
+        if focused {
+            interactionController?.handleTableFocusChanged(true)
+        }
+        return focused
+    }
+    
+    override func resignFirstResponder() -> Bool {
+        let resigned = super.resignFirstResponder()
+        if resigned {
+            interactionController?.handleTableFocusChanged(false)
+        }
+        return resigned
+    }
+    
     override func rightMouseDown(with event: NSEvent) {
         interactionController?.handleRightMouseDown(event)
     }

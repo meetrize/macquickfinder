@@ -1935,6 +1935,8 @@ struct ContentView: View {
     @State private var isSyncingSortFromPreferences = false
     @State private var isLoading = false
     @State private var searchText = ""
+    @State private var quickSearchText = ""
+    @State private var isQuickSearchVisible = false
     @State private var showHiddenFiles = false
     @State private var loadGeneration: UInt = 0
     @State private var navigationBackStack: [String] = []
@@ -2328,6 +2330,8 @@ struct ContentView: View {
                 items: filteredItems,
                 selection: $selection,
                 searchText: searchText,
+                quickSearchText: $quickSearchText,
+                isQuickSearchVisible: $isQuickSearchVisible,
                 currentDirectoryPath: path,
                 canNavigateToParent: FileItem.canNavigateUp(from: path),
                 showHiddenFiles: showHiddenFiles,
@@ -3155,6 +3159,8 @@ struct FileListView: View {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
     let searchText: String
+    @Binding var quickSearchText: String
+    @Binding var isQuickSearchVisible: Bool
     let currentDirectoryPath: String
     let canNavigateToParent: Bool
     let showHiddenFiles: Bool
@@ -3168,6 +3174,8 @@ struct FileListView: View {
     
     @ObservedObject private var preferencesStore = FileListPreferencesStore.shared
     @State private var isCurrentDirectoryDropTargeted = false
+    @FocusState private var isQuickSearchFieldFocused: Bool
+    @State private var quickSearchAutoCloseWorkItem: DispatchWorkItem?
     
     private var showParentDirectoryRow: Bool {
         canNavigateToParent && searchText.isEmpty
@@ -3206,12 +3214,35 @@ struct FileListView: View {
                     .allowsHitTesting(false)
             }
         }
+        .overlay(alignment: .bottom) {
+            if isQuickSearchVisible {
+                quickSearchBar
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 6)
+                    .transition(.opacity)
+            }
+        }
+        .onChange(of: isQuickSearchVisible) { visible in
+            if !visible {
+                cancelQuickSearchAutoClose()
+                isQuickSearchFieldFocused = false
+                return
+            }
+            refreshQuickSearchAutoCloseTimer()
+        }
+        .onChange(of: isQuickSearchFieldFocused) { _ in
+            refreshQuickSearchAutoCloseTimer()
+        }
+        .onDisappear {
+            cancelQuickSearchAutoClose()
+        }
     }
     
     private var fileTable: some View {
         let listRows = tableRowItems.map { FileListRow(item: $0) }
         let tableInteraction = FileListTableInteraction(
             searchText: searchText,
+            quickSearchText: quickSearchText,
             blankMenuActions: blankMenuActions,
             onBlankSingleClick: {
                 if !selection.isEmpty {
@@ -3225,6 +3256,21 @@ struct FileListView: View {
             onDelete: {
                 let deletable = items(for: selection).filter { !$0.isParentDirectoryEntry }
                 contextActions.delete(deletable)
+            },
+            onTableFocusChanged: { focused in
+                guard focused, isQuickSearchVisible else { return }
+                // AppKit 表格接管 firstResponder 时，显式让快速搜索框失焦并启动自动关闭计时。
+                isQuickSearchFieldFocused = false
+                refreshQuickSearchAutoCloseTimer()
+            },
+            onQuickSearchInput: { input in
+                appendQuickSearchText(input)
+            },
+            onQuickSearchBackspace: {
+                removeLastQuickSearchCharacter()
+            },
+            onQuickSearchEscape: {
+                closeQuickSearch()
             },
             onDragEnded: { onItemsChanged([]) },
             makeContextMenu: { clickedRow, selectedIDs in
@@ -3279,6 +3325,91 @@ struct FileListView: View {
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
         tableRowItems.filter { ids.contains($0.id) }
+    }
+
+    private var quickSearchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("快速搜索", text: $quickSearchText)
+                .textFieldStyle(.plain)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .focused($isQuickSearchFieldFocused)
+                .onChange(of: quickSearchText) { newValue in
+                    let normalized = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if normalized != newValue {
+                        quickSearchText = normalized
+                        return
+                    }
+                    isQuickSearchVisible = !normalized.isEmpty
+                    if normalized.isEmpty {
+                        cancelQuickSearchAutoClose()
+                    } else {
+                        refreshQuickSearchAutoCloseTimer()
+                    }
+                }
+            Button {
+                closeQuickSearch()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("关闭快速搜索")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+        )
+    }
+
+    private func appendQuickSearchText(_ input: String) {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        quickSearchText += trimmed
+        isQuickSearchVisible = !quickSearchText.isEmpty
+        refreshQuickSearchAutoCloseTimer()
+    }
+
+    private func removeLastQuickSearchCharacter() {
+        guard !quickSearchText.isEmpty else { return }
+        quickSearchText.removeLast()
+        isQuickSearchVisible = !quickSearchText.isEmpty
+        refreshQuickSearchAutoCloseTimer()
+    }
+
+    private func closeQuickSearch() {
+        cancelQuickSearchAutoClose()
+        quickSearchText = ""
+        isQuickSearchVisible = false
+    }
+    
+    private func refreshQuickSearchAutoCloseTimer() {
+        guard isQuickSearchVisible else {
+            cancelQuickSearchAutoClose()
+            return
+        }
+        // Phase 2 语义：快速搜索框失焦后 5 秒自动关闭（与文件列表焦点无关）。
+        if isQuickSearchFieldFocused {
+            cancelQuickSearchAutoClose()
+            return
+        }
+        
+        cancelQuickSearchAutoClose()
+        let workItem = DispatchWorkItem {
+            closeQuickSearch()
+        }
+        quickSearchAutoCloseWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
+    }
+    
+    private func cancelQuickSearchAutoClose() {
+        quickSearchAutoCloseWorkItem?.cancel()
+        quickSearchAutoCloseWorkItem = nil
     }
     
     private func invalidationPaths(for urls: [URL], destinationPath: String) -> [String] {

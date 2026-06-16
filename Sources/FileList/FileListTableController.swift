@@ -15,6 +15,7 @@ public final class FileListTableController: NSObject {
     private weak var preferencesStore: FileListPreferencesStore?
     var interaction = FileListTableInteraction()
     var lastSearchText = ""
+    var lastQuickSearchText = ""
     
     var mouseDownRow = -1
     var mouseDownLocation: NSPoint?
@@ -128,6 +129,8 @@ public final class FileListTableController: NSObject {
         
         let searchChanged = interaction.searchText != lastSearchText
         lastSearchText = interaction.searchText
+        let quickSearchChanged = interaction.quickSearchText != lastQuickSearchText
+        lastQuickSearchText = interaction.quickSearchText
         
         let structureToken = columnStructureToken(from: preferencesStore.configuration)
         if structureToken != lastColumnStructureToken {
@@ -186,7 +189,7 @@ public final class FileListTableController: NSObject {
             }
         } else if sizeOnlyChanged {
             reloadSizeColumnPreservingScroll()
-        } else if !orderChanged && !searchChanged && !listingChanged && newDisplay == previousDisplayRows {
+        } else if !orderChanged && !searchChanged && !quickSearchChanged && !listingChanged && newDisplay == previousDisplayRows {
             scheduleVisibleDirectoryPathsNotify()
             return
         }
@@ -195,6 +198,10 @@ public final class FileListTableController: NSObject {
         schedulePaddingColumnLayout()
         if orderChanged || searchChanged || listingChanged {
             syncSelectionToTable()
+        }
+        if quickSearchChanged {
+            refreshVisibleNameLabels()
+            scrollToFirstQuickSearchMatchIfNeeded()
         }
         scheduleVisibleDirectoryPathsNotify()
     }
@@ -796,6 +803,27 @@ public final class FileListTableController: NSObject {
             tableView.selectRowIndexes(indexes, byExtendingSelection: false)
         }
     }
+
+    private func scrollToFirstQuickSearchMatchIfNeeded() {
+        guard let tableView else { return }
+        let keyword = interaction.quickSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else { return }
+        guard let row = displayRows.firstIndex(where: {
+            !$0.isParentDirectoryEntry &&
+            $0.name.range(
+                of: keyword,
+                options: [.caseInsensitive, .diacriticInsensitive],
+                range: nil,
+                locale: .current
+            ) != nil
+        }) else { return }
+        
+        FileListTableAnimations.performWithoutAnimation {
+            tableView.scrollRowToVisible(row)
+            tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        }
+        syncSelectionFromTable()
+    }
     
     func syncSelectionFromTable() {
         guard let tableView, let selectionGet, let selectionSet else { return }
@@ -1028,9 +1056,12 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         isSelected: Bool,
         isEmphasized: Bool
     ) {
+        let highlightText = interaction.quickSearchText.isEmpty
+            ? interaction.searchText
+            : interaction.quickSearchText
         nameLabel(in: cell)?.attributedString = FileListTextHighlight.attributedName(
             item.name,
-            searchText: interaction.searchText,
+            searchText: highlightText,
             isDirectory: item.isDirectory || item.isParentDirectoryEntry,
             isHidden: item.isHidden,
             isSelected: isSelected,

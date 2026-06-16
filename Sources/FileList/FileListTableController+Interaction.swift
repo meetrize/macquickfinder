@@ -6,6 +6,10 @@ import Foundation
 extension FileListTableController {
     // MARK: - Mouse & keyboard
     
+    func handleTableFocusChanged(_ isFocused: Bool) {
+        interaction.onTableFocusChanged(isFocused)
+    }
+    
     func willHandleMouseDown(_ event: NSEvent, row: Int, pointInTable: NSPoint) {
         if let tableView, row >= 0, row < displayRows.count {
             mouseDownCanStartFileDrag = isFileNameTextPoint(pointInTable, row: row, in: tableView)
@@ -172,8 +176,32 @@ extension FileListTableController {
     }
     
     func handleKeyDown(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags
+        if !flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
+            // ESC: 关闭快速搜索
+            if event.keyCode == 53 {
+                interaction.onQuickSearchEscape()
+                return true
+            }
+            // Delete / Forward Delete：优先编辑快速搜索词
+            if event.keyCode == 51 || event.keyCode == 117 {
+                if !interaction.quickSearchText.isEmpty {
+                    interaction.onQuickSearchBackspace()
+                    return true
+                }
+            }
+            // 可见字符输入：唤起或追加快速搜索
+            if let input = event.charactersIgnoringModifiers,
+               input.count == 1,
+               let scalar = input.unicodeScalars.first,
+               !CharacterSet.whitespacesAndNewlines.contains(scalar) {
+                interaction.onQuickSearchInput(input)
+                return true
+            }
+        }
+        
         guard event.keyCode == 51 || event.keyCode == 117 else { return false }
-        guard !event.modifierFlags.contains(.command) else { return false }
+        guard !flags.contains(.command) else { return false }
         guard interaction.canDelete() else { return false }
         interaction.onDelete()
         return true
