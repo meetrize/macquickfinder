@@ -924,9 +924,8 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
             let icon = NSImageView()
             icon.translatesAutoresizingMaskIntoConstraints = false
             icon.imageScaling = .scaleProportionallyDown
-            let label = NSTextField(labelWithString: "")
+            let label = FileListTruncatingLabel()
             label.translatesAutoresizingMaskIntoConstraints = false
-            label.lineBreakMode = .byTruncatingMiddle
             cell.addSubview(icon)
             cell.addSubview(label)
             NSLayoutConstraint.activate([
@@ -935,19 +934,17 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
                 icon.widthAnchor.constraint(equalToConstant: 18),
                 icon.heightAnchor.constraint(equalToConstant: 18),
                 label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
-                label.trailingAnchor.constraint(lessThanOrEqualTo: cell.trailingAnchor, constant: -4),
-                label.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+                label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+                label.topAnchor.constraint(equalTo: cell.topAnchor),
+                label.bottomAnchor.constraint(equalTo: cell.bottomAnchor)
             ])
             cell.imageView = icon
-            cell.textField = label
         default:
-            let label = NSTextField(labelWithString: "")
-            label.translatesAutoresizingMaskIntoConstraints = false
-            label.lineBreakMode = .byTruncatingTail
+            let label = makeTruncatingLabel(truncation: .byTruncatingTail)
             cell.addSubview(label)
             NSLayoutConstraint.activate([
                 label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
-                label.trailingAnchor.constraint(lessThanOrEqualTo: cell.trailingAnchor, constant: -4),
+                label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
                 label.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
             ])
             cell.textField = label
@@ -956,7 +953,34 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         return cell
     }
     
+    private func makeTruncatingLabel(truncation: NSLineBreakMode) -> NSTextField {
+        let label = NSTextField(labelWithString: "")
+        label.translatesAutoresizingMaskIntoConstraints = false
+        applyTruncationSettings(to: label, truncation: truncation)
+        return label
+    }
+    
+    private func applyTruncationSettings(to label: NSTextField, truncation: NSLineBreakMode) {
+        label.lineBreakMode = truncation
+        label.usesSingleLineMode = true
+        if let cell = label.cell as? NSTextFieldCell {
+            cell.lineBreakMode = truncation
+            cell.truncatesLastVisibleLine = true
+            cell.wraps = false
+            cell.isScrollable = false
+        }
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    }
+    
+    private func nameLabel(in cell: NSTableCellView) -> FileListTruncatingLabel? {
+        cell.subviews.compactMap { $0 as? FileListTruncatingLabel }.first
+    }
+    
     private func configure(cell: NSTableCellView, columnID: FileListColumnID, item: FileListRow) {
+        if let label = cell.textField {
+            applyTruncationSettings(to: label, truncation: .byTruncatingTail)
+        }
+        
         switch columnID {
         case .name:
             if item.isParentDirectoryEntry {
@@ -965,7 +989,7 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
             } else {
                 cell.imageView?.image = NSWorkspace.shared.icon(forFile: item.iconPath)
             }
-            cell.textField?.attributedStringValue = FileListTextHighlight.attributedName(
+            nameLabel(in: cell)?.attributedString = FileListTextHighlight.attributedName(
                 item.name,
                 searchText: interaction.searchText,
                 isDirectory: item.isDirectory || item.isParentDirectoryEntry,

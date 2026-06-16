@@ -2,6 +2,16 @@ import AppKit
 import Foundation
 
 enum FileListTextHighlight {
+    private static func baseAttributes(font: NSFont, color: NSColor) -> [NSAttributedString.Key: Any] {
+        let style = NSMutableParagraphStyle()
+        style.lineBreakMode = .byTruncatingTail
+        return [
+            .font: font,
+            .foregroundColor: color,
+            .paragraphStyle: style,
+        ]
+    }
+    
     static func attributedName(
         _ text: String,
         searchText: String,
@@ -12,18 +22,13 @@ enum FileListTextHighlight {
             ? NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
             : NSFont.systemFont(ofSize: NSFont.systemFontSize)
         let color: NSColor = isHidden ? .secondaryLabelColor : .labelColor
+        let attributes = baseAttributes(font: font, color: color)
         
         guard !searchText.isEmpty else {
-            return NSAttributedString(
-                string: text,
-                attributes: [.font: font, .foregroundColor: color]
-            )
+            return NSAttributedString(string: text, attributes: attributes)
         }
         
-        let result = NSMutableAttributedString(
-            string: text,
-            attributes: [.font: font, .foregroundColor: color]
-        )
+        let result = NSMutableAttributedString(string: text, attributes: attributes)
         let normalizedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedSearch.isEmpty else { return result }
         
