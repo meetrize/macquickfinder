@@ -34,6 +34,10 @@ final class FileListTableView: NSTableView {
         if interactionController?.handleMouseDragged(event) == true {
             return
         }
+        let point = convert(event.locationInWindow, from: nil)
+        if interactionController?.isBlankInteractivePoint(point, in: self) == true {
+            return
+        }
         super.mouseDragged(with: event)
     }
     

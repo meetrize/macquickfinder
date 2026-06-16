@@ -30,8 +30,13 @@ extension FileListTableController {
     }
     
     func handleBlankMouseDown(_ event: NSEvent) {
+        // 空白区按下时丢弃行上的按压状态，避免误触发文件拖拽。
+        mouseDownEvent = nil
+        mouseDownLocation = nil
+        mouseDownRow = -1
+        dragSessionActive = false
+        
         blankMouseDownEvent = event
-        blankIsDragSelecting = false
         
         if event.clickCount >= 2 {
             blankMouseDownEvent = nil
@@ -58,45 +63,13 @@ extension FileListTableController {
         refreshVisibleRowContentClip()
     }
     
+    /// 空白区拖拽仅取消选中，不框选、不触发文件拖放。
     func handleBlankMouseDragged(_ event: NSEvent) -> Bool {
-        guard let tableView, let blankMouseDownEvent else { return false }
-        if !blankIsDragSelecting {
-            let deltaX = event.locationInWindow.x - blankMouseDownEvent.locationInWindow.x
-            let deltaY = event.locationInWindow.y - blankMouseDownEvent.locationInWindow.y
-            guard hypot(deltaX, deltaY) >= dragThreshold else { return false }
-            blankIsDragSelecting = true
-        }
-        
-        let startY = tableView.convert(blankMouseDownEvent.locationInWindow, from: nil).y
-        let currentY = tableView.convert(event.locationInWindow, from: nil).y
-        let rows = rowsInVerticalRange(minY: startY, maxY: currentY, tableView: tableView)
-        var indexes = IndexSet()
-        for row in rows where row >= 0 && row < displayRows.count {
-            indexes.insert(row)
-        }
-        if tableView.selectedRowIndexes != indexes {
-            tableView.selectRowIndexes(indexes, byExtendingSelection: false)
-            syncSelectionFromTable()
-        }
-        return true
+        blankMouseDownEvent != nil
     }
     
     func handleBlankMouseUp() {
         blankMouseDownEvent = nil
-        blankIsDragSelecting = false
-    }
-    
-    private func rowsInVerticalRange(minY: CGFloat, maxY: CGFloat, tableView: NSTableView) -> IndexSet {
-        let lower = min(minY, maxY)
-        let upper = max(minY, maxY)
-        var rows = IndexSet()
-        for row in 0..<tableView.numberOfRows {
-            let rowRect = tableView.rect(ofRow: row)
-            if rowRect.maxY >= lower && rowRect.minY <= upper {
-                rows.insert(row)
-            }
-        }
-        return rows
     }
     
     private func showBlankContextMenu(for event: NSEvent) {
