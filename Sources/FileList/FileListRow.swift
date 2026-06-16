@@ -43,4 +43,17 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         self.isParentDirectoryEntry = isParentDirectoryEntry
         self.iconPath = iconPath
     }
+    
+    /// 除 Size 列展示字段外，是否与另一行相同（用于判断仅需刷新大小列）。
+    public func hasSameStaticContent(as other: FileListRow) -> Bool {
+        id == other.id
+            && name == other.name
+            && fileType == other.fileType
+            && dateDisplay == other.dateDisplay
+            && modificationDate == other.modificationDate
+            && isDirectory == other.isDirectory
+            && isHidden == other.isHidden
+            && isParentDirectoryEntry == other.isParentDirectoryEntry
+            && iconPath == other.iconPath
+    }
 }

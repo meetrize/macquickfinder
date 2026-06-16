@@ -2,7 +2,13 @@ import AppKit
 import Foundation
 
 final class FileListRowView: NSTableRowView {
-    var contentBackgroundMaxX: CGFloat?
+    /// 缓存值；绘制时优先根据表格列布局实时计算，保证列宽拖拽中高亮同步。
+    var contentBackgroundMaxX: CGFloat? {
+        didSet {
+            guard oldValue != contentBackgroundMaxX else { return }
+            needsDisplay = true
+        }
+    }
     var isDropTargetRow = false {
         didSet {
             guard oldValue != isDropTargetRow else { return }
@@ -44,15 +50,42 @@ final class FileListRowView: NSTableRowView {
     }
     
     private func contentClip(of dirtyRect: NSRect) -> NSRect {
-        guard let contentBackgroundMaxX, contentBackgroundMaxX < bounds.maxX else {
+        guard let maxX = resolvedContentMaxX(), maxX < bounds.maxX else {
             return dirtyRect
         }
         let contentRect = NSRect(
             x: bounds.minX,
             y: bounds.minY,
-            width: max(0, contentBackgroundMaxX - bounds.minX),
+            width: max(0, maxX - bounds.minX),
             height: bounds.height
         )
         return NSIntersectionRect(dirtyRect, contentRect)
+    }
+    
+    private func resolvedContentMaxX() -> CGFloat? {
+        guard let tableView = enclosingTableView() else {
+            return contentBackgroundMaxX
+        }
+        
+        var lastDataColumnIndex: Int?
+        for (index, column) in tableView.tableColumns.enumerated() {
+            guard !FileListPaddingColumn.isPadding(column), !column.isHidden else { continue }
+            lastDataColumnIndex = index
+        }
+        guard let lastDataColumnIndex else { return contentBackgroundMaxX }
+        
+        let maxXInTable = tableView.rect(ofColumn: lastDataColumnIndex).maxX
+        return convert(NSPoint(x: maxXInTable, y: 0), from: tableView).x
+    }
+    
+    private func enclosingTableView() -> NSTableView? {
+        var view: NSView? = self
+        while let current = view {
+            if let tableView = current as? NSTableView {
+                return tableView
+            }
+            view = current.superview
+        }
+        return nil
     }
 }

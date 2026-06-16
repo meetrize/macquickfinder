@@ -8,19 +8,22 @@ public struct FileListTableHost: NSViewRepresentable {
     @Binding public var selection: Set<String>
     @ObservedObject public var preferencesStore: FileListPreferencesStore
     public let onOpenRow: (FileListRow) -> Void
+    public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
     
     public init(
         rows: [FileListRow],
         interaction: FileListTableInteraction,
         selection: Binding<Set<String>>,
         preferencesStore: FileListPreferencesStore,
-        onOpenRow: @escaping (FileListRow) -> Void
+        onOpenRow: @escaping (FileListRow) -> Void,
+        onVisibleDirectoryPathsChanged: (([String]) -> Void)? = nil
     ) {
         self.rows = rows
         self.interaction = interaction
         _selection = selection
         self.preferencesStore = preferencesStore
         self.onOpenRow = onOpenRow
+        self.onVisibleDirectoryPathsChanged = onVisibleDirectoryPathsChanged
     }
     
     public func makeCoordinator() -> FileListTableController {
@@ -36,6 +39,7 @@ public struct FileListTableHost: NSViewRepresentable {
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let controller = context.coordinator
         controller.onOpenRow = onOpenRow
+        controller.onVisibleDirectoryPathsChanged = onVisibleDirectoryPathsChanged
         controller.update(
             rows: rows,
             interaction: interaction,

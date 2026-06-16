@@ -15,6 +15,9 @@ public enum FileListSortEngine {
         }
         
         files.sort { lhs, rhs in
+            if sort.column == .size {
+                return compareSize(lhs.size, rhs.size, ascending: sort.ascending)
+            }
             let compared = compare(lhs, rhs, column: sort.column)
             return sort.ascending ? compared : !compared
         }
@@ -34,6 +37,16 @@ public enum FileListSortEngine {
         }
     }
     
+    /// 未知文件夹大小用 `-1` 表示，升序/降序均排在末尾。
+    private static func compareSize(_ lhs: Int64, _ rhs: Int64, ascending: Bool) -> Bool {
+        let lhsUnknown = lhs < 0
+        let rhsUnknown = rhs < 0
+        if lhsUnknown && rhsUnknown { return false }
+        if lhsUnknown { return false }
+        if rhsUnknown { return true }
+        return ascending ? lhs < rhs : lhs > rhs
+    }
+    
     private static func compare(_ lhs: FileListRow, _ rhs: FileListRow, column: FileListColumnID) -> Bool {
         switch column {
         case .name:
@@ -41,7 +54,7 @@ public enum FileListSortEngine {
         case .type:
             return lhs.fileType.localizedStandardCompare(rhs.fileType) == .orderedAscending
         case .size:
-            return lhs.size < rhs.size
+            return compareSize(lhs.size, rhs.size, ascending: true)
         case .dateModified:
             return lhs.modificationDate < rhs.modificationDate
         }

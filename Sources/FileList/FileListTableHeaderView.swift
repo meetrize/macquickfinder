@@ -9,9 +9,11 @@ final class FileListTableHeaderView: NSTableHeaderView {
     
     private var pendingSortColumnID: FileListColumnID?
     private var mouseDownLocation: NSPoint?
+    private var isColumnResizing = false
     
     override func mouseDown(with event: NSEvent) {
         pendingSortColumnID = nil
+        isColumnResizing = false
         mouseDownLocation = convert(event.locationInWindow, from: nil)
         
         guard let tableView, let point = mouseDownLocation else {
@@ -21,6 +23,7 @@ final class FileListTableHeaderView: NSTableHeaderView {
         
         // 分隔条区域：交给系统处理列宽拖拽。
         if isOnColumnResizeDivider(at: point) {
+            isColumnResizing = true
             super.mouseDown(with: event)
             return
         }
@@ -48,6 +51,9 @@ final class FileListTableHeaderView: NSTableHeaderView {
             return
         }
         super.mouseDragged(with: event)
+        if isColumnResizing {
+            clickHandler?.invalidateVisibleRowHighlights()
+        }
     }
     
     override func mouseUp(with event: NSEvent) {
@@ -57,8 +63,16 @@ final class FileListTableHeaderView: NSTableHeaderView {
             clickHandler?.handleHeaderSortClick(columnID: columnID)
             return
         }
+        
+        let wasResizing = isColumnResizing
+        isColumnResizing = false
         super.mouseUp(with: event)
         mouseDownLocation = nil
+        
+        if wasResizing {
+            clickHandler?.invalidateVisibleRowHighlights()
+            clickHandler?.schedulePaddingColumnWidthAfterResize()
+        }
     }
     
     private func sortableColumnID(at point: NSPoint, tableView: NSTableView) -> FileListColumnID? {

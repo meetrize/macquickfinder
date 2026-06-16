@@ -26,6 +26,7 @@ private enum AppSettings {
     static let previewPanelWidthKey = "previewPanelWidth"
     static let favoritesKey = "favoriteLocations"
     static let trashRestoreRecordsKey = "trashRestoreRecords"
+    static let autoCalculateDirectorySizesKey = DirectorySizePreferences.autoCalculateKey
 }
 
 struct FileCommandHandlers {
@@ -1594,6 +1595,7 @@ struct ContentView: View {
     @State private var selection: Set<FileItem.ID> = []
     @State private var sortOrder: SortOrder = .nameAscending
     @ObservedObject private var fileListPreferences = FileListPreferencesStore.shared
+    @ObservedObject private var directorySizeOverlay = DirectorySizeOverlay.shared
     @State private var isSyncingSortFromPreferences = false
     @State private var isLoading = false
     @State private var searchText = ""
@@ -1603,6 +1605,7 @@ struct ContentView: View {
     @State private var isApplyingHistoryNavigation = false
     @State private var lastRecordedPath: String?
     @AppStorage(AppSettings.previewPanelWidthKey) private var storedPreviewPanelWidth = 320.0
+    @AppStorage(AppSettings.autoCalculateDirectorySizesKey) private var autoCalculateDirectorySizes = true
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
     @State private var isPathBarTextMode = false
@@ -1636,138 +1639,10 @@ struct ContentView: View {
                 )
                 
                 HStack(spacing: 0) {
-                    VStack(spacing: 0) {
-                        PathBarView(
-                            path: $path,
-                            activeField: $activeBarField,
-                            isTextMode: $isPathBarTextMode,
-                            showHiddenFiles: showHiddenFiles,
-                            onSubmit: loadItems
-                        )
-                        .frame(height: PanelTopBarMetrics.contentHeight)
-                        .padding(.horizontal)
-                        .padding(.vertical, PanelTopBarMetrics.verticalPadding)
-                        
-                        Divider()
-                        
-                        if isLoading {
-                            ProgressView()
-                                .padding()
-                        } else {
-                            FileListView(
-                                items: filteredItems,
-                                selection: $selection,
-                                searchText: searchText,
-                                currentDirectoryPath: path,
-                                canNavigateToParent: FileItem.canNavigateUp(from: path),
-                                onItemOpen: openItem,
-                                onBlankDoubleClick: handleBlankDoubleClick,
-                                onItemsChanged: {
-                                    selection.removeAll()
-                                    loadItems()
-                                },
-                                contextActions: fileContextActions,
-                                blankMenuActions: blankMenuActions
-                            )
-                            .focusedValue(\.fileCommandHandlers, fileCommandHandlers)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .focusedValue(\.textFieldEditing, isTextFieldEditing)
-                    .background(TextEditingKeyMonitor(isBarFieldEditing: isTextFieldEditing))
-                    .background(BarTextFieldFocusSync(activeField: $activeBarField))
-                    .navigationTitle("Explorer")
-                    .modifier(InlineToolbarTitleModifier())
-                    .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
-                            Button(action: createNewFolder) {
-                                LucideIcon.folderPlus
-                            }
-                            .buttonStyle(.borderless)
-                            .help("新建文件夹")
-                        }
-                        .hideSharedBackgroundIfAvailable()
-
-                        ToolbarItem(placement: .primaryAction) {
-                            Button(action: {
-                                showHiddenFiles.toggle()
-                                loadItems()
-                            }) {
-                                Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
-                            }
-                            .buttonStyle(.borderless)
-                        }
-                        .hideSharedBackgroundIfAvailable()
-                        
-                        ToolbarItem(placement: .primaryAction) {
-                            Menu {
-                                ForEach(SortOrder.allCases) { order in
-                                    Button {
-                                        sortOrder = order
-                                    } label: {
-                                        if sortOrder == order {
-                                            Label(order.rawValue, systemImage: "checkmark")
-                                        } else {
-                                            Text(order.rawValue)
-                                        }
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "arrow.up.arrow.down")
-                            }
-                            .menuStyle(.borderlessButton)
-                        }
-                        .hideSharedBackgroundIfAvailable()
-                        
-                        ToolbarItem(placement: .primaryAction) {
-                            BarTextField(
-                                fieldID: .search,
-                                prompt: "Search files",
-                                text: $searchText,
-                                activeField: $activeBarField,
-                                icon: "magnifyingglass",
-                                shape: .capsule,
-                                showsClearButton: true
-                            )
-                            .frame(width: 220)
-                        }
-                        .hideSharedBackgroundIfAvailable()
-                    }
-                    .onChange(of: activeBarField) { field in
-                        guard let field else { return }
-                        BarTextFieldFocusRegistry.focus(field)
-                    }
-                    .background {
-                        Button("Focus Search") {
-                            activeBarField = .search
-                        }
-                        .keyboardShortcut("f", modifiers: .command)
-                        .labelsHidden()
-                        .opacity(0)
-                        .frame(width: 0, height: 0)
-                        .accessibilityHidden(true)
-                    }
+                    explorerBrowserColumn
                     
                     if showPreview {
-                        HorizontalResizeDivider(
-                            trailingWidth: $livePreviewPanelWidth,
-                            minTrailingWidth: minPreviewPanelWidth,
-                            maxTrailingWidth: maxPreviewWidth,
-                            onDragEnded: {
-                                storedPreviewPanelWidth = Double(livePreviewPanelWidth)
-                            }
-                        )
-                        .frame(width: 6)
-                        .frame(maxHeight: .infinity)
-                        
-                        FilePreviewView(
-                            showPreview: $showPreview,
-                            selection: selection,
-                            items: items
-                        )
-                        .frame(width: livePreviewPanelWidth)
-                        .frame(maxHeight: .infinity, alignment: .top)
+                        explorerPreviewColumn(maxPreviewWidth: maxPreviewWidth)
                     }
                 }
                 .animation(nil, value: livePreviewPanelWidth)
@@ -1809,6 +1684,9 @@ struct ContentView: View {
             lastRecordedPath = newPath
             loadItems()
         }
+        .onChange(of: autoCalculateDirectorySizes) { enabled in
+            handleAutoCalculateDirectorySizesChanged(enabled)
+        }
         .onChange(of: sortOrder) { newOrder in
             guard !isSyncingSortFromPreferences else { return }
             fileListPreferences.updateSort(FileListSortState(sortOrder: newOrder))
@@ -1829,11 +1707,165 @@ struct ContentView: View {
         return items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
     
+    @ViewBuilder
+    private var explorerBrowserColumn: some View {
+        VStack(spacing: 0) {
+            PathBarView(
+                path: $path,
+                activeField: $activeBarField,
+                isTextMode: $isPathBarTextMode,
+                showHiddenFiles: showHiddenFiles,
+                onSubmit: { loadItems() }
+            )
+            .frame(height: PanelTopBarMetrics.contentHeight)
+            .padding(.horizontal)
+            .padding(.vertical, PanelTopBarMetrics.verticalPadding)
+            
+            Divider()
+            
+            explorerFileListSection
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .focusedValue(\.textFieldEditing, isTextFieldEditing)
+        .background(TextEditingKeyMonitor(isBarFieldEditing: isTextFieldEditing))
+        .background(BarTextFieldFocusSync(activeField: $activeBarField))
+        .navigationTitle("Explorer")
+        .modifier(InlineToolbarTitleModifier())
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: createNewFolder) {
+                    LucideIcon.folderPlus
+                }
+                .buttonStyle(.borderless)
+                .help("新建文件夹")
+            }
+            .hideSharedBackgroundIfAvailable()
+
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: {
+                    showHiddenFiles.toggle()
+                    loadItems()
+                }) {
+                    Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
+                }
+                .buttonStyle(.borderless)
+            }
+            .hideSharedBackgroundIfAvailable()
+            
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    ForEach(SortOrder.allCases) { order in
+                        Button {
+                            sortOrder = order
+                        } label: {
+                            if sortOrder == order {
+                                Label(order.rawValue, systemImage: "checkmark")
+                            } else {
+                                Text(order.rawValue)
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+                .menuStyle(.borderlessButton)
+            }
+            .hideSharedBackgroundIfAvailable()
+            
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Toggle("自动计算文件夹大小", isOn: $autoCalculateDirectorySizes)
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .menuStyle(.borderlessButton)
+                .help("浏览设置")
+            }
+            .hideSharedBackgroundIfAvailable()
+            
+            ToolbarItem(placement: .primaryAction) {
+                BarTextField(
+                    fieldID: .search,
+                    prompt: "Search files",
+                    text: $searchText,
+                    activeField: $activeBarField,
+                    icon: "magnifyingglass",
+                    shape: .capsule,
+                    showsClearButton: true
+                )
+                .frame(width: 220)
+            }
+            .hideSharedBackgroundIfAvailable()
+        }
+        .onChange(of: activeBarField) { field in
+            guard let field else { return }
+            BarTextFieldFocusRegistry.focus(field)
+        }
+        .background {
+            Button("Focus Search") {
+                activeBarField = .search
+            }
+            .keyboardShortcut("f", modifiers: .command)
+            .labelsHidden()
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+        }
+    }
+    
+    @ViewBuilder
+    private func explorerPreviewColumn(maxPreviewWidth: CGFloat) -> some View {
+        HorizontalResizeDivider(
+            trailingWidth: $livePreviewPanelWidth,
+            minTrailingWidth: minPreviewPanelWidth,
+            maxTrailingWidth: maxPreviewWidth,
+            onDragEnded: {
+                storedPreviewPanelWidth = Double(livePreviewPanelWidth)
+            }
+        )
+        .frame(width: 6)
+        .frame(maxHeight: .infinity)
+        
+        FilePreviewView(
+            showPreview: $showPreview,
+            selection: selection,
+            items: items
+        )
+        .frame(width: livePreviewPanelWidth)
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+    
+    @ViewBuilder
+    private var explorerFileListSection: some View {
+        if isLoading {
+            ProgressView()
+                .padding()
+        } else {
+            FileListView(
+                items: filteredItems,
+                selection: $selection,
+                searchText: searchText,
+                currentDirectoryPath: path,
+                canNavigateToParent: FileItem.canNavigateUp(from: path),
+                showHiddenFiles: showHiddenFiles,
+                directorySizeOverlay: directorySizeOverlay,
+                onItemOpen: openItem,
+                onBlankDoubleClick: handleBlankDoubleClick,
+                onItemsChanged: handleFileListItemsChanged,
+                onScheduleVisibleDirectorySizes: scheduleVisibleDirectorySizes,
+                contextActions: fileContextActions,
+                blankMenuActions: blankMenuActions
+            )
+            .focusedValue(\.fileCommandHandlers, fileCommandHandlers)
+        }
+    }
+    
     private func clampPreviewWidth(_ width: CGFloat, maxWidth: CGFloat) -> CGFloat {
         min(max(width, minPreviewPanelWidth), max(maxWidth, minPreviewPanelWidth))
     }
     
-    private func loadItems() {
+    private func loadItems(invalidatingPaths: [String] = []) {
         loadGeneration += 1
         let currentGeneration = loadGeneration
         isLoading = true
@@ -1841,8 +1873,14 @@ struct ContentView: View {
         
         let currentPath = path
         let shouldShowHiddenFiles = showHiddenFiles
+        directorySizeOverlay.beginSession(generation: currentGeneration)
         
         Task {
+            if !invalidatingPaths.isEmpty {
+                await DirectorySizeService.shared.invalidate(paths: invalidatingPaths)
+            }
+            await DirectorySizeService.shared.resetSession(generation: currentGeneration)
+            
             var loadedItems: [FileItem] = []
             
             if TrashLoader.isTrashPath(currentPath) {
@@ -1887,6 +1925,100 @@ struct ContentView: View {
                 items = loadedItems
                 isLoading = false
             }
+            
+            guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
+            
+            let folderPaths = loadedItems
+                .filter(\.isDirectory)
+                .map(\.id)
+            if shouldAutoCalculateDirectorySizes(for: currentPath) {
+                await DirectorySizeService.shared.schedule(
+                    paths: folderPaths,
+                    showHiddenFiles: shouldShowHiddenFiles,
+                    priority: .normal
+                )
+            }
+            
+            await MainActor.run {
+                guard currentGeneration == loadGeneration else { return }
+                updateDirectorySizeMonitoring(
+                    directoryPath: currentPath,
+                    folderPaths: folderPaths,
+                    showHiddenFiles: shouldShowHiddenFiles
+                )
+            }
+        }
+    }
+    
+    private func shouldAutoCalculateDirectorySizes(for directoryPath: String) -> Bool {
+        autoCalculateDirectorySizes
+            && !TrashLoader.isTrashPath(directoryPath)
+            && DirectorySizeVolumeFilter.shouldAutoCalculate(path: directoryPath)
+    }
+    
+    private func updateDirectorySizeMonitoring(
+        directoryPath: String,
+        folderPaths: [String],
+        showHiddenFiles: Bool
+    ) {
+        guard shouldAutoCalculateDirectorySizes(for: directoryPath) else {
+            DirectorySizeFSEventsMonitor.shared.stop()
+            return
+        }
+        DirectorySizeFSEventsMonitor.shared.updateSession(
+            directoryPath: directoryPath,
+            folderPaths: folderPaths,
+            showHiddenFiles: showHiddenFiles,
+            autoCalculate: autoCalculateDirectorySizes
+        )
+    }
+    
+    private func scheduleVisibleDirectorySizes(_ visiblePaths: [String]) {
+        guard shouldAutoCalculateDirectorySizes(for: path) else { return }
+        let shouldShowHiddenFiles = showHiddenFiles
+        Task {
+            await DirectorySizeService.shared.schedule(
+                paths: visiblePaths,
+                showHiddenFiles: shouldShowHiddenFiles,
+                priority: .visible
+            )
+        }
+    }
+    
+    private func handleFileListItemsChanged(_ invalidatedPaths: [String]) {
+        selection.removeAll()
+        loadItems(invalidatingPaths: invalidatedPaths)
+    }
+    
+    private func handleAutoCalculateDirectorySizesChanged(_ enabled: Bool) {
+        if enabled {
+            let folderPaths = items.filter(\.isDirectory).map(\.id)
+            updateDirectorySizeMonitoring(
+                directoryPath: path,
+                folderPaths: folderPaths,
+                showHiddenFiles: showHiddenFiles
+            )
+            rescheduleDirectorySizesIfNeeded()
+        } else {
+            DirectorySizeFSEventsMonitor.shared.stop()
+            loadGeneration += 1
+            directorySizeOverlay.beginSession(generation: loadGeneration)
+            Task {
+                await DirectorySizeService.shared.resetSession(generation: loadGeneration)
+            }
+        }
+    }
+    
+    private func rescheduleDirectorySizesIfNeeded() {
+        guard shouldAutoCalculateDirectorySizes(for: path) else { return }
+        let folderPaths = items.filter(\.isDirectory).map(\.id)
+        let shouldShowHiddenFiles = showHiddenFiles
+        Task {
+            await DirectorySizeService.shared.schedule(
+                paths: folderPaths,
+                showHiddenFiles: shouldShowHiddenFiles,
+                priority: .normal
+            )
         }
     }
     
@@ -1955,9 +2087,10 @@ struct ContentView: View {
                 }
             },
             delete: {
+                let paths = selected.map(\.id)
                 FileOperations.delete(selected) {
                     selection.removeAll()
-                    loadItems()
+                    loadItems(invalidatingPaths: paths)
                 }
             },
             canCopy: !selected.isEmpty,
@@ -2007,15 +2140,17 @@ struct ContentView: View {
             copyFilename: FileOperations.copyFilename,
             copyPaths: FileOperations.copyPaths,
             delete: { items in
+                let paths = items.map(\.id)
                 FileOperations.delete(items) {
                     selection.removeAll()
-                    loadItems()
+                    loadItems(invalidatingPaths: paths)
                 }
             },
             rename: { item in
+                let oldPath = item.id
                 FileOperations.rename(item) {
                     selection.removeAll()
-                    loadItems()
+                    loadItems(invalidatingPaths: [oldPath])
                 }
             },
             showInfo: FileOperations.showInfo,
@@ -2044,9 +2179,10 @@ struct ContentView: View {
                 }
             },
             deleteImmediately: { items in
+                let paths = items.map(\.id)
                 FileOperations.deleteImmediately(items) {
                     selection.removeAll()
-                    loadItems()
+                    loadItems(invalidatingPaths: paths)
                 }
             },
             openTerminal: { item in
@@ -2315,9 +2451,12 @@ struct FileListView: View {
     let searchText: String
     let currentDirectoryPath: String
     let canNavigateToParent: Bool
+    let showHiddenFiles: Bool
+    @ObservedObject var directorySizeOverlay: DirectorySizeOverlay
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
-    let onItemsChanged: () -> Void
+    let onItemsChanged: ([String]) -> Void
+    let onScheduleVisibleDirectorySizes: ([String]) -> Void
     let contextActions: FileContextActions
     let blankMenuActions: FileListBlankMenuActions
     
@@ -2348,7 +2487,9 @@ struct FileListView: View {
             delegate: FileDropDelegate(isTargeted: $isCurrentDirectoryDropTargeted) { urls, copy in
                 let destination = URL(fileURLWithPath: currentDirectoryPath, isDirectory: true)
                 guard FileOperations.canMoveItems(urls, to: destination) else { return }
-                FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
+                FileOperations.moveItems(urls, to: destination, copy: copy) {
+                    onItemsChanged(invalidationPaths(for: urls, destinationPath: currentDirectoryPath))
+                }
             }
         )
         .overlay {
@@ -2362,7 +2503,12 @@ struct FileListView: View {
     }
     
     private var fileTable: some View {
-        let listRows = tableRowItems.map(FileListRow.init(item:))
+        let listRows = tableRowItems.map { item in
+            FileListRow(
+                item: item,
+                directorySizeDisplay: directorySizeOverlay.sizeDisplay(for: item.id)
+            )
+        }
         let tableInteraction = FileListTableInteraction(
             searchText: searchText,
             blankMenuActions: blankMenuActions,
@@ -2379,7 +2525,7 @@ struct FileListView: View {
                 let deletable = items(for: selection).filter { !$0.isParentDirectoryEntry }
                 contextActions.delete(deletable)
             },
-            onDragEnded: onItemsChanged,
+            onDragEnded: { onItemsChanged([]) },
             makeContextMenu: { clickedRow, selectedIDs in
                 let selectedItems = tableRowItems.filter { selectedIDs.contains($0.id) }
                 return FileListRowContextMenuBuilder.makeMenu(
@@ -2402,7 +2548,9 @@ struct FileListView: View {
             },
             performDrop: { destinationPath, urls, copy in
                 let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
-                FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
+                FileOperations.moveItems(urls, to: destination, copy: copy) {
+                    onItemsChanged(invalidationPaths(for: urls, destinationPath: destinationPath))
+                }
             }
         )
         
@@ -2417,7 +2565,8 @@ struct FileListView: View {
             onOpenRow: { row in
                 guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
                 onItemOpen(item)
-            }
+            },
+            onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes
         )
         .onAppear {
             preferencesStore.resetToDefaultIfNeeded()
@@ -2426,6 +2575,15 @@ struct FileListView: View {
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
         tableRowItems.filter { ids.contains($0.id) }
+    }
+    
+    private func invalidationPaths(for urls: [URL], destinationPath: String) -> [String] {
+        var paths = Set<String>()
+        paths.insert(destinationPath)
+        for url in urls {
+            paths.insert(url.path)
+        }
+        return Array(paths)
     }
 }
 

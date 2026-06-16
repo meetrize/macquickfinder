@@ -26,12 +26,16 @@ public final class FileListTableController: NSObject {
     let dragThreshold: CGFloat = 4
     
     public var onOpenRow: ((FileListRow) -> Void)?
+    public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
     
     private var columnResizeObserver: NSObjectProtocol?
     private var columnMoveObserver: NSObjectProtocol?
+    private var scrollBoundsObserver: NSObjectProtocol?
     private var headerRightClickMonitor: Any?
     private var widthSaveWorkItem: DispatchWorkItem?
     private var paddingAfterResizeWorkItem: DispatchWorkItem?
+    private var visiblePathsNotifyWorkItem: DispatchWorkItem?
+    private var lastReportedVisibleDirectoryPaths: [String] = []
     private var isApplyingColumnLayout = false
     private var isUpdatingPaddingColumn = false
     private var pendingPaddingLayout = false
@@ -39,6 +43,8 @@ public final class FileListTableController: NSObject {
     private var lastFillLayoutRowCount = -1
     private var lastFillLayoutClipHeight: CGFloat = -1
     private var lastFillLayoutClipWidth: CGFloat = -1
+    private var lastListingSignature = ""
+    private var pendingScrollToTop = false
     
     private let userResizing = NSTableColumn.ResizingOptions(rawValue: 1 << 1)
     
@@ -127,22 +133,126 @@ public final class FileListTableController: NSObject {
         }
         
         let sort = preferencesStore.sort
+        let previousDisplayRows = displayRows
         let newDisplay = FileListSortEngine.sorted(rows, by: sort)
-        let displayChanged = newDisplay != displayRows
-        displayRows = newDisplay
+        let newOrder = newDisplay.map(\.id)
+        let oldOrder = previousDisplayRows.map(\.id)
+        let orderChanged = newOrder != oldOrder
         
-        if displayChanged || searchChanged {
+        let listingSignature = rows.map(\.id).joined(separator: "\u{1F}")
+        let listingChanged = listingSignature != lastListingSignature
+        if listingChanged {
+            lastListingSignature = listingSignature
+        }
+        
+        let sizeOnlyChanged = !orderChanged
+            && !searchChanged
+            && newDisplay.count == previousDisplayRows.count
+            && zip(newDisplay, previousDisplayRows).allSatisfy { $0.hasSameStaticContent(as: $1) }
+            && zip(newDisplay, previousDisplayRows).contains { $0.size != $1.size || $0.sizeDisplay != $1.sizeDisplay }
+        
+        displayRows = newDisplay
+        if orderChanged {
+            lastReportedVisibleDirectoryPaths = []
+        }
+        
+        if orderChanged || searchChanged {
             lastFillLayoutRowCount = -1
             FileListTableAnimations.performWithoutAnimation {
-                tableView?.reloadData()
+                if orderChanged && !searchChanged && !listingChanged {
+                    reloadDataPreservingVisibleRowAnchor(previousRows: previousDisplayRows)
+                } else {
+                    tableView?.reloadData()
+                }
                 updateSortIndicators(for: sort)
+                if listingChanged {
+                    pendingScrollToTop = true
+                    scrollToTop()
+                }
             }
-        } else {
-            updateSortIndicators(for: sort)
+        } else if sizeOnlyChanged {
+            reloadSizeColumnPreservingScroll()
         }
+        updateSortIndicators(for: sort)
         
         schedulePaddingColumnLayout()
         syncSelectionToTable()
+        scheduleVisibleDirectoryPathsNotify()
+    }
+    
+    private func sizeColumnIndex(in tableView: NSTableView) -> Int? {
+        tableView.tableColumns.firstIndex { FileListColumnID.from(column: $0) == .size }
+    }
+    
+    private func scrollToTop() {
+        guard let tableView, let scrollView, !displayRows.isEmpty else { return }
+        FileListTableAnimations.performWithoutAnimation {
+            tableView.scrollRowToVisible(0)
+            let clipView = scrollView.contentView
+            if clipView.bounds.origin.y > 0.5 {
+                clipView.scroll(to: NSPoint(x: clipView.bounds.origin.x, y: 0))
+                scrollView.reflectScrolledClipView(clipView)
+            }
+        }
+    }
+    
+    private func reloadSizeColumnPreservingScroll() {
+        guard let tableView, let scrollView, !displayRows.isEmpty else { return }
+        let clipView = scrollView.contentView
+        let savedOrigin = clipView.bounds.origin
+        
+        FileListTableAnimations.performWithoutAnimation {
+            if let sizeColumnIndex = sizeColumnIndex(in: tableView) {
+                tableView.reloadData(
+                    forRowIndexes: IndexSet(integersIn: 0..<displayRows.count),
+                    columnIndexes: IndexSet(integer: sizeColumnIndex)
+                )
+            }
+            clipView.bounds.origin = savedOrigin
+            scrollView.reflectScrolledClipView(clipView)
+        }
+    }
+    
+    private func reloadDataPreservingVisibleRowAnchor(previousRows: [FileListRow]) {
+        guard let tableView, !previousRows.isEmpty else {
+            tableView?.reloadData()
+            return
+        }
+        let visible = tableView.rows(in: tableView.visibleRect)
+        let anchorRow = min(max(visible.location, 0), previousRows.count - 1)
+        let anchorID = previousRows[anchorRow].id
+        
+        tableView.reloadData()
+        
+        guard let newRow = displayRows.firstIndex(where: { $0.id == anchorID }) else { return }
+        tableView.scrollRowToVisible(newRow)
+    }
+    
+    func scheduleVisibleDirectoryPathsNotify() {
+        visiblePathsNotifyWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.reportVisibleDirectoryPathsIfNeeded()
+        }
+        visiblePathsNotifyWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+    }
+    
+    private func reportVisibleDirectoryPathsIfNeeded() {
+        guard let tableView, let onVisibleDirectoryPathsChanged else { return }
+        let visible = tableView.rows(in: tableView.visibleRect)
+        guard visible.length > 0 else { return }
+        
+        var paths: [String] = []
+        paths.reserveCapacity(visible.length)
+        for row in visible.location..<(visible.location + visible.length) {
+            let item = displayRows[row]
+            guard item.isDirectory, !item.isParentDirectoryEntry else { continue }
+            paths.append(item.iconPath)
+        }
+        
+        guard paths != lastReportedVisibleDirectoryPaths else { return }
+        lastReportedVisibleDirectoryPaths = paths
+        onVisibleDirectoryPathsChanged(paths)
     }
     
     func schedulePaddingColumnLayout() {
@@ -153,29 +263,35 @@ public final class FileListTableController: NSObject {
             self.pendingPaddingLayout = false
             self.ensureTableViewFillsClipViewIfNeeded()
             self.updatePaddingColumnWidth()
+            if self.pendingScrollToTop {
+                self.pendingScrollToTop = false
+                self.scrollToTop()
+            }
         }
     }
     
     func dataColumnsTrailingX(in tableView: NSTableView) -> CGFloat {
-        var trailing: CGFloat = 0
-        for column in tableView.tableColumns {
+        var lastDataColumnIndex: Int?
+        for (index, column) in tableView.tableColumns.enumerated() {
             guard !FileListPaddingColumn.isPadding(column), !column.isHidden else { continue }
-            trailing += column.width
+            lastDataColumnIndex = index
         }
-        return trailing
+        guard let lastDataColumnIndex else { return 0 }
+        tableView.layoutSubtreeIfNeeded()
+        return tableView.rect(ofColumn: lastDataColumnIndex).maxX
     }
     
     func refreshVisibleRowContentClip() {
+        invalidateVisibleRowHighlights()
+    }
+    
+    /// 列宽拖拽过程中强制重绘可见行（columnDidResize 仅在松开时触发）。
+    func invalidateVisibleRowHighlights() {
         guard let tableView else { return }
-        let dataWidth = dataColumnsTrailingX(in: tableView)
         let visible = tableView.rows(in: tableView.visibleRect)
         guard visible.length > 0 else { return }
         for row in visible.location..<(visible.location + visible.length) {
-            guard let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? FileListRowView else {
-                continue
-            }
-            rowView.contentBackgroundMaxX = dataWidth
-            rowView.needsDisplay = true
+            tableView.rowView(atRow: row, makeIfNecessary: true)?.needsDisplay = true
         }
     }
     
@@ -420,7 +536,7 @@ public final class FileListTableController: NSObject {
     }
     
     /// 列宽拖拽过程中不立即改 padding 列，避免打断系统调宽。
-    private func schedulePaddingColumnWidthAfterResize() {
+    func schedulePaddingColumnWidthAfterResize() {
         paddingAfterResizeWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
             self?.updatePaddingColumnWidth()
@@ -568,6 +684,7 @@ public final class FileListTableController: NSObject {
                FileListPaddingColumn.isPadding(column) {
                 return
             }
+            self.refreshVisibleRowContentClip()
             self.scheduleWidthSave()
             self.schedulePaddingColumnWidthAfterResize()
         }
@@ -593,6 +710,17 @@ public final class FileListTableController: NSObject {
             self.presentHeaderMenu(for: event, clickedColumnID: columnID)
             return nil
         }
+        
+        if let scrollView {
+            scrollView.contentView.postsBoundsChangedNotifications = true
+            scrollBoundsObserver = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: scrollView.contentView,
+                queue: .main
+            ) { [weak self] _ in
+                self?.scheduleVisibleDirectoryPathsNotify()
+            }
+        }
     }
     
     private func tearDownObservers() {
@@ -601,6 +729,9 @@ public final class FileListTableController: NSObject {
         }
         if let columnMoveObserver {
             NotificationCenter.default.removeObserver(columnMoveObserver)
+        }
+        if let scrollBoundsObserver {
+            NotificationCenter.default.removeObserver(scrollBoundsObserver)
         }
         if let headerRightClickMonitor {
             NSEvent.removeMonitor(headerRightClickMonitor)
