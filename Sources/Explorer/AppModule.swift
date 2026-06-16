@@ -1963,7 +1963,7 @@ struct ContentView: View {
 
     private var currentDirectoryTitle: String {
         let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return "Explorer" }
+        guard !trimmed.isEmpty else { return "MeoFind" }
         let url = URL(fileURLWithPath: trimmed)
         let name = url.lastPathComponent
         return name.isEmpty ? url.path : name
@@ -4486,9 +4486,9 @@ enum FinderAutomationPermission {
         let alert = NSAlert()
         alert.messageText = "需要自动化权限"
         alert.informativeText = """
-        Explorer 需要「控制 Finder」的权限才能显示废纸篓内容。
+        MeoFind 需要「控制 Finder」的权限才能显示废纸篓内容。
 
-        请在「系统设置 → 隐私与安全性 → 自动化」中，允许 Explorer 控制 Finder。
+        请在「系统设置 → 隐私与安全性 → 自动化」中，允许 MeoFind 控制 Finder。
         """
         alert.addButton(withTitle: "打开系统设置")
         alert.addButton(withTitle: "取消")

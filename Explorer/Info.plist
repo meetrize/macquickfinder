@@ -7,7 +7,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.explorer.app</string>
     <key>CFBundleName</key>
-    <string>Explorer</string>
+    <string>MeoFind</string>
+    <key>CFBundleDisplayName</key>
+    <string>MeoFind</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -37,8 +39,8 @@
         </dict>
     </array>
     <key>NSFileProviderDomainUsageDescription</key>
-    <string>Explorer needs access to browse your files</string>
+    <string>MeoFind needs access to browse your files</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Explorer 需要通过 Finder 读取废纸篓内容，并向终端发送指令以在指定目录中打开终端窗口。</string>
+    <string>MeoFind 需要通过 Finder 读取废纸篓内容，并向终端发送指令以在指定目录中打开终端窗口。</string>
 </dict>
 </plist>

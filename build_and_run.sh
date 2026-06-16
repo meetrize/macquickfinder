@@ -7,7 +7,7 @@ set -e
 swift build -c release
 
 # Create the app bundle structure
-APP_NAME="Explorer.app"
+APP_NAME="MeoFind.app"
 APP_DIR="$APP_NAME/Contents"
 MACOS_DIR="$APP_DIR/MacOS"
 RESOURCES_DIR="$APP_DIR/Resources"
@@ -49,11 +49,8 @@ if [ -f "$ICON_PNG" ]; then
     sips -z 512 512 "$ICON_PNG" --out "${ICONSET_DIR}/icon_512x512.png"
     sips -z 1024 1024 "$ICON_PNG" --out "${ICONSET_DIR}/icon_512x512@2x.png"
     
-    # Create .icns file
+    # iconutil 已在 Resources 目录生成 AppIcon.icns
     iconutil -c icns "$ICONSET_DIR"
-    
-    # Copy to app resources and update Info.plist
-    cp "$ICON_PATH" "$APP_DIR/Resources/"
     
     # Add icon reference to Info.plist if it doesn't exist
     if ! grep -q "CFBundleIconFile" "$APP_DIR/Info.plist"; then
@@ -101,7 +98,7 @@ fi
 echo "Application bundle created at ./$APP_NAME"
 
 # Quit any running instance so the new binary is loaded on launch
-osascript -e 'tell application "Explorer" to quit' >/dev/null 2>&1 || true
+osascript -e 'tell application "MeoFind" to quit' >/dev/null 2>&1 || true
 sleep 0.3
 
 # Open the app

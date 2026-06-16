@@ -4,6 +4,7 @@
 
 # Generated app bundle (produced by build_and_run.sh)
 Explorer.app/
+MeoFind.app/
 
 # IDE / local config
 .cursor/*
