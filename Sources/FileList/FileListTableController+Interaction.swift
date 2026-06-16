@@ -205,11 +205,20 @@ extension FileListTableController {
         let mousePoint = tableView.convert(event.locationInWindow, from: nil)
         var draggingItems: [NSDraggingItem] = []
         for (index, draggedRow) in dragged.enumerated() {
-            let frame = FileListDragSupport.iconFrame(at: mousePoint, index: index)
+            let showLabel = dragged.count == 1 || draggedRow.id == row.id
+            let ghost = FileListDragSupport.makeDragGhost(
+                for: draggedRow.iconPath,
+                name: draggedRow.name,
+                showLabel: showLabel
+            )
+            let frame = FileListDragSupport.draggingFrame(
+                at: mousePoint,
+                ghostSize: ghost.size,
+                index: index
+            )
             let url = URL(fileURLWithPath: draggedRow.iconPath) as NSURL
-            let ghostImage = FileListDragSupport.ghostImage(for: draggedRow.iconPath)
             let draggingItem = NSDraggingItem(pasteboardWriter: url)
-            draggingItem.setDraggingFrame(frame, contents: ghostImage)
+            draggingItem.setDraggingFrame(frame, contents: ghost.image)
             draggingItems.append(draggingItem)
         }
         
