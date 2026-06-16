@@ -1,4 +1,5 @@
 import AppKit
+import CoreServices
 import FileList
 
 enum FileListRowContextMenuBuilder {
@@ -57,7 +58,7 @@ enum FileListRowContextMenuBuilder {
         if fileSelection.count == 1, let item = fileSelection.first {
             menu.addItem(menuItem(title: "打开") { actions.open(item) })
             if !item.isDirectory {
-                menu.addItem(menuItem(title: "打开方式…") { actions.openWith(item) })
+                menu.addItem(openWithMenuItem(primaryItem: item, selectedItems: fileSelection, actions: actions))
             }
             if item.isDirectory, !actions.isFavorited(item) {
                 menu.addItem(menuItem(title: "收藏") { actions.addToFavorites(item) })
@@ -89,6 +90,119 @@ enum FileListRowContextMenuBuilder {
         
         menu.addItem(menuItem(title: "属性") { actions.showInfo(fileSelection) })
         return menu
+    }
+
+    private static func openWithMenuItem(
+        primaryItem: FileItem,
+        selectedItems: [FileItem],
+        actions: FileContextActions
+    ) -> NSMenuItem {
+        let menuItem = NSMenuItem(title: "打开方式", action: nil, keyEquivalent: "")
+        menuItem.submenu = makeOpenWithSubmenu(primaryItem: primaryItem, selectedItems: selectedItems, actions: actions)
+        return menuItem
+    }
+
+    private static func makeOpenWithSubmenu(
+        primaryItem: FileItem,
+        selectedItems: [FileItem],
+        actions: FileContextActions
+    ) -> NSMenu {
+        let submenu = NSMenu()
+        // 不显示 state 列可显著减少左侧留白，让图标更靠左、更紧凑。
+        submenu.showsStateColumn = false
+
+        let openableItems = selectedItems.filter { !$0.isDirectory }
+        guard !openableItems.isEmpty else {
+            let disabled = NSMenuItem(title: "（无可用应用）", action: nil, keyEquivalent: "")
+            disabled.isEnabled = false
+            submenu.addItem(disabled)
+            return submenu
+        }
+
+        let fileURL = primaryItem.url
+        let workspace = NSWorkspace.shared
+        let defaultApp = defaultApplicationURL(for: fileURL)
+        let candidates = applicationURLs(for: fileURL)
+        let uniqueApps: [URL] = {
+            var seen = Set<String>()
+            var result: [URL] = []
+            for url in candidates {
+                let key = url.resolvingSymlinksInPath().path
+                if seen.insert(key).inserted { result.append(url) }
+            }
+            return result
+        }()
+
+        func addAppItem(appURL: URL, isDefault: Bool) {
+            let title = isDefault ? "\(appDisplayName(appURL))（默认）" : appDisplayName(appURL)
+            let item = CallbackMenuItem(title: title, isDestructive: false) {
+                actions.openWithApplication(openableItems, appURL)
+            }
+            item.image = workspace.icon(forFile: appURL.path)
+            configureAppMenuItemAppearance(item)
+            submenu.addItem(item)
+        }
+
+        if let defaultApp {
+            addAppItem(appURL: defaultApp, isDefault: true)
+            if !uniqueApps.isEmpty { submenu.addItem(.separator()) }
+        }
+
+        let sortedApps = uniqueApps
+            .filter { $0 != defaultApp }
+            .sorted { appDisplayName($0).localizedStandardCompare(appDisplayName($1)) == .orderedAscending }
+
+        for appURL in sortedApps.prefix(10) {
+            addAppItem(appURL: appURL, isDefault: false)
+        }
+
+        submenu.addItem(.separator())
+        submenu.addItem(menuItem(title: "其他…") { actions.openWith(primaryItem) })
+        return submenu
+    }
+
+    private static func configureAppMenuItemAppearance(_ item: NSMenuItem) {
+        // 更小的图标 + 取消缩进，视觉更紧凑、图标更靠左
+        item.indentationLevel = 0
+        if let image = item.image {
+            image.size = NSSize(width: 16, height: 16)
+            image.isTemplate = false
+            item.image = image
+        }
+    }
+
+    private static func defaultApplicationURL(for fileURL: URL) -> URL? {
+        if #available(macOS 12.0, *) {
+            return NSWorkspace.shared.urlForApplication(toOpen: fileURL)
+        }
+        return LSCopyDefaultApplicationURLForURL(
+            fileURL as CFURL,
+            .all,
+            nil
+        )?.takeRetainedValue() as URL?
+    }
+
+    private static func applicationURLs(for fileURL: URL) -> [URL] {
+        if #available(macOS 12.0, *) {
+            return NSWorkspace.shared.urlsForApplications(toOpen: fileURL)
+        }
+        guard let urls = LSCopyApplicationURLsForURL(fileURL as CFURL, .all)?
+            .takeRetainedValue() as? [URL] else {
+            return []
+        }
+        return urls
+    }
+
+    private static func appDisplayName(_ appURL: URL) -> String {
+        if let bundle = Bundle(url: appURL) {
+            if let name = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, !name.isEmpty {
+                return name
+            }
+            if let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String, !name.isEmpty {
+                return name
+            }
+        }
+        return appURL.deletingPathExtension().lastPathComponent
     }
     
     private static func menuItem(

@@ -2424,6 +2424,7 @@ struct ContentView: View {
         FileContextActions(
             open: { FileOperations.open([$0]) { path = $0 } },
             openWith: FileOperations.openWith,
+            openWithApplication: FileOperations.openWithApplication,
             cut: FileOperations.cut,
             copy: FileOperations.copy,
             copyFilename: FileOperations.copyFilename,
@@ -2723,6 +2724,7 @@ struct SidebarRow: View {
 struct FileContextActions {
     var open: (FileItem) -> Void = { _ in }
     var openWith: (FileItem) -> Void = { _ in }
+    var openWithApplication: ([FileItem], URL) -> Void = { _, _ in }
     var cut: ([FileItem]) -> Void = { _ in }
     var copy: ([FileItem]) -> Void = { _ in }
     var copyFilename: (FileItem) -> Void = { _ in }
@@ -4439,6 +4441,13 @@ enum FileOperations {
         
         let configuration = NSWorkspace.OpenConfiguration()
         NSWorkspace.shared.open([item.url], withApplicationAt: appURL, configuration: configuration)
+    }
+
+    static func openWithApplication(_ items: [FileItem], appURL: URL) {
+        let urls = items.filter { !$0.isDirectory }.map(\.url)
+        guard !urls.isEmpty else { return }
+        let configuration = NSWorkspace.OpenConfiguration()
+        NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: configuration)
     }
     
     static func cut(_ items: [FileItem]) {
