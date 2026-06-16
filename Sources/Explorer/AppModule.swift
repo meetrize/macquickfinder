@@ -2375,7 +2375,7 @@ struct ContentView: View {
             }
             
             await MainActor.run {
-                DirectorySizeFSEventsMonitor.shared.stop()
+                DirectoryFSEventsMonitor.shared.stop()
             }
             
             if !invalidatingPaths.isEmpty {
@@ -2445,7 +2445,7 @@ struct ContentView: View {
             
             await MainActor.run {
                 guard currentGeneration == loadGeneration else { return }
-                updateDirectorySizeMonitoring(
+                updateDirectoryFSEventsMonitoring(
                     directoryPath: currentPath,
                     folderPaths: folderPaths,
                     showHiddenFiles: shouldShowHiddenFiles
@@ -2460,20 +2460,21 @@ struct ContentView: View {
             && DirectorySizeVolumeFilter.shouldAutoCalculate(path: directoryPath)
     }
     
-    private func updateDirectorySizeMonitoring(
+    private func updateDirectoryFSEventsMonitoring(
         directoryPath: String,
         folderPaths: [String],
         showHiddenFiles: Bool
     ) {
-        guard shouldAutoCalculateDirectorySizes(for: directoryPath) else {
-            DirectorySizeFSEventsMonitor.shared.stop()
+        guard !TrashLoader.isTrashPath(directoryPath) else {
+            DirectoryFSEventsMonitor.shared.stop()
             return
         }
-        DirectorySizeFSEventsMonitor.shared.updateSession(
+        DirectoryFSEventsMonitor.shared.updateSession(
             directoryPath: directoryPath,
             folderPaths: folderPaths,
             showHiddenFiles: showHiddenFiles,
-            autoCalculate: autoCalculateDirectorySizes
+            autoCalculateDirectorySizes: shouldAutoCalculateDirectorySizes(for: directoryPath),
+            onListingRefresh: { loadItems() }
         )
     }
     
@@ -2495,22 +2496,21 @@ struct ContentView: View {
     }
     
     private func handleAutoCalculateDirectorySizesChanged(_ enabled: Bool) {
+        let folderPaths = items.filter(\.isDirectory).map(\.id)
         if enabled {
-            let folderPaths = items.filter(\.isDirectory).map(\.id)
-            updateDirectorySizeMonitoring(
-                directoryPath: path,
-                folderPaths: folderPaths,
-                showHiddenFiles: showHiddenFiles
-            )
             rescheduleDirectorySizesIfNeeded()
         } else {
-            DirectorySizeFSEventsMonitor.shared.stop()
             loadGeneration += 1
             directorySizeOverlay.beginSession(generation: loadGeneration)
             Task {
                 await DirectorySizeService.shared.resetSession(generation: loadGeneration)
             }
         }
+        updateDirectoryFSEventsMonitoring(
+            directoryPath: path,
+            folderPaths: folderPaths,
+            showHiddenFiles: showHiddenFiles
+        )
     }
     
     private func rescheduleDirectorySizesIfNeeded() {
@@ -3047,6 +3047,7 @@ struct SidebarRow: View {
     var trailingAccessory: (() -> AnyView)? = nil
     
     @State private var isDropTargeted = false
+    @State private var isHovering = false
     
     var body: some View {
         Group {
@@ -3065,6 +3066,33 @@ struct SidebarRow: View {
                     Image(systemName: icon)
                     Spacer(minLength: 0)
                 }
+                // rail 模式下用自绘提示，避免系统 tooltip 的默认延迟
+                .onHover { hovering in
+                    isHovering = hovering
+                }
+                .overlay(alignment: .trailing) {
+                    if isHovering {
+                        Text(title)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(Color(nsColor: .windowBackgroundColor))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                            )
+                            .shadow(radius: 3)
+                            .fixedSize()
+                            .offset(x: 54)
+                            .transition(.opacity)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .animation(.easeOut(duration: 0.08), value: isHovering)
                 .help(title)
             }
         }
