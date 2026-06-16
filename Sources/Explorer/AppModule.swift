@@ -1630,6 +1630,9 @@ struct ContentView: View {
             SidebarView(path: $path, onItemsChanged: {
                 selection.removeAll()
                 loadItems()
+            }, onReload: {
+                selection.removeAll()
+                loadItems()
             })
         } detail: {
             GeometryReader { geometry in
@@ -1876,6 +1879,18 @@ struct ContentView: View {
         directorySizeOverlay.beginSession(generation: currentGeneration)
         
         Task {
+            var didApplyItems = false
+            defer {
+                Task { @MainActor in
+                    guard currentGeneration == loadGeneration, !didApplyItems else { return }
+                    isLoading = false
+                }
+            }
+            
+            await MainActor.run {
+                DirectorySizeFSEventsMonitor.shared.stop()
+            }
+            
             if !invalidatingPaths.isEmpty {
                 await DirectorySizeService.shared.invalidate(paths: invalidatingPaths)
             }
@@ -1924,6 +1939,7 @@ struct ContentView: View {
                 guard currentGeneration == loadGeneration else { return }
                 items = loadedItems
                 isLoading = false
+                didApplyItems = true
             }
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
@@ -2263,6 +2279,7 @@ struct SidebarView: View {
     @ObservedObject private var favoritesStore = FavoritesStore.shared
     @State private var devices: [SidebarVolume] = []
     var onItemsChanged: () -> Void = {}
+    var onReload: () -> Void = {}
     
     var body: some View {
         ScrollView {
@@ -2311,7 +2328,13 @@ struct SidebarView: View {
                         isSelected: isSelected(trashPath),
                         dropDestinationPath: trashPath,
                         onDropURLs: handleSidebarDrop,
-                        onSelect: { path = trashPath }
+                        onSelect: {
+                            if TrashLoader.isTrashPath(path) {
+                                onReload()
+                            } else {
+                                path = trashPath
+                            }
+                        }
                     )
                 }
             }
@@ -3478,11 +3501,20 @@ enum TrashLoader {
     static let displayName = "废纸篓"
     
     static var userTrashPath: String {
-        resolvedTrashPaths().first
+        knownTrashDirectoryPaths().first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash").path
     }
     
-    static func resolvedTrashPaths() -> [String] {
+    static func canonicalTrashPath(_ path: String) -> String {
+        var standardized = (path as NSString).standardizingPath
+        if standardized.hasPrefix("/private") {
+            standardized = String(standardized.dropFirst("/private".count))
+        }
+        return standardized
+    }
+    
+    /// 用户废纸篓的候选路径（不依赖 fileExists，避免 TCC 导致无法识别废纸篓）。
+    static func knownTrashDirectoryPaths() -> [String] {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let candidates: [String] = [
             FileManager.default.urls(for: .trashDirectory, in: .userDomainMask).first?.path,
@@ -3493,26 +3525,32 @@ enum TrashLoader {
         var paths: [String] = []
         var seen = Set<String>()
         for raw in candidates {
-            let path = (raw as NSString).standardizingPath
+            let path = canonicalTrashPath(raw)
             guard seen.insert(path).inserted else { continue }
-            var isDirectory: ObjCBool = false
-            if FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue {
-                paths.append(path)
-            }
+            paths.append(path)
         }
         return paths
     }
     
-    static func isTrashPath(_ path: String) -> Bool {
-        let normalized = (path as NSString).standardizingPath
-        return resolvedTrashPaths().contains {
-            ( $0 as NSString).standardizingPath == normalized
+    static func resolvedTrashPaths() -> [String] {
+        knownTrashDirectoryPaths().filter { path in
+            var isDirectory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+                && isDirectory.boolValue
         }
     }
     
+    static func isTrashPath(_ path: String) -> Bool {
+        let normalized = canonicalTrashPath(path)
+        if knownTrashDirectoryPaths().contains(where: { canonicalTrashPath($0) == normalized }) {
+            return true
+        }
+        return trashDirectoryURLs().contains { canonicalTrashPath($0.path) == normalized }
+    }
+    
     static func trashDirectoryURLs() -> [URL] {
-        var urls = resolvedTrashPaths().map { URL(fileURLWithPath: $0, isDirectory: true) }
-        var seenPaths = Set(urls.map(\.path))
+        var urls = knownTrashDirectoryPaths().map { URL(fileURLWithPath: $0, isDirectory: true) }
+        var seenPaths = Set(urls.map { canonicalTrashPath($0.path) })
         
         let uid = getuid()
         guard let volumeURLs = FileManager.default.mountedVolumeURLs(
@@ -3524,11 +3562,12 @@ enum TrashLoader {
         
         for volumeURL in volumeURLs {
             let trashURL = volumeURL.appendingPathComponent(".Trashes/\(uid)", isDirectory: true)
-            let path = trashURL.standardizedFileURL.path
+            let path = canonicalTrashPath(trashURL.path)
             guard seenPaths.insert(path).inserted else { continue }
             
             var isDirectory: ObjCBool = false
-            if FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue {
+            if FileManager.default.fileExists(atPath: trashURL.path, isDirectory: &isDirectory),
+               isDirectory.boolValue {
                 urls.append(trashURL)
             }
         }
@@ -3537,6 +3576,15 @@ enum TrashLoader {
     }
     
     static func loadItems(showHiddenFiles: Bool) async -> [FileItem] {
+        var items = loadItemsFromFilesystem(showHiddenFiles: showHiddenFiles)
+        if items.isEmpty {
+            let finderPaths = await FinderTrashEnumerator.itemPaths()
+            items = loadItems(fromPaths: finderPaths, showHiddenFiles: showHiddenFiles)
+        }
+        return items
+    }
+    
+    private static func loadItemsFromFilesystem(showHiddenFiles: Bool) -> [FileItem] {
         let propertyKeys: Set<URLResourceKey> = [
             .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
         ]
@@ -3554,20 +3602,31 @@ enum TrashLoader {
                     options: options
                 )
                 for fileURL in urls {
+                    if fileURL.lastPathComponent == ".DS_Store" { continue }
                     guard let item = fileItem(from: fileURL, propertyKeys: propertyKeys) else { continue }
-                    itemsByPath[item.id] = item
+                    let key = canonicalTrashPath(item.id)
+                    itemsByPath[key] = item
                 }
             } catch {
                 print("Error loading trash at \(trashURL.path): \(error)")
             }
         }
         
-        let finderPaths = await MainActor.run { trashItemPathsViaFinder() }
-        for filePath in finderPaths {
+        return Array(itemsByPath.values)
+    }
+    
+    private static func loadItems(fromPaths paths: [String], showHiddenFiles: Bool) -> [FileItem] {
+        let propertyKeys: Set<URLResourceKey> = [
+            .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
+        ]
+        var itemsByPath: [String: FileItem] = [:]
+        
+        for filePath in paths {
             let fileURL = URL(fileURLWithPath: filePath)
             guard let item = fileItem(from: fileURL, propertyKeys: propertyKeys) else { continue }
             if !showHiddenFiles && item.isHidden { continue }
-            itemsByPath[item.id] = item
+            let key = canonicalTrashPath(item.id)
+            itemsByPath[key] = item
         }
         
         return Array(itemsByPath.values)
@@ -3593,37 +3652,61 @@ enum TrashLoader {
             dateDisplay: FileItemFormatters.formatDate(modDate)
         )
     }
-    
-    @MainActor
-    private static func trashItemPathsViaFinder() -> [String] {
-        let scriptSource = """
-        tell application "Finder"
-            set output to ""
-            repeat with anItem in trash
-                set output to output & (POSIX path of (anItem as alias)) & linefeed
-            end repeat
-            return output
-        end tell
-        """
-        
-        var error: NSDictionary?
-        guard let appleScript = NSAppleScript(source: scriptSource) else { return [] }
-        let result = appleScript.executeAndReturnError(&error)
-        
-        if let error {
-            let errorNumber = error[NSAppleScript.errorNumber] as? Int
-            print("Finder trash script error (\(errorNumber ?? 0)): \(error)")
-            if errorNumber == errAEEventNotPermitted {
-                Task { await FinderAutomationPermission.ensureAccess() }
+}
+
+private enum FinderTrashEnumerator {
+    static func itemPaths(timeout: TimeInterval = 20) async -> [String] {
+        await withCheckedContinuation { continuation in
+            let lock = NSLock()
+            var resumed = false
+            
+            func resumeOnce(_ paths: [String]) {
+                lock.lock()
+                defer { lock.unlock() }
+                guard !resumed else { return }
+                resumed = true
+                continuation.resume(returning: paths)
             }
-            return []
+            
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            let script = """
+            tell application "Finder"
+                set output to ""
+                repeat with anItem in trash
+                    set output to output & (POSIX path of (anItem as alias)) & linefeed
+                end repeat
+                return output
+            end tell
+            """
+            process.arguments = ["-e", script]
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = Pipe()
+            
+            process.terminationHandler = { _ in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let text = String(data: data, encoding: .utf8) ?? ""
+                let paths = text
+                    .split(whereSeparator: \.isNewline)
+                    .map(String.init)
+                    .filter { !$0.isEmpty }
+                resumeOnce(paths)
+            }
+            
+            do {
+                try process.run()
+            } catch {
+                print("Finder trash osascript launch error: \(error)")
+                resumeOnce([])
+                return
+            }
+            
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) {
+                guard process.isRunning else { return }
+                process.terminate()
+            }
         }
-        
-        guard let text = result.stringValue, !text.isEmpty else { return [] }
-        return text
-            .split(whereSeparator: \.isNewline)
-            .map { String($0) }
-            .filter { !$0.isEmpty }
     }
 }
 
