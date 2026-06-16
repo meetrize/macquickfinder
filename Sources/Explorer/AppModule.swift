@@ -1886,6 +1886,14 @@ struct ContentView: View {
     private var isTextFieldEditing: Bool {
         activeBarField != nil
     }
+
+    private var currentDirectoryTitle: String {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "Explorer" }
+        let url = URL(fileURLWithPath: trimmed)
+        let name = url.lastPathComponent
+        return name.isEmpty ? url.path : name
+    }
     
     private var fileListTableItems: [FileItem] {
         let showParent = FileItem.canNavigateUp(from: path) && searchText.isEmpty
@@ -2006,7 +2014,7 @@ struct ContentView: View {
         .focusedValue(\.textFieldEditing, isTextFieldEditing)
         .background(TextEditingKeyMonitor(isBarFieldEditing: isTextFieldEditing))
         .background(BarTextFieldFocusSync(activeField: $activeBarField))
-        .navigationTitle("Explorer")
+        .navigationTitle(currentDirectoryTitle)
         .modifier(InlineToolbarTitleModifier())
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
