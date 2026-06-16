@@ -2741,7 +2741,20 @@ struct SidebarView: View {
                                 isSelected: isSelected(device.path),
                                 dropDestinationPath: device.path,
                                 onDropURLs: handleSidebarDrop,
-                                onSelect: { path = device.path }
+                                onSelect: { path = device.path },
+                                trailingAccessory: {
+                                    if device.canEject {
+                                        Button {
+                                            ejectDevice(device)
+                                        } label: {
+                                            Image(systemName: "eject.fill")
+                                                .font(.caption)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .foregroundStyle(.secondary)
+                                        .help("推出 \(device.name)")
+                                    }
+                                }
                             )
                         }
                     }
@@ -2821,6 +2834,22 @@ struct SidebarView: View {
         }
         let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
         FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
+    }
+
+    private func ejectDevice(_ device: SidebarVolume) {
+        guard device.canEject else { return }
+        DispatchQueue.global(qos: .utility).async {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/sbin/diskutil")
+            process.arguments = ["eject", device.path]
+            process.standardOutput = Pipe()
+            process.standardError = Pipe()
+            try? process.run()
+            process.waitUntilExit()
+            DispatchQueue.main.async {
+                refreshDevices()
+            }
+        }
     }
 }
 
@@ -2938,6 +2967,7 @@ struct SidebarRow: View {
     var onDropURLs: (([URL], String, Bool) -> Void)?
     let onSelect: () -> Void
     var showsTitle: Bool = true
+    var trailingAccessory: (() -> AnyView)? = nil
     
     @State private var isDropTargeted = false
     
@@ -2948,6 +2978,9 @@ struct SidebarRow: View {
                     Image(systemName: icon)
                     Text(title)
                     Spacer(minLength: 0)
+                    if let trailingAccessory {
+                        trailingAccessory()
+                    }
                 }
             } else {
                 HStack(spacing: 0) {
@@ -3025,6 +3058,28 @@ private struct DirectorySizeTableBridge<Content: View>: View {
                 display: { overlay.sizeDisplay(for: $0) }
             )
         )
+    }
+}
+
+extension SidebarRow {
+    init<Accessory: View>(
+        title: String,
+        icon: String,
+        isSelected: Bool,
+        dropDestinationPath: String? = nil,
+        onDropURLs: (([URL], String, Bool) -> Void)? = nil,
+        onSelect: @escaping () -> Void,
+        showsTitle: Bool = true,
+        @ViewBuilder trailingAccessory: @escaping () -> Accessory
+    ) {
+        self.title = title
+        self.icon = icon
+        self.isSelected = isSelected
+        self.dropDestinationPath = dropDestinationPath
+        self.onDropURLs = onDropURLs
+        self.onSelect = onSelect
+        self.showsTitle = showsTitle
+        self.trailingAccessory = { AnyView(trailingAccessory()) }
     }
 }
 
@@ -3916,6 +3971,7 @@ struct SidebarVolume: Identifiable, Equatable {
     let name: String
     let path: String
     let isExternal: Bool
+    let canEject: Bool
     
     var icon: String {
         isExternal ? "externaldrive" : "internaldrive"
@@ -4268,7 +4324,9 @@ enum SidebarVolumeLoader {
         .volumeNameKey,
         .volumeLocalizedNameKey,
         .volumeIsInternalKey,
-        .volumeIsBrowsableKey
+        .volumeIsBrowsableKey,
+        .volumeIsEjectableKey,
+        .volumeIsLocalKey
     ]
     
     static func load() -> [SidebarVolume] {
@@ -4290,6 +4348,8 @@ enum SidebarVolumeLoader {
             let volumePath = url.path
             let isInternal = values.volumeIsInternal ?? false
             let isExternal = volumePath.hasPrefix("/Volumes/")
+            let isEjectable = values.volumeIsEjectable ?? false
+            let isLocal = values.volumeIsLocal ?? true
             
             guard isMainInternalVolume(path: volumePath, isInternal: isInternal) || isExternal else {
                 continue
@@ -4302,7 +4362,8 @@ enum SidebarVolumeLoader {
                 id: volumePath,
                 name: name,
                 path: volumePath,
-                isExternal: isExternal
+                isExternal: isExternal,
+                canEject: isEjectable && isExternal && isLocal
             ))
         }
         
