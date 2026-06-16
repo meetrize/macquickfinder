@@ -3,6 +3,7 @@ import AppKit
 import ApplicationServices
 import PDFKit
 import UniformTypeIdentifiers
+import FileList
 
 enum BlankDoubleClickAction: String, CaseIterable, Identifiable {
     case navigateToParent
@@ -293,135 +294,6 @@ private struct LucideIcon: View {
     }
 }
 
-private enum FileIconKind {
-    case folder, generic, image, video, audio, document, pdf, code, json
-    case archive, spreadsheet, presentation, application, package, shell, database, config
-
-    var svgData: Data {
-        switch self {
-        case .folder: LucideSVG.folder
-        case .generic: LucideSVG.file
-        case .image: LucideSVG.fileImage
-        case .video: LucideSVG.fileVideo
-        case .audio: LucideSVG.fileAudio
-        case .document: LucideSVG.fileText
-        case .pdf: LucideSVG.fileType
-        case .code: LucideSVG.fileCode
-        case .json: LucideSVG.fileJson
-        case .archive: LucideSVG.fileArchive
-        case .spreadsheet: LucideSVG.fileSpreadsheet
-        case .presentation: LucideSVG.presentation
-        case .application: LucideSVG.appWindow
-        case .package: LucideSVG.box
-        case .shell: LucideSVG.terminal
-        case .database: LucideSVG.database
-        case .config: LucideSVG.settings
-        }
-    }
-
-    var tint: Color {
-        switch self {
-        case .folder: .blue
-        case .generic: .secondary
-        case .image: Color(red: 0.2, green: 0.65, blue: 0.45)
-        case .video: Color(red: 0.85, green: 0.25, blue: 0.35)
-        case .audio: Color(red: 0.55, green: 0.35, blue: 0.85)
-        case .document: .secondary
-        case .pdf: Color(red: 0.9, green: 0.3, blue: 0.25)
-        case .code: Color(red: 0.25, green: 0.55, blue: 0.9)
-        case .json: Color(red: 0.85, green: 0.65, blue: 0.15)
-        case .archive: Color(red: 0.6, green: 0.45, blue: 0.3)
-        case .spreadsheet: Color(red: 0.2, green: 0.7, blue: 0.35)
-        case .presentation: Color(red: 0.95, green: 0.5, blue: 0.15)
-        case .application: Color(red: 0.3, green: 0.55, blue: 0.95)
-        case .package: Color(red: 0.5, green: 0.5, blue: 0.55)
-        case .shell: Color(red: 0.35, green: 0.35, blue: 0.4)
-        case .database: Color(red: 0.3, green: 0.65, blue: 0.75)
-        case .config: .secondary
-        }
-    }
-}
-
-private enum FileIconResolver {
-    private static let imageExtensions: Set<String> = [
-        "jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff", "tif", "heic", "heif", "svg", "ico", "avif", "raw"
-    ]
-    private static let videoExtensions: Set<String> = [
-        "mp4", "mov", "m4v", "avi", "mkv", "webm", "wmv", "flv", "mpg", "mpeg", "3gp"
-    ]
-    private static let audioExtensions: Set<String> = [
-        "mp3", "wav", "aiff", "aif", "flac", "m4a", "aac", "ogg", "wma", "opus", "caf"
-    ]
-    private static let documentExtensions: Set<String> = [
-        "txt", "md", "markdown", "rtf", "doc", "docx", "pages", "odt", "tex"
-    ]
-    private static let codeExtensions: Set<String> = [
-        "swift", "py", "js", "ts", "jsx", "tsx", "html", "htm", "css", "scss", "less",
-        "xml", "yaml", "yml", "rb", "go", "rs", "java", "kt", "c", "cpp", "h", "hpp",
-        "m", "mm", "php", "sql", "vue", "svelte", "r", "lua", "pl"
-    ]
-    private static let archiveExtensions: Set<String> = [
-        "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "tgz", "dmg", "iso"
-    ]
-    private static let spreadsheetExtensions: Set<String> = [
-        "xls", "xlsx", "numbers", "ods", "csv", "tsv"
-    ]
-    private static let presentationExtensions: Set<String> = [
-        "ppt", "pptx", "key", "odp"
-    ]
-    private static let packageExtensions: Set<String> = [
-        "bundle", "framework", "appex", "plugin", "kext"
-    ]
-    private static let shellExtensions: Set<String> = [
-        "sh", "bash", "zsh", "command", "tool"
-    ]
-    private static let databaseExtensions: Set<String> = [
-        "db", "sqlite", "sqlite3", "mdb"
-    ]
-    private static let configExtensions: Set<String> = [
-        "plist", "env", "ini", "conf", "cfg", "toml", "properties"
-    ]
-
-    static func kind(for item: FileItem) -> FileIconKind {
-        let ext = item.url.pathExtension.lowercased()
-
-        if ext == "app" { return .application }
-        if packageExtensions.contains(ext) { return .package }
-        if item.isDirectory { return .folder }
-
-        switch ext {
-        case "pdf": return .pdf
-        case "json", "jsonc": return .json
-        case _ where imageExtensions.contains(ext): return .image
-        case _ where videoExtensions.contains(ext): return .video
-        case _ where audioExtensions.contains(ext): return .audio
-        case _ where documentExtensions.contains(ext): return .document
-        case _ where shellExtensions.contains(ext): return .shell
-        case _ where codeExtensions.contains(ext): return .code
-        case _ where archiveExtensions.contains(ext): return .archive
-        case _ where spreadsheetExtensions.contains(ext): return .spreadsheet
-        case _ where presentationExtensions.contains(ext): return .presentation
-        case _ where databaseExtensions.contains(ext): return .database
-        case _ where configExtensions.contains(ext): return .config
-        default: return .generic
-        }
-    }
-}
-
-private struct FileItemIcon: View {
-    let item: FileItem
-
-    private var kind: FileIconKind {
-        FileIconResolver.kind(for: item)
-    }
-
-    var body: some View {
-        LucideIcon(svgData: kind.svgData)
-            .foregroundStyle(kind.tint)
-            .opacity(item.isHidden ? 0.6 : 1.0)
-    }
-}
-
 @main
 struct ExplorerApp: App {
     @State private var showPreview = true
@@ -430,10 +302,6 @@ struct ExplorerApp: App {
         WindowGroup {
             ContentView(showPreview: $showPreview)
                 .frame(minWidth: 800, minHeight: 600)
-                .onAppear {
-                    FileDragDebug.resetLogFile()
-                    FileDragDebug.log("app launched logPath=\(FileDragDebug.logPath)")
-                }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
@@ -672,6 +540,14 @@ private struct BarFieldOutsideClickHandler: NSViewRepresentable {
             
             guard let tableView = tableView(at: event) else { return }
             guard let window = tableView.window ?? event.window else { return }
+            
+            if let headerView = tableView.headerView {
+                let pointInHeader = headerView.convert(event.locationInWindow, from: nil)
+                if headerView.bounds.contains(pointInHeader) {
+                    return
+                }
+            }
+            
             window.makeFirstResponder(tableView)
             
             let point = tableView.convert(event.locationInWindow, from: nil)
@@ -1717,10 +1593,8 @@ struct ContentView: View {
     @State private var items: [FileItem] = []
     @State private var selection: Set<FileItem.ID> = []
     @State private var sortOrder: SortOrder = .nameAscending
-    @State private var tableSortOrder: [KeyPathComparator<FileItem>] = [
-        KeyPathComparator(\.name, order: .forward)
-    ]
-    @State private var isSyncingSortFromTable = false
+    @ObservedObject private var fileListPreferences = FileListPreferencesStore.shared
+    @State private var isSyncingSortFromPreferences = false
     @State private var isLoading = false
     @State private var searchText = ""
     @State private var showHiddenFiles = false
@@ -1783,7 +1657,6 @@ struct ContentView: View {
                             FileListView(
                                 items: filteredItems,
                                 selection: $selection,
-                                tableSortOrder: $tableSortOrder,
                                 searchText: searchText,
                                 currentDirectoryPath: path,
                                 canNavigateToParent: FileItem.canNavigateUp(from: path),
@@ -1924,6 +1797,9 @@ struct ContentView: View {
             )
         )
         .onAppear {
+            if let mapped = fileListPreferences.sort.explorerSortOrder {
+                sortOrder = mapped
+            }
             lastRecordedPath = path
             loadItems()
         }
@@ -1935,23 +1811,15 @@ struct ContentView: View {
             loadItems()
         }
         .onChange(of: sortOrder) { newOrder in
-            items.sort(by: newOrder.comparator)
-            guard !isSyncingSortFromTable else { return }
-            let newPath = FileListView.sortingKeyPath(for: newOrder)
-            if !FileListView.pathsProduceSameSortOrder(tableSortOrder, newPath) {
-                tableSortOrder = newPath
-            }
+            guard !isSyncingSortFromPreferences else { return }
+            fileListPreferences.updateSort(FileListSortState(sortOrder: newOrder))
         }
-        .onChange(of: tableSortOrder) { newPath in
-            guard let mapped = FileListView.sortOrder(from: newPath) else {
-                items.sort(using: newPath)
-                return
-            }
-            items.sort(by: mapped.comparator)
+        .onChange(of: fileListPreferences.preferences.sort) { newSort in
+            guard let mapped = newSort.explorerSortOrder else { return }
             guard mapped != sortOrder else { return }
-            isSyncingSortFromTable = true
+            isSyncingSortFromPreferences = true
             sortOrder = mapped
-            isSyncingSortFromTable = false
+            isSyncingSortFromPreferences = false
         }
     }
     
@@ -1974,7 +1842,6 @@ struct ContentView: View {
         
         let currentPath = path
         let shouldShowHiddenFiles = showHiddenFiles
-        let currentSortOrder = sortOrder
         
         Task {
             var loadedItems: [FileItem] = []
@@ -2016,11 +1883,9 @@ struct ContentView: View {
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
             
-            let sorted = loadedItems.sorted(by: currentSortOrder.comparator)
-            
             await MainActor.run {
                 guard currentGeneration == loadGeneration else { return }
-                items = sorted
+                items = loadedItems
                 isLoading = false
             }
         }
@@ -2424,44 +2289,6 @@ struct SidebarRow: View {
     }
 }
 
-private struct HighlightedText: View {
-    let text: String
-    let searchText: String
-    var fontWeight: Font.Weight = .regular
-    var opacity: Double = 1.0
-    
-    var body: some View {
-        Text(attributedText)
-            .fontWeight(fontWeight)
-            .opacity(opacity)
-    }
-    
-    private var attributedText: AttributedString {
-        guard !searchText.isEmpty else {
-            return AttributedString(text)
-        }
-        
-        var result = AttributedString(text)
-        var searchStart = text.startIndex
-        
-        while searchStart < text.endIndex {
-            guard let range = text.range(
-                of: searchText,
-                options: [.caseInsensitive, .diacriticInsensitive],
-                range: searchStart..<text.endIndex,
-                locale: .current
-            ) else { break }
-            
-            if let attrRange = Range(range, in: result) {
-                result[attrRange].backgroundColor = .yellow.opacity(0.45)
-            }
-            searchStart = range.upperBound
-        }
-        
-        return result
-    }
-}
-
 struct FileContextActions {
     var open: (FileItem) -> Void = { _ in }
     var openWith: (FileItem) -> Void = { _ in }
@@ -2483,35 +2310,9 @@ struct FileContextActions {
     var openTerminal: (FileItem) -> Void = { _ in }
 }
 
-struct FileListBlankMenuActions {
-    var isEnabled = true
-    var canGoBack = false
-    var goBack: () -> Void = {}
-    var canGoUp = false
-    var goUp: () -> Void = {}
-    var canPaste = false
-    var paste: () -> Void = {}
-    var newFolder: () -> Void = {}
-    var newFile: () -> Void = {}
-    var openTerminal: () -> Void = {}
-    var isInTrash = false
-    var emptyTrash: () -> Void = {}
-}
-
-private enum FileListTableMetrics {
-    static let blankAreaWidth: CGFloat = 30
-    /// `.tableStyle(.inset)` 会在表格外侧留出边距，抵消后滚动条才能贴到面板右缘。
-    static let tableStyleTrailingMargin: CGFloat = 12
-    
-    static var verticalScrollerWidth: CGFloat {
-        NSScroller.scrollerWidth(for: .regular, scrollerStyle: .overlay)
-    }
-}
-
 struct FileListView: View {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
-    @Binding var tableSortOrder: [KeyPathComparator<FileItem>]
     let searchText: String
     let currentDirectoryPath: String
     let canNavigateToParent: Bool
@@ -2523,8 +2324,8 @@ struct FileListView: View {
     let contextActions: FileContextActions
     let blankMenuActions: FileListBlankMenuActions
     
+    @ObservedObject private var preferencesStore = FileListPreferencesStore.shared
     @State private var isCurrentDirectoryDropTargeted = false
-    @State private var folderDropTargetID: FileItem.ID?
     
     private var showParentDirectoryRow: Bool {
         canNavigateToParent && searchText.isEmpty
@@ -2540,42 +2341,35 @@ struct FileListView: View {
     }
     
     var body: some View {
-        fileTable
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(
-                .trailing,
-                extendsToTrailingEdge ? -FileListTableMetrics.tableStyleTrailingMargin : 0
-            )
-            .background(
-                TableScrollViewTrailingInsetHandler(
-                    layoutToken: "\(currentDirectoryPath)|\(tableRowItems.count)"
-                )
-            )
-            .overlay(alignment: .trailing) {
-                BlankAreaHitBlocker(
-                    items: tableRowItems,
-                    selection: $selection,
-                    menuActions: blankMenuActions,
-                    onSingleClick: {
-                        if !selection.isEmpty {
-                            selection.removeAll()
-                        }
-                    },
-                    onDoubleClick: onBlankDoubleClick
-                )
-                .frame(width: FileListTableMetrics.blankAreaWidth)
+        FileListPanelLayout(
+            rowCount: tableRowItems.count,
+            rowID: { row in
+                guard tableRowItems.indices.contains(row) else { return nil }
+                return tableRowItems[row].id
+            },
+            selection: $selection,
+            menuActions: blankMenuActions,
+            onBlankSingleClick: {
+                if !selection.isEmpty {
+                    selection.removeAll()
+                }
+            },
+            onBlankDoubleClick: onBlankDoubleClick
+        ) {
+            fileTable
                 .frame(maxHeight: .infinity)
-                .padding(.trailing, FileListTableMetrics.verticalScrollerWidth)
-            }
+                .padding(
+                    .trailing,
+                    extendsToTrailingEdge ? -FileListLayoutMetrics.tableStyleTrailingMargin : 0
+                )
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDrop(
             of: [.fileURL],
             delegate: FileDropDelegate(isTargeted: $isCurrentDirectoryDropTargeted) { urls, copy in
-                handleDrop(
-                    into: URL(fileURLWithPath: currentDirectoryPath, isDirectory: true),
-                    urls: urls,
-                    copy: copy
-                )
+                let destination = URL(fileURLWithPath: currentDirectoryPath, isDirectory: true)
+                guard FileOperations.canMoveItems(urls, to: destination) else { return }
+                FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
             }
         )
         .overlay {
@@ -2589,390 +2383,65 @@ struct FileListView: View {
     }
     
     private var fileTable: some View {
-        Table(tableRowItems, selection: $selection, sortOrder: preservedTableSortOrder) {
-            TableColumn("Name", value: \.name) { (item: FileItem) in
-                fileRowCell(for: item) {
-                    HStack(spacing: 6) {
-                        if item.isParentDirectoryEntry {
-                            LucideIcon.folderUp
-                                .foregroundStyle(FileIconKind.folder.tint)
-                        } else {
-                            FileItemIcon(item: item)
-                        }
-                        if item.isParentDirectoryEntry {
-                            Text("..")
-                                .fontWeight(.medium)
-                        } else {
-                            HighlightedText(
-                                text: item.name,
-                                searchText: searchText,
-                                fontWeight: item.isDirectory ? .medium : .regular,
-                                opacity: item.isHidden ? 0.6 : 1.0
-                            )
-                        }
-                    }
-                    .overlay {
-                        if !item.isParentDirectoryEntry {
-                            FileDragZoneAnchor(item: item)
-                        }
-                    }
-                }
-            }
-            .width(min: 220, ideal: 300)
-            
-            TableColumn("Size", value: \.size) { (item: FileItem) in
-                fileRowCell(for: item) {
-                    if item.isParentDirectoryEntry {
-                        Text("")
-                    } else {
-                        Text(item.sizeDisplay)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .width(min: 80, ideal: 100)
-            
-            TableColumn("Date Modified", value: \.modificationDate) { (item: FileItem) in
-                fileRowCell(for: item) {
-                    if item.isParentDirectoryEntry {
-                        Text("")
-                    } else {
-                        Text(item.dateDisplay)
-                    }
-                }
-            }
-            .width(min: 150, ideal: 180)
-        }
-        .background(TableDoubleClickHandler(
-            items: tableRowItems,
-            onOpen: onItemOpen,
-            onBlankDoubleClick: onBlankDoubleClick
-        ))
-        .background(TableDeleteKeyHandler(
-            isEnabled: !selection.isEmpty && !selection.contains(FileItem.parentDirectoryID),
+        let listRows = tableRowItems.map(FileListRow.init(item:))
+        let tableInteraction = FileListTableInteraction(
+            searchText: searchText,
+            blankMenuActions: blankMenuActions,
+            canDelete: {
+                !selection.isEmpty && !selection.contains(FileItem.parentDirectoryID)
+            },
             onDelete: {
                 let deletable = items(for: selection).filter { !$0.isParentDirectoryEntry }
                 contextActions.delete(deletable)
-            }
-        ))
-        .background(TableFileDragDropHandler(
-            items: tableRowItems,
-            selection: selection,
-            onItemOpen: onItemOpen,
-            onDragEnded: onItemsChanged
-        ))
-        .background(TableBlankContextMenuHandler(actions: blankMenuActions))
-        .contextMenu(forSelectionType: FileItem.ID.self) { ids in
-            let selected = items(for: ids)
-            let fileSelection = selected.filter { !$0.isParentDirectoryEntry }
-            let inTrash = contextActions.isInTrash
-            
-            if selected.count == 1, let item = selected.first, item.isParentDirectoryEntry {
-                Button("打开") {
-                    onItemOpen(item)
-                }
-            } else if selected.isEmpty {
-                blankAreaContextMenu(inTrash: inTrash)
-            }
-            
-            if inTrash && !selected.isEmpty {
-                if selected.count == 1, let item = selected.first {
-                    Button("打开") {
-                        contextActions.open(item)
-                    }
-                } else {
-                    Button("打开") {
-                        for item in selected {
-                            contextActions.open(item)
-                        }
-                    }
-                }
-                
-                Divider()
-                
-                Button("放回原处") {
-                    contextActions.putBack(selected)
-                }
-                Button("立刻删除", role: .destructive) {
-                    contextActions.deleteImmediately(selected)
-                }
-                
-                Divider()
-                
-                Button("清倒废纸篓", role: .destructive) {
-                    contextActions.emptyTrash()
-                }
-            } else if !fileSelection.isEmpty {
-            let destination = FileOperations.pasteDestination(
-                selectedItems: fileSelection,
-                currentDirectoryPath: currentDirectoryPath
-            )
-            let showPaste = contextActions.canPaste(destination)
-            
-            if showPaste {
-                Button("粘贴") {
-                    contextActions.paste(destination)
-                }
-            }
-            
-                if showPaste {
-                    Divider()
-                }
-                
-                if fileSelection.count == 1, let item = fileSelection.first {
-                    Button("打开") {
-                        contextActions.open(item)
-                    }
-                    
-                    if !item.isDirectory {
-                        Button("打开方式…") {
-                            contextActions.openWith(item)
-                        }
-                    }
-                    
-                    if item.isDirectory, !contextActions.isFavorited(item) {
-                        Button("收藏") {
-                            contextActions.addToFavorites(item)
-                        }
-                    }
-                    
-                    Divider()
-                } else {
-                    Button("打开") {
-                        for item in fileSelection {
-                            contextActions.open(item)
-                        }
-                    }
-                    Divider()
-                }
-                
-                Button("剪切") {
-                    contextActions.cut(fileSelection)
-                }
-                Button("复制") {
-                    contextActions.copy(fileSelection)
-                }
-                
-                Divider()
-                
-                if fileSelection.count == 1, let item = fileSelection.first {
-                    Button("复制文件名") {
-                        contextActions.copyFilename(item)
-                    }
-                }
-                Button("复制完整路径") {
-                    contextActions.copyPaths(fileSelection)
-                }
-                
-                Divider()
-                
-                Button("删除", role: .destructive) {
-                    contextActions.delete(fileSelection)
-                }
-                
-                if fileSelection.count == 1, let item = fileSelection.first {
-                    Button("重命名") {
-                        contextActions.rename(item)
-                    }
-                }
-                
-                Divider()
-                
-                if fileSelection.count == 1, let item = fileSelection.first {
-                    Button("在此处打开终端") {
-                        contextActions.openTerminal(item)
-                    }
-                }
-                
-                Button("属性") {
-                    contextActions.showInfo(fileSelection)
-                }
-            }
-        } primaryAction: { ids in
-            guard let item = items(for: ids).first else { return }
-            if item.isParentDirectoryEntry {
-                onItemOpen(item)
-            } else {
-                contextActions.open(item)
-            }
-        }
-        .transaction { transaction in
-            transaction.animation = nil
-        }
-        .tableStyle(.inset)
-    }
-    
-    private var preservedTableSortOrder: Binding<[KeyPathComparator<FileItem>]> {
-        Binding(
-            get: { [] },
-            set: { newValue in
-                tableSortOrder = newValue
+            },
+            onDragEnded: onItemsChanged,
+            makeContextMenu: { clickedRow, selectedIDs in
+                let selectedItems = tableRowItems.filter { selectedIDs.contains($0.id) }
+                return FileListRowContextMenuBuilder.makeMenu(
+                    clickedRow: clickedRow,
+                    selectedItems: selectedItems,
+                    currentDirectoryPath: currentDirectoryPath,
+                    actions: contextActions
+                )
+            },
+            dropDestinationPath: { row in
+                guard row.isDirectory, !row.isParentDirectoryEntry else { return nil }
+                return row.iconPath
+            },
+            canAcceptDrop: { destinationPath, urls in
+                let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
+                return FileOperations.canMoveItems(urls, to: destination)
+            },
+            performDrop: { destinationPath, urls, copy in
+                let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
+                FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
             }
         )
-    }
-    
-    @ViewBuilder
-    private func fileRowCell<Content: View>(
-        for item: FileItem,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        let isDropTarget = folderDropTargetID == item.id
         
-        let row = content()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(isDropTarget ? Color.accentColor.opacity(0.18) : Color.clear)
-            )
-        
-        if let destination = dropDestination(for: item) {
-            row.onDrop(
-                of: [.fileURL],
-                delegate: FileDropDelegate(
-                    isTargeted: Binding(
-                        get: { folderDropTargetID == item.id },
-                        set: { isTargeted in
-                            folderDropTargetID = isTargeted ? item.id : nil
-                        }
-                    )
-                ) { urls, copy in
-                    handleDrop(into: destination, urls: urls, copy: copy)
-                }
-            )
-        } else {
-            row
+        return FileListTableHost(
+            rows: listRows,
+            interaction: tableInteraction,
+            selection: Binding(
+                get: { selection },
+                set: { selection = $0 }
+            ),
+            preferencesStore: preferencesStore,
+            onOpenRow: { row in
+                guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
+                onItemOpen(item)
+            }
+        )
+        .onAppear {
+            preferencesStore.resetToDefaultIfNeeded()
         }
-    }
-    
-    private func dropDestination(for item: FileItem) -> URL? {
-        if item.isParentDirectoryEntry {
-            return parentDirectoryURL
-        }
-        if item.isDirectory {
-            return item.url
-        }
-        return nil
-    }
-    
-    private func handleDrop(into destination: URL, urls: [URL], copy: Bool) {
-        guard FileOperations.canMoveItems(urls, to: destination) else { return }
-        FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
     }
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
         tableRowItems.filter { ids.contains($0.id) }
     }
-    
-    @ViewBuilder
-    private func blankAreaContextMenu(inTrash: Bool) -> some View {
-        if blankMenuActions.isEnabled {
-            Button("返回") {
-                blankMenuActions.goBack()
-            }
-            .disabled(!blankMenuActions.canGoBack)
-            
-            Button("向上") {
-                blankMenuActions.goUp()
-            }
-            .disabled(!blankMenuActions.canGoUp)
-            
-            if inTrash {
-                Divider()
-                Button("清倒废纸篓", role: .destructive) {
-                    blankMenuActions.emptyTrash()
-                }
-            } else {
-                if blankMenuActions.canPaste {
-                    Divider()
-                    Button("粘贴") {
-                        blankMenuActions.paste()
-                    }
-                }
-                
-                Divider()
-                
-                Button("新建文件夹") {
-                    blankMenuActions.newFolder()
-                }
-                Button("新建文件") {
-                    blankMenuActions.newFile()
-                }
-                
-                Divider()
-                
-                Button("在此处打开终端") {
-                    blankMenuActions.openTerminal()
-                }
-            }
-        }
-    }
-    
-    static func sortingKeyPath(for order: SortOrder) -> [KeyPathComparator<FileItem>] {
-        switch order {
-        case .nameAscending:
-            return [KeyPathComparator(\.name, order: .forward)]
-        case .nameDescending:
-            return [KeyPathComparator(\.name, order: .reverse)]
-        case .dateNewest:
-            return [KeyPathComparator(\.modificationDate, order: .reverse)]
-        case .dateOldest:
-            return [KeyPathComparator(\.modificationDate, order: .forward)]
-        case .sizeSmallest:
-            return [KeyPathComparator(\.size, order: .forward)]
-        case .sizeLargest:
-            return [KeyPathComparator(\.size, order: .reverse)]
-        }
-    }
-    
-    static func sortOrder(from path: [KeyPathComparator<FileItem>]) -> SortOrder? {
-        guard let first = path.first else { return nil }
-        let direction = first.order
-        
-        if first.keyPath == \FileItem.name {
-            return direction == .reverse ? .nameDescending : .nameAscending
-        }
-        if first.keyPath == \FileItem.modificationDate {
-            return direction == .reverse ? .dateNewest : .dateOldest
-        }
-        if first.keyPath == \FileItem.size {
-            return direction == .reverse ? .sizeLargest : .sizeSmallest
-        }
-        return nil
-    }
-    
-    static func pathsProduceSameSortOrder(
-        _ lhs: [KeyPathComparator<FileItem>],
-        _ rhs: [KeyPathComparator<FileItem>]
-    ) -> Bool {
-        guard !lhs.isEmpty, !rhs.isEmpty else { return lhs.isEmpty && rhs.isEmpty }
-        guard let mapped = sortOrder(from: lhs) else { return false }
-        return mapped == sortOrder(from: rhs)
-    }
 }
 
 private enum FileDragDrop {
-    static func draggedItems(for item: FileItem, in items: [FileItem], selection: Set<FileItem.ID>) -> [FileItem] {
-        guard !item.isParentDirectoryEntry else { return [] }
-        let effectiveSelection = selection.subtracting([FileItem.parentDirectoryID])
-        if effectiveSelection.contains(item.id) {
-            return items.filter { effectiveSelection.contains($0.id) && !$0.isParentDirectoryEntry }
-        }
-        return [item]
-    }
-    
-    static func draggedItemProviders(
-        for item: FileItem,
-        in items: [FileItem],
-        selection: Set<FileItem.ID>
-    ) -> NSItemProvider {
-        let draggedItems = draggedItems(for: item, in: items, selection: selection)
-        let provider = NSItemProvider()
-        for draggedItem in draggedItems {
-            provider.registerObject(draggedItem.url as NSURL, visibility: .all)
-        }
-        return provider
-    }
-    
     static func shouldCopyFromCurrentEvent() -> Bool {
         NSApp.currentEvent?.modifierFlags.contains(.option) == true
     }
@@ -3002,39 +2471,6 @@ private enum FileDragDrop {
                 continuation.resume(returning: item?.standardizedFileURL)
             }
         }
-    }
-    
-    static let dragIconSize: CGFloat = 32
-    static let dragGhostOpacity: CGFloat = 0.72
-    
-    static func dragGhostImage(for url: URL) -> NSImage {
-        let icon = NSWorkspace.shared.icon(forFile: url.path)
-        let size = NSSize(width: dragIconSize, height: dragIconSize)
-        icon.size = size
-        
-        let ghost = NSImage(size: size)
-        ghost.lockFocus()
-        if let context = NSGraphicsContext.current {
-            context.imageInterpolation = .high
-        }
-        icon.draw(
-            in: NSRect(origin: .zero, size: size),
-            from: NSRect(origin: .zero, size: icon.size),
-            operation: .sourceOver,
-            fraction: dragGhostOpacity
-        )
-        ghost.unlockFocus()
-        return ghost
-    }
-    
-    static func dragIconFrame(anchor: NSRect, index: Int) -> NSRect {
-        let offset = CGFloat(index * 6)
-        return NSRect(
-            x: anchor.midX - dragIconSize / 2 + offset,
-            y: anchor.midY - dragIconSize / 2 - offset,
-            width: dragIconSize,
-            height: dragIconSize
-        )
     }
 }
 
@@ -3066,1003 +2502,6 @@ private struct FileDropDelegate: DropDelegate {
             onDrop(urls, copy)
         }
         return true
-    }
-}
-
-private enum FileDragDebug {
-    /// 调试完成后可改为 `false`
-    static var isEnabled = true
-    static let logPath = "/tmp/macquickfinder-filedrag.log"
-    
-    static func resetLogFile() {
-        let header = "=== FileDrag log started \(ISO8601DateFormatter().string(from: Date())) ===\n"
-        try? header.write(toFile: logPath, atomically: true, encoding: .utf8)
-    }
-    
-    static func log(_ message: @autoclosure () -> String) {
-        guard isEnabled else { return }
-        let line = "[FileDrag] \(message())"
-        appendToLogFile(line)
-        // 仅当 stderr 是终端时才打印，避免管道/grep 影响 GUI 启动
-        if isatty(STDERR_FILENO) != 0 {
-            fputs(line + "\n", stderr)
-        }
-    }
-    
-    private static func appendToLogFile(_ line: String) {
-        let url = URL(fileURLWithPath: logPath)
-        guard let data = (line + "\n").data(using: .utf8) else { return }
-        if FileManager.default.fileExists(atPath: logPath) {
-            guard let handle = try? FileHandle(forWritingTo: url) else { return }
-            defer { try? handle.close() }
-            handle.seekToEndOfFile()
-            handle.write(data)
-        } else {
-            try? data.write(to: url)
-        }
-    }
-}
-
-/// 标记图标+文件名区域；在此视图上直接处理文件拖拽（SwiftUIOutlineTableView 会吞掉全局 mouseDragged）。
-private struct FileDragZoneAnchor: NSViewRepresentable {
-    static let zoneIdentifier = NSUserInterfaceItemIdentifier("FileDragZone")
-    let item: FileItem
-    
-    func makeNSView(context: Context) -> FileDragZoneView {
-        let view = FileDragZoneView()
-        view.item = item
-        return view
-    }
-    
-    func updateNSView(_ nsView: FileDragZoneView, context: Context) {
-        nsView.item = item
-    }
-}
-
-private final class FileDragZoneRegistry {
-    static let shared = FileDragZoneRegistry()
-    private var framesByItemID: [String: CGRect] = [:]
-    
-    func update(itemID: String, frameInWindow: CGRect) {
-        framesByItemID[itemID] = frameInWindow
-        FileDragDebug.log(
-            "registry update item=\(itemID.suffix(24)) frame=\(NSStringFromRect(frameInWindow))"
-        )
-    }
-    
-    func contains(itemID: String, pointInWindow: NSPoint) -> Bool {
-        guard let frame = framesByItemID[itemID], frame.width > 0, frame.height > 0 else {
-            return false
-        }
-        return frame.contains(pointInWindow)
-    }
-    
-    func frame(for itemID: String) -> CGRect? {
-        framesByItemID[itemID]
-    }
-}
-
-private final class FileDragZoneView: NSView {
-    var item: FileItem?
-    
-    private var mouseDownLocation: NSPoint?
-    private var dragSessionActive = false
-    private let dragThreshold: CGFloat = 4
-    
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        identifier = FileDragZoneAnchor.zoneIdentifier
-    }
-    
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        identifier = FileDragZoneAnchor.zoneIdentifier
-    }
-    
-    override func layout() {
-        super.layout()
-        guard let item, !item.id.isEmpty else { return }
-        if bounds.width <= 1 || bounds.height <= 1 {
-            FileDragDebug.log(
-                "zone layout skip item=\(item.id.suffix(24)) bounds=\(NSStringFromRect(bounds))"
-            )
-            return
-        }
-        let frameInWindow = convert(bounds, to: nil)
-        FileDragZoneRegistry.shared.update(itemID: item.id, frameInWindow: frameInWindow)
-    }
-    
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        needsLayout = true
-    }
-    
-    override func mouseDown(with event: NSEvent) {
-        guard let item else { return }
-        mouseDownLocation = event.locationInWindow
-        dragSessionActive = false
-        
-        if event.clickCount >= 2 {
-            FileDragDebug.log("zone doubleClick item=\(item.name)")
-            TableFileDragCoordinator.shared?.openItem(item)
-            return
-        }
-        
-        TableFileDragCoordinator.shared?.selectRow(for: item, event: event)
-        FileDragDebug.log("zone mouseDown item=\(item.name)")
-    }
-    
-    override func mouseDragged(with event: NSEvent) {
-        guard let item, !dragSessionActive, let start = mouseDownLocation else { return }
-        let distance = hypot(
-            event.locationInWindow.x - start.x,
-            event.locationInWindow.y - start.y
-        )
-        guard distance >= dragThreshold else { return }
-        
-        FileDragDebug.log(
-            "zone mouseDragged START item=\(item.name) distance=\(String(format: "%.1f", distance))"
-        )
-        dragSessionActive = true
-        TableFileDragCoordinator.shared?.beginFileDrag(for: item, event: event, dragZoneView: self)
-    }
-    
-    override func mouseUp(with event: NSEvent) {
-        mouseDownLocation = nil
-        dragSessionActive = false
-    }
-}
-
-/// 共享的文件拖拽协调器（热区视图 + 拖拽会话）。
-private final class TableFileDragCoordinator: NSObject, NSDraggingSource {
-    static weak var shared: TableFileDragCoordinator?
-    
-    weak var tableView: NSTableView?
-    var items: [FileItem] = []
-    var selection: Set<FileItem.ID> = []
-    var onItemOpen: ((FileItem) -> Void)?
-    var onDragEnded: (() -> Void)?
-    
-    func openItem(_ item: FileItem) {
-        onItemOpen?(item)
-    }
-    
-    func selectRow(for item: FileItem, event: NSEvent) {
-        guard let tableView else { return }
-        guard let row = items.firstIndex(where: { $0.id == item.id }) else { return }
-        
-        let flags = event.modifierFlags
-        if flags.contains(.command) {
-            var selected = tableView.selectedRowIndexes
-            if selected.contains(row) {
-                selected.remove(row)
-            } else {
-                selected.insert(row)
-            }
-            tableView.selectRowIndexes(selected, byExtendingSelection: false)
-            return
-        }
-        if flags.contains(.shift) {
-            tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: true)
-            return
-        }
-        
-        // 点击已选中的项时保留多选，便于批量拖拽
-        if effectiveSelectionIDs().contains(item.id) {
-            return
-        }
-        
-        tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-    }
-    
-    private func effectiveSelectionIDs() -> Set<FileItem.ID> {
-        var ids = selection
-        ids.remove(FileItem.parentDirectoryID)
-        guard let tableView else { return ids }
-        for row in tableView.selectedRowIndexes {
-            guard row >= 0, row < items.count else { continue }
-            let rowItem = items[row]
-            guard !rowItem.isParentDirectoryEntry else { continue }
-            ids.insert(rowItem.id)
-        }
-        return ids
-    }
-    
-    func beginFileDrag(for item: FileItem, event: NSEvent, dragZoneView: NSView) {
-        guard let tableView else {
-            FileDragDebug.log("beginFileDrag fail no tableView item=\(item.name)")
-            return
-        }
-        
-        let selectedIDs = effectiveSelectionIDs()
-        let draggedItems = FileDragDrop.draggedItems(
-            for: item,
-            in: items,
-            selection: selectedIDs
-        )
-        guard !draggedItems.isEmpty else {
-            FileDragDebug.log("beginFileDrag fail empty draggedItems item=\(item.name)")
-            return
-        }
-        
-        FileDragDebug.log(
-            "beginFileDrag OK item=\(item.name) draggingCount=\(draggedItems.count)"
-        )
-        
-        let anchorInTable = dragZoneView.convert(dragZoneView.bounds, to: tableView)
-        var draggingItems: [NSDraggingItem] = []
-        for (index, fileItem) in draggedItems.enumerated() {
-            let frame = FileDragDrop.dragIconFrame(anchor: anchorInTable, index: index)
-            let ghostImage = FileDragDrop.dragGhostImage(for: fileItem.url)
-            let draggingItem = NSDraggingItem(pasteboardWriter: fileItem.url as NSURL)
-            draggingItem.setDraggingFrame(frame, contents: nil)
-            draggingItem.imageComponentsProvider = {
-                let icon = NSDraggingImageComponent(key: .icon)
-                icon.contents = ghostImage
-                icon.frame = NSRect(origin: .zero, size: frame.size)
-                return [icon]
-            }
-            draggingItems.append(draggingItem)
-        }
-        
-        let session = tableView.beginDraggingSession(with: draggingItems, event: event, source: self)
-        session.animatesToStartingPositionsOnCancelOrFail = true
-        session.draggingFormation = draggedItems.count > 1 ? .pile : .none
-    }
-    
-    func draggingSession(
-        _ session: NSDraggingSession,
-        sourceOperationMaskFor context: NSDraggingContext
-    ) -> NSDragOperation {
-        if NSApp.currentEvent?.modifierFlags.contains(.option) == true {
-            return .copy
-        }
-        switch context {
-        case .withinApplication:
-            return .move
-        default:
-            return .move
-        }
-    }
-    
-    func draggingSession(
-        _ session: NSDraggingSession,
-        endedAt screenPoint: NSPoint,
-        operation: NSDragOperation
-    ) {
-        FileDragDebug.log("dragSession ended operation=\(operation.rawValue)")
-        if operation != [] {
-            DispatchQueue.main.async { [weak self] in
-                self?.onDragEnded?()
-            }
-        }
-    }
-}
-
-/// 安装表格引用与拖拽协调器；文件拖放在 FileDragZoneView 上触发。
-private struct TableFileDragDropHandler: NSViewRepresentable {
-    let items: [FileItem]
-    let selection: Set<FileItem.ID>
-    let onItemOpen: (FileItem) -> Void
-    let onDragEnded: () -> Void
-    
-    func makeCoordinator() -> TableFileDragCoordinator {
-        let coordinator = TableFileDragCoordinator()
-        TableFileDragCoordinator.shared = coordinator
-        return coordinator
-    }
-    
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        installTableView(into: context.coordinator, from: view)
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSView, context: Context) {
-        let coordinator = context.coordinator
-        coordinator.items = items
-        coordinator.selection = selection
-        coordinator.onItemOpen = onItemOpen
-        coordinator.onDragEnded = onDragEnded
-        TableFileDragCoordinator.shared = coordinator
-        installTableView(into: coordinator, from: nsView)
-    }
-    
-    private func installTableView(into coordinator: TableFileDragCoordinator, from view: NSView) {
-        guard coordinator.tableView == nil else { return }
-        guard let tableView = findTableView(startingFrom: view) else {
-            DispatchQueue.main.async {
-                installTableView(into: coordinator, from: view)
-            }
-            return
-        }
-        coordinator.tableView = tableView
-        FileDragDebug.log(
-            "installed tableView=\(type(of: tableView)) columns=\(tableView.tableColumns.map(\.title))"
-        )
-    }
-    
-    private func findTableView(startingFrom view: NSView) -> NSTableView? {
-        var current: NSView? = view
-        while let node = current {
-            if let tableView = node as? NSTableView {
-                return tableView
-            }
-            if let tableView = findTableView(in: node.subviews) {
-                return tableView
-            }
-            current = node.superview
-        }
-        return nil
-    }
-    
-    private func findTableView(in views: [NSView]) -> NSTableView? {
-        for view in views {
-            if let tableView = view as? NSTableView {
-                return tableView
-            }
-            if let tableView = findTableView(in: view.subviews) {
-                return tableView
-            }
-        }
-        return nil
-    }
-}
-
-/// 在文件列表获得焦点时响应 Delete / Forward Delete，与 Finder 行为一致。
-private struct TableDeleteKeyHandler: NSViewRepresentable {
-    let isEnabled: Bool
-    let onDelete: () -> Void
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onDelete: onDelete)
-    }
-    
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        context.coordinator.startMonitoring(from: view)
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.isEnabled = isEnabled
-        context.coordinator.onDelete = onDelete
-    }
-    
-    final class Coordinator {
-        var isEnabled: Bool
-        var onDelete: () -> Void
-        private var monitor: Any?
-        private weak var tableView: NSTableView?
-        
-        init(isEnabled: Bool = false, onDelete: @escaping () -> Void) {
-            self.isEnabled = isEnabled
-            self.onDelete = onDelete
-        }
-        
-        func startMonitoring(from view: NSView) {
-            guard monitor == nil else { return }
-            guard let tableView = findTableView(startingFrom: view) else {
-                DispatchQueue.main.async { [weak self, weak view] in
-                    guard let self, let view else { return }
-                    self.startMonitoring(from: view)
-                }
-                return
-            }
-            self.tableView = tableView
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self, self.isEnabled else { return event }
-                guard self.isTableFocused(event) else { return event }
-                guard event.keyCode == 51 || event.keyCode == 117 else { return event }
-                guard !event.modifierFlags.contains(.command) else { return event }
-                self.onDelete()
-                return nil
-            }
-        }
-        
-        private func isTableFocused(_ event: NSEvent) -> Bool {
-            guard let tableView,
-                  let window = tableView.window ?? event.window else { return false }
-            guard let responder = window.firstResponder as? NSView else { return false }
-            return responder === tableView || responder.isDescendant(of: tableView)
-        }
-        
-        deinit {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-            }
-        }
-        
-        private func findTableView(startingFrom view: NSView) -> NSTableView? {
-            var current: NSView? = view
-            while let node = current {
-                if let tableView = node as? NSTableView {
-                    return tableView
-                }
-                if let tableView = findTableView(in: node.subviews) {
-                    return tableView
-                }
-                current = node.superview
-            }
-            return nil
-        }
-        
-        private func findTableView(in views: [NSView]) -> NSTableView? {
-            for view in views {
-                if let tableView = view as? NSTableView {
-                    return tableView
-                }
-                if let tableView = findTableView(in: view.subviews) {
-                    return tableView
-                }
-            }
-            return nil
-        }
-    }
-}
-
-/// 表格铺满至分割线，内容区右侧留出空白；滚动条贴在滚动视图右缘（分割线侧）。
-private struct TableScrollViewTrailingInsetHandler: NSViewRepresentable {
-    let layoutToken: String
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-    
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        context.coordinator.installIfNeeded(from: view)
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.installIfNeeded(from: nsView)
-        context.coordinator.applyInsetsIfNeeded()
-        DispatchQueue.main.async {
-            context.coordinator.applyInsetsIfNeeded()
-        }
-    }
-    
-    final class Coordinator {
-        private weak var scrollView: NSScrollView?
-        private var insetObservers: [NSKeyValueObservation] = []
-        
-        deinit {
-            insetObservers.removeAll()
-        }
-        
-        func installIfNeeded(from view: NSView) {
-            if scrollView == nil || scrollView?.window == nil {
-                insetObservers.removeAll()
-                scrollView = nil
-                
-                guard let tableView = findTableView(startingFrom: view),
-                      let scrollView = findScrollView(containing: tableView) else {
-                    DispatchQueue.main.async { [weak self, weak view] in
-                        guard let self, let view else { return }
-                        self.installIfNeeded(from: view)
-                    }
-                    return
-                }
-                scrollView.automaticallyAdjustsContentInsets = false
-                self.scrollView = scrollView
-                installInsetObservers(for: scrollView)
-            }
-            applyInsetsIfNeeded()
-        }
-        
-        func applyInsetsIfNeeded() {
-            guard let scrollView else { return }
-            let blank = FileListTableMetrics.blankAreaWidth
-            let needsContentInset = scrollView.contentInsets.right != blank
-            let needsScrollerInset = scrollView.scrollerInsets.right != -blank
-            guard needsContentInset || needsScrollerInset else { return }
-            
-            scrollView.automaticallyAdjustsContentInsets = false
-            if needsContentInset {
-                var contentInsets = scrollView.contentInsets
-                contentInsets.right = blank
-                scrollView.contentInsets = contentInsets
-            }
-            if needsScrollerInset {
-                var scrollerInsets = scrollView.scrollerInsets
-                scrollerInsets.right = -blank
-                scrollView.scrollerInsets = scrollerInsets
-            }
-        }
-        
-        private func installInsetObservers(for scrollView: NSScrollView) {
-            guard insetObservers.isEmpty else { return }
-            insetObservers.append(
-                scrollView.observe(\.contentInsets, options: [.new]) { [weak self] _, _ in
-                    self?.applyInsetsIfNeeded()
-                }
-            )
-            insetObservers.append(
-                scrollView.observe(\.scrollerInsets, options: [.new]) { [weak self] _, _ in
-                    self?.applyInsetsIfNeeded()
-                }
-            )
-        }
-        
-        private func findTableView(startingFrom view: NSView) -> NSTableView? {
-            var current: NSView? = view
-            while let node = current {
-                if let tableView = node as? NSTableView {
-                    return tableView
-                }
-                if let tableView = findTableView(in: node.subviews) {
-                    return tableView
-                }
-                current = node.superview
-            }
-            return nil
-        }
-        
-        private func findTableView(in views: [NSView]) -> NSTableView? {
-            for view in views {
-                if let tableView = view as? NSTableView {
-                    return tableView
-                }
-                if let tableView = findTableView(in: view.subviews) {
-                    return tableView
-                }
-            }
-            return nil
-        }
-        
-        private func findScrollView(containing tableView: NSTableView) -> NSScrollView? {
-            var current: NSView? = tableView.superview
-            while let node = current {
-                if let scrollView = node as? NSScrollView {
-                    return scrollView
-                }
-                current = node.superview
-            }
-            return nil
-        }
-    }
-}
-
-/// 文件列表空白处右键菜单（返回、向上、粘贴、新建等）。
-private final class FileListBlankMenuController: NSObject {
-    var actions: FileListBlankMenuActions
-    
-    private enum MenuAction: Int {
-        case goBack = 1
-        case goUp
-        case paste
-        case newFolder
-        case newFile
-        case openTerminal
-        case emptyTrash
-    }
-    
-    init(actions: FileListBlankMenuActions) {
-        self.actions = actions
-    }
-    
-    func makeMenu() -> NSMenu {
-        let menu = NSMenu()
-        
-        menu.addItem(makeItem(title: "返回", action: .goBack, enabled: actions.canGoBack))
-        menu.addItem(makeItem(title: "向上", action: .goUp, enabled: actions.canGoUp))
-        
-        if actions.isInTrash {
-            menu.addItem(.separator())
-            menu.addItem(makeItem(title: "清倒废纸篓", action: .emptyTrash, enabled: true))
-            return menu
-        }
-        
-        if actions.canPaste {
-            menu.addItem(.separator())
-            menu.addItem(makeItem(title: "粘贴", action: .paste, enabled: true))
-        }
-        
-        menu.addItem(.separator())
-        menu.addItem(makeItem(title: "新建文件夹", action: .newFolder, enabled: true))
-        menu.addItem(makeItem(title: "新建文件", action: .newFile, enabled: true))
-        menu.addItem(.separator())
-        menu.addItem(makeItem(title: "在此处打开终端", action: .openTerminal, enabled: true))
-        
-        return menu
-    }
-    
-    func popUp(with event: NSEvent, for view: NSView) {
-        guard actions.isEnabled else { return }
-        let menu = makeMenu()
-        guard !menu.items.isEmpty else { return }
-        NSMenu.popUpContextMenu(menu, with: event, for: view)
-    }
-    
-    private func makeItem(title: String, action: MenuAction, enabled: Bool) -> NSMenuItem {
-        let item = NSMenuItem(
-            title: title,
-            action: #selector(handleMenuAction(_:)),
-            keyEquivalent: ""
-        )
-        item.target = self
-        item.tag = action.rawValue
-        item.isEnabled = enabled
-        return item
-    }
-    
-    @objc private func handleMenuAction(_ sender: NSMenuItem) {
-        guard let action = MenuAction(rawValue: sender.tag) else { return }
-        switch action {
-        case .goBack:
-            actions.goBack()
-        case .goUp:
-            actions.goUp()
-        case .paste:
-            actions.paste()
-        case .newFolder:
-            actions.newFolder()
-        case .newFile:
-            actions.newFile()
-        case .openTerminal:
-            actions.openTerminal()
-        case .emptyTrash:
-            actions.emptyTrash()
-        }
-    }
-}
-
-/// 拦截空白区鼠标事件，防止点击落入下方表格引发布局变化。
-private struct BlankAreaHitBlocker: NSViewRepresentable {
-    let items: [FileItem]
-    @Binding var selection: Set<FileItem.ID>
-    let menuActions: FileListBlankMenuActions
-    let onSingleClick: () -> Void
-    let onDoubleClick: () -> Void
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(
-            items: items,
-            selection: $selection,
-            menuActions: menuActions,
-            onSingleClick: onSingleClick,
-            onDoubleClick: onDoubleClick
-        )
-    }
-    
-    func makeNSView(context: Context) -> BlankAreaCaptureView {
-        let view = BlankAreaCaptureView()
-        view.coordinator = context.coordinator
-        return view
-    }
-    
-    func updateNSView(_ nsView: BlankAreaCaptureView, context: Context) {
-        context.coordinator.items = items
-        context.coordinator.selection = $selection
-        context.coordinator.menuActions = menuActions
-        context.coordinator.onSingleClick = onSingleClick
-        context.coordinator.onDoubleClick = onDoubleClick
-        nsView.coordinator = context.coordinator
-    }
-    
-    final class Coordinator: NSObject {
-        var items: [FileItem]
-        var selection: Binding<Set<FileItem.ID>>
-        private let menuController: FileListBlankMenuController
-        var menuActions: FileListBlankMenuActions {
-            didSet { menuController.actions = menuActions }
-        }
-        var onSingleClick: () -> Void
-        var onDoubleClick: () -> Void
-        
-        init(
-            items: [FileItem],
-            selection: Binding<Set<FileItem.ID>>,
-            menuActions: FileListBlankMenuActions,
-            onSingleClick: @escaping () -> Void,
-            onDoubleClick: @escaping () -> Void
-        ) {
-            self.items = items
-            self.selection = selection
-            self.menuActions = menuActions
-            self.menuController = FileListBlankMenuController(actions: menuActions)
-            self.onSingleClick = onSingleClick
-            self.onDoubleClick = onDoubleClick
-        }
-        
-        func applyRowSelection(_ rows: IndexSet, tableView: NSTableView) {
-            let ids = Set(
-                rows.compactMap { row -> FileItem.ID? in
-                    guard row >= 0, row < items.count else { return nil }
-                    return items[row].id
-                }
-            )
-            selection.wrappedValue = ids
-            tableView.selectRowIndexes(rows, byExtendingSelection: false)
-        }
-        
-        static func rowsInVerticalRange(
-            minY: CGFloat,
-            maxY: CGFloat,
-            tableView: NSTableView
-        ) -> IndexSet {
-            let lower = min(minY, maxY)
-            let upper = max(minY, maxY)
-            var rows = IndexSet()
-            for row in 0..<tableView.numberOfRows {
-                let rowRect = tableView.rect(ofRow: row)
-                if rowRect.maxY >= lower && rowRect.minY <= upper {
-                    rows.insert(row)
-                }
-            }
-            return rows
-        }
-        
-        func popUpContextMenu(with event: NSEvent, for view: NSView) {
-            menuController.popUp(with: event, for: view)
-        }
-    }
-    
-    final class BlankAreaCaptureView: NSView {
-        weak var coordinator: Coordinator?
-        private weak var tableView: NSTableView?
-        private var mouseDownEvent: NSEvent?
-        private var isDragSelecting = false
-        private let dragThreshold: CGFloat = 4
-        
-        override func hitTest(_ point: NSPoint) -> NSView? {
-            bounds.contains(point) ? self : nil
-        }
-        
-        override func mouseDown(with event: NSEvent) {
-            guard let coordinator else { return }
-            if event.clickCount >= 2 {
-                mouseDownEvent = nil
-                isDragSelecting = false
-                coordinator.onDoubleClick()
-                return
-            }
-            mouseDownEvent = event
-            isDragSelecting = false
-            coordinator.onSingleClick()
-        }
-        
-        override func mouseDragged(with event: NSEvent) {
-            guard let coordinator, let mouseDownEvent else { return }
-            if !isDragSelecting {
-                let deltaX = event.locationInWindow.x - mouseDownEvent.locationInWindow.x
-                let deltaY = event.locationInWindow.y - mouseDownEvent.locationInWindow.y
-                guard hypot(deltaX, deltaY) >= dragThreshold else { return }
-                guard resolveTableView() != nil else { return }
-                isDragSelecting = true
-            }
-            guard let tableView else { return }
-            window?.makeFirstResponder(tableView)
-            let startY = tableView.convert(mouseDownEvent.locationInWindow, from: nil).y
-            let currentY = tableView.convert(event.locationInWindow, from: nil).y
-            let rows = Coordinator.rowsInVerticalRange(
-                minY: startY,
-                maxY: currentY,
-                tableView: tableView
-            )
-            coordinator.applyRowSelection(rows, tableView: tableView)
-        }
-        
-        override func mouseUp(with event: NSEvent) {
-            mouseDownEvent = nil
-            isDragSelecting = false
-        }
-        
-        override func rightMouseDown(with event: NSEvent) {
-            coordinator?.popUpContextMenu(with: event, for: self)
-        }
-        
-        private func resolveTableView() -> NSTableView? {
-            if let tableView { return tableView }
-            guard let root = window?.contentView else { return nil }
-            let found = Self.findTableView(startingFrom: root)
-            tableView = found
-            return found
-        }
-        
-        private static func findTableView(startingFrom view: NSView) -> NSTableView? {
-            if let tableView = view as? NSTableView {
-                return tableView
-            }
-            for subview in view.subviews {
-                if let tableView = findTableView(startingFrom: subview) {
-                    return tableView
-                }
-            }
-            return nil
-        }
-    }
-}
-
-/// 通过 NSTableView 原生 doubleAction 处理双击，避免 SwiftUI TapGesture(count: 2) 延迟单击选中。
-private struct TableDoubleClickHandler: NSViewRepresentable {
-    let items: [FileItem]
-    let onOpen: (FileItem) -> Void
-    let onBlankDoubleClick: () -> Void
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(items: items, onOpen: onOpen, onBlankDoubleClick: onBlankDoubleClick)
-    }
-    
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        context.coordinator.installIfNeeded(from: view)
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.items = items
-        context.coordinator.onOpen = onOpen
-        context.coordinator.onBlankDoubleClick = onBlankDoubleClick
-        context.coordinator.installIfNeeded(from: nsView)
-    }
-    
-    final class Coordinator: NSObject {
-        var items: [FileItem]
-        var onOpen: (FileItem) -> Void
-        var onBlankDoubleClick: () -> Void
-        private weak var tableView: NSTableView?
-        
-        init(
-            items: [FileItem],
-            onOpen: @escaping (FileItem) -> Void,
-            onBlankDoubleClick: @escaping () -> Void
-        ) {
-            self.items = items
-            self.onOpen = onOpen
-            self.onBlankDoubleClick = onBlankDoubleClick
-        }
-        
-        func installIfNeeded(from view: NSView) {
-            guard tableView == nil else { return }
-            guard let tableView = findTableView(startingFrom: view) else {
-                DispatchQueue.main.async { [weak self, weak view] in
-                    guard let self, let view else { return }
-                    self.installIfNeeded(from: view)
-                }
-                return
-            }
-            tableView.target = self
-            tableView.doubleAction = #selector(handleDoubleClick(_:))
-            self.tableView = tableView
-        }
-        
-        @objc func handleDoubleClick(_ sender: NSTableView) {
-            let row = sender.clickedRow
-            if row < 0 {
-                onBlankDoubleClick()
-                return
-            }
-            guard row < items.count else { return }
-            onOpen(items[row])
-        }
-        
-        private func findTableView(startingFrom view: NSView) -> NSTableView? {
-            var current: NSView? = view
-            while let node = current {
-                if let tableView = node as? NSTableView {
-                    return tableView
-                }
-                if let tableView = findTableView(in: node.subviews) {
-                    return tableView
-                }
-                current = node.superview
-            }
-            return nil
-        }
-        
-        private func findTableView(in views: [NSView]) -> NSTableView? {
-            for view in views {
-                if let tableView = view as? NSTableView {
-                    return tableView
-                }
-                if let tableView = findTableView(in: view.subviews) {
-                    return tableView
-                }
-            }
-            return nil
-        }
-    }
-}
-
-/// 文件列表空白处右键菜单（NSTableView 空白区域不一定会触发 SwiftUI contextMenu）。
-private struct TableBlankContextMenuHandler: NSViewRepresentable {
-    let actions: FileListBlankMenuActions
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(actions: actions)
-    }
-    
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        context.coordinator.installIfNeeded(from: view)
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.actions = actions
-        context.coordinator.installIfNeeded(from: nsView)
-    }
-    
-    final class Coordinator: NSObject {
-        var actions: FileListBlankMenuActions {
-            didSet { menuController.actions = actions }
-        }
-        private let menuController: FileListBlankMenuController
-        private weak var tableView: NSTableView?
-        private var eventMonitor: Any?
-        
-        init(actions: FileListBlankMenuActions) {
-            self.actions = actions
-            self.menuController = FileListBlankMenuController(actions: actions)
-        }
-        
-        deinit {
-            if let eventMonitor {
-                NSEvent.removeMonitor(eventMonitor)
-            }
-        }
-        
-        func installIfNeeded(from view: NSView) {
-            guard tableView == nil else { return }
-            guard let tableView = findTableView(startingFrom: view) else {
-                DispatchQueue.main.async { [weak self, weak view] in
-                    guard let self, let view else { return }
-                    self.installIfNeeded(from: view)
-                }
-                return
-            }
-            self.tableView = tableView
-            installEventMonitorIfNeeded()
-        }
-        
-        private func installEventMonitorIfNeeded() {
-            guard eventMonitor == nil else { return }
-            eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
-                guard let self, self.actions.isEnabled, let tableView = self.tableView,
-                      event.window == tableView.window else {
-                    return event
-                }
-                
-                let point = tableView.convert(event.locationInWindow, from: nil)
-                guard tableView.bounds.contains(point), tableView.row(at: point) < 0 else {
-                    return event
-                }
-                
-                self.menuController.actions = self.actions
-                let menu = self.menuController.makeMenu()
-                guard !menu.items.isEmpty else { return event }
-                NSMenu.popUpContextMenu(menu, with: event, for: tableView)
-                return nil
-            }
-        }
-        
-        private func findTableView(startingFrom view: NSView) -> NSTableView? {
-            var current: NSView? = view
-            while let node = current {
-                if let tableView = node as? NSTableView {
-                    return tableView
-                }
-                if let tableView = findTableView(in: node.subviews) {
-                    return tableView
-                }
-                current = node.superview
-            }
-            return nil
-        }
-        
-        private func findTableView(in views: [NSView]) -> NSTableView? {
-            for view in views {
-                if let tableView = view as? NSTableView {
-                    return tableView
-                }
-                if let tableView = findTableView(in: view.subviews) {
-                    return tableView
-                }
-            }
-            return nil
-        }
     }
 }
 
@@ -4573,23 +3012,6 @@ enum SortOrder: String, CaseIterable, Identifiable {
     case sizeLargest = "Size (Largest First)"
     
     var id: String { rawValue }
-    
-    var comparator: (FileItem, FileItem) -> Bool {
-        switch self {
-        case .nameAscending:
-            return { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        case .nameDescending:
-            return { $0.name.localizedStandardCompare($1.name) == .orderedDescending }
-        case .dateNewest:
-            return { $0.modificationDate > $1.modificationDate }
-        case .dateOldest:
-            return { $0.modificationDate < $1.modificationDate }
-        case .sizeSmallest:
-            return { $0.size < $1.size }
-        case .sizeLargest:
-            return { $0.size > $1.size }
-        }
-    }
 }
 
 enum FileItemFormatters {
@@ -4626,6 +3048,7 @@ struct FileItem: Identifiable, Hashable {
     let modificationDate: Date
     let size: Int64
     let isHidden: Bool
+    let fileType: String
     let sizeDisplay: String
     let dateDisplay: String
     
@@ -4642,9 +3065,17 @@ struct FileItem: Identifiable, Hashable {
             modificationDate: .distantPast,
             size: 0,
             isHidden: false,
+            fileType: "",
             sizeDisplay: "",
             dateDisplay: ""
         )
+    }
+    
+    static func fileType(for name: String, isDirectory: Bool) -> String {
+        if isDirectory {
+            return "文件夹"
+        }
+        return (name as NSString).pathExtension
     }
     
     static func canNavigateUp(from path: String) -> Bool {
@@ -4998,6 +3429,7 @@ enum TrashLoader {
             modificationDate: modDate,
             size: size,
             isHidden: isHidden,
+            fileType: FileItem.fileType(for: fileURL.lastPathComponent, isDirectory: isDirectory),
             sizeDisplay: isDirectory ? "--" : FileItemFormatters.formatSize(size),
             dateDisplay: FileItemFormatters.formatDate(modDate)
         )
@@ -5156,7 +3588,7 @@ private enum TrashRestoreStore {
     }
 }
 
-private enum FileOperations {
+enum FileOperations {
     private static let finderCopyPasteboardType = NSPasteboard.PasteboardType("com.apple.finder.copy")
     
     struct PasteboardState {

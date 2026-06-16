@@ -9,8 +9,14 @@ let package = Package(
     ],
     dependencies: [],
     targets: [
+        .target(
+            name: "FileList",
+            dependencies: []),
         .executableTarget(
             name: "Explorer",
-            dependencies: [])
+            dependencies: ["FileList"]),
+        .testTarget(
+            name: "ExplorerTests",
+            dependencies: ["FileList"])
     ]
 )
