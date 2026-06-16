@@ -3049,7 +3049,7 @@ private enum RailTooltipPresenter {
 }
 
 private final class RailTooltipPanel: NSPanel {
-    private let chromeView = NSView()
+    private let chromeView = NSVisualEffectView()
     private let textLabel = NSTextField(labelWithString: "")
     
     private let horizontalPadding: CGFloat = 8
@@ -3073,12 +3073,16 @@ private final class RailTooltipPanel: NSPanel {
         textLabel.isSelectable = false
         textLabel.isBezeled = false
         textLabel.drawsBackground = false
-        textLabel.textColor = NSColor(white: 0.95, alpha: 1)
+        textLabel.textColor = .labelColor
         textLabel.font = .systemFont(ofSize: 11)
         
+        chromeView.material = .popover
+        chromeView.blendingMode = .behindWindow
+        chromeView.state = .active
         chromeView.wantsLayer = true
-        chromeView.layer?.cornerRadius = 5
-        chromeView.layer?.backgroundColor = NSColor(white: 0.1, alpha: 0.92).cgColor
+        chromeView.layer?.cornerRadius = 6
+        chromeView.layer?.borderWidth = 1
+        chromeView.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.35).cgColor
         
         chromeView.addSubview(textLabel)
         contentView = chromeView
