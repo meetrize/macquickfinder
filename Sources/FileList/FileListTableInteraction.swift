@@ -10,6 +10,8 @@ public struct FileListTableInteraction {
     public var onBlankDoubleClick: () -> Void
     public var canDelete: () -> Bool
     public var onDelete: () -> Void
+    public var canNavigateBack: () -> Bool
+    public var onNavigateBack: () -> Void
     public var onTableFocusChanged: (_ isFocused: Bool) -> Void
     public var onQuickSearchInput: (_ input: String) -> Void
     public var onQuickSearchBackspace: () -> Void
@@ -28,6 +30,8 @@ public struct FileListTableInteraction {
         onBlankDoubleClick: @escaping () -> Void = {},
         canDelete: @escaping () -> Bool = { false },
         onDelete: @escaping () -> Void = {},
+        canNavigateBack: @escaping () -> Bool = { false },
+        onNavigateBack: @escaping () -> Void = {},
         onTableFocusChanged: @escaping (_ isFocused: Bool) -> Void = { _ in },
         onQuickSearchInput: @escaping (_ input: String) -> Void = { _ in },
         onQuickSearchBackspace: @escaping () -> Void = {},
@@ -45,6 +49,8 @@ public struct FileListTableInteraction {
         self.onBlankDoubleClick = onBlankDoubleClick
         self.canDelete = canDelete
         self.onDelete = onDelete
+        self.canNavigateBack = canNavigateBack
+        self.onNavigateBack = onNavigateBack
         self.onTableFocusChanged = onTableFocusChanged
         self.onQuickSearchInput = onQuickSearchInput
         self.onQuickSearchBackspace = onQuickSearchBackspace

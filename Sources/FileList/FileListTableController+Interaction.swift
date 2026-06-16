@@ -202,6 +202,13 @@ extension FileListTableController {
                     interaction.onQuickSearchBackspace()
                     return true
                 }
+                // 无选中项时，Backspace 作为“后退到上一个目录”
+                if event.keyCode == 51,
+                   effectiveSelectionIDs().isEmpty,
+                   interaction.canNavigateBack() {
+                    interaction.onNavigateBack()
+                    return true
+                }
             }
             // 可见字符输入：唤起或追加快速搜索
             if let input = quickSearchInputCharacter(from: event) {

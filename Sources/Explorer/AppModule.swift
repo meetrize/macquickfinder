@@ -1937,6 +1937,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var quickSearchText = ""
     @State private var isQuickSearchVisible = false
+    @State private var fileListFocusToken: UInt = 0
     @State private var showHiddenFiles = false
     @State private var loadGeneration: UInt = 0
     @State private var navigationBackStack: [String] = []
@@ -2332,6 +2333,7 @@ struct ContentView: View {
                 searchText: searchText,
                 quickSearchText: $quickSearchText,
                 isQuickSearchVisible: $isQuickSearchVisible,
+                focusToken: fileListFocusToken,
                 currentDirectoryPath: path,
                 canNavigateToParent: FileItem.canNavigateUp(from: path),
                 showHiddenFiles: showHiddenFiles,
@@ -2341,7 +2343,9 @@ struct ContentView: View {
                 onItemsChanged: handleFileListItemsChanged,
                 onScheduleVisibleDirectorySizes: scheduleVisibleDirectorySizes,
                 contextActions: fileContextActions,
-                blankMenuActions: blankMenuActions
+                blankMenuActions: blankMenuActions,
+                canNavigateBack: canNavigateBack,
+                onNavigateBack: navigateBack
             )
             .focusedValue(\.fileCommandHandlers, fileCommandHandlers)
         }
@@ -2423,6 +2427,7 @@ struct ContentView: View {
                 items = loadedItems
                 isLoading = false
                 didApplyItems = true
+                fileListFocusToken &+= 1
             }
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
@@ -3161,6 +3166,7 @@ struct FileListView: View {
     let searchText: String
     @Binding var quickSearchText: String
     @Binding var isQuickSearchVisible: Bool
+    let focusToken: UInt
     let currentDirectoryPath: String
     let canNavigateToParent: Bool
     let showHiddenFiles: Bool
@@ -3171,6 +3177,8 @@ struct FileListView: View {
     let onScheduleVisibleDirectorySizes: ([String]) -> Void
     let contextActions: FileContextActions
     let blankMenuActions: FileListBlankMenuActions
+    let canNavigateBack: Bool
+    let onNavigateBack: () -> Void
     
     @ObservedObject private var preferencesStore = FileListPreferencesStore.shared
     @State private var isCurrentDirectoryDropTargeted = false
@@ -3195,6 +3203,7 @@ struct FileListView: View {
             fileTable
                 .frame(maxHeight: .infinity)
         }
+        .background(FileListAutoFocusRequester(token: focusToken))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDrop(
             of: [.fileURL],
@@ -3260,6 +3269,8 @@ struct FileListView: View {
                 let deletable = items(for: selection).filter { !$0.isParentDirectoryEntry }
                 contextActions.delete(deletable)
             },
+            canNavigateBack: { canNavigateBack },
+            onNavigateBack: onNavigateBack,
             onTableFocusChanged: { focused in
                 guard focused, isQuickSearchVisible else { return }
                 // AppKit 表格接管 firstResponder 时，显式让快速搜索框失焦并启动自动关闭计时。
@@ -3422,6 +3433,51 @@ struct FileListView: View {
             paths.insert(url.path)
         }
         return Array(paths)
+    }
+}
+
+/// 目录切换后自动聚焦文件列表（NSTableView），便于立即键入快速搜索。
+private struct FileListAutoFocusRequester: NSViewRepresentable {
+    let token: UInt
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.requestFocusIfNeeded(token: token, view: nsView)
+    }
+    
+    final class Coordinator {
+        private var lastToken: UInt = 0
+        
+        func requestFocusIfNeeded(token: UInt, view: NSView) {
+            guard token != lastToken else { return }
+            lastToken = token
+            DispatchQueue.main.async {
+                guard let window = view.window,
+                      let contentView = window.contentView,
+                      let tableView = Self.findFileListTableView(in: contentView)
+                else { return }
+                window.makeFirstResponder(tableView)
+            }
+        }
+        
+        private static func findFileListTableView(in root: NSView) -> NSTableView? {
+            if let table = root as? NSTableView, table.delegate is FileListTableController {
+                return table
+            }
+            for subview in root.subviews {
+                if let found = findFileListTableView(in: subview) {
+                    return found
+                }
+            }
+            return nil
+        }
     }
 }
 
