@@ -31,10 +31,14 @@ public final class FileListTableController: NSObject {
     private var columnMoveObserver: NSObjectProtocol?
     private var headerRightClickMonitor: Any?
     private var widthSaveWorkItem: DispatchWorkItem?
+    private var paddingAfterResizeWorkItem: DispatchWorkItem?
     private var isApplyingColumnLayout = false
     private var isUpdatingPaddingColumn = false
     private var pendingPaddingLayout = false
     private var lastColumnStructureToken = ""
+    private var lastFillLayoutRowCount = -1
+    private var lastFillLayoutClipHeight: CGFloat = -1
+    private var lastFillLayoutClipWidth: CGFloat = -1
     
     private let userResizing = NSTableColumn.ResizingOptions(rawValue: 1 << 1)
     
@@ -59,6 +63,7 @@ public final class FileListTableController: NSObject {
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
         tableView.allowsColumnReordering = true
+        tableView.allowsColumnResizing = true
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.delegate = self
         tableView.dataSource = self
@@ -95,6 +100,7 @@ public final class FileListTableController: NSObject {
         self.scrollView = scrollView
         
         installObservers()
+        ensureTableViewFillsClipViewIfNeeded()
         return scrollView
     }
     
@@ -126,6 +132,7 @@ public final class FileListTableController: NSObject {
         displayRows = newDisplay
         
         if displayChanged || searchChanged {
+            lastFillLayoutRowCount = -1
             FileListTableAnimations.performWithoutAnimation {
                 tableView?.reloadData()
                 updateSortIndicators(for: sort)
@@ -144,6 +151,7 @@ public final class FileListTableController: NSObject {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.pendingPaddingLayout = false
+            self.ensureTableViewFillsClipViewIfNeeded()
             self.updatePaddingColumnWidth()
         }
     }
@@ -209,6 +217,82 @@ public final class FileListTableController: NSObject {
         let columnIndex = tableView.column(at: point)
         guard columnIndex >= 0, columnIndex < tableView.tableColumns.count else { return false }
         return FileListPaddingColumn.isPadding(tableView.tableColumns[columnIndex])
+    }
+    
+    /// 最后一行下方的空白区（行数较少时列表底部留白）。
+    func isBelowRowsBlankPoint(_ point: NSPoint, in tableView: NSTableView) -> Bool {
+        guard tableView.bounds.contains(point) else { return false }
+        
+        if let headerView = tableView.headerView, headerView.frame.contains(point) {
+            return false
+        }
+        
+        // 用系统行命中检测，避免手写 Y 坐标在翻转/拉伸后误判整表为空白。
+        return tableView.row(at: point) < 0
+    }
+    
+    /// 右侧 padding 列或行下方的空白区。
+    func isBlankInteractivePoint(_ point: NSPoint, in tableView: NSTableView) -> Bool {
+        isBlankPaddingPoint(point, in: tableView) || isBelowRowsBlankPoint(point, in: tableView)
+    }
+    
+    /// 让表格至少铺满滚动区域，使底部留白能接收点击。
+    func ensureTableViewFillsClipViewIfNeeded() {
+        guard let scrollView, let tableView else { return }
+        let clipSize = scrollView.contentView.bounds.size
+        let rowCount = tableView.numberOfRows
+        guard rowCount != lastFillLayoutRowCount
+                || abs(clipSize.height - lastFillLayoutClipHeight) > 0.5
+                || abs(clipSize.width - lastFillLayoutClipWidth) > 0.5
+        else { return }
+        
+        lastFillLayoutRowCount = rowCount
+        lastFillLayoutClipHeight = clipSize.height
+        lastFillLayoutClipWidth = clipSize.width
+        ensureTableViewFillsClipView()
+    }
+    
+    /// 让表格至少铺满滚动区域，使底部留白能接收点击。
+    func ensureTableViewFillsClipView() {
+        guard let scrollView, let tableView else { return }
+        let clipView = scrollView.contentView
+        let clipSize = clipView.bounds.size
+        guard clipSize.width > 1, clipSize.height > 1 else { return }
+        
+        let contentHeight = measuredTableContentHeight()
+        let targetHeight = max(contentHeight, clipSize.height)
+        var frame = tableView.frame
+        var changed = false
+        
+        let heightDelta = targetHeight - frame.size.height
+        if abs(heightDelta) > 0.5 {
+            frame.size.height = targetHeight
+            frame.origin.y -= heightDelta
+            changed = true
+        }
+        if abs(frame.size.width - clipSize.width) > 0.5 {
+            frame.size.width = clipSize.width
+            changed = true
+        }
+        if changed {
+            let savedBoundsOrigin = clipView.bounds.origin
+            tableView.frame = frame
+            clipView.bounds.origin = savedBoundsOrigin
+        }
+    }
+    
+    private func measuredTableContentHeight() -> CGFloat {
+        guard let tableView else { return 0 }
+        tableView.layoutSubtreeIfNeeded()
+        
+        let headerHeight = tableView.headerView?.frame.height ?? 0
+        let rowCount = tableView.numberOfRows
+        guard rowCount > 0 else { return headerHeight }
+        
+        let firstRowRect = tableView.rect(ofRow: 0)
+        let lastRowRect = tableView.rect(ofRow: rowCount - 1)
+        let rowsSpan = abs(firstRowRect.maxY - lastRowRect.minY)
+        return headerHeight + rowsSpan
     }
     
     private var contentBackgroundMaxX: CGFloat = 0
@@ -329,9 +413,20 @@ public final class FileListTableController: NSObject {
         widthSaveWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
             self?.captureColumnWidths()
+            self?.updatePaddingColumnWidth()
         }
         widthSaveWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+    }
+    
+    /// 列宽拖拽过程中不立即改 padding 列，避免打断系统调宽。
+    private func schedulePaddingColumnWidthAfterResize() {
+        paddingAfterResizeWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.updatePaddingColumnWidth()
+        }
+        paddingAfterResizeWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
     }
     
     private func syncOrderFromTableView() {
@@ -474,7 +569,7 @@ public final class FileListTableController: NSObject {
                 return
             }
             self.scheduleWidthSave()
-            self.schedulePaddingColumnLayout()
+            self.schedulePaddingColumnWidthAfterResize()
         }
         
         columnMoveObserver = NotificationCenter.default.addObserver(

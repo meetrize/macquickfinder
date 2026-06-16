@@ -2390,7 +2390,10 @@ struct FileListView: View {
                 )
             },
             dropDestinationPath: { row in
-                guard row.isDirectory, !row.isParentDirectoryEntry else { return nil }
+                if row.isParentDirectoryEntry {
+                    return parentDirectoryURL?.path
+                }
+                guard row.isDirectory else { return nil }
                 return row.iconPath
             },
             canAcceptDrop: { destinationPath, urls in

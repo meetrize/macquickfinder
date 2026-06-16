@@ -11,7 +11,7 @@ final class FileListTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil)
         let row = row(at: point)
         
-        if interactionController?.isBlankPaddingPoint(point, in: self) == true {
+        if interactionController?.isBlankInteractivePoint(point, in: self) == true {
             interactionController?.handleBlankMouseDown(event)
             return
         }

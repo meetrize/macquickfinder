@@ -15,6 +15,8 @@ extension FileListTableController {
     
     func shouldUseDefaultMouseDown(for row: Int, event: NSEvent) -> Bool {
         guard row >= 0, row < displayRows.count else { return true }
+        // 双击第二下时行往往已选中；须走系统 mouseDown 才能触发 doubleAction。
+        if event.clickCount >= 2 { return true }
         let flags = event.modifierFlags
         if flags.contains(.command) || flags.contains(.shift) { return true }
         return !effectiveSelectionIDs().contains(displayRows[row].id)
@@ -118,7 +120,7 @@ extension FileListTableController {
         guard let tableView else { return }
         let point = tableView.convert(event.locationInWindow, from: nil)
         
-        if isBlankPaddingPoint(point, in: tableView) {
+        if isBlankInteractivePoint(point, in: tableView) {
             showBlankContextMenu(for: event)
             return
         }
