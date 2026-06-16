@@ -46,7 +46,14 @@ final class FileListRowView: NSTableRowView {
             ? NSColor.selectedContentBackgroundColor
             : NSColor.unemphasizedSelectedContentBackgroundColor
         color.setFill()
-        clipped.fill()
+        
+        // Finder 风格：选中高亮采用轻微导角，避免整块直角背景过于生硬。
+        let insetRect = clipped.insetBy(dx: 1, dy: 1)
+        if insetRect.width > 2, insetRect.height > 2 {
+            NSBezierPath(roundedRect: insetRect, xRadius: 4, yRadius: 4).fill()
+        } else {
+            clipped.fill()
+        }
     }
     
     private func contentClip(of dirtyRect: NSRect) -> NSRect {
