@@ -1660,7 +1660,6 @@ struct ContentView: View {
                                 searchText: searchText,
                                 currentDirectoryPath: path,
                                 canNavigateToParent: FileItem.canNavigateUp(from: path),
-                                extendsToTrailingEdge: !showPreview,
                                 onItemOpen: openItem,
                                 onBlankDoubleClick: handleBlankDoubleClick,
                                 onItemsChanged: {
@@ -2316,8 +2315,6 @@ struct FileListView: View {
     let searchText: String
     let currentDirectoryPath: String
     let canNavigateToParent: Bool
-    /// 无预览面板时，表格区域可延伸到主面板右缘（滚动条贴边）。
-    var extendsToTrailingEdge = true
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
     let onItemsChanged: () -> Void
@@ -2341,27 +2338,9 @@ struct FileListView: View {
     }
     
     var body: some View {
-        FileListPanelLayout(
-            rowCount: tableRowItems.count,
-            rowID: { row in
-                guard tableRowItems.indices.contains(row) else { return nil }
-                return tableRowItems[row].id
-            },
-            selection: $selection,
-            menuActions: blankMenuActions,
-            onBlankSingleClick: {
-                if !selection.isEmpty {
-                    selection.removeAll()
-                }
-            },
-            onBlankDoubleClick: onBlankDoubleClick
-        ) {
+        FileListPanelLayout {
             fileTable
                 .frame(maxHeight: .infinity)
-                .padding(
-                    .trailing,
-                    extendsToTrailingEdge ? -FileListLayoutMetrics.tableStyleTrailingMargin : 0
-                )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDrop(
@@ -2387,6 +2366,12 @@ struct FileListView: View {
         let tableInteraction = FileListTableInteraction(
             searchText: searchText,
             blankMenuActions: blankMenuActions,
+            onBlankSingleClick: {
+                if !selection.isEmpty {
+                    selection.removeAll()
+                }
+            },
+            onBlankDoubleClick: onBlankDoubleClick,
             canDelete: {
                 !selection.isEmpty && !selection.contains(FileItem.parentDirectoryID)
             },

@@ -5,6 +5,8 @@ import Foundation
 public struct FileListTableInteraction {
     public var searchText: String
     public var blankMenuActions: FileListBlankMenuActions
+    public var onBlankSingleClick: () -> Void
+    public var onBlankDoubleClick: () -> Void
     public var canDelete: () -> Bool
     public var onDelete: () -> Void
     public var onDragEnded: () -> Void
@@ -16,6 +18,8 @@ public struct FileListTableInteraction {
     public init(
         searchText: String = "",
         blankMenuActions: FileListBlankMenuActions = FileListBlankMenuActions(),
+        onBlankSingleClick: @escaping () -> Void = {},
+        onBlankDoubleClick: @escaping () -> Void = {},
         canDelete: @escaping () -> Bool = { false },
         onDelete: @escaping () -> Void = {},
         onDragEnded: @escaping () -> Void = {},
@@ -26,6 +30,8 @@ public struct FileListTableInteraction {
     ) {
         self.searchText = searchText
         self.blankMenuActions = blankMenuActions
+        self.onBlankSingleClick = onBlankSingleClick
+        self.onBlankDoubleClick = onBlankDoubleClick
         self.canDelete = canDelete
         self.onDelete = onDelete
         self.onDragEnded = onDragEnded

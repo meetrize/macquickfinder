@@ -20,6 +20,8 @@ public final class FileListTableController: NSObject {
     var mouseDownLocation: NSPoint?
     var mouseDownEvent: NSEvent?
     var dragSessionActive = false
+    var blankMouseDownEvent: NSEvent?
+    var blankIsDragSelecting = false
     var dropHighlightRow: Int?
     let dragThreshold: CGFloat = 4
     
@@ -30,6 +32,8 @@ public final class FileListTableController: NSObject {
     private var headerRightClickMonitor: Any?
     private var widthSaveWorkItem: DispatchWorkItem?
     private var isApplyingColumnLayout = false
+    private var isUpdatingPaddingColumn = false
+    private var pendingPaddingLayout = false
     private var lastColumnStructureToken = ""
     
     private let userResizing = NSTableColumn.ResizingOptions(rawValue: 1 << 1)
@@ -48,7 +52,7 @@ public final class FileListTableController: NSObject {
     public func makeScrollView() -> NSScrollView {
         let tableView = FileListTableView()
         tableView.interactionController = self
-        tableView.style = .inset
+        tableView.style = .fullWidth
         tableView.rowHeight = 22
         tableView.intercellSpacing = NSSize(width: 6, height: 0)
         tableView.usesAlternatingRowBackgroundColors = true
@@ -76,6 +80,7 @@ public final class FileListTableController: NSObject {
             column.resizingMask = userResizing
             tableView.addTableColumn(column)
         }
+        tableView.addTableColumn(FileListPaddingColumn.makeColumn())
         
         let scrollView = NSScrollView()
         scrollView.borderType = .noBorder
@@ -83,6 +88,7 @@ public final class FileListTableController: NSObject {
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
         scrollView.documentView = tableView
         
         self.tableView = tableView
@@ -128,8 +134,84 @@ public final class FileListTableController: NSObject {
             updateSortIndicators(for: sort)
         }
         
+        schedulePaddingColumnLayout()
         syncSelectionToTable()
     }
+    
+    func schedulePaddingColumnLayout() {
+        guard !pendingPaddingLayout else { return }
+        pendingPaddingLayout = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pendingPaddingLayout = false
+            self.updatePaddingColumnWidth()
+        }
+    }
+    
+    func dataColumnsTrailingX(in tableView: NSTableView) -> CGFloat {
+        var trailing: CGFloat = 0
+        for column in tableView.tableColumns {
+            guard !FileListPaddingColumn.isPadding(column), !column.isHidden else { continue }
+            trailing += column.width
+        }
+        return trailing
+    }
+    
+    func refreshVisibleRowContentClip() {
+        guard let tableView else { return }
+        let dataWidth = dataColumnsTrailingX(in: tableView)
+        let visible = tableView.rows(in: tableView.visibleRect)
+        guard visible.length > 0 else { return }
+        for row in visible.location..<(visible.location + visible.length) {
+            guard let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? FileListRowView else {
+                continue
+            }
+            rowView.contentBackgroundMaxX = dataWidth
+            rowView.needsDisplay = true
+        }
+    }
+    
+    func updatePaddingColumnWidth() {
+        guard let tableView, let padding = FileListPaddingColumn.column(in: tableView) else { return }
+        guard !isUpdatingPaddingColumn else { return }
+        guard tableView.bounds.width > 1 else { return }
+        
+        isUpdatingPaddingColumn = true
+        defer { isUpdatingPaddingColumn = false }
+        
+        ensurePaddingColumnLast()
+        let dataWidth = dataColumnsTrailingX(in: tableView)
+        let trailingWidth = max(0, tableView.bounds.width - dataWidth)
+        if abs(padding.width - trailingWidth) > 0.5 {
+            padding.width = trailingWidth
+        }
+        contentBackgroundMaxX = dataWidth
+        let rowCount = tableView.numberOfRows
+        guard rowCount > 0 else { return }
+        for row in 0..<rowCount {
+            guard let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? FileListRowView else {
+                continue
+            }
+            rowView.contentBackgroundMaxX = dataWidth
+            rowView.needsDisplay = true
+        }
+    }
+    
+    func ensurePaddingColumnLast() {
+        guard let tableView, let padding = FileListPaddingColumn.column(in: tableView),
+              let lastIndex = tableView.tableColumns.indices.last,
+              tableView.tableColumns[lastIndex] !== padding,
+              let currentIndex = tableView.tableColumns.firstIndex(of: padding) else { return }
+        tableView.moveColumn(currentIndex, toColumn: lastIndex)
+    }
+    
+    func isBlankPaddingPoint(_ point: NSPoint, in tableView: NSTableView) -> Bool {
+        let columnIndex = tableView.column(at: point)
+        guard columnIndex >= 0, columnIndex < tableView.tableColumns.count else { return false }
+        return FileListPaddingColumn.isPadding(tableView.tableColumns[columnIndex])
+    }
+    
+    private var contentBackgroundMaxX: CGFloat = 0
     
     // MARK: - Sort
     
@@ -205,6 +287,8 @@ public final class FileListTableController: NSObject {
                     tableView.moveColumn(currentIndex, toColumn: targetIndex)
                 }
             }
+            ensurePaddingColumnLast()
+            schedulePaddingColumnLayout()
         }
     }
     
@@ -263,9 +347,11 @@ public final class FileListTableController: NSObject {
             newOrder.append(columnID)
         }
         
-        captureColumnWidths()
         var configuration = preferencesStore.configuration
         guard configuration.order != newOrder else { return }
+        
+        captureColumnWidths()
+        configuration = preferencesStore.configuration
         configuration.order = newOrder
         preferencesStore.updateColumns(configuration)
         lastColumnStructureToken = columnStructureToken(from: configuration)
@@ -381,8 +467,14 @@ public final class FileListTableController: NSObject {
             forName: NSTableView.columnDidResizeNotification,
             object: tableView,
             queue: .main
-        ) { [weak self] _ in
-            self?.scheduleWidthSave()
+        ) { [weak self] notification in
+            guard let self, !self.isUpdatingPaddingColumn else { return }
+            if let column = notification.userInfo?["NSTableColumn"] as? NSTableColumn,
+               FileListPaddingColumn.isPadding(column) {
+                return
+            }
+            self.scheduleWidthSave()
+            self.schedulePaddingColumnLayout()
         }
         
         columnMoveObserver = NotificationCenter.default.addObserver(
@@ -390,7 +482,9 @@ public final class FileListTableController: NSObject {
             object: tableView,
             queue: .main
         ) { [weak self] _ in
-            self?.syncOrderFromTableView()
+            guard let self, !self.isUpdatingPaddingColumn else { return }
+            self.syncOrderFromTableView()
+            self.schedulePaddingColumnLayout()
         }
         
         headerRightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) {
@@ -435,9 +529,19 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
     }
     
     public func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard let tableColumn,
-              let columnID = FileListColumnID.from(column: tableColumn),
-              row >= 0, row < displayRows.count else { return nil }
+        guard let tableColumn, row >= 0, row < displayRows.count else { return nil }
+        
+        if FileListPaddingColumn.isPadding(tableColumn) {
+            let identifier = NSUserInterfaceItemIdentifier("FileListCell.padding")
+            if let reused = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView {
+                return reused
+            }
+            let cell = NSTableCellView()
+            cell.identifier = identifier
+            return cell
+        }
+        
+        guard let columnID = FileListColumnID.from(column: tableColumn) else { return nil }
         
         let item = displayRows[row]
         let identifier = NSUserInterfaceItemIdentifier("FileListCell.\(columnID.rawValue)")
@@ -455,6 +559,19 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
     
     public func tableViewSelectionDidChange(_ notification: Notification) {
         syncSelectionFromTable()
+        refreshVisibleRowContentClip()
+    }
+    
+    public func tableView(
+        _ tableView: NSTableView,
+        shouldReorderColumn columnIndex: Int,
+        toColumn newColumnIndex: Int
+    ) -> Bool {
+        guard columnIndex >= 0, columnIndex < tableView.tableColumns.count else { return false }
+        guard newColumnIndex >= 0, newColumnIndex < tableView.tableColumns.count else { return false }
+        let moving = tableView.tableColumns[columnIndex]
+        let target = tableView.tableColumns[newColumnIndex]
+        return !FileListPaddingColumn.isPadding(moving) && !FileListPaddingColumn.isPadding(target)
     }
     
     private func makeCell(for columnID: FileListColumnID, identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {

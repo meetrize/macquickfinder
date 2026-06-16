@@ -25,7 +25,70 @@ extension FileListTableController {
         mouseDownEvent = event
     }
     
+    func handleBlankMouseDown(_ event: NSEvent) {
+        blankMouseDownEvent = event
+        blankIsDragSelecting = false
+        
+        if event.clickCount >= 2 {
+            blankMouseDownEvent = nil
+            interaction.onBlankDoubleClick()
+            return
+        }
+        interaction.onBlankSingleClick()
+    }
+    
+    func handleBlankMouseDragged(_ event: NSEvent) -> Bool {
+        guard let tableView, let blankMouseDownEvent else { return false }
+        if !blankIsDragSelecting {
+            let deltaX = event.locationInWindow.x - blankMouseDownEvent.locationInWindow.x
+            let deltaY = event.locationInWindow.y - blankMouseDownEvent.locationInWindow.y
+            guard hypot(deltaX, deltaY) >= dragThreshold else { return false }
+            blankIsDragSelecting = true
+        }
+        
+        let startY = tableView.convert(blankMouseDownEvent.locationInWindow, from: nil).y
+        let currentY = tableView.convert(event.locationInWindow, from: nil).y
+        let rows = rowsInVerticalRange(minY: startY, maxY: currentY, tableView: tableView)
+        var indexes = IndexSet()
+        for row in rows where row >= 0 && row < displayRows.count {
+            indexes.insert(row)
+        }
+        if tableView.selectedRowIndexes != indexes {
+            tableView.selectRowIndexes(indexes, byExtendingSelection: false)
+            syncSelectionFromTable()
+        }
+        return true
+    }
+    
+    func handleBlankMouseUp() {
+        blankMouseDownEvent = nil
+        blankIsDragSelecting = false
+    }
+    
+    private func rowsInVerticalRange(minY: CGFloat, maxY: CGFloat, tableView: NSTableView) -> IndexSet {
+        let lower = min(minY, maxY)
+        let upper = max(minY, maxY)
+        var rows = IndexSet()
+        for row in 0..<tableView.numberOfRows {
+            let rowRect = tableView.rect(ofRow: row)
+            if rowRect.maxY >= lower && rowRect.minY <= upper {
+                rows.insert(row)
+            }
+        }
+        return rows
+    }
+    
+    private func showBlankContextMenu(for event: NSEvent) {
+        guard let tableView, interaction.blankMenuActions.isEnabled else { return }
+        let controller = FileListBlankMenuController(actions: interaction.blankMenuActions)
+        let menu = controller.makeMenu()
+        guard !menu.items.isEmpty else { return }
+        NSMenu.popUpContextMenu(menu, with: event, for: tableView)
+    }
+    
     func handleMouseDragged(_ event: NSEvent) -> Bool {
+        if handleBlankMouseDragged(event) { return true }
+        
         guard !dragSessionActive,
               let start = mouseDownLocation,
               let mouseDownEvent else { return false }
@@ -54,6 +117,12 @@ extension FileListTableController {
     func handleRightMouseDown(_ event: NSEvent) {
         guard let tableView else { return }
         let point = tableView.convert(event.locationInWindow, from: nil)
+        
+        if isBlankPaddingPoint(point, in: tableView) {
+            showBlankContextMenu(for: event)
+            return
+        }
+        
         let row = tableView.row(at: point)
         
         if row >= 0, row < displayRows.count {
@@ -70,10 +139,7 @@ extension FileListTableController {
         }
         
         guard tableView.bounds.contains(point), interaction.blankMenuActions.isEnabled else { return }
-        let controller = FileListBlankMenuController(actions: interaction.blankMenuActions)
-        let menu = controller.makeMenu()
-        guard !menu.items.isEmpty else { return }
-        NSMenu.popUpContextMenu(menu, with: event, for: tableView)
+        showBlankContextMenu(for: event)
     }
     
     // MARK: - Drag source
@@ -204,7 +270,11 @@ extension FileListTableController {
             rowView = FileListRowView()
             rowView.identifier = identifier
         }
+        if #available(macOS 11.0, *) {
+            rowView.selectionHighlightStyle = .none
+        }
         rowView.isDropTargetRow = row == dropHighlightRow
+        rowView.contentBackgroundMaxX = dataColumnsTrailingX(in: tableView)
         return rowView
     }
     

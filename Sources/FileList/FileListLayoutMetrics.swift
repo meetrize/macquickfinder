@@ -8,9 +8,7 @@ public enum FileListLayoutMetrics {
     /// 与 SwiftUI `Table` / `NSTableView` 表头高度对齐（Phase 2 可改为实测）。
     public static let tableHeaderHeight: CGFloat = 24
     
-    /// `.tableStyle(.inset)` 在表格外侧留出的尾缘，用于抵消后让滚动条贴齐 90% 区域右缘。
-    public static let tableStyleTrailingMargin: CGFloat = 12
-    
+    /// 右侧空白区中留给垂直滚动条叠放的最小宽度（空白区交互宽度 = blankArea − 此值）。
     public static var verticalScrollerWidth: CGFloat {
         NSScroller.scrollerWidth(for: .regular, scrollerStyle: .overlay)
     }

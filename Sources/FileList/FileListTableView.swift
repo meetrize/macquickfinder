@@ -11,6 +11,12 @@ final class FileListTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil)
         let row = row(at: point)
         
+        if interactionController?.isBlankPaddingPoint(point, in: self) == true {
+            interactionController?.handleBlankMouseDown(event)
+            return
+        }
+        
+        interactionController?.handleBlankMouseUp()
         interactionController?.willHandleMouseDown(event, row: row)
         
         if interactionController?.shouldUseDefaultMouseDown(for: row, event: event) ?? true {
@@ -29,10 +35,20 @@ final class FileListTableView: NSTableView {
         super.mouseDragged(with: event)
     }
     
+    override func mouseUp(with event: NSEvent) {
+        interactionController?.handleBlankMouseUp()
+        super.mouseUp(with: event)
+    }
+    
     override func keyDown(with event: NSEvent) {
         if interactionController?.handleKeyDown(event) == true {
             return
         }
         super.keyDown(with: event)
+    }
+    
+    override func resize(withOldSuperviewSize oldSize: NSSize) {
+        super.resize(withOldSuperviewSize: oldSize)
+        interactionController?.schedulePaddingColumnLayout()
     }
 }
