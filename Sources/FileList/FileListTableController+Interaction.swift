@@ -19,9 +19,21 @@ extension FileListTableController {
         if event.clickCount >= 2 { return true }
         let flags = event.modifierFlags
         if flags.contains(.command) || flags.contains(.shift) { return true }
-        // 以表格实际选中状态为准；binding 可能尚未同步，误用 effectiveSelectionIDs 会吞掉首次点击。
-        guard let tableView else { return true }
-        return !tableView.selectedRowIndexes.contains(row)
+        // 普通单击自行处理选中，避免系统 mouseDown 进入框选追踪。
+        return false
+    }
+    
+    func handleRowMouseDown(row: Int, event: NSEvent) {
+        guard let tableView, row >= 0, row < displayRows.count else { return }
+        guard event.clickCount == 1 else { return }
+        let flags = event.modifierFlags
+        if flags.contains(.command) || flags.contains(.shift) { return }
+        
+        if !tableView.selectedRowIndexes.contains(row) {
+            tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+            syncSelectionFromTable()
+        }
+        refreshVisibleRowContentClip()
     }
     
     func didHandleMouseDown(_ event: NSEvent, row: Int) {
@@ -37,6 +49,7 @@ extension FileListTableController {
         dragSessionActive = false
         
         blankMouseDownEvent = event
+        blankDragSelecting = false
         
         if event.clickCount >= 2 {
             blankMouseDownEvent = nil
@@ -63,13 +76,46 @@ extension FileListTableController {
         refreshVisibleRowContentClip()
     }
     
-    /// 空白区拖拽仅取消选中，不框选、不触发文件拖放。
+    /// 空白区纵向框选；不触发文件拖放。
     func handleBlankMouseDragged(_ event: NSEvent) -> Bool {
-        blankMouseDownEvent != nil
+        guard let startEvent = blankMouseDownEvent, let tableView else { return false }
+        
+        if !blankDragSelecting {
+            let deltaX = event.locationInWindow.x - startEvent.locationInWindow.x
+            let deltaY = event.locationInWindow.y - startEvent.locationInWindow.y
+            guard hypot(deltaX, deltaY) >= dragThreshold else { return true }
+            blankDragSelecting = true
+        }
+        
+        let startY = tableView.convert(startEvent.locationInWindow, from: nil).y
+        let currentY = tableView.convert(event.locationInWindow, from: nil).y
+        let rows = rowsInVerticalRange(minY: startY, maxY: currentY, in: tableView)
+        tableView.selectRowIndexes(rows, byExtendingSelection: false)
+        syncSelectionFromTable()
+        refreshVisibleRowContentClip()
+        return true
     }
     
     func handleBlankMouseUp() {
         blankMouseDownEvent = nil
+        blankDragSelecting = false
+    }
+    
+    private func rowsInVerticalRange(
+        minY: CGFloat,
+        maxY: CGFloat,
+        in tableView: NSTableView
+    ) -> IndexSet {
+        let lower = min(minY, maxY)
+        let upper = max(minY, maxY)
+        var rows = IndexSet()
+        for row in 0..<tableView.numberOfRows {
+            let rowRect = tableView.rect(ofRow: row)
+            if rowRect.maxY >= lower && rowRect.minY <= upper {
+                rows.insert(row)
+            }
+        }
+        return rows
     }
     
     private func showBlankContextMenu(for event: NSEvent) {
@@ -94,6 +140,15 @@ extension FileListTableController {
         guard distance >= dragThreshold else { return false }
         let row = mouseDownRow
         guard row >= 0, row < displayRows.count else { return false }
+        
+        if let tableView, !tableView.selectedRowIndexes.contains(row) {
+            let flags = mouseDownEvent?.modifierFlags ?? []
+            if !flags.contains(.command) && !flags.contains(.shift) {
+                tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                syncSelectionFromTable()
+                refreshVisibleRowContentClip()
+            }
+        }
         
         dragSessionActive = true
         beginDrag(for: displayRows[row], rowIndex: row, event: event)

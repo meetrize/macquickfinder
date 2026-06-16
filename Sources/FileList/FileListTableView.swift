@@ -23,22 +23,15 @@ final class FileListTableView: NSTableView {
             super.mouseDown(with: event)
         } else {
             window?.makeFirstResponder(self)
-            interactionController?.syncSelectionFromTable()
-            interactionController?.refreshVisibleRowContentClip()
+            interactionController?.handleRowMouseDown(row: row, event: event)
         }
         
         interactionController?.didHandleMouseDown(event, row: row)
     }
     
     override func mouseDragged(with event: NSEvent) {
-        if interactionController?.handleMouseDragged(event) == true {
-            return
-        }
-        let point = convert(event.locationInWindow, from: nil)
-        if interactionController?.isBlankInteractivePoint(point, in: self) == true {
-            return
-        }
-        super.mouseDragged(with: event)
+        _ = interactionController?.handleMouseDragged(event)
+        // 不透传 super，避免从文件行触发系统框选；框选仅由空白区拖拽处理。
     }
     
     override func mouseUp(with event: NSEvent) {

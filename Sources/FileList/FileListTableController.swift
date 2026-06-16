@@ -21,6 +21,7 @@ public final class FileListTableController: NSObject {
     var mouseDownEvent: NSEvent?
     var dragSessionActive = false
     var blankMouseDownEvent: NSEvent?
+    var blankDragSelecting = false
     var dropHighlightRow: Int?
     let dragThreshold: CGFloat = 4
     
@@ -238,6 +239,7 @@ public final class FileListTableController: NSObject {
         mouseDownEvent = nil
         mouseDownRow = -1
         mouseDownLocation = nil
+        blankDragSelecting = false
         flushPendingDirectorySizeRefreshIfNeeded()
     }
     
