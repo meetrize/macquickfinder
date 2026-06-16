@@ -400,35 +400,55 @@ private enum BarTextFieldFocusRegistry {
     
     static func selectAll(_ id: BarTextFieldID) {
         guard let field = field(for: id), let window = field.window else { return }
-        window.makeFirstResponder(field)
+        if field.currentEditor() == nil {
+            field.selectText(nil)
+        }
         if let editor = field.currentEditor() {
+            window.makeFirstResponder(editor)
             editor.selectAll(nil)
         } else {
+            window.makeFirstResponder(field)
             field.selectText(nil)
+            field.currentEditor()?.selectAll(nil)
         }
     }
     
     static func focusWhenReady(
         _ id: BarTextFieldID,
         selectAll: Bool = false,
+        onComplete: ((Bool) -> Void)? = nil,
         attempt: Int = 0
     ) {
-        guard attempt < 12 else { return }
+        guard attempt < 30 else {
+            onComplete?(false)
+            return
+        }
         guard let field = field(for: id), field.window != nil else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) {
-                focusWhenReady(id, selectAll: selectAll, attempt: attempt + 1)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+                focusWhenReady(id, selectAll: selectAll, onComplete: onComplete, attempt: attempt + 1)
             }
             return
         }
-        focus(id)
-        guard selectAll else { return }
-        DispatchQueue.main.async {
-            if let editor = field.currentEditor() {
-                editor.selectAll(nil)
-            } else {
+        
+        if selectAll {
+            Self.selectAll(id)
+        } else {
+            focus(id)
+            if field.currentEditor() == nil {
                 field.selectText(nil)
             }
+            if let editor = field.currentEditor() {
+                field.window?.makeFirstResponder(editor)
+            }
         }
+        
+        guard hasActiveFieldEditor(field) else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+                focusWhenReady(id, selectAll: selectAll, onComplete: onComplete, attempt: attempt + 1)
+            }
+            return
+        }
+        onComplete?(true)
     }
     
     static func resign(_ id: BarTextFieldID) {
@@ -453,20 +473,24 @@ private enum BarTextFieldFocusRegistry {
     }
     
     static func currentEditingField() -> BarTextFieldID? {
-        if let searchField, isFieldEditing(searchField) { return .search }
-        if let pathField, isFieldEditing(pathField) { return .path }
+        if let searchField, hasActiveFieldEditor(searchField) { return .search }
+        if let pathField, hasActiveFieldEditor(pathField) { return .path }
         return nil
     }
     
-    private static func isFieldEditing(_ field: NSTextField) -> Bool {
+    private static func hasActiveFieldEditor(_ field: NSTextField) -> Bool {
+        guard let editor = field.currentEditor() else { return false }
         guard let window = field.window, let responder = window.firstResponder else { return false }
-        if responder === field { return true }
+        if responder === editor { return true }
+        if let view = responder as? NSView, view.isDescendant(of: editor) { return true }
+        return false
+    }
+    
+    private static func isFieldEditing(_ field: NSTextField) -> Bool {
+        if hasActiveFieldEditor(field) { return true }
+        guard let window = field.window, let responder = window.firstResponder else { return false }
+        if responder === field { return field.currentEditor() != nil }
         if let view = responder as? NSView, view.isDescendant(of: field) { return true }
-        if let textView = responder as? NSTextView,
-           let delegate = textView.delegate as AnyObject?,
-           delegate === field {
-            return true
-        }
         return false
     }
 }
@@ -676,8 +700,9 @@ private struct BarTextFieldFocusSync: NSViewRepresentable {
             }
         }
         
+        /// 仅在有真实 field editor 时提升 activeField，避免同一次点击把尚未完成的聚焦清回 nil。
         fileprivate func syncFromResponder() {
-            let current = BarTextFieldFocusRegistry.currentEditingField()
+            guard let current = BarTextFieldFocusRegistry.currentEditingField() else { return }
             guard activeField != current else { return }
             activeField = current
         }
@@ -699,6 +724,7 @@ enum BarTextFieldShape {
 private struct BarTextFieldFocusObserver: NSViewRepresentable {
     let fieldID: BarTextFieldID
     @Binding var activeField: BarTextFieldID?
+    var retainHighlight: Bool = false
     
     func makeCoordinator() -> Coordinator {
         Coordinator(fieldID: fieldID, activeField: $activeField)
@@ -711,12 +737,14 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.retainHighlight = retainHighlight
         context.coordinator.refreshEditingState()
     }
     
     final class Coordinator {
         let fieldID: BarTextFieldID
         @Binding var activeField: BarTextFieldID?
+        var retainHighlight = false
         private weak var anchorView: NSView?
         private weak var textField: NSTextField?
         private var observers: [NSObjectProtocol] = []
@@ -794,7 +822,7 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
             guard textField != nil else { return }
             if BarTextFieldFocusRegistry.currentEditingField() == fieldID {
                 activateField()
-            } else {
+            } else if !retainHighlight {
                 deactivateFieldIfNeeded()
             }
         }
@@ -1082,7 +1110,7 @@ private struct PathBarView: View {
     private let fieldHeight: CGFloat = 28
     
     private var showsFocusBorder: Bool {
-        activeField == .path
+        mode == .text || activeField == .path
     }
     
     private var borderColor: Color {
@@ -1102,7 +1130,11 @@ private struct PathBarView: View {
                 .frame(maxHeight: .infinity, alignment: .center)
                 .onSubmit(commitPath)
                 .background(
-                    BarTextFieldFocusObserver(fieldID: .path, activeField: $activeField)
+                    BarTextFieldFocusObserver(
+                        fieldID: .path,
+                        activeField: $activeField,
+                        retainHighlight: mode == .text
+                    )
                 )
             
             if mode == .breadcrumb {
@@ -1145,6 +1177,9 @@ private struct PathBarView: View {
         }
         .onChange(of: mode) { newMode in
             isTextMode = newMode == .text
+            guard newMode == .text else { return }
+            activeField = .path
+            requestPathFieldFocus()
         }
         .onChange(of: isTextMode) { active in
             guard !active, mode == .text else { return }
@@ -1168,7 +1203,8 @@ private struct PathBarView: View {
                 return
             }
             
-            if oldValue == .path, mode == .text {
+            if oldValue == .path, mode == .text, newValue != .path {
+                guard newValue == .search else { return }
                 if !committedViaSubmit {
                     editingText = displayPath
                 }
@@ -1178,11 +1214,23 @@ private struct PathBarView: View {
         }
     }
     
-    private func enterTextMode() {
-        editingText = path
-        mode = .text
+    private func requestPathFieldFocus() {
         DispatchQueue.main.async {
-            BarTextFieldFocusRegistry.focusWhenReady(.path, selectAll: true)
+            BarTextFieldFocusRegistry.focusWhenReady(.path, selectAll: true) { succeeded in
+                guard succeeded else { return }
+                activeField = .path
+            }
+        }
+    }
+    
+    private func enterTextMode() {
+        editingText = displayPath
+        activeField = .path
+        isTextMode = true
+        if mode == .text {
+            requestPathFieldFocus()
+        } else {
+            mode = .text
         }
     }
     
@@ -1231,6 +1279,43 @@ private struct PathBreadcrumbMetrics {
             isOverflowing: isOverflowing,
             trailingClickWidth: trailingClickWidth
         )
+    }
+}
+
+private struct PathBarBlankClickArea: NSViewRepresentable {
+    let onClick: () -> Void
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onClick: onClick)
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = ClickView()
+        view.coordinator = context.coordinator
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.onClick = onClick
+        (nsView as? ClickView)?.coordinator = context.coordinator
+    }
+    
+    final class Coordinator {
+        var onClick: () -> Void
+        
+        init(onClick: @escaping () -> Void) {
+            self.onClick = onClick
+        }
+    }
+    
+    final class ClickView: NSView {
+        weak var coordinator: Coordinator?
+        
+        override func mouseDown(with event: NSEvent) {
+            coordinator?.onClick()
+        }
+        
+        override var acceptsFirstResponder: Bool { false }
     }
 }
 
@@ -1337,10 +1422,8 @@ private struct PathBreadcrumbView: View {
                         )
                         .allowsHitTesting(false)
                     
-                    Color.clear
+                    PathBarBlankClickArea(onClick: onRequestEdit)
                         .frame(width: metrics.trailingClickWidth, height: fieldHeight)
-                        .contentShape(Rectangle())
-                        .onTapGesture(perform: onRequestEdit)
                         .help("点击编辑完整路径")
                 }
                 .frame(width: geometry.size.width, height: fieldHeight)
