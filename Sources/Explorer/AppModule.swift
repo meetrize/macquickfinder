@@ -380,6 +380,8 @@ enum BarTextFieldID: Hashable {
 private enum BarTextFieldFocusRegistry {
     private static weak var pathField: NSTextField?
     private static weak var searchField: NSTextField?
+    private static weak var pathBarRoot: NSView?
+    private static weak var pathNavigateButton: NSView?
     
     static func register(_ field: NSTextField, for id: BarTextFieldID) {
         switch id {
@@ -465,6 +467,38 @@ private enum BarTextFieldFocusRegistry {
         return hitView === field || hitView.isDescendant(of: field)
     }
     
+    static func isClickInsideNavigateButton(event: NSEvent) -> Bool {
+        guard let button = pathNavigateButton,
+              let window = event.window,
+              let contentView = window.contentView,
+              let hitView = contentView.hitTest(event.locationInWindow) else {
+            return false
+        }
+        return hitView === button || hitView.isDescendant(of: button)
+    }
+    
+    static func isClickInsidePathBar(event: NSEvent) -> Bool {
+        guard let window = event.window,
+              let contentView = window.contentView,
+              let hitView = contentView.hitTest(event.locationInWindow) else {
+            return false
+        }
+        if let button = pathNavigateButton,
+           hitView === button || hitView.isDescendant(of: button) {
+            return true
+        }
+        guard let root = pathBarRoot else { return false }
+        return hitView === root || hitView.isDescendant(of: root)
+    }
+    
+    static func registerPathBarRoot(_ view: NSView) {
+        pathBarRoot = view
+    }
+    
+    static func registerPathNavigateButton(_ view: NSView) {
+        pathNavigateButton = view
+    }
+    
     private static func field(for id: BarTextFieldID) -> NSTextField? {
         switch id {
         case .path: return pathField
@@ -547,6 +581,10 @@ private struct BarFieldOutsideClickHandler: NSViewRepresentable {
             let editingField = BarTextFieldFocusRegistry.currentEditingField()
             let shouldDismissPathText = isPathBarTextMode
             guard editingField != nil || shouldDismissPathText else { return }
+            
+            if BarTextFieldFocusRegistry.isClickInsideNavigateButton(event: event) {
+                return
+            }
             
             if let editingField, BarTextFieldFocusRegistry.isClickInside(editingField, event: event) {
                 return
@@ -1120,6 +1158,24 @@ private struct PathBarView: View {
     private var displayPath: String {
         path
     }
+
+    private var pendingNavigablePath: String? {
+        guard mode == .text else { return nil }
+        let raw = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return nil }
+
+        let expanded = (raw as NSString).expandingTildeInPath
+        let standardized = (expanded as NSString).standardizingPath
+        let current = (path as NSString).standardizingPath
+        guard standardized != current else { return nil }
+
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: standardized, isDirectory: &isDir),
+              isDir.boolValue else {
+            return nil
+        }
+        return standardized
+    }
     
     var body: some View {
         ZStack(alignment: .leading) {
@@ -1127,6 +1183,7 @@ private struct PathBarView: View {
                 .textFieldStyle(.plain)
                 .opacity(mode == .text ? 1 : 0)
                 .allowsHitTesting(mode == .text)
+                .padding(.trailing, pendingNavigablePath == nil ? 0 : 22)
                 .frame(maxHeight: .infinity, alignment: .center)
                 .onSubmit(commitPath)
                 .background(
@@ -1159,6 +1216,16 @@ private struct PathBarView: View {
                 .strokeBorder(borderColor, lineWidth: 1)
                 .allowsHitTesting(false)
         }
+        .overlay(alignment: .trailing) {
+            if let targetPath = pendingNavigablePath {
+                PathBarNavigateButton(targetPath: targetPath) { target in
+                    navigateToPendingPath(target)
+                }
+                .frame(width: 24, height: fieldHeight)
+                .padding(.trailing, 2)
+            }
+        }
+        .background(PathBarRootRegistrar())
         .onAppear {
             editingText = displayPath
             previousActiveField = activeField
@@ -1248,6 +1315,129 @@ private struct PathBarView: View {
         BarTextFieldFocusRegistry.resign(.path)
         activeField = BarTextFieldFocusRegistry.currentEditingField()
         mode = .breadcrumb
+    }
+
+    private func navigateToPendingPath(_ targetPath: String) {
+        committedViaSubmit = true
+        path = targetPath
+        editingText = targetPath
+        isTextMode = false
+        BarTextFieldFocusRegistry.resign(.path)
+        activeField = BarTextFieldFocusRegistry.currentEditingField()
+        mode = .breadcrumb
+    }
+}
+
+private struct PathBarRootRegistrar: NSViewRepresentable {
+    func makeNSView(context: Context) -> RegistrarView {
+        RegistrarView()
+    }
+    
+    func updateNSView(_ nsView: RegistrarView, context: Context) {
+        nsView.registerIfNeeded()
+    }
+    
+    final class RegistrarView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            registerIfNeeded()
+        }
+        
+        override func layout() {
+            super.layout()
+            registerIfNeeded()
+        }
+        
+        fileprivate func registerIfNeeded() {
+            var candidate: NSView? = self
+            while let view = candidate {
+                let typeName = String(describing: type(of: view))
+                if typeName.contains("HostingView") {
+                    BarTextFieldFocusRegistry.registerPathBarRoot(view)
+                    return
+                }
+                if view.bounds.height >= 24, view.bounds.height <= 52, view.bounds.width > 80 {
+                    BarTextFieldFocusRegistry.registerPathBarRoot(view)
+                }
+                candidate = view.superview
+            }
+            if let host = superview {
+                BarTextFieldFocusRegistry.registerPathBarRoot(host)
+            }
+        }
+        
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            nil
+        }
+    }
+}
+
+private struct PathBarNavigateButton: NSViewRepresentable {
+    let targetPath: String
+    let onNavigate: (String) -> Void
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onNavigate: onNavigate)
+    }
+    
+    func makeNSView(context: Context) -> NavigateButton {
+        let button = NavigateButton(
+            image: NSImage(systemSymbolName: "arrow.right.circle.fill", accessibilityDescription: "进入新路径") ?? NSImage(),
+            target: context.coordinator,
+            action: #selector(Coordinator.navigate(_:))
+        )
+        button.isBordered = false
+        button.bezelStyle = .inline
+        button.imagePosition = .imageOnly
+        button.contentTintColor = .controlAccentColor
+        button.toolTip = "进入新路径"
+        button.setButtonType(.momentaryChange)
+        context.coordinator.targetPath = targetPath
+        return button
+    }
+    
+    func updateNSView(_ nsView: NavigateButton, context: Context) {
+        context.coordinator.targetPath = targetPath
+        context.coordinator.onNavigate = onNavigate
+        nsView.registerWithFocusRegistry()
+    }
+    
+    final class NavigateButton: NSButton {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            registerWithFocusRegistry()
+        }
+        
+        override func layout() {
+            super.layout()
+            registerWithFocusRegistry()
+        }
+        
+        fileprivate func registerWithFocusRegistry() {
+            BarTextFieldFocusRegistry.registerPathNavigateButton(self)
+            var candidate: NSView? = superview
+            while let view = candidate {
+                if view.bounds.height >= 24, view.bounds.height <= 52, view.bounds.width > 80 {
+                    BarTextFieldFocusRegistry.registerPathBarRoot(view)
+                    return
+                }
+                candidate = view.superview
+            }
+        }
+    }
+    
+    final class Coordinator: NSObject {
+        var targetPath: String
+        var onNavigate: (String) -> Void
+        
+        init(targetPath: String = "", onNavigate: @escaping (String) -> Void) {
+            self.targetPath = targetPath
+            self.onNavigate = onNavigate
+        }
+        
+        @objc func navigate(_ sender: NSButton) {
+            onNavigate(targetPath)
+        }
     }
 }
 
@@ -3740,17 +3930,25 @@ enum TrashLoader {
 private enum FinderTrashEnumerator {
     static func itemPaths(timeout: TimeInterval = 20) async -> [String] {
         await withCheckedContinuation { continuation in
-            let lock = NSLock()
-            var resumed = false
-            
-            func resumeOnce(_ paths: [String]) {
-                lock.lock()
-                defer { lock.unlock() }
-                guard !resumed else { return }
-                resumed = true
-                continuation.resume(returning: paths)
+            final class ResumeGuard: @unchecked Sendable {
+                private let lock = NSLock()
+                private var resumed = false
+                private let continuation: CheckedContinuation<[String], Never>
+                
+                init(continuation: CheckedContinuation<[String], Never>) {
+                    self.continuation = continuation
+                }
+                
+                func resumeOnce(_ paths: [String]) {
+                    lock.lock()
+                    defer { lock.unlock() }
+                    guard !resumed else { return }
+                    resumed = true
+                    continuation.resume(returning: paths)
+                }
             }
             
+            let resumeGuard = ResumeGuard(continuation: continuation)
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
             let script = """
@@ -3774,14 +3972,14 @@ private enum FinderTrashEnumerator {
                     .split(whereSeparator: \.isNewline)
                     .map(String.init)
                     .filter { !$0.isEmpty }
-                resumeOnce(paths)
+                resumeGuard.resumeOnce(paths)
             }
             
             do {
                 try process.run()
             } catch {
                 print("Finder trash osascript launch error: \(error)")
-                resumeOnce([])
+                resumeGuard.resumeOnce([])
                 return
             }
             
