@@ -6,11 +6,25 @@ import Foundation
 extension FileListTableController {
     // MARK: - Mouse & keyboard
     
-    func willHandleMouseDown(_ event: NSEvent, row: Int) {
+    func willHandleMouseDown(_ event: NSEvent, row: Int, pointInTable: NSPoint) {
+        if let tableView, row >= 0, row < displayRows.count {
+            mouseDownCanStartFileDrag = isFileNameTextPoint(pointInTable, row: row, in: tableView)
+        } else {
+            mouseDownCanStartFileDrag = false
+        }
         mouseDownRow = row
         mouseDownLocation = event.locationInWindow
         mouseDownEvent = event
         dragSessionActive = false
+        
+        // 在行内非文件名文字区按下时，拖动应进入框选而非文件拖拽。
+        if row >= 0, !mouseDownCanStartFileDrag {
+            blankMouseDownEvent = event
+            blankDragSelecting = false
+        } else {
+            blankMouseDownEvent = nil
+            blankDragSelecting = false
+        }
     }
     
     func shouldUseDefaultMouseDown(for row: Int, event: NSEvent) -> Bool {
@@ -99,6 +113,7 @@ extension FileListTableController {
     func handleBlankMouseUp() {
         blankMouseDownEvent = nil
         blankDragSelecting = false
+        mouseDownCanStartFileDrag = false
     }
     
     private func rowsInVerticalRange(
@@ -131,7 +146,8 @@ extension FileListTableController {
         
         guard !dragSessionActive,
               let start = mouseDownLocation,
-              mouseDownEvent != nil else { return false }
+              mouseDownEvent != nil,
+              mouseDownCanStartFileDrag else { return false }
         
         let distance = hypot(
             event.locationInWindow.x - start.x,
@@ -299,6 +315,7 @@ extension FileListTableController: NSDraggingSource {
         dragSessionActive = false
         mouseDownLocation = nil
         mouseDownEvent = nil
+        mouseDownCanStartFileDrag = false
         finishPointerInteractionIfNeeded()
         if operation != [] {
             DispatchQueue.main.async { [weak self] in

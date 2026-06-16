@@ -29,4 +29,20 @@ final class FileListTruncatingLabel: NSView {
             context: nil
         )
     }
+    
+    /// 命中测试使用：返回文字在当前 label 中的可见绘制区域。
+    func visibleTextRect() -> NSRect {
+        guard attributedString.length > 0, bounds.width > 0, bounds.height > 0 else { return .zero }
+        let fullSize = attributedString.boundingRect(
+            with: NSSize(
+                width: CGFloat.greatestFiniteMagnitude,
+                height: CGFloat.greatestFiniteMagnitude
+            ),
+            options: [.usesLineFragmentOrigin, .usesFontLeading]
+        ).integral.size
+        let textWidth = min(bounds.width, ceil(fullSize.width))
+        let textHeight = min(bounds.height, ceil(fullSize.height))
+        let y = bounds.minY + max(0, (bounds.height - textHeight) / 2)
+        return NSRect(x: bounds.minX, y: y, width: textWidth, height: textHeight)
+    }
 }

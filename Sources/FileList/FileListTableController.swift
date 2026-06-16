@@ -19,6 +19,7 @@ public final class FileListTableController: NSObject {
     var mouseDownRow = -1
     var mouseDownLocation: NSPoint?
     var mouseDownEvent: NSEvent?
+    var mouseDownCanStartFileDrag = false
     var dragSessionActive = false
     var blankMouseDownEvent: NSEvent?
     var blankDragSelecting = false
@@ -239,6 +240,7 @@ public final class FileListTableController: NSObject {
         mouseDownEvent = nil
         mouseDownRow = -1
         mouseDownLocation = nil
+        mouseDownCanStartFileDrag = false
         blankDragSelecting = false
         flushPendingDirectorySizeRefreshIfNeeded()
     }
@@ -999,6 +1001,25 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
     
     private func nameLabel(in cell: NSTableCellView) -> FileListTruncatingLabel? {
         cell.subviews.compactMap { $0 as? FileListTruncatingLabel }.first
+    }
+    
+    func isFileNameTextPoint(_ point: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
+        guard row >= 0, row < displayRows.count else { return false }
+        let column = tableView.column(at: point)
+        guard column >= 0, column < tableView.tableColumns.count else { return false }
+        guard FileListColumnID.from(column: tableView.tableColumns[column]) == .name else { return false }
+        guard let nameCell = tableView.view(atColumn: column, row: row, makeIfNecessary: false) as? NSTableCellView,
+              let label = nameLabel(in: nameCell) else {
+            return false
+        }
+        
+        let pointInCell = nameCell.convert(point, from: tableView)
+        let pointInLabel = label.convert(pointInCell, from: nameCell)
+        guard label.bounds.contains(pointInLabel) else { return false }
+        
+        // 仅文字本体区域触发文件拖拽；名称列右侧空白应交给框选逻辑。
+        let textRect = label.visibleTextRect()
+        return textRect.contains(pointInLabel)
     }
     
     private func applyNameLabel(
