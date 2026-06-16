@@ -53,7 +53,7 @@ public struct FileListPanelLayout<TableContent: View>: View {
                     .frame(width: blankWidth)
                 }
                 
-                FileListHeaderChrome(width: totalWidth)
+                FileListHeaderChrome(width: totalWidth, blankAreaFraction: blankAreaFraction)
             }
         }
     }
