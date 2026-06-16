@@ -3236,6 +3236,9 @@ struct FileListView: View {
         .onDisappear {
             cancelQuickSearchAutoClose()
         }
+        .onChange(of: currentDirectoryPath) { _ in
+            closeQuickSearch()
+        }
     }
     
     private var fileTable: some View {

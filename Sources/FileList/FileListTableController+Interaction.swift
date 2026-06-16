@@ -176,6 +176,19 @@ extension FileListTableController {
     }
     
     func handleKeyDown(_ event: NSEvent) -> Bool {
+        // Return / Enter: 打开当前高亮行（与双击行为一致）。
+        if event.keyCode == 36 || event.keyCode == 76 {
+            guard !event.modifierFlags.contains(.command),
+                  !event.modifierFlags.contains(.control),
+                  !event.modifierFlags.contains(.option),
+                  let tableView
+            else { return false }
+            let row = tableView.selectedRow
+            guard row >= 0, row < displayRows.count else { return false }
+            onOpenRow?(displayRows[row])
+            return true
+        }
+        
         let flags = event.modifierFlags
         if !flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
             // ESC: 关闭快速搜索
@@ -191,10 +204,7 @@ extension FileListTableController {
                 }
             }
             // 可见字符输入：唤起或追加快速搜索
-            if let input = event.charactersIgnoringModifiers,
-               input.count == 1,
-               let scalar = input.unicodeScalars.first,
-               !CharacterSet.whitespacesAndNewlines.contains(scalar) {
+            if let input = quickSearchInputCharacter(from: event) {
                 interaction.onQuickSearchInput(input)
                 return true
             }
@@ -205,6 +215,23 @@ extension FileListTableController {
         guard interaction.canDelete() else { return false }
         interaction.onDelete()
         return true
+    }
+    
+    private func quickSearchInputCharacter(from event: NSEvent) -> String? {
+        guard let input = event.charactersIgnoringModifiers, input.count == 1,
+              let scalar = input.unicodeScalars.first
+        else { return nil }
+        
+        // 排除空白、控制字符与 AppKit 特殊功能键私有区（如方向键/F 键等）。
+        if CharacterSet.whitespacesAndNewlines.contains(scalar) { return nil }
+        if CharacterSet.controlCharacters.contains(scalar) { return nil }
+        if (0xF700...0xF8FF).contains(scalar.value) { return nil }
+        
+        // 仅文本字符触发快速搜索，功能键保持列表默认处理。
+        if CharacterSet.letters.contains(scalar) || CharacterSet.decimalDigits.contains(scalar) {
+            return input
+        }
+        return nil
     }
     
     func handleRightMouseDown(_ event: NSEvent) {
