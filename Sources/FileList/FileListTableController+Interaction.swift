@@ -38,7 +38,24 @@ extension FileListTableController {
             interaction.onBlankDoubleClick()
             return
         }
+        clearSelectionOnBlankClickIfNeeded()
         interaction.onBlankSingleClick()
+    }
+    
+    /// 空白区单击：取消表格与 binding 中的选中高亮（右侧 padding 列、列表下方留白）。
+    private func clearSelectionOnBlankClickIfNeeded() {
+        guard let tableView else { return }
+        let hasTableSelection = !tableView.selectedRowIndexes.isEmpty
+        let hasBindingSelection = !(selectionGet?().isEmpty ?? true)
+        guard hasTableSelection || hasBindingSelection else { return }
+        
+        if hasTableSelection {
+            tableView.deselectAll(nil)
+        }
+        if hasBindingSelection {
+            selectionSet?([])
+        }
+        refreshVisibleRowContentClip()
     }
     
     func handleBlankMouseDragged(_ event: NSEvent) -> Bool {
