@@ -120,7 +120,6 @@ public final class FileListTableController: NSObject {
         selectionSet: @escaping (Set<String>) -> Void,
         preferencesStore: FileListPreferencesStore
     ) {
-        sourceRows = rows
         self.interaction = interaction
         self.selectionGet = selectionGet
         self.selectionSet = selectionSet
@@ -135,13 +134,6 @@ public final class FileListTableController: NSObject {
             applyColumnLayout(from: preferencesStore.configuration, full: true)
         }
         
-        let sort = preferencesStore.sort
-        let previousDisplayRows = displayRows
-        let newDisplay = FileListSortEngine.sorted(rows, by: sort)
-        let newOrder = newDisplay.map(\.id)
-        let oldOrder = previousDisplayRows.map(\.id)
-        let orderChanged = newOrder != oldOrder
-        
         let listingSignature = rows.map(\.id).joined(separator: "\u{1F}")
         let listingChanged = listingSignature != lastListingSignature
         if listingChanged {
@@ -149,8 +141,25 @@ public final class FileListTableController: NSObject {
             lastDirectorySizeRevision = 0
         }
         
+        let previousSourceRows = sourceRows
+        let mergedRows: [FileListRow]
+        if listingChanged || previousSourceRows.isEmpty {
+            mergedRows = rows
+        } else {
+            mergedRows = mergePreservingDirectorySizes(incoming: rows, existing: previousSourceRows)
+        }
+        sourceRows = mergedRows
+        
+        let sort = preferencesStore.sort
+        let previousDisplayRows = displayRows
+        let newDisplay = FileListSortEngine.sorted(mergedRows, by: sort)
+        let newOrder = newDisplay.map(\.id)
+        let oldOrder = previousDisplayRows.map(\.id)
+        let orderChanged = newOrder != oldOrder
+        
         let sizeOnlyChanged = !orderChanged
             && !searchChanged
+            && !listingChanged
             && newDisplay.count == previousDisplayRows.count
             && zip(newDisplay, previousDisplayRows).allSatisfy { $0.hasSameStaticContent(as: $1) }
             && zip(newDisplay, previousDisplayRows).contains { $0.size != $1.size || $0.sizeDisplay != $1.sizeDisplay }
@@ -176,6 +185,9 @@ public final class FileListTableController: NSObject {
             }
         } else if sizeOnlyChanged {
             reloadSizeColumnPreservingScroll()
+        } else if !orderChanged && !searchChanged && !listingChanged && newDisplay == previousDisplayRows {
+            scheduleVisibleDirectoryPathsNotify()
+            return
         }
         updateSortIndicators(for: sort)
         
@@ -184,6 +196,28 @@ public final class FileListTableController: NSObject {
             syncSelectionToTable()
         }
         scheduleVisibleDirectoryPathsNotify()
+    }
+    
+    /// SwiftUI 传入的行不含异步回填的目录大小；选中变化触发的 update 须保留已有 Size 列数据。
+    private func mergePreservingDirectorySizes(incoming: [FileListRow], existing: [FileListRow]) -> [FileListRow] {
+        let existingByID = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
+        return incoming.map { row in
+            guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
+            
+            if let directorySizeDisplay {
+                let info = directorySizeDisplay(row.iconPath)
+                if info != .unknown {
+                    return row.withDirectorySizeDisplay(info)
+                }
+            }
+            
+            guard let cached = existingByID[row.id], cached.sizeDisplay != "--" else {
+                return row
+            }
+            return row.withDirectorySizeDisplay(
+                DirectorySizeDisplayInfo(sortableSize: cached.size, text: cached.sizeDisplay)
+            )
+        }
     }
     
     func refreshDirectorySizeColumnIfNeeded(_ provider: DirectorySizeColumnProvider?) {
