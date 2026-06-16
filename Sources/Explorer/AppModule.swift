@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import ApplicationServices
+import Combine
 import PDFKit
 import UniformTypeIdentifiers
 import FileList
@@ -300,6 +301,7 @@ private struct LucideIcon: View {
 
 @main
 struct ExplorerApp: App {
+    @NSApplicationDelegateAdaptor(ExplorerAppDelegate.self) private var appDelegate
     @State private var showPreview = true
     
     var body: some Scene {
@@ -321,6 +323,64 @@ struct ExplorerApp: App {
         Settings {
             SettingsView()
         }
+    }
+}
+
+@MainActor
+private final class ExternalFolderOpenCenter: ObservableObject {
+    static let shared = ExternalFolderOpenCenter()
+
+    @Published private(set) var targetPath: String?
+    private var pendingPath: String?
+
+    private init() {}
+
+    func requestOpen(urls: [URL]) {
+        guard let resolvedPath = resolveDirectoryPath(from: urls) else { return }
+        pendingPath = resolvedPath
+        targetPath = resolvedPath
+    }
+
+    func consumePendingPath() -> String? {
+        let path = pendingPath
+        pendingPath = nil
+        return path
+    }
+
+    private func resolveDirectoryPath(from urls: [URL]) -> String? {
+        for url in urls {
+            let standardized = url.standardizedFileURL
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDirectory),
+               isDirectory.boolValue {
+                return standardized.path
+            }
+        }
+        return nil
+    }
+}
+
+private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
+    func application(_ application: NSApplication, open urls: [URL]) {
+        Task { @MainActor in
+            ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
+        }
+    }
+
+    func application(_ sender: NSApplication, openFiles filenames: [String]) {
+        let urls = filenames.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        Task { @MainActor in
+            ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
+        }
+    }
+
+    func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+        Task { @MainActor in
+            ExternalFolderOpenCenter.shared.requestOpen(
+                urls: [URL(fileURLWithPath: filename, isDirectory: true)]
+            )
+        }
+        return true
     }
 }
 
@@ -1890,6 +1950,7 @@ struct ContentView: View {
     @State private var activeBarField: BarTextFieldID?
     @State private var isPathBarTextMode = false
     @State private var liveLeftPanelDragWidth: CGFloat?
+    @StateObject private var externalFolderOpenCenter = ExternalFolderOpenCenter.shared
     
     private let leftPanelConstants = LeftPanelLayoutConstants()
     
@@ -2079,8 +2140,15 @@ struct ContentView: View {
             
             // 初始化时做一次自愈：持久化宽度可能越界。
             setLeftPanelSidebarWidth(leftPanelSidebarWidth)
+            if let launchPath = externalFolderOpenCenter.consumePendingPath() {
+                path = launchPath
+            }
             lastRecordedPath = path
             loadItems()
+        }
+        .onReceive(externalFolderOpenCenter.$targetPath.compactMap { $0 }) { newPath in
+            guard newPath != path else { return }
+            path = newPath
         }
         .onChange(of: path) { newPath in
             if let oldPath = lastRecordedPath, oldPath != newPath, !isApplyingHistoryNavigation {
