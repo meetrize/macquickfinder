@@ -27,6 +27,9 @@ private enum AppSettings {
     static let favoritesKey = "favoriteLocations"
     static let trashRestoreRecordsKey = "trashRestoreRecords"
     static let autoCalculateDirectorySizesKey = DirectorySizePreferences.autoCalculateKey
+    static let leftPanelModeKey = "leftPanelMode"
+    static let leftPanelLastVisibleModeKey = "leftPanelLastVisibleMode"
+    static let leftPanelSidebarWidthKey = "leftPanelSidebarWidth"
 }
 
 struct FileCommandHandlers {
@@ -1879,9 +1882,16 @@ struct ContentView: View {
     @State private var lastRecordedPath: String?
     @AppStorage(AppSettings.previewPanelWidthKey) private var storedPreviewPanelWidth = 320.0
     @AppStorage(AppSettings.autoCalculateDirectorySizesKey) private var autoCalculateDirectorySizes = true
+    @AppStorage(AppSettings.leftPanelModeKey) private var storedLeftPanelModeRaw = LeftPanelMode.sidebar.rawValue
+    @AppStorage(AppSettings.leftPanelLastVisibleModeKey)
+    private var storedLeftPanelLastVisibleModeRaw = LeftPanelVisibleMode.sidebar.rawValue
+    @AppStorage(AppSettings.leftPanelSidebarWidthKey) private var storedLeftPanelSidebarWidth = 240.0
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
     @State private var isPathBarTextMode = false
+    @State private var liveLeftPanelDragWidth: CGFloat?
+    
+    private let leftPanelConstants = LeftPanelLayoutConstants()
     
     private var isTextFieldEditing: Bool {
         activeBarField != nil
@@ -1906,21 +1916,129 @@ struct ContentView: View {
     private let minPreviewPanelWidth: CGFloat = 200
     private let minMainPanelWidth: CGFloat = 360
     
+    private var leftPanelMode: LeftPanelMode {
+        LeftPanelMode(rawValue: storedLeftPanelModeRaw) ?? .sidebar
+    }
+    
+    private func setLeftPanelMode(_ mode: LeftPanelMode) {
+        storedLeftPanelModeRaw = mode.rawValue
+    }
+    
+    private var leftPanelLastVisibleMode: LeftPanelVisibleMode {
+        LeftPanelVisibleMode(rawValue: storedLeftPanelLastVisibleModeRaw) ?? .sidebar
+    }
+    
+    private func setLeftPanelLastVisibleMode(_ mode: LeftPanelVisibleMode) {
+        storedLeftPanelLastVisibleModeRaw = mode.rawValue
+    }
+    
+    private var leftPanelSidebarWidth: CGFloat {
+        CGFloat(storedLeftPanelSidebarWidth)
+    }
+    
+    private func setLeftPanelSidebarWidth(_ width: CGFloat) {
+        storedLeftPanelSidebarWidth = Double(leftPanelConstants.clampedSidebarWidth(width))
+    }
+    
+    private var leftPanelVisibleWidth: CGFloat {
+        switch leftPanelMode {
+        case .sidebar:
+            return leftPanelSidebarWidth
+        case .rail:
+            return leftPanelConstants.railWidth
+        case .hidden:
+            return 0
+        }
+    }
+    
+    private func handleLeftPanelDrag(delta: CGFloat) {
+        let baseWidth = liveLeftPanelDragWidth ?? leftPanelVisibleWidth
+        let proposed = baseWidth + delta
+        liveLeftPanelDragWidth = proposed
+        
+        let result = LeftPanelStateMachine.applyDrag(
+            proposedWidth: proposed,
+            currentMode: leftPanelMode,
+            lastVisible: leftPanelLastVisibleMode,
+            sidebarWidth: leftPanelSidebarWidth,
+            constants: leftPanelConstants
+        )
+        
+        setLeftPanelMode(result.mode)
+        setLeftPanelLastVisibleMode(result.lastVisible)
+        setLeftPanelSidebarWidth(result.sidebarWidth)
+    }
+    
+    private func handleLeftPanelDragEnded() {
+        liveLeftPanelDragWidth = nil
+    }
+    
+    private func toggleLeftPanelVisibility() {
+        if leftPanelMode == .hidden {
+            setLeftPanelMode(leftPanelLastVisibleMode.asPanelMode)
+            if leftPanelMode == .sidebar {
+                setLeftPanelSidebarWidth(leftPanelSidebarWidth)
+            }
+            return
+        }
+        
+        if leftPanelMode == .sidebar {
+            setLeftPanelLastVisibleMode(.sidebar)
+        } else if leftPanelMode == .rail {
+            setLeftPanelLastVisibleMode(.rail)
+        }
+        setLeftPanelMode(.hidden)
+    }
+    
     var body: some View {
-        NavigationSplitView {
-            SidebarView(path: $path, onItemsChanged: {
-                selection.removeAll()
-                loadItems()
-            }, onReload: {
-                selection.removeAll()
-                loadItems()
-            })
-        } detail: {
-            GeometryReader { geometry in
-                let maxPreviewWidth = max(
-                    minPreviewPanelWidth,
-                    geometry.size.width - minMainPanelWidth
-                )
+        GeometryReader { geometry in
+            let maxPreviewWidth = max(
+                minPreviewPanelWidth,
+                geometry.size.width - minMainPanelWidth
+            )
+            
+            HStack(spacing: 0) {
+                if leftPanelMode != .hidden {
+                    Group {
+                        switch leftPanelMode {
+                        case .sidebar:
+                            SidebarView(
+                                path: $path,
+                                onItemsChanged: {
+                                    selection.removeAll()
+                                    loadItems()
+                                },
+                                onReload: {
+                                    selection.removeAll()
+                                    loadItems()
+                                }
+                            )
+                        case .rail:
+                            SidebarRailView(
+                                path: $path,
+                                onItemsChanged: {
+                                    selection.removeAll()
+                                    loadItems()
+                                },
+                                onReload: {
+                                    selection.removeAll()
+                                    loadItems()
+                                }
+                            )
+                        case .hidden:
+                            EmptyView()
+                        }
+                    }
+                    .frame(width: leftPanelVisibleWidth)
+                    .frame(maxHeight: .infinity)
+                    
+                    LeadingResizeDivider(
+                        onResize: handleLeftPanelDrag(delta:),
+                        onDragEnded: handleLeftPanelDragEnded
+                    )
+                    .frame(width: 6)
+                    .frame(maxHeight: .infinity)
+                }
                 
                 HStack(spacing: 0) {
                     explorerBrowserColumn
@@ -1958,6 +2076,9 @@ struct ContentView: View {
             if let mapped = fileListPreferences.sort.explorerSortOrder {
                 sortOrder = mapped
             }
+            
+            // 初始化时做一次自愈：持久化宽度可能越界。
+            setLeftPanelSidebarWidth(leftPanelSidebarWidth)
             lastRecordedPath = path
             loadItems()
         }
@@ -2017,6 +2138,15 @@ struct ContentView: View {
         .navigationTitle(currentDirectoryTitle)
         .modifier(InlineToolbarTitleModifier())
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button(action: toggleLeftPanelVisibility) {
+                    Image(systemName: leftPanelMode == .hidden ? "sidebar.left" : "sidebar.left")
+                }
+                .buttonStyle(.borderless)
+                .help(leftPanelMode == .hidden ? "显示左侧面板" : "隐藏左侧面板")
+            }
+            .hideSharedBackgroundIfAvailable()
+            
             ToolbarItem(placement: .primaryAction) {
                 Button(action: createNewFolder) {
                     LucideIcon.folderPlus
@@ -2556,6 +2686,20 @@ struct ContentView: View {
     }
 }
 
+private struct LeadingResizeDivider: NSViewRepresentable {
+    var onResize: (CGFloat) -> Void
+    var onDragEnded: (() -> Void)?
+    
+    func makeNSView(context: Context) -> ResizeDividerNSView {
+        ResizeDividerNSView()
+    }
+    
+    func updateNSView(_ nsView: ResizeDividerNSView, context: Context) {
+        nsView.onResize = onResize
+        nsView.onDragEnded = onDragEnded
+    }
+}
+
 struct SidebarView: View {
     @Binding var path: String
     @ObservedObject private var favoritesStore = FavoritesStore.shared
@@ -2680,6 +2824,112 @@ struct SidebarView: View {
     }
 }
 
+struct SidebarRailView: View {
+    @Binding var path: String
+    @ObservedObject private var favoritesStore = FavoritesStore.shared
+    @State private var devices: [SidebarVolume] = []
+    var onItemsChanged: () -> Void = {}
+    var onReload: () -> Void = {}
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                VStack(spacing: 6) {
+                    ForEach(favoritesStore.items) { location in
+                        SidebarRow(
+                            title: location.name,
+                            icon: location.icon,
+                            isSelected: isSelected(location.path),
+                            dropDestinationPath: location.path,
+                            onDropURLs: handleSidebarDrop,
+                            onSelect: { path = location.path },
+                            showsTitle: false
+                        )
+                    }
+                }
+                
+                Divider()
+                    .padding(.horizontal, 8)
+                
+                VStack(spacing: 6) {
+                    ForEach(devices) { device in
+                        SidebarRow(
+                            title: device.name,
+                            icon: device.icon,
+                            isSelected: isSelected(device.path),
+                            dropDestinationPath: device.path,
+                            onDropURLs: handleSidebarDrop,
+                            onSelect: { path = device.path },
+                            showsTitle: false
+                        )
+                    }
+                }
+                
+                Divider()
+                    .padding(.horizontal, 8)
+                
+                SidebarRow(
+                    title: "废纸篓",
+                    icon: "trash",
+                    isSelected: isSelected(trashPath),
+                    dropDestinationPath: trashPath,
+                    onDropURLs: handleSidebarDrop,
+                    onSelect: {
+                        if TrashLoader.isTrashPath(path) {
+                            onReload()
+                        } else {
+                            path = trashPath
+                        }
+                    },
+                    showsTitle: false
+                )
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 10)
+        }
+        .onAppear(perform: refreshDevices)
+        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didMountNotification)) { _ in
+            refreshDevices()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didUnmountNotification)) { _ in
+            refreshDevices()
+        }
+    }
+    
+    private func refreshDevices() {
+        devices = SidebarVolumeLoader.load()
+    }
+    
+    private var trashPath: String {
+        TrashLoader.userTrashPath
+    }
+    
+    private func isSelected(_ sidebarPath: String) -> Bool {
+        if TrashLoader.isTrashPath(sidebarPath) {
+            return TrashLoader.isTrashPath(path)
+        }
+        return pathsRepresentSameLocation(path, sidebarPath)
+    }
+    
+    private func pathsRepresentSameLocation(_ lhs: String, _ rhs: String) -> Bool {
+        let normalizedLHS = (lhs as NSString).standardizingPath
+        let normalizedRHS = (rhs as NSString).standardizingPath
+        if normalizedLHS == normalizedRHS { return true }
+        
+        let systemVolumeRoots: Set<String> = ["/", "/System/Volumes/Data"]
+        return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
+    }
+    
+    private func handleSidebarDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
+        if TrashLoader.isTrashPath(destinationPath) {
+            FileOperations.trashItems(urls, completion: onItemsChanged)
+            return
+        }
+        let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
+        FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
+    }
+}
+
 struct SidebarRow: View {
     let title: String
     let icon: String
@@ -2687,14 +2937,26 @@ struct SidebarRow: View {
     var dropDestinationPath: String?
     var onDropURLs: (([URL], String, Bool) -> Void)?
     let onSelect: () -> Void
+    var showsTitle: Bool = true
     
     @State private var isDropTargeted = false
     
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-            Text(title)
-            Spacer(minLength: 0)
+        Group {
+            if showsTitle {
+                HStack(spacing: 8) {
+                    Image(systemName: icon)
+                    Text(title)
+                    Spacer(minLength: 0)
+                }
+            } else {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    Image(systemName: icon)
+                    Spacer(minLength: 0)
+                }
+                .help(title)
+            }
         }
         .font(.body)
         .foregroundStyle(isSelected ? Color.accentColor : Color.primary)

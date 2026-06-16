@@ -17,6 +17,6 @@ let package = Package(
             dependencies: ["FileList"]),
         .testTarget(
             name: "ExplorerTests",
-            dependencies: ["FileList"])
+            dependencies: ["FileList", "Explorer"])
     ]
 )
