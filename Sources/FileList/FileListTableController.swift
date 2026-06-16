@@ -399,6 +399,29 @@ public final class FileListTableController: NSObject {
         }
     }
     
+    func refreshVisibleNameLabels() {
+        guard let tableView else { return }
+        guard let nameColumnIndex = tableView.tableColumns.firstIndex(where: {
+            FileListColumnID.from(column: $0) == .name
+        }) else { return }
+        
+        let visible = tableView.rows(in: tableView.visibleRect)
+        guard visible.length > 0 else { return }
+        let isEmphasized = tableView.window?.isKeyWindow ?? true
+        
+        for row in visible.location..<(visible.location + visible.length) {
+            guard row >= 0, row < displayRows.count,
+                  let cell = tableView.view(atColumn: nameColumnIndex, row: row, makeIfNecessary: false) as? NSTableCellView
+            else { continue }
+            applyNameLabel(
+                in: cell,
+                item: displayRows[row],
+                isSelected: tableView.selectedRowIndexes.contains(row),
+                isEmphasized: isEmphasized
+            )
+        }
+    }
+    
     func updatePaddingColumnWidth() {
         guard let tableView, let padding = FileListPaddingColumn.column(in: tableView) else { return }
         guard !isUpdatingPaddingColumn else { return }
@@ -894,13 +917,14 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
             cell = makeCell(for: columnID, identifier: identifier)
         }
         
-        configure(cell: cell, columnID: columnID, item: item)
+        configure(cell: cell, columnID: columnID, item: item, row: row)
         return cell
     }
     
     public func tableViewSelectionDidChange(_ notification: Notification) {
         syncSelectionFromTable()
         refreshVisibleRowContentClip()
+        refreshVisibleNameLabels()
     }
     
     public func tableView(
@@ -976,7 +1000,23 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         cell.subviews.compactMap { $0 as? FileListTruncatingLabel }.first
     }
     
-    private func configure(cell: NSTableCellView, columnID: FileListColumnID, item: FileListRow) {
+    private func applyNameLabel(
+        in cell: NSTableCellView,
+        item: FileListRow,
+        isSelected: Bool,
+        isEmphasized: Bool
+    ) {
+        nameLabel(in: cell)?.attributedString = FileListTextHighlight.attributedName(
+            item.name,
+            searchText: interaction.searchText,
+            isDirectory: item.isDirectory || item.isParentDirectoryEntry,
+            isHidden: item.isHidden,
+            isSelected: isSelected,
+            isEmphasized: isEmphasized
+        )
+    }
+    
+    private func configure(cell: NSTableCellView, columnID: FileListColumnID, item: FileListRow, row: Int) {
         if let label = cell.textField {
             applyTruncationSettings(to: label, truncation: .byTruncatingTail)
         }
@@ -989,12 +1029,9 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
             } else {
                 cell.imageView?.image = NSWorkspace.shared.icon(forFile: item.iconPath)
             }
-            nameLabel(in: cell)?.attributedString = FileListTextHighlight.attributedName(
-                item.name,
-                searchText: interaction.searchText,
-                isDirectory: item.isDirectory || item.isParentDirectoryEntry,
-                isHidden: item.isHidden
-            )
+            let isSelected = tableView?.selectedRowIndexes.contains(row) ?? false
+            let isEmphasized = tableView?.window?.isKeyWindow ?? true
+            applyNameLabel(in: cell, item: item, isSelected: isSelected, isEmphasized: isEmphasized)
         case .type:
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.fileType
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)

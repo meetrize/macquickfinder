@@ -12,16 +12,25 @@ enum FileListTextHighlight {
         ]
     }
     
+    private static func nameColor(isHidden: Bool, isSelected: Bool, isEmphasized: Bool) -> NSColor {
+        if isSelected {
+            return isEmphasized ? .alternateSelectedControlTextColor : .labelColor
+        }
+        return isHidden ? .secondaryLabelColor : .labelColor
+    }
+    
     static func attributedName(
         _ text: String,
         searchText: String,
         isDirectory: Bool,
-        isHidden: Bool
+        isHidden: Bool,
+        isSelected: Bool = false,
+        isEmphasized: Bool = true
     ) -> NSAttributedString {
         let font = isDirectory
             ? NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
             : NSFont.systemFont(ofSize: NSFont.systemFontSize)
-        let color: NSColor = isHidden ? .secondaryLabelColor : .labelColor
+        let color = nameColor(isHidden: isHidden, isSelected: isSelected, isEmphasized: isEmphasized)
         let attributes = baseAttributes(font: font, color: color)
         
         guard !searchText.isEmpty else {
