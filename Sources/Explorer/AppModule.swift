@@ -3403,14 +3403,53 @@ struct FileListView: View {
     @State private var isCurrentDirectoryDropTargeted = false
     @FocusState private var isQuickSearchFieldFocused: Bool
     @State private var quickSearchAutoCloseWorkItem: DispatchWorkItem?
+    @AppStorage("explorer.treeExpandEnabled") private var treeExpandEnabled = true
+    @State private var expandedDirectoryIDs: Set<String> = []
+    @State private var expandingDirectoryIDs: Set<String> = []
+    @State private var cachedChildrenByDirectoryID: [String: [FileItem]] = [:]
+    @State private var expandErrorByDirectoryID: [String: String] = [:]
+    @State private var directoryLoadGenerationByID: [String: UInt] = [:]
     
     private var showParentDirectoryRow: Bool {
         canNavigateToParent && searchText.isEmpty
     }
     
+    private struct VisibleNode {
+        let item: FileItem
+        let depth: Int
+        let parentID: String?
+    }
+    
+    private var rootItemsByID: [String: FileItem] {
+        Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+    }
+    
+    private var treeEnabled: Bool {
+        treeExpandEnabled && searchText.isEmpty
+    }
+    
+    private var visibleTreeNodes: [VisibleNode] {
+        guard treeEnabled else {
+            return items.map { VisibleNode(item: $0, depth: 0, parentID: nil) }
+        }
+        var nodes: [VisibleNode] = []
+        nodes.reserveCapacity(items.count)
+        appendVisibleNodes(
+            from: items,
+            depth: 0,
+            parentID: nil,
+            result: &nodes
+        )
+        return nodes
+    }
+    
     private var tableRowItems: [FileItem] {
-        guard showParentDirectoryRow else { return items }
-        return [FileItem.parentDirectoryEntry()] + items
+        var rows: [FileItem] = []
+        if showParentDirectoryRow {
+            rows.append(FileItem.parentDirectoryEntry())
+        }
+        rows.append(contentsOf: visibleTreeNodes.map(\.item))
+        return rows
     }
     
     private var parentDirectoryURL: URL? {
@@ -3430,6 +3469,7 @@ struct FileListView: View {
                 let destination = URL(fileURLWithPath: currentDirectoryPath, isDirectory: true)
                 guard FileOperations.canMoveItems(urls, to: destination) else { return }
                 FileOperations.moveItems(urls, to: destination, copy: copy) {
+                    resetTreeState(keepExpanded: true)
                     onItemsChanged(invalidationPaths(for: urls, destinationPath: currentDirectoryPath))
                 }
             }
@@ -3468,11 +3508,20 @@ struct FileListView: View {
             closeQuickSearch()
             isFileListRenaming = false
             FileListTableController.shared?.cancelRenameIfNeededForDataUpdate()
+            resetTreeState(keepExpanded: false)
+        }
+        .onChange(of: showHiddenFiles) { _ in
+            resetTreeState(keepExpanded: true)
+        }
+        .onChange(of: searchText) { newValue in
+            if !newValue.isEmpty {
+                expandingDirectoryIDs.removeAll()
+            }
         }
     }
     
     private var fileTable: some View {
-        let listRows = tableRowItems.map { FileListRow(item: $0) }
+        let listRows = makeListRows()
         let tableInteraction = FileListTableInteraction(
             searchText: searchText,
             quickSearchText: quickSearchText,
@@ -3507,7 +3556,14 @@ struct FileListView: View {
             onQuickSearchEscape: {
                 closeQuickSearch()
             },
-            onDragEnded: { onItemsChanged([]) },
+            onDragEnded: {
+                resetTreeState(keepExpanded: true)
+                onItemsChanged([])
+            },
+            onToggleExpand: { row in
+                guard row.isDirectory, !row.isParentDirectoryEntry else { return }
+                toggleExpansion(for: row.id)
+            },
             canRename: { row in
                 !row.isParentDirectoryEntry && !contextActions.isInTrash
             },
@@ -3520,6 +3576,7 @@ struct FileListView: View {
                 switch FileOperations.moveItem(item, toNewName: newName) {
                 case .success(let newURL):
                     selection = [newURL.path]
+                    resetTreeState(keepExpanded: true)
                     onItemsChanged([oldPath])
                     completion(true)
                 case .failure(let error):
@@ -3551,6 +3608,7 @@ struct FileListView: View {
             performDrop: { destinationPath, urls, copy in
                 let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
                 FileOperations.moveItems(urls, to: destination, copy: copy) {
+                    resetTreeState(keepExpanded: true)
                     onItemsChanged(invalidationPaths(for: urls, destinationPath: destinationPath))
                 }
             }
@@ -3580,6 +3638,155 @@ struct FileListView: View {
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
         tableRowItems.filter { ids.contains($0.id) }
+    }
+    
+    private func makeListRows() -> [FileListRow] {
+        var rows: [FileListRow] = []
+        rows.reserveCapacity(tableRowItems.count)
+        
+        if showParentDirectoryRow {
+            rows.append(FileListRow(item: FileItem.parentDirectoryEntry()))
+        }
+        
+        for node in visibleTreeNodes {
+            let item = node.item
+            rows.append(
+                FileListRow(
+                    item: item,
+                    directorySizeDisplay: nil,
+                    depth: node.depth,
+                    parentID: node.parentID,
+                    isExpandable: item.isDirectory && !item.isParentDirectoryEntry,
+                    isExpanded: expandedDirectoryIDs.contains(item.id),
+                    isExpanding: expandingDirectoryIDs.contains(item.id),
+                    expandErrorMessage: expandErrorByDirectoryID[item.id]
+                )
+            )
+        }
+        return rows
+    }
+    
+    private func appendVisibleNodes(
+        from sourceItems: [FileItem],
+        depth: Int,
+        parentID: String?,
+        result: inout [VisibleNode]
+    ) {
+        for item in sourceItems {
+            result.append(VisibleNode(item: item, depth: depth, parentID: parentID))
+            guard treeEnabled,
+                  item.isDirectory,
+                  expandedDirectoryIDs.contains(item.id),
+                  let children = cachedChildrenByDirectoryID[item.id]
+            else { continue }
+            appendVisibleNodes(
+                from: children,
+                depth: depth + 1,
+                parentID: item.id,
+                result: &result
+            )
+        }
+    }
+    
+    private func toggleExpansion(for directoryID: String) {
+        guard treeEnabled else { return }
+        if expandedDirectoryIDs.contains(directoryID) {
+            collapse(directoryID)
+            return
+        }
+        expandedDirectoryIDs.insert(directoryID)
+        expandErrorByDirectoryID[directoryID] = nil
+        if cachedChildrenByDirectoryID[directoryID] == nil {
+            loadChildren(for: directoryID)
+        }
+    }
+    
+    private func collapse(_ directoryID: String) {
+        expandedDirectoryIDs.remove(directoryID)
+        expandingDirectoryIDs.remove(directoryID)
+        expandErrorByDirectoryID[directoryID] = nil
+        
+        let descendantPrefix = directoryID.hasSuffix("/") ? directoryID : directoryID + "/"
+        expandedDirectoryIDs = expandedDirectoryIDs.filter { !$0.hasPrefix(descendantPrefix) }
+        expandingDirectoryIDs = expandingDirectoryIDs.filter { !$0.hasPrefix(descendantPrefix) }
+    }
+    
+    private func loadChildren(for directoryID: String) {
+        let currentGeneration = (directoryLoadGenerationByID[directoryID] ?? 0) + 1
+        directoryLoadGenerationByID[directoryID] = currentGeneration
+        expandingDirectoryIDs.insert(directoryID)
+        
+        let propertyKeys: Set<URLResourceKey> = [
+            .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
+        ]
+        let shouldShowHiddenFiles = showHiddenFiles
+        
+        Task {
+            do {
+                let canonicalPath = URL(fileURLWithPath: directoryID).resolvingSymlinksInPath().standardizedFileURL.path
+                let parentCanonical = URL(fileURLWithPath: currentDirectoryPath)
+                    .resolvingSymlinksInPath()
+                    .standardizedFileURL
+                    .path
+                if canonicalPath == parentCanonical {
+                    throw NSError(
+                        domain: "Explorer.FileTree",
+                        code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: "检测到循环链接"]
+                    )
+                }
+                
+                let url = URL(fileURLWithPath: directoryID)
+                let options: FileManager.DirectoryEnumerationOptions = shouldShowHiddenFiles
+                    ? [.skipsPackageDescendants]
+                    : [.skipsHiddenFiles, .skipsPackageDescendants]
+                let urls = try FileManager.default.contentsOfDirectory(
+                    at: url,
+                    includingPropertiesForKeys: Array(propertyKeys),
+                    options: options
+                )
+                var loaded: [FileItem] = []
+                loaded.reserveCapacity(urls.count)
+                for childURL in urls {
+                    if let item = TrashLoader.fileItem(from: childURL, propertyKeys: propertyKeys) {
+                        loaded.append(item)
+                    }
+                }
+                
+                await MainActor.run {
+                    guard directoryLoadGenerationByID[directoryID] == currentGeneration else { return }
+                    cachedChildrenByDirectoryID[directoryID] = loaded
+                    expandingDirectoryIDs.remove(directoryID)
+                    expandErrorByDirectoryID[directoryID] = nil
+                }
+            } catch {
+                await MainActor.run {
+                    guard directoryLoadGenerationByID[directoryID] == currentGeneration else { return }
+                    cachedChildrenByDirectoryID[directoryID] = []
+                    expandingDirectoryIDs.remove(directoryID)
+                    let nsError = error as NSError
+                    if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoPermissionError {
+                        expandErrorByDirectoryID[directoryID] = "无权限"
+                    } else if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileNoSuchFileError {
+                        expandErrorByDirectoryID[directoryID] = "目录不存在"
+                    } else {
+                        expandErrorByDirectoryID[directoryID] = nsError.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+    
+    private func resetTreeState(keepExpanded: Bool) {
+        expandingDirectoryIDs.removeAll()
+        expandErrorByDirectoryID.removeAll()
+        directoryLoadGenerationByID.removeAll()
+        if keepExpanded {
+            cachedChildrenByDirectoryID.removeAll()
+        } else {
+            cachedChildrenByDirectoryID.removeAll()
+            expandedDirectoryIDs.removeAll()
+        }
     }
 
     private var quickSearchBar: some View {

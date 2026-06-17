@@ -2,10 +2,28 @@ import FileList
 
 extension FileListRow {
     init(item: FileItem) {
-        self.init(item: item, directorySizeDisplay: nil)
+        self.init(
+            item: item,
+            directorySizeDisplay: nil,
+            depth: 0,
+            parentID: nil,
+            isExpandable: item.isDirectory && !item.isParentDirectoryEntry,
+            isExpanded: false,
+            isExpanding: false,
+            expandErrorMessage: nil
+        )
     }
     
-    init(item: FileItem, directorySizeDisplay: DirectorySizeDisplayInfo?) {
+    init(
+        item: FileItem,
+        directorySizeDisplay: DirectorySizeDisplayInfo?,
+        depth: Int,
+        parentID: String?,
+        isExpandable: Bool,
+        isExpanded: Bool,
+        isExpanding: Bool,
+        expandErrorMessage: String?
+    ) {
         let effectiveSize: Int64
         let effectiveDisplay: String
         
@@ -33,7 +51,13 @@ extension FileListRow {
             isDirectory: item.isDirectory,
             isHidden: item.isHidden,
             isParentDirectoryEntry: item.isParentDirectoryEntry,
-            iconPath: item.url.path
+            iconPath: item.url.path,
+            depth: depth,
+            parentID: parentID,
+            isExpandable: isExpandable,
+            isExpanded: isExpanded,
+            isExpanding: isExpanding,
+            expandErrorMessage: expandErrorMessage
         )
     }
 }

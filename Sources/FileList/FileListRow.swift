@@ -17,6 +17,18 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
     public let isParentDirectoryEntry: Bool
     /// 用于 `NSWorkspace` 取图标的路径。
     public let iconPath: String
+    /// 树形层级（根节点为 0）。
+    public let depth: Int
+    /// 树形父节点 id（根节点为 nil）。
+    public let parentID: String?
+    /// 是否显示可展开箭头。
+    public let isExpandable: Bool
+    /// 当前是否已展开。
+    public let isExpanded: Bool
+    /// 当前是否处于展开加载中。
+    public let isExpanding: Bool
+    /// 展开失败时的简短错误提示。
+    public let expandErrorMessage: String?
     
     public init(
         id: String,
@@ -29,7 +41,13 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         isDirectory: Bool,
         isHidden: Bool,
         isParentDirectoryEntry: Bool,
-        iconPath: String
+        iconPath: String,
+        depth: Int = 0,
+        parentID: String? = nil,
+        isExpandable: Bool = false,
+        isExpanded: Bool = false,
+        isExpanding: Bool = false,
+        expandErrorMessage: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -42,6 +60,12 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         self.isHidden = isHidden
         self.isParentDirectoryEntry = isParentDirectoryEntry
         self.iconPath = iconPath
+        self.depth = max(0, depth)
+        self.parentID = parentID
+        self.isExpandable = isExpandable
+        self.isExpanded = isExpanded
+        self.isExpanding = isExpanding
+        self.expandErrorMessage = expandErrorMessage
     }
     
     /// 除 Size 列展示字段外，是否与另一行相同（用于判断仅需刷新大小列）。
@@ -55,6 +79,12 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             && isHidden == other.isHidden
             && isParentDirectoryEntry == other.isParentDirectoryEntry
             && iconPath == other.iconPath
+            && depth == other.depth
+            && parentID == other.parentID
+            && isExpandable == other.isExpandable
+            && isExpanded == other.isExpanded
+            && isExpanding == other.isExpanding
+            && expandErrorMessage == other.expandErrorMessage
     }
     
     func withDirectorySizeDisplay(_ info: DirectorySizeDisplayInfo) -> FileListRow {
@@ -70,7 +100,13 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             isDirectory: isDirectory,
             isHidden: isHidden,
             isParentDirectoryEntry: isParentDirectoryEntry,
-            iconPath: iconPath
+            iconPath: iconPath,
+            depth: depth,
+            parentID: parentID,
+            isExpandable: isExpandable,
+            isExpanded: isExpanded,
+            isExpanding: isExpanding,
+            expandErrorMessage: expandErrorMessage
         )
     }
 }

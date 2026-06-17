@@ -11,6 +11,21 @@ extension FileListTableController {
     }
     
     func willHandleMouseDown(_ event: NSEvent, row: Int, pointInTable: NSPoint) {
+        mouseDownHandledByDisclosureToggle = false
+        if let tableView, row >= 0, row < displayRows.count,
+           isDisclosureTogglePoint(pointInTable, row: row, in: tableView) {
+            interaction.onToggleExpand(displayRows[row])
+            mouseDownHandledByDisclosureToggle = true
+            mouseDownCanStartFileDrag = false
+            mouseDownRow = row
+            mouseDownLocation = nil
+            mouseDownEvent = nil
+            dragSessionActive = false
+            blankMouseDownEvent = nil
+            blankDragSelecting = false
+            pendingRenameRow = -1
+            return
+        }
         if let tableView, row >= 0, row < displayRows.count {
             mouseDownCanStartFileDrag = isFileNameTextPoint(pointInTable, row: row, in: tableView)
         } else {
@@ -32,6 +47,7 @@ extension FileListTableController {
     }
     
     func shouldUseDefaultMouseDown(for row: Int, event: NSEvent) -> Bool {
+        if mouseDownHandledByDisclosureToggle { return false }
         guard row >= 0, row < displayRows.count else { return true }
         // 双击第二下时行往往已选中；须走系统 mouseDown 才能触发 doubleAction。
         if event.clickCount >= 2 { return true }
@@ -42,6 +58,7 @@ extension FileListTableController {
     }
     
     func handleRowMouseDown(row: Int, event: NSEvent) {
+        if mouseDownHandledByDisclosureToggle { return }
         guard let tableView, row >= 0, row < displayRows.count else { return }
         guard event.clickCount == 1 else { return }
         let flags = event.modifierFlags
@@ -60,6 +77,7 @@ extension FileListTableController {
     }
     
     func didHandleMouseDown(_ event: NSEvent, row: Int) {
+        if mouseDownHandledByDisclosureToggle { return }
         _ = row
         mouseDownEvent = event
     }

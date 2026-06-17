@@ -21,6 +21,7 @@ public final class FileListTableController: NSObject {
     var mouseDownLocation: NSPoint?
     var mouseDownEvent: NSEvent?
     var mouseDownCanStartFileDrag = false
+    var mouseDownHandledByDisclosureToggle = false
     var dragSessionActive = false
     var blankMouseDownEvent: NSEvent?
     var blankDragSelecting = false
@@ -1000,6 +1001,10 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         
         switch columnID {
         case .name:
+            let disclosure = NSImageView()
+            disclosure.identifier = NSUserInterfaceItemIdentifier("FileListCell.name.disclosure")
+            disclosure.translatesAutoresizingMaskIntoConstraints = false
+            disclosure.imageScaling = .scaleProportionallyDown
             let icon = NSImageView()
             icon.translatesAutoresizingMaskIntoConstraints = false
             icon.imageScaling = .scaleProportionallyDown
@@ -1014,11 +1019,18 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
             renameField.onCancel = { [weak self] in
                 self?.cancelRename()
             }
+            cell.addSubview(disclosure)
             cell.addSubview(icon)
             cell.addSubview(label)
             cell.addSubview(renameField)
+            let iconLeading = icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2)
+            iconLeading.identifier = "FileListCell.name.iconLeading"
             NSLayoutConstraint.activate([
-                icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
+                disclosure.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+                disclosure.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+                disclosure.widthAnchor.constraint(equalToConstant: 12),
+                disclosure.heightAnchor.constraint(equalToConstant: 12),
+                iconLeading,
                 icon.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
                 icon.widthAnchor.constraint(equalToConstant: 18),
                 icon.heightAnchor.constraint(equalToConstant: 18),
@@ -1065,6 +1077,29 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
     
     private func nameLabel(in cell: NSTableCellView) -> FileListTruncatingLabel? {
         cell.subviews.compactMap { $0 as? FileListTruncatingLabel }.first
+    }
+    
+    private func disclosureImageView(in cell: NSTableCellView) -> NSImageView? {
+        cell.subviews.first(where: { $0.identifier?.rawValue == "FileListCell.name.disclosure" }) as? NSImageView
+    }
+    
+    private func nameIconLeadingConstraint(in cell: NSTableCellView) -> NSLayoutConstraint? {
+        cell.constraints.first(where: { $0.identifier == "FileListCell.name.iconLeading" })
+    }
+    
+    func isDisclosureTogglePoint(_ point: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
+        guard row >= 0, row < displayRows.count else { return false }
+        let rowItem = displayRows[row]
+        guard rowItem.isExpandable else { return false }
+        guard let nameColumnIndex = tableView.tableColumns.firstIndex(where: {
+            FileListColumnID.from(column: $0) == .name
+        }) else { return false }
+        guard let nameCell = tableView.view(atColumn: nameColumnIndex, row: row, makeIfNecessary: false) as? NSTableCellView,
+              let disclosure = disclosureImageView(in: nameCell),
+              !disclosure.isHidden
+        else { return false }
+        let pointInCell = nameCell.convert(point, from: tableView)
+        return disclosure.frame.insetBy(dx: -4, dy: -2).contains(pointInCell)
     }
     
     func isFileNameTextPoint(_ point: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
@@ -1125,6 +1160,27 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         
         switch columnID {
         case .name:
+            let indentation = CGFloat(max(0, item.depth)) * 14
+            let iconLeading = 2 + indentation + (item.isExpandable ? 14 : 0)
+            nameIconLeadingConstraint(in: cell)?.constant = iconLeading
+            if let disclosure = disclosureImageView(in: cell) {
+                disclosure.isHidden = !item.isExpandable
+                if item.isExpandable {
+                    let symbolName: String
+                    if item.isExpanding {
+                        symbolName = "clock.arrow.2.circlepath"
+                    } else if item.isExpanded {
+                        symbolName = "chevron.down"
+                    } else {
+                        symbolName = "chevron.right"
+                    }
+                    disclosure.image = NSImage(
+                        systemSymbolName: symbolName,
+                        accessibilityDescription: "展开折叠"
+                    )
+                    disclosure.contentTintColor = item.expandErrorMessage == nil ? .tertiaryLabelColor : .systemRed
+                }
+            }
             if item.isParentDirectoryEntry {
                 cell.imageView?.image = NSImage(systemSymbolName: "arrow.up.circle", accessibilityDescription: nil)
                     ?? NSImage(named: NSImage.folderName)

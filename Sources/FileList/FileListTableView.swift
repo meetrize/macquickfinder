@@ -34,6 +34,9 @@ final class FileListTableView: NSTableView {
         
         interactionController?.handleBlankMouseUp()
         interactionController?.willHandleMouseDown(event, row: row, pointInTable: point)
+        if interactionController?.mouseDownHandledByDisclosureToggle == true {
+            return
+        }
         
         if interactionController?.shouldUseDefaultMouseDown(for: row, event: event) ?? true {
             super.mouseDown(with: event)

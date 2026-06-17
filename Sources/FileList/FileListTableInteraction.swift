@@ -17,6 +17,7 @@ public struct FileListTableInteraction {
     public var onQuickSearchBackspace: () -> Void
     public var onQuickSearchEscape: () -> Void
     public var onDragEnded: () -> Void
+    public var onToggleExpand: (FileListRow) -> Void
     public var canRename: (FileListRow) -> Bool
     public var performRename: (_ item: FileListRow, _ newName: String, _ completion: @escaping (Bool) -> Void) -> Void
     public var onRenameEditingChanged: (_ isEditing: Bool) -> Void
@@ -40,6 +41,7 @@ public struct FileListTableInteraction {
         onQuickSearchBackspace: @escaping () -> Void = {},
         onQuickSearchEscape: @escaping () -> Void = {},
         onDragEnded: @escaping () -> Void = {},
+        onToggleExpand: @escaping (FileListRow) -> Void = { _ in },
         canRename: @escaping (FileListRow) -> Bool = { _ in false },
         performRename: @escaping (_ item: FileListRow, _ newName: String, _ completion: @escaping (Bool) -> Void) -> Void = { _, _, completion in completion(false) },
         onRenameEditingChanged: @escaping (_ isEditing: Bool) -> Void = { _ in },
@@ -62,6 +64,7 @@ public struct FileListTableInteraction {
         self.onQuickSearchBackspace = onQuickSearchBackspace
         self.onQuickSearchEscape = onQuickSearchEscape
         self.onDragEnded = onDragEnded
+        self.onToggleExpand = onToggleExpand
         self.canRename = canRename
         self.performRename = performRename
         self.onRenameEditingChanged = onRenameEditingChanged
