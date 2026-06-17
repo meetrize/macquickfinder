@@ -42,12 +42,14 @@ struct SnippetsPanelView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
-            Divider()
-            snippetGrid
-            Divider()
-            searchBar
+            if !settings.isSnippetsContentCollapsed {
+                Divider()
+                snippetGrid
+                Divider()
+                searchBar
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .sheet(item: $editorSnippet) { snippet in
             SnippetEditorSheet(
                 snippet: snippet,
@@ -84,6 +86,16 @@ struct SnippetsPanelView: View {
 
     private var topBar: some View {
         HStack(spacing: 6) {
+            Button {
+                settings.isSnippetsContentCollapsed.toggle()
+            } label: {
+                Image(systemName: settings.isSnippetsContentCollapsed ? "chevron.up" : "chevron.down")
+            }
+            .buttonStyle(.borderless)
+            .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
+            .contentShape(Rectangle())
+            .help(settings.isSnippetsContentCollapsed ? "展开 Snippets" : "折叠 Snippets")
+
             Text("Snippets")
                 .font(.callout)
                 .fontWeight(.medium)

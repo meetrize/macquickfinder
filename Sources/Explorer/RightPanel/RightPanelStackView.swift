@@ -11,7 +11,16 @@ struct RightPanelStackView: View {
     let showHiddenFiles: Bool
     let panelWidth: CGFloat
 
+    @ObservedObject private var settings = SnippetsSettings.shared
     @State private var dragPreviewHeight: CGFloat?
+
+    private var previewMinHeight: CGFloat {
+        settings.isPreviewContentCollapsed ? PanelTopBarMetrics.totalHeight : 80
+    }
+
+    private var snippetsMinHeight: CGFloat {
+        settings.isSnippetsContentCollapsed ? PanelTopBarMetrics.totalHeight : 80
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -22,6 +31,9 @@ struct RightPanelStackView: View {
                 totalHeight: totalHeight
             )
             let previewHeight = dragPreviewHeight ?? storedPreviewHeight
+            let effectivePreviewHeight = settings.isPreviewContentCollapsed
+                ? PanelTopBarMetrics.totalHeight
+                : previewHeight
 
             VStack(spacing: 0) {
                 if showPreview {
@@ -30,15 +42,15 @@ struct RightPanelStackView: View {
                         selection: selection,
                         items: items
                     )
-                    .frame(height: previewHeight)
+                    .frame(height: effectivePreviewHeight)
                 }
 
                 if showBoth {
                     VerticalResizeDivider(
-                        previewHeight: previewHeight,
+                        previewHeight: effectivePreviewHeight,
                         totalHeight: totalHeight,
-                        minTopHeight: 80,
-                        minBottomHeight: 80,
+                        minTopHeight: previewMinHeight,
+                        minBottomHeight: snippetsMinHeight,
                         onHeightChange: { dragPreviewHeight = $0 },
                         onDragEnded: { finalHeight in
                             guard totalHeight > 0 else {
@@ -61,22 +73,31 @@ struct RightPanelStackView: View {
                         showHiddenFiles: showHiddenFiles,
                         panelWidth: panelWidth
                     )
-                    .frame(maxHeight: .infinity)
+                    .frame(
+                        maxHeight: settings.isSnippetsContentCollapsed
+                            ? PanelTopBarMetrics.totalHeight
+                            : .infinity
+                    )
                 }
             }
-            .animation(nil, value: previewHeight)
+            .animation(nil, value: effectivePreviewHeight)
         }
     }
 
     private func clampedPreviewHeight(_ height: CGFloat, totalHeight: CGFloat) -> CGFloat {
         guard totalHeight > 0 else { return 80 }
         let divider = showPreview && showSnippets ? VerticalResizeDividerMetrics.hitHeight : 0
-        let maxTop = max(80, totalHeight - 80 - divider)
-        return min(max(height, 80), maxTop)
+        let maxTop = max(previewMinHeight, totalHeight - snippetsMinHeight - divider)
+        return min(max(height, previewMinHeight), maxTop)
     }
 }
 
 enum PanelTopBarMetrics {
     static let contentHeight: CGFloat = 28
     static let verticalPadding: CGFloat = 6
+    static var totalHeight: CGFloat { contentHeight + verticalPadding * 2 }
+}
+
+enum OutputPanelMetrics {
+    static let titleBarHeight: CGFloat = 32
 }

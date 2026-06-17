@@ -1993,6 +1993,7 @@ struct ContentView: View {
     @AppStorage(AppSettings.leftPanelSidebarWidthKey) private var storedLeftPanelSidebarWidth = 240.0
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
+    @State private var isFileListRenaming = false
     @State private var isPathBarTextMode = false
     @State private var liveLeftPanelDragWidth: CGFloat?
     @StateObject private var externalFolderOpenCenter = ExternalFolderOpenCenter.shared
@@ -2000,7 +2001,7 @@ struct ContentView: View {
     private let leftPanelConstants = LeftPanelLayoutConstants()
     
     private var isTextFieldEditing: Bool {
-        activeBarField != nil
+        activeBarField != nil || isFileListRenaming
     }
 
     private var currentDirectoryTitle: String {
@@ -2390,6 +2391,7 @@ struct ContentView: View {
                 searchText: searchText,
                 quickSearchText: $quickSearchText,
                 isQuickSearchVisible: $isQuickSearchVisible,
+                isFileListRenaming: $isFileListRenaming,
                 focusToken: fileListFocusToken,
                 currentDirectoryPath: path,
                 canNavigateToParent: FileItem.canNavigateUp(from: path),
@@ -2709,11 +2711,7 @@ struct ContentView: View {
                 }
             },
             rename: { item in
-                let oldPath = item.id
-                FileOperations.rename(item) {
-                    selection.removeAll()
-                    loadItems(invalidatingPaths: [oldPath])
-                }
+                FileListTableController.shared?.beginRename(itemID: item.id)
             },
             showInfo: FileOperations.showInfo,
             canPaste: { destPath in
@@ -3364,6 +3362,7 @@ struct FileListView: View {
     let searchText: String
     @Binding var quickSearchText: String
     @Binding var isQuickSearchVisible: Bool
+    @Binding var isFileListRenaming: Bool
     let focusToken: UInt
     let currentDirectoryPath: String
     let canNavigateToParent: Bool
@@ -3445,6 +3444,8 @@ struct FileListView: View {
         }
         .onChange(of: currentDirectoryPath) { _ in
             closeQuickSearch()
+            isFileListRenaming = false
+            FileListTableController.shared?.cancelRenameIfNeededForDataUpdate()
         }
     }
     
@@ -3485,6 +3486,26 @@ struct FileListView: View {
                 closeQuickSearch()
             },
             onDragEnded: { onItemsChanged([]) },
+            canRename: { row in
+                !row.isParentDirectoryEntry && !contextActions.isInTrash
+            },
+            performRename: { row, newName, completion in
+                guard let item = tableRowItems.first(where: { $0.id == row.id }) else {
+                    completion(false)
+                    return
+                }
+                let oldPath = item.id
+                switch FileOperations.moveItem(item, toNewName: newName) {
+                case .success(let newURL):
+                    selection = [newURL.path]
+                    onItemsChanged([oldPath])
+                    completion(true)
+                case .failure(let error):
+                    NSAlert(error: error as NSError).runModal()
+                    completion(false)
+                }
+            },
+            onRenameEditingChanged: { isFileListRenaming = $0 },
             makeContextMenu: { clickedRow, selectedIDs in
                 let selectedItems = tableRowItems.filter { selectedIDs.contains($0.id) }
                 return FileListRowContextMenuBuilder.makeMenu(
@@ -3861,6 +3882,7 @@ struct FilePreviewView: View {
     @Binding var showPreview: Bool
     let selection: Set<FileItem.ID>
     let items: [FileItem]
+    @ObservedObject private var settings = SnippetsSettings.shared
     @State private var imageZoomScale: CGFloat = 1.0
     
     private var selectedItem: FileItem? {
@@ -3871,14 +3893,24 @@ struct FilePreviewView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
-                Text(selectedItem?.name ?? "")
+                Button {
+                    settings.isPreviewContentCollapsed.toggle()
+                } label: {
+                    Image(systemName: settings.isPreviewContentCollapsed ? "chevron.up" : "chevron.down")
+                }
+                .buttonStyle(.borderless)
+                .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
+                .contentShape(Rectangle())
+                .help(settings.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
+
+                Text(selectedItem?.name ?? "预览")
                     .font(.callout)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 
                 Spacer(minLength: 0)
                 
-                if let selectedItem, isImageFile(selectedItem) {
+                if !settings.isPreviewContentCollapsed, let selectedItem, isImageFile(selectedItem) {
                     Button {
                         imageZoomScale = min(imageZoomScale + 0.25, 5.0)
                     } label: {
@@ -3909,19 +3941,21 @@ struct FilePreviewView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, PanelTopBarMetrics.verticalPadding)
             
-            Divider()
-            
-            if let selectedItem {
-                if !selectedItem.isDirectory {
-                    FileContentView(item: selectedItem, imageZoomScale: $imageZoomScale)
-                        .id(selectedItem.id)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            if !settings.isPreviewContentCollapsed {
+                Divider()
+                
+                if let selectedItem {
+                    if !selectedItem.isDirectory {
+                        FileContentView(item: selectedItem, imageZoomScale: $imageZoomScale)
+                            .id(selectedItem.id)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    } else {
+                        Spacer(minLength: 0)
+                    }
                 } else {
-                    Spacer(minLength: 0)
+                    Text("Select a file to preview")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            } else {
-                Text("Select a file to preview")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -5313,29 +5347,26 @@ enum FileOperations {
         completion()
     }
     
-    static func rename(_ item: FileItem, completion: @escaping () -> Void) {
-        let alert = NSAlert()
-        alert.messageText = "重命名"
-        alert.informativeText = "请输入新名称："
+    @discardableResult
+    static func moveItem(_ item: FileItem, toNewName newName: String) -> Result<URL, Error> {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return .failure(NSError(
+                domain: NSCocoaErrorDomain,
+                code: NSFileWriteInvalidFileNameError,
+                userInfo: [NSLocalizedDescriptionKey: "名称不能为空"]
+            ))
+        }
+        guard trimmed != item.name else {
+            return .success(item.url)
+        }
         
-        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        textField.stringValue = item.name
-        alert.accessoryView = textField
-        alert.addButton(withTitle: "确定")
-        alert.addButton(withTitle: "取消")
-        alert.window.initialFirstResponder = textField
-        
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        
-        let newName = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !newName.isEmpty, newName != item.name else { return }
-        
-        let newURL = item.url.deletingLastPathComponent().appendingPathComponent(newName)
+        let newURL = item.url.deletingLastPathComponent().appendingPathComponent(trimmed)
         do {
             try FileManager.default.moveItem(at: item.url, to: newURL)
-            completion()
+            return .success(newURL)
         } catch {
-            NSAlert(error: error).runModal()
+            return .failure(error)
         }
     }
     

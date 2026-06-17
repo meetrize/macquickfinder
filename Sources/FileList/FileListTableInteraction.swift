@@ -17,6 +17,9 @@ public struct FileListTableInteraction {
     public var onQuickSearchBackspace: () -> Void
     public var onQuickSearchEscape: () -> Void
     public var onDragEnded: () -> Void
+    public var canRename: (FileListRow) -> Bool
+    public var performRename: (_ item: FileListRow, _ newName: String, _ completion: @escaping (Bool) -> Void) -> Void
+    public var onRenameEditingChanged: (_ isEditing: Bool) -> Void
     public var makeContextMenu: (_ clickedRow: FileListRow, _ selectedIDs: Set<String>) -> NSMenu?
     public var dropDestinationPath: (FileListRow) -> String?
     public var canAcceptDrop: (_ destinationPath: String, _ urls: [URL]) -> Bool
@@ -37,6 +40,9 @@ public struct FileListTableInteraction {
         onQuickSearchBackspace: @escaping () -> Void = {},
         onQuickSearchEscape: @escaping () -> Void = {},
         onDragEnded: @escaping () -> Void = {},
+        canRename: @escaping (FileListRow) -> Bool = { _ in false },
+        performRename: @escaping (_ item: FileListRow, _ newName: String, _ completion: @escaping (Bool) -> Void) -> Void = { _, _, completion in completion(false) },
+        onRenameEditingChanged: @escaping (_ isEditing: Bool) -> Void = { _ in },
         makeContextMenu: @escaping (_ clickedRow: FileListRow, _ selectedIDs: Set<String>) -> NSMenu? = { _, _ in nil },
         dropDestinationPath: @escaping (FileListRow) -> String? = { _ in nil },
         canAcceptDrop: @escaping (_ destinationPath: String, _ urls: [URL]) -> Bool = { _, _ in false },
@@ -56,6 +62,9 @@ public struct FileListTableInteraction {
         self.onQuickSearchBackspace = onQuickSearchBackspace
         self.onQuickSearchEscape = onQuickSearchEscape
         self.onDragEnded = onDragEnded
+        self.canRename = canRename
+        self.performRename = performRename
+        self.onRenameEditingChanged = onRenameEditingChanged
         self.makeContextMenu = makeContextMenu
         self.dropDestinationPath = dropDestinationPath
         self.canAcceptDrop = canAcceptDrop

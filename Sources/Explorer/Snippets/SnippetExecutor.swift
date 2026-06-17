@@ -53,6 +53,7 @@ final class SnippetExecutor: ObservableObject {
             jobStore.markFailed(jobID: jobID, message: message + "\n")
             if settings.autoShowOutputPanelOnShellRun {
                 settings.isOutputPanelVisible = true
+                settings.isOutputPanelContentCollapsed = false
             }
             return
         }
@@ -80,6 +81,7 @@ final class SnippetExecutor: ObservableObject {
 
         if settings.autoShowOutputPanelOnShellRun {
             settings.isOutputPanelVisible = true
+            settings.isOutputPanelContentCollapsed = false
         }
 
         switch snippet.scriptType {

@@ -50,6 +50,11 @@ extension FileListTableController {
         if !tableView.selectedRowIndexes.contains(row) {
             tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             syncSelectionFromTable()
+            pendingRenameRow = -1
+        } else if shouldBeginRenameOnMouseUp(row: row) {
+            pendingRenameRow = row
+        } else {
+            pendingRenameRow = -1
         }
         refreshVisibleRowContentClip()
     }
@@ -146,6 +151,10 @@ extension FileListTableController {
     }
     
     func handleMouseDragged(_ event: NSEvent) -> Bool {
+        if isRenaming { return false }
+        if pendingRenameRow >= 0 {
+            pendingRenameRow = -1
+        }
         if handleBlankMouseDragged(event) { return true }
         
         guard !dragSessionActive,
@@ -176,6 +185,8 @@ extension FileListTableController {
     }
     
     func handleKeyDown(_ event: NSEvent) -> Bool {
+        if isRenaming { return false }
+        
         // Return / Enter: 打开当前高亮行（与双击行为一致）。
         if event.keyCode == 36 || event.keyCode == 76 {
             guard !event.modifierFlags.contains(.command),
@@ -244,6 +255,23 @@ extension FileListTableController {
     func handleRightMouseDown(_ event: NSEvent) {
         guard let tableView else { return }
         let point = tableView.convert(event.locationInWindow, from: nil)
+        
+        if isRenaming,
+           let rowID = renamingRowID,
+           let row = displayRows.firstIndex(where: { $0.id == rowID }),
+           let nameColumnIndex = tableView.tableColumns.firstIndex(where: {
+               FileListColumnID.from(column: $0) == .name
+           }),
+           let cell = tableView.view(atColumn: nameColumnIndex, row: row, makeIfNecessary: false) as? NSTableCellView,
+           let field = renameField(in: cell),
+           !field.isHidden {
+            let pointInField = field.convert(point, from: tableView)
+            if field.bounds.contains(pointInField) {
+                tableView.window?.makeFirstResponder(field)
+                field.rightMouseDown(with: event)
+                return
+            }
+        }
         
         if isBlankInteractivePoint(point, in: tableView) {
             showBlankContextMenu(for: event)

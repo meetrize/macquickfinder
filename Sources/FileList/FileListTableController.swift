@@ -25,6 +25,8 @@ public final class FileListTableController: NSObject {
     var blankMouseDownEvent: NSEvent?
     var blankDragSelecting = false
     var dropHighlightRow: Int?
+    var renamingRowID: String?
+    var pendingRenameRow = -1
     let dragThreshold: CGFloat = 4
     
     public var onOpenRow: ((FileListRow) -> Void)?
@@ -143,6 +145,9 @@ public final class FileListTableController: NSObject {
         if listingChanged {
             lastListingSignature = listingSignature
             lastDirectorySizeRevision = 0
+            if renamingRowID != nil {
+                cancelRenameIfNeededForDataUpdate()
+            }
         }
         
         let previousSourceRows = sourceRows
@@ -244,6 +249,11 @@ public final class FileListTableController: NSObject {
     }
     
     func finishPointerInteractionIfNeeded() {
+        if pendingRenameRow >= 0 {
+            let row = pendingRenameRow
+            pendingRenameRow = -1
+            beginRename(row: row)
+        }
         mouseDownEvent = nil
         mouseDownRow = -1
         mouseDownLocation = nil
@@ -423,12 +433,17 @@ public final class FileListTableController: NSObject {
             guard row >= 0, row < displayRows.count,
                   let cell = tableView.view(atColumn: nameColumnIndex, row: row, makeIfNecessary: false) as? NSTableCellView
             else { continue }
-            applyNameLabel(
-                in: cell,
-                item: displayRows[row],
-                isSelected: tableView.selectedRowIndexes.contains(row),
-                isEmphasized: isEmphasized
-            )
+            let item = displayRows[row]
+            if renamingRowID == item.id {
+                applyRenameField(in: cell, item: item)
+            } else {
+                applyNameLabel(
+                    in: cell,
+                    item: item,
+                    isSelected: tableView.selectedRowIndexes.contains(row),
+                    isEmphasized: isEmphasized
+                )
+            }
         }
     }
     
@@ -953,6 +968,13 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
     }
     
     public func tableViewSelectionDidChange(_ notification: Notification) {
+        if isRenaming,
+           let rowID = renamingRowID,
+           let row = displayRows.firstIndex(where: { $0.id == rowID }),
+           let tableView,
+           !tableView.selectedRowIndexes.contains(row) {
+            cancelRename()
+        }
         syncSelectionFromTable()
         refreshVisibleRowContentClip()
         refreshVisibleNameLabels()
@@ -981,8 +1003,18 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
             icon.imageScaling = .scaleProportionallyDown
             let label = FileListTruncatingLabel()
             label.translatesAutoresizingMaskIntoConstraints = false
+            let renameField = FileListInlineRenameField()
+            renameField.translatesAutoresizingMaskIntoConstraints = false
+            renameField.isHidden = true
+            renameField.onCommit = { [weak self] newName in
+                self?.commitRename(newName: newName)
+            }
+            renameField.onCancel = { [weak self] in
+                self?.cancelRename()
+            }
             cell.addSubview(icon)
             cell.addSubview(label)
+            cell.addSubview(renameField)
             NSLayoutConstraint.activate([
                 icon.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
                 icon.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
@@ -991,7 +1023,9 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
                 label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 6),
                 label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
                 label.topAnchor.constraint(equalTo: cell.topAnchor),
-                label.bottomAnchor.constraint(equalTo: cell.bottomAnchor)
+                label.bottomAnchor.constraint(equalTo: cell.bottomAnchor),
+                renameField.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 4),
+                renameField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
             ])
             cell.imageView = icon
         default:
@@ -1056,6 +1090,8 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         isSelected: Bool,
         isEmphasized: Bool
     ) {
+        nameLabel(in: cell)?.isHidden = false
+        renameField(in: cell)?.isHidden = true
         let highlightText = interaction.quickSearchText.isEmpty
             ? interaction.searchText
             : interaction.quickSearchText
@@ -1069,7 +1105,18 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         )
     }
     
-    private func configure(cell: NSTableCellView, columnID: FileListColumnID, item: FileListRow, row: Int) {
+    private func applyRenameField(in cell: NSTableCellView, item: FileListRow) {
+        nameLabel(in: cell)?.isHidden = true
+        guard let field = renameField(in: cell) else { return }
+        field.isHidden = false
+        field.stringValue = item.name
+        field.font = item.isDirectory
+            ? .boldSystemFont(ofSize: NSFont.systemFontSize)
+            : .systemFont(ofSize: NSFont.systemFontSize)
+        field.updateLayoutWidth(maxAvailableWidth: renameFieldMaxWidth(in: cell))
+    }
+    
+    func configure(cell: NSTableCellView, columnID: FileListColumnID, item: FileListRow, row: Int) {
         if let label = cell.textField {
             applyTruncationSettings(to: label, truncation: .byTruncatingTail)
         }
@@ -1084,7 +1131,11 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
             }
             let isSelected = tableView?.selectedRowIndexes.contains(row) ?? false
             let isEmphasized = tableView?.window?.isKeyWindow ?? true
-            applyNameLabel(in: cell, item: item, isSelected: isSelected, isEmphasized: isEmphasized)
+            if renamingRowID == item.id {
+                applyRenameField(in: cell, item: item)
+            } else {
+                applyNameLabel(in: cell, item: item, isSelected: isSelected, isEmphasized: isEmphasized)
+            }
         case .type:
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.fileType
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)

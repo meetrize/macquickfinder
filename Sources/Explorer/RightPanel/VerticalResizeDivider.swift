@@ -67,7 +67,7 @@ struct VerticalResizeDivider: NSViewRepresentable {
                 let startHeight = view.dragStartPreviewHeight ?? self.previewHeight
                 let total = view.dragStartTotalHeight ?? self.totalHeight
                 let clamped = Self.clampedPreviewHeight(
-                    startHeight + (windowMouseY - startY),
+                    startHeight + (startY - windowMouseY),
                     totalHeight: total,
                     minTopHeight: self.minTopHeight,
                     minBottomHeight: self.minBottomHeight,
@@ -80,7 +80,7 @@ struct VerticalResizeDivider: NSViewRepresentable {
                 let startHeight = view.dragStartPreviewHeight ?? self.previewHeight
                 let total = view.dragStartTotalHeight ?? self.totalHeight
                 let clamped = Self.clampedPreviewHeight(
-                    startHeight + (windowMouseY - startY),
+                    startHeight + (startY - windowMouseY),
                     totalHeight: total,
                     minTopHeight: self.minTopHeight,
                     minBottomHeight: self.minBottomHeight,
@@ -108,8 +108,8 @@ struct VerticalResizeDivider: NSViewRepresentable {
 }
 
 enum VerticalResizeDividerMetrics {
-    static let visualHeight: CGFloat = 6
-    static let hitHeight: CGFloat = 14
+    static let visualHeight: CGFloat = 1
+    static let hitHeight: CGFloat = 6
 }
 
 final class VerticalResizeDividerNSView: NSView {

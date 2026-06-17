@@ -19,7 +19,10 @@ struct OutputPanelView: View {
     @FocusState private var focusedField: OutputPanelFocusField?
 
     private var effectivePanelHeight: CGFloat {
-        dragPanelHeight ?? CGFloat(settings.outputPanelHeight)
+        if settings.isOutputPanelContentCollapsed {
+            return OutputPanelMetrics.titleBarHeight
+        }
+        return dragPanelHeight ?? CGFloat(settings.outputPanelHeight)
     }
 
     private var isOutputContextActive: Bool {
@@ -29,17 +32,21 @@ struct OutputPanelView: View {
     var body: some View {
         if settings.isOutputPanelVisible {
             VStack(spacing: 0) {
-                OutputPanelResizeHandle(
-                    panelHeight: effectivePanelHeight,
-                    minHeight: 80,
-                    maxHeight: maxPanelHeight,
-                    onHeightChange: { dragPanelHeight = $0 },
-                    onDragEnded: { finalHeight in
-                        settings.outputPanelHeight = Double(finalHeight)
-                        dragPanelHeight = nil
-                    }
-                )
-                .frame(height: 14)
+                if settings.isOutputPanelContentCollapsed {
+                    Divider()
+                } else {
+                    OutputPanelResizeHandle(
+                        panelHeight: dragPanelHeight ?? CGFloat(settings.outputPanelHeight),
+                        minHeight: 80,
+                        maxHeight: maxPanelHeight,
+                        onHeightChange: { dragPanelHeight = $0 },
+                        onDragEnded: { finalHeight in
+                            settings.outputPanelHeight = Double(finalHeight)
+                            dragPanelHeight = nil
+                        }
+                    )
+                    .frame(height: 14)
+                }
 
                 panelContent
                     .frame(height: effectivePanelHeight)
@@ -51,23 +58,25 @@ struct OutputPanelView: View {
     private var panelContent: some View {
         VStack(spacing: 0) {
             jobTabBar
-            if let job = jobStore.selectedJob {
-                VStack(spacing: 0) {
-                    outputArea(job: job)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if !settings.isOutputPanelContentCollapsed {
+                if let job = jobStore.selectedJob {
+                    VStack(spacing: 0) {
+                        outputArea(job: job)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                    bottomBar(job: job)
-                }
-                .onAppear { syncCommandDraft(for: job) }
-                .onChange(of: jobStore.selectedJobID) { _ in
-                    if let job = jobStore.selectedJob {
-                        syncCommandDraft(for: job)
+                        bottomBar(job: job)
                     }
+                    .onAppear { syncCommandDraft(for: job) }
+                    .onChange(of: jobStore.selectedJobID) { _ in
+                        if let job = jobStore.selectedJob {
+                            syncCommandDraft(for: job)
+                        }
+                    }
+                } else {
+                    Text("执行 Snippet 后在此查看输出")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            } else {
-                Text("执行 Snippet 后在此查看输出")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .background(OutputPanelKeyMonitor(isActive: isOutputContextActive) {
@@ -108,6 +117,16 @@ struct OutputPanelView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
             }
+
+            Button {
+                settings.isOutputPanelContentCollapsed.toggle()
+            } label: {
+                Image(systemName: settings.isOutputPanelContentCollapsed ? "chevron.up" : "chevron.down")
+            }
+            .buttonStyle(.borderless)
+            .help(settings.isOutputPanelContentCollapsed ? "展开输出面板" : "折叠输出面板")
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
 
             Button {
                 jobStore.closeOutputPanel()
