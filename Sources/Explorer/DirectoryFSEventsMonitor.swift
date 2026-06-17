@@ -117,11 +117,25 @@ final class DirectoryFSEventsMonitor {
         let showHidden = showHiddenFiles
         Task {
             await DirectorySizeService.shared.invalidate(paths: paths)
+            await DirectoryItemCountService.shared.invalidate(paths: paths)
             await MainActor.run {
                 DirectorySizeOverlay.shared.remove(paths: paths)
             }
-            guard DirectorySizePreferences.autoCalculateDirectorySizes else { return }
+            guard DirectorySizePreferences.autoCalculateDirectorySizes else {
+                let showHidden = showHiddenFiles
+                await DirectoryItemCountService.shared.schedule(
+                    paths: paths,
+                    showHiddenFiles: showHidden,
+                    priority: .visible
+                )
+                return
+            }
             await DirectorySizeService.shared.schedule(
+                paths: paths,
+                showHiddenFiles: showHidden,
+                priority: .visible
+            )
+            await DirectoryItemCountService.shared.schedule(
                 paths: paths,
                 showHiddenFiles: showHidden,
                 priority: .visible

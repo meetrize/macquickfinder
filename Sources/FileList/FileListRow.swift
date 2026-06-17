@@ -9,6 +9,8 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
     public let name: String
     public let fileType: String
     public let sizeDisplay: String
+    /// 文件夹子项数量角标文案（仅缩略图模式目录格使用）。
+    public let childCountDisplay: String?
     public let dateDisplay: String
     public let size: Int64
     public let modificationDate: Date
@@ -35,6 +37,7 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         name: String,
         fileType: String,
         sizeDisplay: String,
+        childCountDisplay: String? = nil,
         dateDisplay: String,
         size: Int64,
         modificationDate: Date,
@@ -53,6 +56,7 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         self.name = name
         self.fileType = fileType
         self.sizeDisplay = sizeDisplay
+        self.childCountDisplay = childCountDisplay
         self.dateDisplay = dateDisplay
         self.size = size
         self.modificationDate = modificationDate
@@ -73,6 +77,7 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         id == other.id
             && name == other.name
             && fileType == other.fileType
+            && childCountDisplay == other.childCountDisplay
             && dateDisplay == other.dateDisplay
             && modificationDate == other.modificationDate
             && isDirectory == other.isDirectory
@@ -94,8 +99,57 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             name: name,
             fileType: fileType,
             sizeDisplay: info.text,
+            childCountDisplay: childCountDisplay,
             dateDisplay: dateDisplay,
             size: info.sortableSize,
+            modificationDate: modificationDate,
+            isDirectory: isDirectory,
+            isHidden: isHidden,
+            isParentDirectoryEntry: isParentDirectoryEntry,
+            iconPath: iconPath,
+            depth: depth,
+            parentID: parentID,
+            isExpandable: isExpandable,
+            isExpanded: isExpanded,
+            isExpanding: isExpanding,
+            expandErrorMessage: expandErrorMessage
+        )
+    }
+    
+    func withChildCountDisplay(_ info: DirectoryItemCountDisplayInfo) -> FileListRow {
+        guard isDirectory, !isParentDirectoryEntry else { return self }
+        guard info != .unknown else {
+            guard childCountDisplay != nil else { return self }
+            return FileListRow(
+                id: id,
+                name: name,
+                fileType: fileType,
+                sizeDisplay: sizeDisplay,
+                childCountDisplay: nil,
+                dateDisplay: dateDisplay,
+                size: size,
+                modificationDate: modificationDate,
+                isDirectory: isDirectory,
+                isHidden: isHidden,
+                isParentDirectoryEntry: isParentDirectoryEntry,
+                iconPath: iconPath,
+                depth: depth,
+                parentID: parentID,
+                isExpandable: isExpandable,
+                isExpanded: isExpanded,
+                isExpanding: isExpanding,
+                expandErrorMessage: expandErrorMessage
+            )
+        }
+        guard childCountDisplay != info.text else { return self }
+        return FileListRow(
+            id: id,
+            name: name,
+            fileType: fileType,
+            sizeDisplay: sizeDisplay,
+            childCountDisplay: info.text,
+            dateDisplay: dateDisplay,
+            size: size,
             modificationDate: modificationDate,
             isDirectory: isDirectory,
             isHidden: isHidden,

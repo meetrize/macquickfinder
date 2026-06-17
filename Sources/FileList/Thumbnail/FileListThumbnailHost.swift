@@ -12,6 +12,7 @@ public struct FileListThumbnailHost: NSViewRepresentable {
     public let onOpenRow: (FileListRow) -> Void
     public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
     public var directorySizeProvider: DirectorySizeColumnProvider?
+    public var directoryItemCountProvider: DirectoryItemCountColumnProvider?
     
     public init(
         rows: [FileListRow],
@@ -22,7 +23,8 @@ public struct FileListThumbnailHost: NSViewRepresentable {
         onCellSizeChange: ((CGFloat) -> Void)? = nil,
         onOpenRow: @escaping (FileListRow) -> Void,
         onVisibleDirectoryPathsChanged: (([String]) -> Void)? = nil,
-        directorySizeProvider: DirectorySizeColumnProvider? = nil
+        directorySizeProvider: DirectorySizeColumnProvider? = nil,
+        directoryItemCountProvider: DirectoryItemCountColumnProvider? = nil
     ) {
         self.rows = rows
         self.interaction = interaction
@@ -33,6 +35,7 @@ public struct FileListThumbnailHost: NSViewRepresentable {
         self.onOpenRow = onOpenRow
         self.onVisibleDirectoryPathsChanged = onVisibleDirectoryPathsChanged
         self.directorySizeProvider = directorySizeProvider
+        self.directoryItemCountProvider = directoryItemCountProvider
     }
     
     public func makeCoordinator() -> FileListThumbnailController {
@@ -61,5 +64,6 @@ public struct FileListThumbnailHost: NSViewRepresentable {
             cellSize: cellSize
         )
         controller.refreshDirectorySizeColumnIfNeeded(directorySizeProvider)
+        controller.refreshDirectoryItemCountColumnIfNeeded(directoryItemCountProvider)
     }
 }

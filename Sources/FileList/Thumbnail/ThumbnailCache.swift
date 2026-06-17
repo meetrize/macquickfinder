@@ -26,14 +26,24 @@ final class ThumbnailCache {
     private var storage: [Key: Entry] = [:]
     private var accessOrder: [Key] = []
     private var totalCost = 0
+    private let diskCache = ThumbnailDiskCache()
     
     private let maxEntryCount = 500
     private let maxTotalCost = 150 * 1024 * 1024
     
     func entry(for key: Key) -> Entry? {
-        guard let entry = storage[key] else { return nil }
-        touch(key)
-        return entry
+        if let entry = storage[key] {
+            touch(key)
+            return entry
+        }
+        if let diskEntry = diskCache.load(for: key) {
+            storage[key] = diskEntry
+            accessOrder.append(key)
+            totalCost += diskEntry.cost
+            evictIfNeeded()
+            return diskEntry
+        }
+        return nil
     }
     
     func store(_ image: NSImage, isThumbnail: Bool, for key: Key) {
@@ -49,12 +59,14 @@ final class ThumbnailCache {
         accessOrder.append(key)
         totalCost += cost
         evictIfNeeded()
+        diskCache.store(image, isThumbnail: isThumbnail, for: key)
     }
     
     func removeAll() {
         storage.removeAll()
         accessOrder.removeAll()
         totalCost = 0
+        diskCache.removeAll()
     }
     
     private func touch(_ key: Key) {

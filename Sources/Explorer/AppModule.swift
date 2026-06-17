@@ -1978,6 +1978,7 @@ struct ContentView: View {
     @State private var sortOrder: SortOrder = .nameAscending
     @ObservedObject private var fileListPreferences = FileListPreferencesStore.shared
     private let directorySizeOverlay = DirectorySizeOverlay.shared
+    private let directoryItemCountOverlay = DirectoryItemCountOverlay.shared
     @State private var isSyncingSortFromPreferences = false
     @State private var isLoading = false
     @State private var searchText = ""
@@ -2464,6 +2465,7 @@ struct ContentView: View {
                 canNavigateToParent: FileItem.canNavigateUp(from: path),
                 showHiddenFiles: showHiddenFiles,
                 directorySizeOverlay: directorySizeOverlay,
+                directoryItemCountOverlay: directoryItemCountOverlay,
                 viewMode: fileListViewMode,
                 thumbnailCellSize: thumbnailCellSize,
                 onThumbnailCellSizeChange: { thumbnailCellSize = $0 },
@@ -2471,6 +2473,7 @@ struct ContentView: View {
                 onBlankDoubleClick: handleBlankDoubleClick,
                 onItemsChanged: handleFileListItemsChanged,
                 onScheduleVisibleDirectorySizes: scheduleVisibleDirectorySizes,
+                onScheduleVisibleDirectoryItemCounts: scheduleVisibleDirectoryItemCounts,
                 contextActions: fileContextActions,
                 blankMenuActions: blankMenuActions,
                 canNavigateBack: canNavigateBack,
@@ -2493,6 +2496,7 @@ struct ContentView: View {
         let currentPath = path
         let shouldShowHiddenFiles = showHiddenFiles
         directorySizeOverlay.beginSession(generation: currentGeneration)
+        directoryItemCountOverlay.beginSession(generation: currentGeneration)
         
         Task {
             var didApplyItems = false
@@ -2509,8 +2513,10 @@ struct ContentView: View {
             
             if !invalidatingPaths.isEmpty {
                 await DirectorySizeService.shared.invalidate(paths: invalidatingPaths)
+                await DirectoryItemCountService.shared.invalidate(paths: invalidatingPaths)
             }
             await DirectorySizeService.shared.resetSession(generation: currentGeneration)
+            await DirectoryItemCountService.shared.resetSession(generation: currentGeneration)
             
             var loadedItems: [FileItem] = []
             
@@ -2571,6 +2577,11 @@ struct ContentView: View {
                     priority: .normal
                 )
             }
+            await DirectoryItemCountService.shared.schedule(
+                paths: folderPaths,
+                showHiddenFiles: shouldShowHiddenFiles,
+                priority: .normal
+            )
             
             await MainActor.run {
                 guard currentGeneration == loadGeneration else { return }
@@ -2612,6 +2623,19 @@ struct ContentView: View {
         let shouldShowHiddenFiles = showHiddenFiles
         Task {
             await DirectorySizeService.shared.schedule(
+                paths: visiblePaths,
+                showHiddenFiles: shouldShowHiddenFiles,
+                priority: .visible
+            )
+        }
+    }
+    
+    private func scheduleVisibleDirectoryItemCounts(_ visiblePaths: [String]) {
+        guard fileListViewMode == .thumbnail,
+              !TrashLoader.isTrashPath(path) else { return }
+        let shouldShowHiddenFiles = showHiddenFiles
+        Task {
+            await DirectoryItemCountService.shared.schedule(
                 paths: visiblePaths,
                 showHiddenFiles: shouldShowHiddenFiles,
                 priority: .visible
@@ -3404,6 +3428,26 @@ private struct DirectorySizeTableBridge<Content: View>: View {
     }
 }
 
+/// 缩略图模式目录元数据（大小 + 子项数量）回填桥接。
+private struct ThumbnailMetadataBridge<Content: View>: View {
+    @ObservedObject var sizeOverlay: DirectorySizeOverlay
+    @ObservedObject var countOverlay: DirectoryItemCountOverlay
+    @ViewBuilder let content: (DirectorySizeColumnProvider, DirectoryItemCountColumnProvider) -> Content
+    
+    var body: some View {
+        content(
+            DirectorySizeColumnProvider(
+                revision: sizeOverlay.revision,
+                display: { sizeOverlay.sizeDisplay(for: $0) }
+            ),
+            DirectoryItemCountColumnProvider(
+                revision: countOverlay.revision,
+                display: { countOverlay.countDisplay(for: $0) }
+            )
+        )
+    }
+}
+
 extension SidebarRow {
     init<Accessory: View>(
         title: String,
@@ -3439,6 +3483,7 @@ struct FileListView: View {
     let canNavigateToParent: Bool
     let showHiddenFiles: Bool
     let directorySizeOverlay: DirectorySizeOverlay
+    let directoryItemCountOverlay: DirectoryItemCountOverlay
     let viewMode: FileListViewMode
     let thumbnailCellSize: CGFloat
     let onThumbnailCellSizeChange: (CGFloat) -> Void
@@ -3446,6 +3491,7 @@ struct FileListView: View {
     let onBlankDoubleClick: () -> Void
     let onItemsChanged: ([String]) -> Void
     let onScheduleVisibleDirectorySizes: ([String]) -> Void
+    let onScheduleVisibleDirectoryItemCounts: ([String]) -> Void
     let contextActions: FileContextActions
     let blankMenuActions: FileListBlankMenuActions
     let canNavigateBack: Bool
@@ -3609,7 +3655,10 @@ struct FileListView: View {
         let listRows = makeListRows()
         let tableInteraction = makeFileListInteraction()
         
-        return DirectorySizeTableBridge(overlay: directorySizeOverlay) { sizeProvider in
+        return ThumbnailMetadataBridge(
+            sizeOverlay: directorySizeOverlay,
+            countOverlay: directoryItemCountOverlay
+        ) { sizeProvider, countProvider in
             FileListThumbnailHost(
                 rows: listRows,
                 interaction: tableInteraction,
@@ -3624,8 +3673,12 @@ struct FileListView: View {
                     guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
                     onItemOpen(item)
                 },
-                onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
-                directorySizeProvider: sizeProvider
+                onVisibleDirectoryPathsChanged: { paths in
+                    onScheduleVisibleDirectorySizes(paths)
+                    onScheduleVisibleDirectoryItemCounts(paths)
+                },
+                directorySizeProvider: sizeProvider,
+                directoryItemCountProvider: countProvider
             )
             .onAppear {
                 preferencesStore.resetToDefaultIfNeeded()

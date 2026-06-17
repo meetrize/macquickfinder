@@ -28,6 +28,9 @@ public final class FileListThumbnailController: NSObject {
     private var directorySizeDisplay: ((String) -> DirectorySizeDisplayInfo)?
     private var lastDirectorySizeRevision: UInt = 0
     private var pendingDirectorySizeRefresh = false
+    private var directoryItemCountDisplay: ((String) -> DirectoryItemCountDisplayInfo)?
+    private var lastDirectoryItemCountRevision: UInt = 0
+    private var pendingDirectoryItemCountRefresh = false
     private var lastReportedVisibleDirectoryPaths: [String] = []
     private var visiblePathsNotifyWorkItem: DispatchWorkItem?
     
@@ -45,6 +48,8 @@ public final class FileListThumbnailController: NSObject {
     var lastKnownSelectionIDs: Set<String> = []
     var wasAlreadySelectedAtMouseDown = false
     var dropHighlightIndexPath: IndexPath?
+    var springLoadWorkItem: DispatchWorkItem?
+    var springLoadTargetIndexPath: IndexPath?
     let dragThreshold: CGFloat = 4
     static let renameSecondClickMaxInterval: TimeInterval = 1
     
@@ -134,7 +139,7 @@ public final class FileListThumbnailController: NSObject {
         if listingChanged || previousSourceRows.isEmpty {
             mergedRows = rows
         } else {
-            mergedRows = mergePreservingDirectorySizes(incoming: rows, existing: previousSourceRows)
+            mergedRows = mergePreservingDirectoryMetadata(incoming: rows, existing: previousSourceRows)
         }
         sourceRows = mergedRows
         
@@ -184,24 +189,49 @@ public final class FileListThumbnailController: NSObject {
         applyDirectorySizeDisplayUpdates()
     }
     
-    private func mergePreservingDirectorySizes(incoming: [FileListRow], existing: [FileListRow]) -> [FileListRow] {
+    func refreshDirectoryItemCountColumnIfNeeded(_ provider: DirectoryItemCountColumnProvider?) {
+        directoryItemCountDisplay = provider?.display
+        guard let provider else { return }
+        guard provider.revision != lastDirectoryItemCountRevision else {
+            flushPendingDirectoryItemCountRefreshIfNeeded()
+            return
+        }
+        lastDirectoryItemCountRevision = provider.revision
+        applyDirectoryItemCountDisplayUpdates()
+    }
+    
+    private func mergePreservingDirectoryMetadata(
+        incoming: [FileListRow],
+        existing: [FileListRow]
+    ) -> [FileListRow] {
         let existingByID = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
         return incoming.map { row in
             guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
+            var updated = row
             
             if let directorySizeDisplay {
                 let info = directorySizeDisplay(row.iconPath)
                 if info != .unknown {
-                    return row.withDirectorySizeDisplay(info)
+                    updated = updated.withDirectorySizeDisplay(info)
                 }
+            } else if let cached = existingByID[row.id], cached.sizeDisplay != "--" {
+                updated = updated.withDirectorySizeDisplay(
+                    DirectorySizeDisplayInfo(sortableSize: cached.size, text: cached.sizeDisplay)
+                )
             }
             
-            guard let cached = existingByID[row.id], cached.sizeDisplay != "--" else {
-                return row
+            if let directoryItemCountDisplay {
+                let info = directoryItemCountDisplay(row.iconPath)
+                if info != .unknown {
+                    updated = updated.withChildCountDisplay(info)
+                }
+            } else if let cached = existingByID[row.id], let childCount = cached.childCountDisplay {
+                updated = updated.withChildCountDisplay(
+                    DirectoryItemCountDisplayInfo(count: -1, text: childCount)
+                )
             }
-            return row.withDirectorySizeDisplay(
-                DirectorySizeDisplayInfo(sortableSize: cached.size, text: cached.sizeDisplay)
-            )
+            
+            return updated
         }
     }
     
@@ -219,11 +249,40 @@ public final class FileListThumbnailController: NSObject {
             guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
             let info = directorySizeDisplay(row.iconPath)
             guard info != .unknown, row.sizeDisplay != info.text else { return row }
+            changed = true
             return row.withDirectorySizeDisplay(info)
         }
         guard changed else { return }
         pendingDirectorySizeRefresh = true
         flushPendingDirectorySizeRefreshIfNeeded()
+    }
+    
+    private func applyDirectoryItemCountDisplayUpdates() {
+        guard let directoryItemCountDisplay else { return }
+        var changed = false
+        displayRows = displayRows.map { row in
+            guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
+            let info = directoryItemCountDisplay(row.iconPath)
+            guard info != .unknown, row.childCountDisplay != info.text else { return row }
+            changed = true
+            return row.withChildCountDisplay(info)
+        }
+        sourceRows = sourceRows.map { row in
+            guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
+            let info = directoryItemCountDisplay(row.iconPath)
+            guard info != .unknown, row.childCountDisplay != info.text else { return row }
+            changed = true
+            return row.withChildCountDisplay(info)
+        }
+        guard changed else { return }
+        pendingDirectoryItemCountRefresh = true
+        flushPendingDirectoryItemCountRefreshIfNeeded()
+    }
+    
+    private func flushPendingDirectoryItemCountRefreshIfNeeded() {
+        guard pendingDirectoryItemCountRefresh else { return }
+        pendingDirectoryItemCountRefresh = false
+        refreshVisibleItemAppearance()
     }
     
     private func flushPendingDirectorySizeRefreshIfNeeded() {
@@ -369,6 +428,9 @@ public final class FileListThumbnailController: NSObject {
                   indexPath.item < displayRows.count else { continue }
             let row = displayRows[indexPath.item]
             item.updateSelection(isRowSelected(row.id), highlightText: highlightText, row: row)
+            if item.representedRowID == row.id {
+                item.refreshRowMetadata(row)
+            }
         }
     }
     

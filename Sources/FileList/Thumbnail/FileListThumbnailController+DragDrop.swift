@@ -77,6 +77,7 @@ extension FileListThumbnailController: NSDraggingSource {
         operation: NSDragOperation
     ) {
         dragSessionActive = false
+        cancelSpringLoading()
         mouseDownLocation = nil
         mouseDownEvent = nil
         mouseDownCanStartFileDrag = false
@@ -86,6 +87,16 @@ extension FileListThumbnailController: NSDraggingSource {
                 self?.interaction.onDragEnded()
             }
         }
+    }
+    
+    public func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
+        guard let collectionView, let window = collectionView.window else {
+            cancelSpringLoading()
+            return
+        }
+        let windowPoint = window.convertPoint(fromScreen: screenPoint)
+        let point = collectionView.convert(windowPoint, from: nil)
+        handleSpringLoadingHover(at: springLoadingIndexPath(at: point))
     }
 }
 
@@ -101,6 +112,7 @@ extension FileListThumbnailController {
         let urls = FileListDragSupport.fileURLs(from: draggingInfo.draggingPasteboard)
         guard !urls.isEmpty else {
             clearDropHighlight()
+            cancelSpringLoading()
             return []
         }
         
@@ -109,6 +121,7 @@ extension FileListThumbnailController {
               indexPath.item >= 0,
               indexPath.item < displayRows.count else {
             clearDropHighlight()
+            cancelSpringLoading()
             return []
         }
         
@@ -116,12 +129,14 @@ extension FileListThumbnailController {
         guard let destinationPath = interaction.dropDestinationPath(row),
               interaction.canAcceptDrop(destinationPath, urls) else {
             clearDropHighlight()
+            cancelSpringLoading()
             return []
         }
         
         proposedDropIndexPath.pointee = indexPath as NSIndexPath
         proposedDropOperation.pointee = .on
         setDropHighlight(indexPath: indexPath)
+        handleSpringLoadingHover(at: indexPath)
         return FileListDragSupport.shouldCopyFromCurrentEvent() ? .copy : .move
     }
     
@@ -132,6 +147,7 @@ extension FileListThumbnailController {
         dropOperation: NSCollectionView.DropOperation
     ) -> Bool {
         clearDropHighlight()
+        cancelSpringLoading()
         let urls = FileListDragSupport.fileURLs(from: draggingInfo.draggingPasteboard)
         guard !urls.isEmpty,
               indexPath.item >= 0,

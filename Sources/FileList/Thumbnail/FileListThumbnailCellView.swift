@@ -13,12 +13,15 @@ final class FileListThumbnailCellView: NSView {
     private let nameLabel = NSTextField(labelWithString: "")
     private let sizeBadge = NSView()
     private let sizeLabel = NSTextField(labelWithString: "")
+    private let countBadge = NSView()
+    private let countLabel = NSTextField(labelWithString: "")
     private let selectionOverlay = NSView()
     private let renameField = FileListInlineRenameField(frame: .zero)
     
     private var isCellSelected = false
     private var isDropTarget = false
     private var imagePresentation: ImagePresentation = .icon
+    private var representedRow: FileListRow?
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -60,6 +63,18 @@ final class FileListThumbnailCellView: NSView {
         sizeLabel.isBordered = false
         sizeLabel.drawsBackground = false
         sizeBadge.addSubview(sizeLabel)
+        
+        countBadge.wantsLayer = true
+        countBadge.layer?.cornerRadius = FileListThumbnailMetrics.sizeBadgeCornerRadius
+        addSubview(countBadge)
+        
+        countLabel.font = .systemFont(ofSize: 9, weight: .medium)
+        countLabel.alignment = .center
+        countLabel.isEditable = false
+        countLabel.isSelectable = false
+        countLabel.isBordered = false
+        countLabel.drawsBackground = false
+        countBadge.addSubview(countLabel)
         
         renameField.isHidden = true
         renameField.font = .systemFont(ofSize: 11)
@@ -186,6 +201,26 @@ final class FileListThumbnailCellView: NSView {
             width: badgeWidth - 8,
             height: badgeHeight - 4
         )
+        
+        if countBadge.isHidden {
+            countBadge.frame = .zero
+        } else {
+            countLabel.sizeToFit()
+            let countBadgeWidth = min(bounds.width - 8, max(18, countLabel.bounds.width + 8))
+            let countBadgeHeight = countLabel.bounds.height + 4
+            countBadge.frame = NSRect(
+                x: bounds.width - countBadgeWidth - 4,
+                y: 4,
+                width: countBadgeWidth,
+                height: countBadgeHeight
+            )
+            countLabel.frame = NSRect(
+                x: 4,
+                y: 2,
+                width: countBadgeWidth - 8,
+                height: countBadgeHeight - 4
+            )
+        }
     }
     
     override func viewDidChangeEffectiveAppearance() {
@@ -199,6 +234,7 @@ final class FileListThumbnailCellView: NSView {
         highlightText: String,
         placeholderImage: NSImage
     ) {
+        representedRow = row
         isCellSelected = isSelected
         applyImage(placeholderImage, presentation: .icon, animated: false)
         
@@ -217,6 +253,13 @@ final class FileListThumbnailCellView: NSView {
             sizeLabel.stringValue = sizeText
         }
         
+        if let countText = row.childCountDisplay, !countText.isEmpty, row.isDirectory, !row.isParentDirectoryEntry {
+            countBadge.isHidden = false
+            countLabel.stringValue = countText
+        } else {
+            countBadge.isHidden = true
+        }
+        
         toolTip = thumbnailToolTip(for: row)
         selectionOverlay.isHidden = !isSelected
         updateAppearanceForCurrentTheme()
@@ -224,6 +267,7 @@ final class FileListThumbnailCellView: NSView {
     }
     
     func updateSelection(_ isSelected: Bool, highlightText: String, row: FileListRow) {
+        representedRow = row
         isCellSelected = isSelected
         guard renameField.isHidden else { return }
         nameLabel.attributedStringValue = FileListTextHighlight.attributedOverlayName(
@@ -232,8 +276,38 @@ final class FileListThumbnailCellView: NSView {
             isDirectory: row.isDirectory,
             isHidden: row.isHidden
         )
+        if let countText = row.childCountDisplay, !countText.isEmpty, row.isDirectory, !row.isParentDirectoryEntry {
+            countBadge.isHidden = false
+            countLabel.stringValue = countText
+        } else {
+            countBadge.isHidden = true
+        }
         selectionOverlay.isHidden = !isSelected
         updateAppearanceForCurrentTheme()
+        needsLayout = true
+    }
+    
+    func updateRowMetadata(_ row: FileListRow) {
+        representedRow = row
+        
+        let sizeText = row.sizeDisplay.trimmingCharacters(in: .whitespacesAndNewlines)
+        if row.isParentDirectoryEntry || sizeText.isEmpty || sizeText == "--" {
+            sizeBadge.isHidden = true
+        } else {
+            sizeBadge.isHidden = false
+            sizeLabel.stringValue = sizeText
+        }
+        
+        if let countText = row.childCountDisplay, !countText.isEmpty, row.isDirectory, !row.isParentDirectoryEntry {
+            countBadge.isHidden = false
+            countLabel.stringValue = countText
+        } else {
+            countBadge.isHidden = true
+        }
+        
+        toolTip = thumbnailToolTip(for: row)
+        updateAppearanceForCurrentTheme()
+        needsLayout = true
     }
     
     func setDropTargetHighlighted(_ highlighted: Bool) {
@@ -328,6 +402,9 @@ final class FileListThumbnailCellView: NSView {
         if !sizeText.isEmpty {
             lines.append("大小：\(sizeText)")
         }
+        if let countText = row.childCountDisplay, !countText.isEmpty, row.isDirectory {
+            lines.append("项目：\(countText)")
+        }
         if !row.dateDisplay.isEmpty {
             lines.append("修改：\(row.dateDisplay)")
         }
@@ -341,9 +418,17 @@ final class FileListThumbnailCellView: NSView {
         let badgeBackground = NSColor.black.withAlphaComponent(isDark ? 0.5 : 0.4)
         let secondaryText = NSColor.white.withAlphaComponent(0.92)
         
+        if let tint = representedRow.flatMap({ FileListThumbnailTypeTint.backgroundColor(for: $0, isDark: isDark) }) {
+            imageContainer.layer?.backgroundColor = tint.cgColor
+        } else {
+            imageContainer.layer?.backgroundColor = NSColor.clear.cgColor
+        }
+        
         bottomOverlay.layer?.backgroundColor = overlayBackground.cgColor
         sizeBadge.layer?.backgroundColor = badgeBackground.cgColor
+        countBadge.layer?.backgroundColor = badgeBackground.cgColor
         sizeLabel.textColor = secondaryText
+        countLabel.textColor = secondaryText
         
         if isCellSelected {
             selectionOverlay.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.2).cgColor

@@ -59,6 +59,10 @@ final class FileListThumbnailItem: NSCollectionViewItem {
         cellView?.updateSelection(isSelected, highlightText: highlightText, row: row)
     }
     
+    func refreshRowMetadata(_ row: FileListRow) {
+        cellView?.updateRowMetadata(row)
+    }
+    
     func setDropTargetHighlighted(_ highlighted: Bool) {
         cellView?.setDropTargetHighlighted(highlighted)
     }
