@@ -185,7 +185,7 @@ extension FileListThumbnailController {
         guard let collectionView else { return }
         let point = collectionView.convert(event.locationInWindow, from: nil)
         
-        if let indexPath = collectionView.indexPathForItem(at: point),
+        if let indexPath = collectionView.indexPath(at: point),
            indexPath.item >= 0,
            indexPath.item < displayRows.count {
             if !collectionView.selectionIndexPaths.contains(indexPath) {
@@ -193,7 +193,7 @@ extension FileListThumbnailController {
                 syncSelectionFromCollection()
             }
             let clickedRow = displayRows[indexPath.item]
-            let selectedIDs = effectiveSelectionIDs()
+            let selectedIDs = selectedIDs(from: collectionView)
             if let menu = interaction.makeContextMenu(clickedRow, selectedIDs) {
                 NSMenu.popUpContextMenu(menu, with: event, for: collectionView)
             }
@@ -202,6 +202,15 @@ extension FileListThumbnailController {
         
         guard collectionView.bounds.contains(point), interaction.blankMenuActions.isEnabled else { return }
         showBlankContextMenu(for: event)
+    }
+    
+    private func selectedIDs(from collectionView: NSCollectionView) -> Set<String> {
+        Set(
+            collectionView.selectionIndexPaths.compactMap { indexPath -> String? in
+                guard indexPath.item >= 0, indexPath.item < displayRows.count else { return nil }
+                return displayRows[indexPath.item].id
+            }
+        )
     }
     
     private func showBlankContextMenu(for event: NSEvent) {

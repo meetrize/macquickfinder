@@ -57,7 +57,8 @@ final class FileListThumbnailCollectionView: NSCollectionView {
     
     // MARK: - Mouse
     
-    private func resolvedIndexPath(at point: NSPoint) -> IndexPath? {
+    /// 解析点击坐标对应的 item；`indexPathForItem` 在自定义 cell 下常失效，需回退到布局 frame。
+    func indexPath(at point: NSPoint) -> IndexPath? {
         if let indexPath = indexPathForItem(at: point) {
             return indexPath
         }
@@ -72,7 +73,7 @@ final class FileListThumbnailCollectionView: NSCollectionView {
     
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if let indexPath = resolvedIndexPath(at: point) {
+        if let indexPath = indexPath(at: point) {
             handleItemMouseDown(event, indexPath: indexPath)
             return
         }
@@ -90,7 +91,7 @@ final class FileListThumbnailCollectionView: NSCollectionView {
     
     override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if resolvedIndexPath(at: point) != nil {
+        if indexPath(at: point) != nil {
             handleItemMouseUp(event)
             return
         }
@@ -138,7 +139,7 @@ final class FileListThumbnailCollectionView: NSCollectionView {
         }
         
         let point = convert(event.locationInWindow, from: nil)
-        let indexPath = resolvedIndexPath(at: point)
+        let indexPath = indexPath(at: point)
         
         if interactionController?.usedSystemItemMouseDown == true {
             super.mouseUp(with: event)
