@@ -1995,6 +1995,8 @@ struct ContentView: View {
     @AppStorage(AppSettings.leftPanelLastVisibleModeKey)
     private var storedLeftPanelLastVisibleModeRaw = LeftPanelVisibleMode.sidebar.rawValue
     @AppStorage(AppSettings.leftPanelSidebarWidthKey) private var storedLeftPanelSidebarWidth = 240.0
+    @AppStorage(FileListStorageKeys.viewMode) private var fileListViewModeRaw = FileListViewMode.list.rawValue
+    @AppStorage(FileListStorageKeys.thumbnailCellSize) private var thumbnailCellSize = FileListThumbnailMetrics.defaultCellSize
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
     @State private var isFileListRenaming = false
@@ -2006,6 +2008,10 @@ struct ContentView: View {
     
     private var isTextFieldEditing: Bool {
         activeBarField != nil || isFileListRenaming
+    }
+    
+    private var fileListViewMode: FileListViewMode {
+        FileListViewMode(rawValue: fileListViewModeRaw) ?? .list
     }
 
     private var currentDirectoryTitle: String {
@@ -2314,6 +2320,44 @@ struct ContentView: View {
             .hideSharedBackgroundIfAvailable()
             
             ToolbarItem(placement: .primaryAction) {
+                Picker("视图", selection: $fileListViewModeRaw) {
+                    ForEach(FileListViewMode.allCases, id: \.rawValue) { mode in
+                        Image(systemName: mode.systemImageName)
+                            .tag(mode.rawValue)
+                            .help(mode == .list ? "列表视图" : "缩略图视图")
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 72)
+            }
+            .hideSharedBackgroundIfAvailable()
+            
+            if fileListViewMode == .thumbnail {
+                ToolbarItem(placement: .primaryAction) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "photo")
+                            .foregroundStyle(.secondary)
+                        Slider(
+                            value: Binding(
+                                get: { thumbnailCellSize },
+                                set: { thumbnailCellSize = FileListThumbnailMetrics.steppedCellSize(from: $0) }
+                            ),
+                            in: FileListThumbnailMetrics.minCellSize...FileListThumbnailMetrics.maxCellSize,
+                            step: FileListThumbnailMetrics.cellSizeStep
+                        )
+                        .frame(width: 120)
+                        Text("\(Int(FileListThumbnailMetrics.steppedCellSize(from: thumbnailCellSize)))")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 30, alignment: .trailing)
+                    }
+                    .help("缩略图大小")
+                }
+                .hideSharedBackgroundIfAvailable()
+            }
+            
+            ToolbarItem(placement: .primaryAction) {
                 Menu {
                     ForEach(SortOrder.allCases) { order in
                         Button {
@@ -2410,6 +2454,7 @@ struct ContentView: View {
             FileListView(
                 items: filteredItems,
                 selection: $selection,
+                showPreview: $showPreview,
                 searchText: searchText,
                 quickSearchText: $quickSearchText,
                 isQuickSearchVisible: $isQuickSearchVisible,
@@ -2419,6 +2464,9 @@ struct ContentView: View {
                 canNavigateToParent: FileItem.canNavigateUp(from: path),
                 showHiddenFiles: showHiddenFiles,
                 directorySizeOverlay: directorySizeOverlay,
+                viewMode: fileListViewMode,
+                thumbnailCellSize: thumbnailCellSize,
+                onThumbnailCellSizeChange: { thumbnailCellSize = $0 },
                 onItemOpen: openItem,
                 onBlankDoubleClick: handleBlankDoubleClick,
                 onItemsChanged: handleFileListItemsChanged,
@@ -3381,6 +3429,7 @@ extension SidebarRow {
 struct FileListView: View {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
+    @Binding var showPreview: Bool
     let searchText: String
     @Binding var quickSearchText: String
     @Binding var isQuickSearchVisible: Bool
@@ -3390,6 +3439,9 @@ struct FileListView: View {
     let canNavigateToParent: Bool
     let showHiddenFiles: Bool
     let directorySizeOverlay: DirectorySizeOverlay
+    let viewMode: FileListViewMode
+    let thumbnailCellSize: CGFloat
+    let onThumbnailCellSizeChange: (CGFloat) -> Void
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
     let onItemsChanged: ([String]) -> Void
@@ -3425,7 +3477,7 @@ struct FileListView: View {
     }
     
     private var treeEnabled: Bool {
-        treeExpandEnabled && searchText.isEmpty
+        viewMode == .list && treeExpandEnabled && searchText.isEmpty
     }
     
     private var visibleTreeNodes: [VisibleNode] {
@@ -3458,8 +3510,15 @@ struct FileListView: View {
     
     var body: some View {
         FileListPanelLayout {
-            fileTable
-                .frame(maxHeight: .infinity)
+            Group {
+                switch viewMode {
+                case .list:
+                    fileTable
+                case .thumbnail:
+                    fileThumbnailGrid
+                }
+            }
+            .frame(maxHeight: .infinity)
         }
         .background(FileListAutoFocusRequester(token: focusToken))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -3522,7 +3581,60 @@ struct FileListView: View {
     
     private var fileTable: some View {
         let listRows = makeListRows()
-        let tableInteraction = FileListTableInteraction(
+        let tableInteraction = makeFileListInteraction()
+        
+        return DirectorySizeTableBridge(overlay: directorySizeOverlay) { sizeProvider in
+            FileListTableHost(
+                rows: listRows,
+                interaction: tableInteraction,
+                selection: Binding(
+                    get: { selection },
+                    set: { selection = $0 }
+                ),
+                preferencesStore: preferencesStore,
+                onOpenRow: { row in
+                    guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
+                    onItemOpen(item)
+                },
+                onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
+                directorySizeProvider: sizeProvider
+            )
+            .onAppear {
+                preferencesStore.resetToDefaultIfNeeded()
+            }
+        }
+    }
+    
+    private var fileThumbnailGrid: some View {
+        let listRows = makeListRows()
+        let tableInteraction = makeFileListInteraction()
+        
+        return DirectorySizeTableBridge(overlay: directorySizeOverlay) { sizeProvider in
+            FileListThumbnailHost(
+                rows: listRows,
+                interaction: tableInteraction,
+                selection: Binding(
+                    get: { selection },
+                    set: { selection = $0 }
+                ),
+                preferencesStore: preferencesStore,
+                cellSize: thumbnailCellSize,
+                onCellSizeChange: onThumbnailCellSizeChange,
+                onOpenRow: { row in
+                    guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
+                    onItemOpen(item)
+                },
+                onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
+                directorySizeProvider: sizeProvider
+            )
+            .onAppear {
+                preferencesStore.resetToDefaultIfNeeded()
+            }
+        }
+    }
+    
+    private func makeFileListInteraction() -> FileListTableInteraction {
+        FileListTableInteraction(
             searchText: searchText,
             quickSearchText: quickSearchText,
             blankMenuActions: blankMenuActions,
@@ -3611,29 +3723,12 @@ struct FileListView: View {
                     resetTreeState(keepExpanded: true)
                     onItemsChanged(invalidationPaths(for: urls, destinationPath: destinationPath))
                 }
+            },
+            onSpacePreview: {
+                guard !selection.isEmpty else { return }
+                showPreview = true
             }
         )
-        
-        return DirectorySizeTableBridge(overlay: directorySizeOverlay) { sizeProvider in
-            FileListTableHost(
-                rows: listRows,
-                interaction: tableInteraction,
-                selection: Binding(
-                    get: { selection },
-                    set: { selection = $0 }
-                ),
-                preferencesStore: preferencesStore,
-                onOpenRow: { row in
-                    guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
-                    onItemOpen(item)
-                },
-                onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
-                directorySizeProvider: sizeProvider
-            )
-            .onAppear {
-                preferencesStore.resetToDefaultIfNeeded()
-            }
-        }
     }
     
     private func items(for ids: Set<FileItem.ID>) -> [FileItem] {

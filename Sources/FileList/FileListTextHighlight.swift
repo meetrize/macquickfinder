@@ -60,4 +60,46 @@ enum FileListTextHighlight {
         }
         return result
     }
+    
+    /// 缩略图格子底部 overlay 用：白字 + 黄底高亮。
+    static func attributedOverlayName(
+        _ text: String,
+        searchText: String,
+        isDirectory: Bool,
+        isHidden: Bool
+    ) -> NSAttributedString {
+        let font = isDirectory
+            ? NSFont.boldSystemFont(ofSize: 11)
+            : NSFont.systemFont(ofSize: 11)
+        let color = isHidden ? NSColor.white.withAlphaComponent(0.72) : NSColor.white
+        let attributes = baseAttributes(font: font, color: color)
+        
+        guard !searchText.isEmpty else {
+            return NSAttributedString(string: text, attributes: attributes)
+        }
+        
+        let result = NSMutableAttributedString(string: text, attributes: attributes)
+        let normalizedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedSearch.isEmpty else { return result }
+        
+        var searchStart = text.startIndex
+        while searchStart < text.endIndex {
+            guard let range = text.range(
+                of: normalizedSearch,
+                options: [.caseInsensitive, .diacriticInsensitive],
+                range: searchStart..<text.endIndex,
+                locale: .current
+            ) else { break }
+            
+            let nsRange = NSRange(range, in: text)
+            result.addAttribute(
+                .backgroundColor,
+                value: NSColor.systemYellow.withAlphaComponent(0.65),
+                range: nsRange
+            )
+            result.addAttribute(.foregroundColor, value: NSColor.black, range: nsRange)
+            searchStart = range.upperBound
+        }
+        return result
+    }
 }

@@ -25,6 +25,7 @@ public struct FileListTableInteraction {
     public var dropDestinationPath: (FileListRow) -> String?
     public var canAcceptDrop: (_ destinationPath: String, _ urls: [URL]) -> Bool
     public var performDrop: (_ destinationPath: String, _ urls: [URL], _ copy: Bool) -> Void
+    public var onSpacePreview: () -> Void
     
     public init(
         searchText: String = "",
@@ -48,7 +49,8 @@ public struct FileListTableInteraction {
         makeContextMenu: @escaping (_ clickedRow: FileListRow, _ selectedIDs: Set<String>) -> NSMenu? = { _, _ in nil },
         dropDestinationPath: @escaping (FileListRow) -> String? = { _ in nil },
         canAcceptDrop: @escaping (_ destinationPath: String, _ urls: [URL]) -> Bool = { _, _ in false },
-        performDrop: @escaping (_ destinationPath: String, _ urls: [URL], _ copy: Bool) -> Void = { _, _, _ in }
+        performDrop: @escaping (_ destinationPath: String, _ urls: [URL], _ copy: Bool) -> Void = { _, _, _ in },
+        onSpacePreview: @escaping () -> Void = {}
     ) {
         self.searchText = searchText
         self.quickSearchText = quickSearchText
@@ -72,5 +74,6 @@ public struct FileListTableInteraction {
         self.dropDestinationPath = dropDestinationPath
         self.canAcceptDrop = canAcceptDrop
         self.performDrop = performDrop
+        self.onSpacePreview = onSpacePreview
     }
 }
