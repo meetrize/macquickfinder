@@ -303,10 +303,11 @@ private struct LucideIcon: View {
 struct ExplorerApp: App {
     @NSApplicationDelegateAdaptor(ExplorerAppDelegate.self) private var appDelegate
     @State private var showPreview = true
+    @AppStorage(ExplorerAppSettings.showSnippetsKey) private var showSnippets = true
     
     var body: some Scene {
         WindowGroup {
-            ContentView(showPreview: $showPreview)
+            ContentView(showPreview: $showPreview, showSnippets: $showSnippets)
                 .frame(minWidth: 800, minHeight: 600)
         }
         .windowStyle(.titleBar)
@@ -317,6 +318,21 @@ struct ExplorerApp: App {
                 Button(showPreview ? "关闭预览" : "显示预览") {
                     showPreview.toggle()
                 }
+                Button(showSnippets ? "关闭 Snippets" : "显示 Snippets") {
+                    showSnippets.toggle()
+                }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+                Button(SnippetsSettings.shared.isOutputPanelVisible ? "关闭输出面板" : "显示输出面板") {
+                    SnippetsSettings.shared.isOutputPanelVisible.toggle()
+                }
+                .keyboardShortcut("j", modifiers: .command)
+                Divider()
+                Button("导入 Snippets…") {
+                    NotificationCenter.default.post(name: .snippetsImportRequested, object: nil)
+                }
+                Button("导出全部 Snippets…") {
+                    NotificationCenter.default.post(name: .snippetsExportAllRequested, object: nil)
+                }
             }
         }
         
@@ -324,6 +340,11 @@ struct ExplorerApp: App {
             SettingsView()
         }
     }
+}
+
+extension Notification.Name {
+    static let snippetsImportRequested = Notification.Name("snippetsImportRequested")
+    static let snippetsExportAllRequested = Notification.Name("snippetsExportAllRequested")
 }
 
 @MainActor
@@ -392,12 +413,36 @@ struct SettingsView: View {
                     Label("通用", systemImage: "gearshape")
                 }
             
+            SnippetsSettingsTab()
+                .tabItem {
+                    Label("Snippets", systemImage: "terminal")
+                }
+            
             AdvancedSettingsTab()
                 .tabItem {
                     Label("高级", systemImage: "slider.horizontal.3")
                 }
         }
-        .frame(width: 480, height: 300)
+        .frame(width: 480, height: 320)
+    }
+}
+
+private struct SnippetsSettingsTab: View {
+    @ObservedObject private var settings = SnippetsSettings.shared
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("最近执行置顶", isOn: $settings.pinRecentlyExecutedSnippets)
+                Stepper(value: $settings.maxConcurrentJobs, in: 1...4) {
+                    Text("Job 并发上限：\(settings.maxConcurrentJobs)")
+                }
+                Toggle("Shell 执行时自动展开输出面板", isOn: $settings.autoShowOutputPanelOnShellRun)
+                Toggle("危险命令二次确认", isOn: $settings.confirmDestructiveSnippets)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
     }
 }
 
@@ -1039,11 +1084,6 @@ struct BarTextField: View {
 }
 
 // MARK: - Path Bar
-
-private enum PanelTopBarMetrics {
-    static let contentHeight: CGFloat = 28
-    static let verticalPadding: CGFloat = 6
-}
 
 private enum PathBarMode {
     case breadcrumb
@@ -1924,6 +1964,8 @@ private struct PathBreadcrumbEllipsisMenu: View {
 
 struct ContentView: View {
     @Binding var showPreview: Bool
+    @Binding var showSnippets: Bool
+    @AppStorage(ExplorerAppSettings.previewSnippetsSplitRatioKey) private var previewSnippetsSplitRatio = 0.55
     @AppStorage(AppSettings.blankDoubleClickActionKey)
     private var blankDoubleClickActionRaw = BlankDoubleClickAction.navigateToParent.rawValue
     @State private var path = FileManager.default.homeDirectoryForCurrentUser.path
@@ -2055,79 +2097,89 @@ struct ContentView: View {
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            let maxPreviewWidth = max(
-                minPreviewPanelWidth,
-                geometry.size.width - minMainPanelWidth
-            )
-            
-            HStack(spacing: 0) {
-                if leftPanelMode != .hidden {
-                    Group {
-                        switch leftPanelMode {
-                        case .sidebar:
-                            SidebarView(
-                                path: $path,
-                                onItemsChanged: {
-                                    selection.removeAll()
-                                    loadItems()
-                                },
-                                onReload: {
-                                    selection.removeAll()
-                                    loadItems()
-                                }
-                            )
-                        case .rail:
-                            SidebarRailView(
-                                path: $path,
-                                onItemsChanged: {
-                                    selection.removeAll()
-                                    loadItems()
-                                },
-                                onReload: {
-                                    selection.removeAll()
-                                    loadItems()
-                                }
-                            )
-                        case .hidden:
-                            EmptyView()
-                        }
-                    }
-                    .frame(width: leftPanelVisibleWidth)
-                    .frame(maxHeight: .infinity)
-                    
-                    LeadingResizeDivider(
-                        onResize: handleLeftPanelDrag(delta:),
-                        onDragEnded: handleLeftPanelDragEnded
-                    )
-                    .frame(width: 6)
-                    .frame(maxHeight: .infinity)
-                }
+        GeometryReader { outer in
+            let outputMaxHeight = max(400, outer.size.height * 0.85)
+            VStack(spacing: 0) {
+                GeometryReader { geometry in
+                let maxPreviewWidth = max(
+                    minPreviewPanelWidth,
+                    geometry.size.width - minMainPanelWidth
+                )
                 
                 HStack(spacing: 0) {
-                    explorerBrowserColumn
+                    if leftPanelMode != .hidden {
+                        Group {
+                            switch leftPanelMode {
+                            case .sidebar:
+                                SidebarView(
+                                    path: $path,
+                                    onItemsChanged: {
+                                        selection.removeAll()
+                                        loadItems()
+                                    },
+                                    onReload: {
+                                        selection.removeAll()
+                                        loadItems()
+                                    }
+                                )
+                            case .rail:
+                                SidebarRailView(
+                                    path: $path,
+                                    onItemsChanged: {
+                                        selection.removeAll()
+                                        loadItems()
+                                    },
+                                    onReload: {
+                                        selection.removeAll()
+                                        loadItems()
+                                    }
+                                )
+                            case .hidden:
+                                EmptyView()
+                            }
+                        }
+                        .frame(width: leftPanelVisibleWidth)
+                        .frame(maxHeight: .infinity)
+                        
+                        LeadingResizeDivider(
+                            onResize: handleLeftPanelDrag(delta:),
+                            onDragEnded: handleLeftPanelDragEnded
+                        )
+                        .frame(width: 6)
+                        .frame(maxHeight: .infinity)
+                    }
                     
-                    if showPreview {
-                        explorerPreviewColumn(maxPreviewWidth: maxPreviewWidth)
+                    HStack(spacing: 0) {
+                        explorerBrowserColumn
+                        
+                        if showPreview || showSnippets {
+                            explorerRightPanelColumn(maxPreviewWidth: maxPreviewWidth)
+                        }
+                    }
+                    .animation(nil, value: livePreviewPanelWidth)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onAppear {
+                        livePreviewPanelWidth = clampPreviewWidth(
+                            CGFloat(storedPreviewPanelWidth),
+                            maxWidth: maxPreviewWidth
+                        )
+                    }
+                    .onChange(of: geometry.size.width) { newWidth in
+                        let maxPreview = max(minPreviewPanelWidth, newWidth - minMainPanelWidth)
+                        let clamped = clampPreviewWidth(livePreviewPanelWidth, maxWidth: maxPreview)
+                        if clamped != livePreviewPanelWidth {
+                            livePreviewPanelWidth = clamped
+                            storedPreviewPanelWidth = Double(clamped)
+                        }
                     }
                 }
-                .animation(nil, value: livePreviewPanelWidth)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .onAppear {
-                    livePreviewPanelWidth = clampPreviewWidth(
-                        CGFloat(storedPreviewPanelWidth),
-                        maxWidth: maxPreviewWidth
-                    )
-                }
-                .onChange(of: geometry.size.width) { newWidth in
-                    let maxPreview = max(minPreviewPanelWidth, newWidth - minMainPanelWidth)
-                    let clamped = clampPreviewWidth(livePreviewPanelWidth, maxWidth: maxPreview)
-                    if clamped != livePreviewPanelWidth {
-                        livePreviewPanelWidth = clamped
-                        storedPreviewPanelWidth = Double(clamped)
-                    }
-                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            OutputPanelView(maxPanelHeight: outputMaxHeight)
+            }
+            .frame(width: outer.size.width, height: outer.size.height)
         }
         .background(
             BarFieldOutsideClickHandler(
@@ -2300,7 +2352,7 @@ struct ContentView: View {
     }
     
     @ViewBuilder
-    private func explorerPreviewColumn(maxPreviewWidth: CGFloat) -> some View {
+    private func explorerRightPanelColumn(maxPreviewWidth: CGFloat) -> some View {
         HorizontalResizeDivider(
             trailingWidth: $livePreviewPanelWidth,
             minTrailingWidth: minPreviewPanelWidth,
@@ -2312,10 +2364,15 @@ struct ContentView: View {
         .frame(width: 6)
         .frame(maxHeight: .infinity)
         
-        FilePreviewView(
+        RightPanelStackView(
             showPreview: $showPreview,
+            showSnippets: $showSnippets,
+            splitRatio: $previewSnippetsSplitRatio,
             selection: selection,
-            items: items
+            items: items,
+            cwd: path,
+            showHiddenFiles: showHiddenFiles,
+            panelWidth: livePreviewPanelWidth
         )
         .frame(width: livePreviewPanelWidth)
         .frame(maxHeight: .infinity, alignment: .top)
