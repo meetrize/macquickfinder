@@ -47,7 +47,8 @@ final class SnippetExecutor: ObservableObject {
             let jobID = jobStore.createJob(
                 snippetName: snippet.name,
                 displayCommand: snippet.content,
-                source: .snippet(id: snippet.id, name: snippet.name)
+                source: .snippet(id: snippet.id, name: snippet.name),
+                expandedContent: snippet.content
             )
             jobStore.markFailed(jobID: jobID, message: message + "\n")
             if settings.autoShowOutputPanelOnShellRun {
@@ -67,13 +68,15 @@ final class SnippetExecutor: ObservableObject {
             displayCommand = expanded
         }
 
+        let cwd = resolveWorkingDirectory(snippet: snippet, context: context)
+
         let jobID = jobStore.createJob(
             snippetName: snippet.name,
             displayCommand: displayCommand,
-            source: .snippet(id: snippet.id, name: snippet.name)
+            source: .snippet(id: snippet.id, name: snippet.name),
+            expandedContent: expanded,
+            workingDirectory: cwd
         )
-
-        let cwd = resolveWorkingDirectory(snippet: snippet, context: context)
 
         if settings.autoShowOutputPanelOnShellRun {
             settings.isOutputPanelVisible = true

@@ -16,6 +16,9 @@ struct JobRecord: Identifiable {
     let id: UUID
     var snippetName: String
     var displayCommand: String
+    /// 变量展开后的可执行内容，供元数据栏编辑与重新执行。
+    var expandedContent: String
+    var workingDirectory: String?
     var source: JobSource
     var status: JobStatus
     var stdout: String
