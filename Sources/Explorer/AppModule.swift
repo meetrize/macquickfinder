@@ -4134,9 +4134,12 @@ struct FilePreviewView: View {
     @State private var archiveReloadToken: Int = 0
     @State private var archiveCopyAction: ArchivePreviewAction? = nil
     
+    private var selectedItems: [FileItem] {
+        FileItem.resolveSelection(ids: selection, from: items)
+    }
+    
     private var selectedItem: FileItem? {
-        guard let selectedID = selection.first else { return nil }
-        return items.first(where: { $0.id == selectedID })
+        selectedItems.first
     }
     
     var body: some View {
@@ -6513,6 +6516,61 @@ struct FileItem: Identifiable, Hashable {
         let parent = url.deletingLastPathComponent()
         guard parent.path != url.path else { return nil }
         return parent
+    }
+    
+    /// 先用当前列表命中，再回查文件系统，保证树展开后选中的子目录文件可被预览/作用域识别。
+    static func resolveSelection(
+        ids: Set<String>,
+        from knownItems: [FileItem]
+    ) -> [FileItem] {
+        guard !ids.isEmpty else { return [] }
+        let knownByID = Dictionary(uniqueKeysWithValues: knownItems.map { ($0.id, $0) })
+        var resolved: [FileItem] = []
+        resolved.reserveCapacity(ids.count)
+        
+        for id in ids {
+            if let known = knownByID[id] {
+                resolved.append(known)
+                continue
+            }
+            guard id != parentDirectoryID else { continue }
+            if let lookedUp = itemFromFileSystem(path: id) {
+                resolved.append(lookedUp)
+            }
+        }
+        return resolved
+    }
+    
+    private static func itemFromFileSystem(path: String) -> FileItem? {
+        let standardized = (path as NSString).standardizingPath
+        let url = URL(fileURLWithPath: standardized)
+        let keys: Set<URLResourceKey> = [
+            .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
+        ]
+        
+        do {
+            let values = try url.resourceValues(forKeys: keys)
+            guard let isDirectory = values.isDirectory else { return nil }
+            let modificationDate = values.contentModificationDate ?? .distantPast
+            let fileSize = Int64(values.fileSize ?? 0)
+            let isHidden = values.isHidden ?? false
+            let name = url.lastPathComponent
+            let sizeDisplay = isDirectory ? "--" : FileItemFormatters.formatSize(fileSize)
+            return FileItem(
+                id: standardized,
+                url: url,
+                name: name,
+                isDirectory: isDirectory,
+                modificationDate: modificationDate,
+                size: fileSize,
+                isHidden: isHidden,
+                fileType: fileType(for: name, isDirectory: isDirectory),
+                sizeDisplay: sizeDisplay,
+                dateDisplay: FileItemFormatters.formatDate(modificationDate)
+            )
+        } catch {
+            return nil
+        }
     }
     
     func hash(into hasher: inout Hasher) {

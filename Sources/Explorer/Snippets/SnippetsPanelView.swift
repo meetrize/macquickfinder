@@ -22,9 +22,17 @@ struct SnippetsPanelView: View {
     @State private var importConflictStrategy: SnippetImportStrategy = .skip
     @FocusState private var searchFocused: Bool
 
+    private var selectedItems: [FileItem] {
+        FileItem.resolveSelection(ids: selection, from: items)
+            .filter { !$0.isParentDirectoryEntry }
+    }
+
     private var visibilityContext: SnippetVisibilityContext {
-        let selected = items.filter { selection.contains($0.id) }
-        return SnippetVisibilityContext(cwd: cwd, selectedItems: selected, showHiddenFiles: showHiddenFiles)
+        SnippetVisibilityContext(
+            cwd: cwd,
+            selectedItems: selectedItems,
+            showHiddenFiles: showHiddenFiles
+        )
     }
 
     private var visibleSnippets: [Snippet] {
@@ -228,8 +236,7 @@ struct SnippetsPanelView: View {
     }
 
     private func executionContext() -> SnippetExecutionContext {
-        let selected = items.filter { selection.contains($0.id) && !$0.isParentDirectoryEntry }
-        return SnippetExecutionContext(cwd: cwd, selectedItems: selected)
+        SnippetExecutionContext(cwd: cwd, selectedItems: selectedItems)
     }
 
     private func execute(_ snippet: Snippet) {
