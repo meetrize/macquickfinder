@@ -75,6 +75,80 @@ final class FileListThumbnailCellView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
     
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        guard renameField.isHidden else { return hit }
+        if hit === nameLabel || hit?.isDescendant(of: bottomOverlay) == true {
+            return self
+        }
+        return hit
+    }
+    
+    override func mouseDown(with event: NSEvent) {
+        forwardMouseEvent(event) { collectionView, indexPath in
+            collectionView.handleItemMouseDown(event, indexPath: indexPath)
+        } fallback: {
+            super.mouseDown(with: event)
+        }
+    }
+    
+    override func mouseUp(with event: NSEvent) {
+        forwardMouseEvent(event) { collectionView, _ in
+            collectionView.handleItemMouseUp(event)
+        } fallback: {
+            super.mouseUp(with: event)
+        }
+    }
+    
+    override func mouseDragged(with event: NSEvent) {
+        forwardMouseEvent(event) { collectionView, _ in
+            collectionView.handleItemMouseDragged(event)
+        } fallback: {
+            super.mouseDragged(with: event)
+        }
+    }
+    
+    override func rightMouseDown(with event: NSEvent) {
+        guard let collectionView = enclosingThumbnailCollectionView else {
+            super.rightMouseDown(with: event)
+            return
+        }
+        collectionView.rightMouseDown(with: event)
+    }
+    
+    func isPointInFileNameOverlay(_ pointInWindow: NSPoint) -> Bool {
+        let pointInCell = convert(pointInWindow, from: nil)
+        return bottomOverlay.frame.contains(pointInCell)
+    }
+    
+    private var enclosingThumbnailCollectionView: FileListThumbnailCollectionView? {
+        var current: NSView? = self
+        while let view = current {
+            if let collectionView = view as? FileListThumbnailCollectionView {
+                return collectionView
+            }
+            current = view.superview
+        }
+        return nil
+    }
+    
+    private func forwardMouseEvent(
+        _ event: NSEvent,
+        handler: (FileListThumbnailCollectionView, IndexPath) -> Void,
+        fallback: () -> Void
+    ) {
+        guard let collectionView = enclosingThumbnailCollectionView else {
+            fallback()
+            return
+        }
+        let point = collectionView.convert(event.locationInWindow, from: nil)
+        guard let indexPath = collectionView.indexPathForItem(at: point) else {
+            fallback()
+            return
+        }
+        handler(collectionView, indexPath)
+    }
+    
     override func layout() {
         super.layout()
         let bounds = self.bounds

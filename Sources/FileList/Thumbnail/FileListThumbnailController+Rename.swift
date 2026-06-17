@@ -20,7 +20,26 @@ extension FileListThumbnailController {
         pendingRenameIndexPath = nil
         interaction.onRenameEditingChanged(true)
         
-        guard let item = thumbnailItem(at: indexPath) else { return }
+        guard let item = thumbnailItem(at: indexPath) else {
+            collectionView?.scrollToItems(at: [indexPath], scrollPosition: .nearestVerticalEdge)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.renamingRowID == row.id else { return }
+                self.beginRenameUI(at: indexPath, row: row)
+            }
+            return
+        }
+        beginRenameUI(item: item, row: row)
+    }
+    
+    private func beginRenameUI(at indexPath: IndexPath, row: FileListRow) {
+        guard let item = thumbnailItem(at: indexPath) else {
+            cancelRename()
+            return
+        }
+        beginRenameUI(item: item, row: row)
+    }
+    
+    private func beginRenameUI(item: FileListThumbnailItem, row: FileListRow) {
         item.beginRename(
             name: row.name,
             onCommit: { [weak self] newName in
@@ -80,12 +99,34 @@ extension FileListThumbnailController {
         guard !isRenaming else { return false }
         guard indexPath.item >= 0, indexPath.item < displayRows.count else { return false }
         guard mouseDownCanStartFileDrag else { return false }
-        guard let collectionView, collectionView.selectionIndexPaths == [indexPath] else { return false }
+        guard isSoleSelectedIndexPath(indexPath) else { return false }
         
         let row = displayRows[indexPath.item]
         guard !row.isParentDirectoryEntry else { return false }
         guard interaction.canRename(row) else { return false }
         return isWithinRenameSecondClickWindow(itemID: row.id)
+    }
+    
+    func armRenameEligibleAfterClickIfNeeded(_ event: NSEvent, indexPath: IndexPath) {
+        guard renamingRowID == nil, pendingRenameIndexPath == nil else { return }
+        guard wasAlreadySelectedAtMouseDown else { return }
+        guard event.clickCount == 1 else { return }
+        let flags = event.modifierFlags
+        guard !flags.contains(.command), !flags.contains(.shift) else { return }
+        guard isSoleSelectedIndexPath(indexPath) else { return }
+        guard indexPath.item >= 0, indexPath.item < displayRows.count else { return }
+        
+        let row = displayRows[indexPath.item]
+        guard !row.isParentDirectoryEntry, interaction.canRename(row) else { return }
+        rowRenameEligibleSince[row.id] = Date()
+    }
+    
+    func isSoleSelectedIndexPath(_ indexPath: IndexPath) -> Bool {
+        guard let collectionView else { return false }
+        if collectionView.selectionIndexPaths == [indexPath] { return true }
+        guard indexPath.item >= 0, indexPath.item < displayRows.count else { return false }
+        let rowID = displayRows[indexPath.item].id
+        return effectiveSelectionIDs() == [rowID]
     }
     
     func recordRenameSelectionTimestamps() {

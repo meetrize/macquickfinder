@@ -43,6 +43,7 @@ public final class FileListThumbnailController: NSObject {
     var renamingRowID: String?
     var rowRenameEligibleSince: [String: Date] = [:]
     var lastKnownSelectionIDs: Set<String> = []
+    var wasAlreadySelectedAtMouseDown = false
     var dropHighlightIndexPath: IndexPath?
     let dragThreshold: CGFloat = 4
     static let renameSecondClickMaxInterval: TimeInterval = 1

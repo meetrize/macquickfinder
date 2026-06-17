@@ -22,9 +22,7 @@ final class FileListThumbnailCollectionView: NSCollectionView {
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         if let indexPath = indexPathForItem(at: point) {
-            interactionController?.willHandleItemMouseDown(event, indexPath: indexPath)
-            super.mouseDown(with: event)
-            interactionController?.syncSelectionFromCollection()
+            handleItemMouseDown(event, indexPath: indexPath)
             return
         }
         interactionController?.handleBlankMouseDown(event)
@@ -42,9 +40,10 @@ final class FileListThumbnailCollectionView: NSCollectionView {
     }
     
     override func mouseUp(with event: NSEvent) {
-        if event.clickCount >= 2,
-           indexPathForItem(at: convert(event.locationInWindow, from: nil)) != nil {
-            interactionController?.openSelectedRow()
+        let point = convert(event.locationInWindow, from: nil)
+        if indexPathForItem(at: point) != nil {
+            handleItemMouseUp(event)
+            return
         }
         interactionController?.handleBlankMouseUp()
         super.mouseUp(with: event)
@@ -56,5 +55,33 @@ final class FileListThumbnailCollectionView: NSCollectionView {
             return
         }
         super.keyDown(with: event)
+    }
+    
+    func handleItemMouseDown(_ event: NSEvent, indexPath: IndexPath) {
+        interactionController?.willHandleItemMouseDown(event, indexPath: indexPath)
+        super.mouseDown(with: event)
+        interactionController?.syncSelectionFromCollection()
+    }
+    
+    func handleItemMouseUp(_ event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let indexPath = indexPathForItem(at: point)
+        let willRename = interactionController?.pendingRenameIndexPath != nil
+        
+        if event.clickCount >= 2, indexPath != nil, !willRename {
+            interactionController?.openSelectedRow()
+        }
+        super.mouseUp(with: event)
+        if let indexPath {
+            interactionController?.armRenameEligibleAfterClickIfNeeded(event, indexPath: indexPath)
+        }
+        interactionController?.finishPointerInteractionIfNeeded()
+    }
+    
+    func handleItemMouseDragged(_ event: NSEvent) {
+        if interactionController?.handleMouseDragged(event) == true {
+            return
+        }
+        super.mouseDragged(with: event)
     }
 }

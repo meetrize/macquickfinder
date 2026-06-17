@@ -7,6 +7,12 @@ extension FileListThumbnailController {
     }
     
     func willHandleItemMouseDown(_ event: NSEvent, indexPath: IndexPath) {
+        wasAlreadySelectedAtMouseDown = collectionView?.selectionIndexPaths.contains(indexPath) == true
+            || {
+                guard indexPath.item >= 0, indexPath.item < displayRows.count else { return false }
+                return effectiveSelectionIDs() == [displayRows[indexPath.item].id]
+            }()
+        
         mouseDownIndexPath = indexPath
         mouseDownLocation = event.locationInWindow
         mouseDownEvent = event
@@ -26,7 +32,7 @@ extension FileListThumbnailController {
             return
         }
         
-        if collectionView?.selectionIndexPaths.contains(indexPath) == true,
+        if isSoleSelectedIndexPath(indexPath),
            shouldBeginRenameOnMouseUp(indexPath: indexPath) {
             pendingRenameIndexPath = indexPath
         } else {
@@ -86,9 +92,17 @@ extension FileListThumbnailController {
     
     func handleMouseDragged(_ event: NSEvent) -> Bool {
         if isRenaming { return false }
-        if pendingRenameIndexPath != nil {
-            pendingRenameIndexPath = nil
+        
+        if let start = mouseDownLocation {
+            let distance = hypot(
+                event.locationInWindow.x - start.x,
+                event.locationInWindow.y - start.y
+            )
+            if distance >= dragThreshold, pendingRenameIndexPath != nil {
+                pendingRenameIndexPath = nil
+            }
         }
+        
         if handleBlankRubberBandDrag(event) { return true }
         
         guard !dragSessionActive,
