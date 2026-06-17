@@ -24,22 +24,26 @@ final class ThumbnailGenerator {
         cache.entry(for: cacheKey(for: row, cellSize: cellSize))
     }
     
-    func placeholderIcon(for row: FileListRow) -> NSImage {
+    func placeholderIcon(for row: FileListRow, cellSize: CGFloat) -> NSImage {
+        let base: NSImage
         if row.isParentDirectoryEntry {
-            return NSImage(systemSymbolName: "arrow.up.circle", accessibilityDescription: nil)
+            base = NSImage(systemSymbolName: "arrow.up.circle", accessibilityDescription: nil)
                 ?? NSImage(named: NSImage.folderName)
                 ?? NSImage()
+        } else {
+            base = NSWorkspace.shared.icon(forFile: row.iconPath)
         }
-        return NSWorkspace.shared.icon(forFile: row.iconPath)
-    }
-    
-    func invalidateAll() {
-        activeGeneration &+= 1
-        cache.removeAll()
+        return FileListThumbnailMetrics.scaledIcon(base, cellSize: cellSize)
     }
     
     func cancelInFlightRequests() {
         activeGeneration &+= 1
+    }
+    
+    /// 清除全部缓存（含磁盘）；目录切换不应调用此方法。
+    func purgeAllCaches() {
+        activeGeneration &+= 1
+        cache.purgeAll()
     }
     
     func load(
@@ -51,13 +55,16 @@ final class ThumbnailGenerator {
         let key = cacheKey(for: row, cellSize: cellSize)
         if let cached = cache.entry(for: key) {
             DispatchQueue.main.async {
-                completion(cached.isThumbnail ? .thumbnail(cached.image) : .icon(cached.image))
+                let image = cached.isThumbnail
+                    ? cached.image
+                    : FileListThumbnailMetrics.scaledIcon(cached.image, cellSize: cellSize)
+                completion(cached.isThumbnail ? .thumbnail(image) : .icon(image))
             }
             return
         }
         
         if row.isParentDirectoryEntry || row.isDirectory {
-            let icon = placeholderIcon(for: row)
+            let icon = placeholderIcon(for: row, cellSize: cellSize)
             cache.store(icon, isThumbnail: false, for: key)
             DispatchQueue.main.async {
                 completion(.icon(icon))
@@ -95,7 +102,7 @@ final class ThumbnailGenerator {
                     return
                 }
                 
-                let icon = self.placeholderIcon(for: row)
+                let icon = self.placeholderIcon(for: row, cellSize: cellSize)
                 self.cache.store(icon, isThumbnail: false, for: key)
                 DispatchQueue.main.async {
                     guard generation == self.activeGeneration else { return }

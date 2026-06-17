@@ -131,7 +131,8 @@ public final class FileListThumbnailController: NSObject {
         if listingChanged {
             lastListingSignature = listingSignature
             lastDirectorySizeRevision = 0
-            thumbnailGenerator.invalidateAll()
+            // 仅取消进行中的 QL 请求；内存/磁盘缓存按 path+mtime 键保留，返回同目录时可即时命中。
+            thumbnailGenerator.cancelInFlightRequests()
         }
         
         let previousSourceRows = sourceRows
@@ -382,22 +383,27 @@ public final class FileListThumbnailController: NSObject {
         let token = item.beginLoad(for: row.id)
         
         if let cached = thumbnailGenerator.cachedImage(for: row, cellSize: cellSize) {
+            let displayImage = cached.isThumbnail
+                ? cached.image
+                : FileListThumbnailMetrics.scaledIcon(cached.image, cellSize: cellSize)
             item.configure(
                 row: row,
                 isSelected: isRowSelected(row.id),
                 highlightText: highlightText,
-                placeholderImage: cached.image
+                placeholderImage: displayImage,
+                cellSize: cellSize
             )
-            item.applyLoadedImage(cached.image, isThumbnail: cached.isThumbnail, animated: false)
+            item.applyLoadedImage(displayImage, isThumbnail: cached.isThumbnail, animated: false)
             return
         }
         
-        let placeholder = thumbnailGenerator.placeholderIcon(for: row)
+        let placeholder = thumbnailGenerator.placeholderIcon(for: row, cellSize: cellSize)
         item.configure(
             row: row,
             isSelected: isRowSelected(row.id),
             highlightText: highlightText,
-            placeholderImage: placeholder
+            placeholderImage: placeholder,
+            cellSize: cellSize
         )
         
         thumbnailGenerator.load(

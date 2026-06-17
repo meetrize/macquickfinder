@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import Foundation
 
@@ -27,6 +28,21 @@ public enum FileListThumbnailMetrics {
     
     public static func thumbnailSizeBucket(for cellSize: CGFloat) -> Int {
         Int(steppedCellSize(from: cellSize) / cellSizeStep) * Int(cellSizeStep)
+    }
+    
+    /// 图标在格子内 aspectFit 的目标边长（扣除内边距后）。
+    public static func iconFittingSide(in cellSide: CGFloat) -> CGFloat {
+        let inset = cellSide * iconContentInsetRatio
+        return max(1, cellSide - inset * 2)
+    }
+    
+    /// 将系统图标缩放到格子内的目标显示尺寸。
+    public static func scaledIcon(_ image: NSImage, cellSize: CGFloat) -> NSImage {
+        let side = iconFittingSide(in: cellSize)
+        guard side > 0 else { return image }
+        guard let copy = image.copy() as? NSImage else { return image }
+        copy.size = NSSize(width: side, height: side)
+        return copy
     }
     
     /// 在容器内保持比例放大图片：宽、高至少一边贴满容器，另一边居中，超出部分由调用方裁剪。

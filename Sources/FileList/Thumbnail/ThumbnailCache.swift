@@ -62,10 +62,16 @@ final class ThumbnailCache {
         diskCache.store(image, isThumbnail: isThumbnail, for: key)
     }
     
-    func removeAll() {
+    /// 仅清空内存 LRU；磁盘缓存保留，供切换目录后快速回填。
+    func clearMemory() {
         storage.removeAll()
         accessOrder.removeAll()
         totalCost = 0
+    }
+    
+    /// 清空内存与磁盘缓存（设置项「清除缩略图缓存」等场景使用）。
+    func purgeAll() {
+        clearMemory()
         diskCache.removeAll()
     }
     

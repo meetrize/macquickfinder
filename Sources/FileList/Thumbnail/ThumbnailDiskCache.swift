@@ -34,7 +34,8 @@ final class ThumbnailDiskCache {
             return
         }
         let fileURL = fileURL(for: key)
-        ioQueue.async {
+        // 同步落盘，避免用户快速离开目录时异步写入尚未完成。
+        ioQueue.sync {
             try? png.write(to: fileURL, options: .atomic)
             try? fileURL.setExtendedAttribute(
                 name: "com.meofind.thumb.isThumbnail",

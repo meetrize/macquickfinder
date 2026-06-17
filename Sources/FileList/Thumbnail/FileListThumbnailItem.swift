@@ -38,14 +38,16 @@ final class FileListThumbnailItem: NSCollectionViewItem {
         row: FileListRow,
         isSelected: Bool,
         highlightText: String,
-        placeholderImage: NSImage
+        placeholderImage: NSImage,
+        cellSize: CGFloat
     ) {
         representedRowID = row.id
         cellView?.configure(
             row: row,
             isSelected: isSelected,
             highlightText: highlightText,
-            placeholderImage: placeholderImage
+            placeholderImage: placeholderImage,
+            cellSize: cellSize
         )
     }
     

@@ -22,6 +22,7 @@ final class FileListThumbnailCellView: NSView {
     private var isDropTarget = false
     private var imagePresentation: ImagePresentation = .icon
     private var representedRow: FileListRow?
+    private var configuredCellSize: CGFloat = FileListThumbnailMetrics.defaultCellSize
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -232,9 +233,11 @@ final class FileListThumbnailCellView: NSView {
         row: FileListRow,
         isSelected: Bool,
         highlightText: String,
-        placeholderImage: NSImage
+        placeholderImage: NSImage,
+        cellSize: CGFloat
     ) {
         representedRow = row
+        configuredCellSize = cellSize
         isCellSelected = isSelected
         applyImage(placeholderImage, presentation: .icon, animated: false)
         
@@ -348,7 +351,7 @@ final class FileListThumbnailCellView: NSView {
             self.imageView.image = image
             switch presentation {
             case .icon:
-                self.imageView.imageScaling = .scaleProportionallyDown
+                self.imageView.imageScaling = .scaleProportionallyUpOrDown
                 self.imageView.wantsLayer = false
             case .thumbnail:
                 self.imageView.imageScaling = .scaleProportionallyUpOrDown
@@ -375,7 +378,14 @@ final class FileListThumbnailCellView: NSView {
         let containerBounds = imageContainer.bounds
         switch imagePresentation {
         case .icon:
-            imageView.frame = imageInsetFrame(in: containerBounds)
+            let frame = resolvedIconFrame(in: containerBounds)
+            imageView.frame = frame
+            if let image = imageView.image, frame.width > 1, frame.height > 1 {
+                let side = min(frame.width, frame.height)
+                if abs(image.size.width - side) > 0.5 || abs(image.size.height - side) > 0.5 {
+                    imageView.image = FileListThumbnailMetrics.scaledIcon(image, cellSize: configuredCellSize)
+                }
+            }
         case .thumbnail:
             guard let image = imageView.image else {
                 imageView.frame = containerBounds
@@ -386,6 +396,19 @@ final class FileListThumbnailCellView: NSView {
                 in: containerBounds.size
             )
         }
+    }
+    
+    private func resolvedIconFrame(in bounds: NSRect) -> NSRect {
+        if bounds.width > 1, bounds.height > 1 {
+            return imageInsetFrame(in: bounds)
+        }
+        let side = FileListThumbnailMetrics.iconFittingSide(in: configuredCellSize)
+        return NSRect(
+            x: (configuredCellSize - side) / 2,
+            y: (configuredCellSize - side) / 2,
+            width: side,
+            height: side
+        )
     }
     
     private func imageInsetFrame(in bounds: NSRect) -> NSRect {
