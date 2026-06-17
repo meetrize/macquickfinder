@@ -535,7 +535,9 @@ public final class FileListTableController: NSObject {
         let heightDelta = targetHeight - frame.size.height
         if abs(heightDelta) > 0.5 {
             frame.size.height = targetHeight
-            frame.origin.y -= heightDelta
+            // 只增高不移动 origin.y，确保顶部（包含「..」行）永远可见。
+            // 过去通过上移 origin.y 来“把留白放到底部”，但在异步回填/重布局时可能导致顶部被顶出可视区。
+            frame.origin.y = 0
             changed = true
         }
         if abs(frame.size.width - clipSize.width) > 0.5 {
