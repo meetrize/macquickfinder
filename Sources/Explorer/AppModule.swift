@@ -33,6 +33,7 @@ private enum AppSettings {
     static let leftPanelModeKey = "leftPanelMode"
     static let leftPanelLastVisibleModeKey = "leftPanelLastVisibleMode"
     static let leftPanelSidebarWidthKey = "leftPanelSidebarWidth"
+    static let lastOpenedPathKey = "lastOpenedPath"
 }
 
 struct FileCommandHandlers {
@@ -1971,6 +1972,7 @@ struct ContentView: View {
     @AppStorage(AppSettings.blankDoubleClickActionKey)
     private var blankDoubleClickActionRaw = BlankDoubleClickAction.navigateToParent.rawValue
     @State private var path = FileManager.default.homeDirectoryForCurrentUser.path
+    @AppStorage(AppSettings.lastOpenedPathKey) private var storedLastOpenedPath = ""
     @State private var items: [FileItem] = []
     @State private var selection: Set<FileItem.ID> = []
     @State private var sortOrder: SortOrder = .nameAscending
@@ -2099,6 +2101,20 @@ struct ContentView: View {
         setLeftPanelMode(.hidden)
     }
     
+    private func restoredLaunchPath() -> String {
+        let trimmed = storedLastOpenedPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return FileManager.default.homeDirectoryForCurrentUser.path
+        }
+        let standardized = (trimmed as NSString).standardizingPath
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: standardized, isDirectory: &isDirectory),
+           isDirectory.boolValue {
+            return standardized
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.path
+    }
+    
     var body: some View {
         GeometryReader { outer in
             let outputMaxHeight = max(400, outer.size.height * 0.85)
@@ -2200,8 +2216,11 @@ struct ContentView: View {
             setLeftPanelSidebarWidth(leftPanelSidebarWidth)
             if let launchPath = externalFolderOpenCenter.consumePendingPath() {
                 path = launchPath
+            } else {
+                path = restoredLaunchPath()
             }
             lastRecordedPath = path
+            storedLastOpenedPath = path
             loadItems()
         }
         .onReceive(externalFolderOpenCenter.$targetPath.compactMap { $0 }) { newPath in
@@ -2213,6 +2232,7 @@ struct ContentView: View {
                 navigationBackStack.append(oldPath)
             }
             lastRecordedPath = newPath
+            storedLastOpenedPath = (newPath as NSString).standardizingPath
             loadItems()
         }
         .onChange(of: autoCalculateDirectorySizes) { enabled in
