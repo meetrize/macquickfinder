@@ -11,17 +11,17 @@ struct RightPanelStackView: View {
     let showHiddenFiles: Bool
     let panelWidth: CGFloat
 
+    @State private var dragPreviewHeight: CGFloat?
+
     var body: some View {
         GeometryReader { geo in
             let totalHeight = geo.size.height
             let showBoth = showPreview && showSnippets
-            let previewHeight: CGFloat = {
-                if showBoth {
-                    return max(80, min(totalHeight - 80, totalHeight * CGFloat(splitRatio)))
-                }
-                if showPreview { return totalHeight }
-                return 0
-            }()
+            let storedPreviewHeight = clampedPreviewHeight(
+                totalHeight * CGFloat(splitRatio),
+                totalHeight: totalHeight
+            )
+            let previewHeight = dragPreviewHeight ?? storedPreviewHeight
 
             VStack(spacing: 0) {
                 if showPreview {
@@ -34,8 +34,22 @@ struct RightPanelStackView: View {
                 }
 
                 if showBoth {
-                    VerticalResizeDivider(topRatio: $splitRatio)
-                        .frame(height: 6)
+                    VerticalResizeDivider(
+                        previewHeight: previewHeight,
+                        totalHeight: totalHeight,
+                        minTopHeight: 80,
+                        minBottomHeight: 80,
+                        onHeightChange: { dragPreviewHeight = $0 },
+                        onDragEnded: { finalHeight in
+                            guard totalHeight > 0 else {
+                                dragPreviewHeight = nil
+                                return
+                            }
+                            splitRatio = Double(finalHeight / totalHeight)
+                            dragPreviewHeight = nil
+                        }
+                    )
+                    .frame(height: VerticalResizeDividerMetrics.hitHeight)
                 }
 
                 if showSnippets {
@@ -50,7 +64,15 @@ struct RightPanelStackView: View {
                     .frame(maxHeight: .infinity)
                 }
             }
+            .animation(nil, value: previewHeight)
         }
+    }
+
+    private func clampedPreviewHeight(_ height: CGFloat, totalHeight: CGFloat) -> CGFloat {
+        guard totalHeight > 0 else { return 80 }
+        let divider = showPreview && showSnippets ? VerticalResizeDividerMetrics.hitHeight : 0
+        let maxTop = max(80, totalHeight - 80 - divider)
+        return min(max(height, 80), maxTop)
     }
 }
 

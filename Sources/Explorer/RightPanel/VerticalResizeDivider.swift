@@ -1,10 +1,14 @@
 import SwiftUI
 import AppKit
 
+/// 预览与 Snippets 之间的垂直分隔条：拖拽时分隔条跟随鼠标（窗口坐标），松手后持久化比例。
 struct VerticalResizeDivider: NSViewRepresentable {
-    @Binding var topRatio: Double
-    var minTopHeight: CGFloat = 80
-    var minBottomHeight: CGFloat = 80
+    var previewHeight: CGFloat
+    var totalHeight: CGFloat
+    var minTopHeight: CGFloat
+    var minBottomHeight: CGFloat
+    var onHeightChange: (CGFloat) -> Void
+    var onDragEnded: (CGFloat) -> Void
 
     func makeNSView(context: Context) -> VerticalResizeDividerNSView {
         VerticalResizeDividerNSView()
@@ -12,9 +16,12 @@ struct VerticalResizeDivider: NSViewRepresentable {
 
     func updateNSView(_ nsView: VerticalResizeDividerNSView, context: Context) {
         context.coordinator.configure(
-            topRatio: $topRatio,
+            previewHeight: previewHeight,
+            totalHeight: totalHeight,
             minTopHeight: minTopHeight,
             minBottomHeight: minBottomHeight,
+            onHeightChange: onHeightChange,
+            onDragEnded: onDragEnded,
             view: nsView
         )
     }
@@ -22,29 +29,108 @@ struct VerticalResizeDivider: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     final class Coordinator {
+        private var previewHeight: CGFloat = 200
+        private var totalHeight: CGFloat = 400
+        private var minTopHeight: CGFloat = 80
+        private var minBottomHeight: CGFloat = 80
+        private var onHeightChange: ((CGFloat) -> Void)?
+        private var onDragEnded: ((CGFloat) -> Void)?
+
         func configure(
-            topRatio: Binding<Double>,
+            previewHeight: CGFloat,
+            totalHeight: CGFloat,
             minTopHeight: CGFloat,
             minBottomHeight: CGFloat,
+            onHeightChange: @escaping (CGFloat) -> Void,
+            onDragEnded: @escaping (CGFloat) -> Void,
             view: VerticalResizeDividerNSView
         ) {
-            view.onResize = { delta, totalHeight in
-                guard totalHeight > 0 else { return }
-                let currentTop = CGFloat(topRatio.wrappedValue) * totalHeight
-                let newTop = currentTop + delta
-                let clamped = min(max(newTop, minTopHeight), totalHeight - minBottomHeight)
-                topRatio.wrappedValue = Double(clamped / totalHeight)
+            self.previewHeight = previewHeight
+            self.totalHeight = totalHeight
+            self.minTopHeight = minTopHeight
+            self.minBottomHeight = minBottomHeight
+            self.onHeightChange = onHeightChange
+            self.onDragEnded = onDragEnded
+
+            view.minTopHeight = minTopHeight
+            view.minBottomHeight = minBottomHeight
+            view.dividerThickness = VerticalResizeDividerMetrics.visualHeight
+
+            view.onDragStart = { [weak self] windowMouseY in
+                guard let self else { return }
+                view.dragStartMouseYWindow = windowMouseY
+                view.dragStartPreviewHeight = self.previewHeight
+                view.dragStartTotalHeight = self.totalHeight
             }
+            view.onDragChange = { [weak self] windowMouseY in
+                guard let self, let startY = view.dragStartMouseYWindow else { return }
+                let startHeight = view.dragStartPreviewHeight ?? self.previewHeight
+                let total = view.dragStartTotalHeight ?? self.totalHeight
+                let clamped = Self.clampedPreviewHeight(
+                    startHeight + (windowMouseY - startY),
+                    totalHeight: total,
+                    minTopHeight: self.minTopHeight,
+                    minBottomHeight: self.minBottomHeight,
+                    dividerThickness: VerticalResizeDividerMetrics.hitHeight
+                )
+                self.onHeightChange?(clamped)
+            }
+            view.onDragEnd = { [weak self] windowMouseY in
+                guard let self, let startY = view.dragStartMouseYWindow else { return }
+                let startHeight = view.dragStartPreviewHeight ?? self.previewHeight
+                let total = view.dragStartTotalHeight ?? self.totalHeight
+                let clamped = Self.clampedPreviewHeight(
+                    startHeight + (windowMouseY - startY),
+                    totalHeight: total,
+                    minTopHeight: self.minTopHeight,
+                    minBottomHeight: self.minBottomHeight,
+                    dividerThickness: VerticalResizeDividerMetrics.hitHeight
+                )
+                self.onDragEnded?(clamped)
+                view.dragStartMouseYWindow = nil
+                view.dragStartPreviewHeight = nil
+                view.dragStartTotalHeight = nil
+            }
+        }
+
+        private static func clampedPreviewHeight(
+            _ height: CGFloat,
+            totalHeight: CGFloat,
+            minTopHeight: CGFloat,
+            minBottomHeight: CGFloat,
+            dividerThickness: CGFloat
+        ) -> CGFloat {
+            guard totalHeight > 0 else { return minTopHeight }
+            let maxTop = max(minTopHeight, totalHeight - minBottomHeight - dividerThickness)
+            return min(max(height, minTopHeight), maxTop)
         }
     }
 }
 
+enum VerticalResizeDividerMetrics {
+    static let visualHeight: CGFloat = 6
+    static let hitHeight: CGFloat = 14
+}
+
 final class VerticalResizeDividerNSView: NSView {
-    var onResize: ((CGFloat, CGFloat) -> Void)?
-    private var lastMouseY: CGFloat?
-    private var trackingArea: NSTrackingArea?
+    var minTopHeight: CGFloat = 80
+    var minBottomHeight: CGFloat = 80
+    var dividerThickness: CGFloat = VerticalResizeDividerMetrics.visualHeight
+
+    var onDragStart: ((CGFloat) -> Void)?
+    var onDragChange: ((CGFloat) -> Void)?
+    var onDragEnd: ((CGFloat) -> Void)?
+
+    var dragStartMouseYWindow: CGFloat?
+    var dragStartPreviewHeight: CGFloat?
+    var dragStartTotalHeight: CGFloat?
 
     override var isOpaque: Bool { false }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let expanded = bounds.insetBy(dx: 0, dy: -(VerticalResizeDividerMetrics.hitHeight - dividerThickness) / 2)
+        return expanded.contains(point) ? self : nil
+    }
 
     override func resetCursorRects() {
         discardCursorRects()
@@ -53,14 +139,15 @@ final class VerticalResizeDividerNSView: NSView {
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        if let trackingArea { removeTrackingArea(trackingArea) }
+        for area in trackingAreas where area.owner as AnyObject === self {
+            removeTrackingArea(area)
+        }
         let area = NSTrackingArea(
             rect: bounds,
             options: [.activeInKeyWindow, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect],
             owner: self
         )
         addTrackingArea(area)
-        trackingArea = area
     }
 
     override func cursorUpdate(with event: NSEvent) {
@@ -68,26 +155,22 @@ final class VerticalResizeDividerNSView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        lastMouseY = convert(event.locationInWindow, from: nil).y
+        let windowY = event.locationInWindow.y
+        dragStartMouseYWindow = windowY
+        onDragStart?(windowY)
     }
 
     override func mouseDragged(with event: NSEvent) {
-        let y = convert(event.locationInWindow, from: nil).y
-        guard let last = lastMouseY else { return }
-        let delta = y - last
-        lastMouseY = y
-        if let superview {
-            onResize?(delta, superview.bounds.height)
-        }
+        onDragChange?(event.locationInWindow.y)
     }
 
     override func mouseUp(with event: NSEvent) {
-        lastMouseY = nil
+        onDragEnd?(event.locationInWindow.y)
     }
 
     override func draw(_ dirtyRect: NSRect) {
         NSColor.separatorColor.setFill()
-        let lineY = floor((bounds.height - 1) / 2)
-        dirtyRect.intersection(NSRect(x: 0, y: lineY, width: bounds.width, height: 1)).fill()
+        let lineY = floor((bounds.height - dividerThickness) / 2)
+        NSRect(x: 0, y: lineY, width: bounds.width, height: dividerThickness).fill()
     }
 }
