@@ -28,4 +28,28 @@ public enum FileListThumbnailMetrics {
     public static func thumbnailSizeBucket(for cellSize: CGFloat) -> Int {
         Int(steppedCellSize(from: cellSize) / cellSizeStep) * Int(cellSizeStep)
     }
+    
+    /// 在容器内保持比例放大图片：宽、高至少一边贴满容器，另一边居中，超出部分由调用方裁剪。
+    public static func aspectFillFrame(imageSize: NSSize, in containerSize: NSSize) -> NSRect {
+        guard imageSize.width > 0, imageSize.height > 0,
+              containerSize.width > 0, containerSize.height > 0
+        else {
+            return NSRect(origin: .zero, size: containerSize)
+        }
+        
+        let scale = max(
+            containerSize.width / imageSize.width,
+            containerSize.height / imageSize.height
+        )
+        let displaySize = NSSize(
+            width: imageSize.width * scale,
+            height: imageSize.height * scale
+        )
+        return NSRect(
+            x: (containerSize.width - displaySize.width) / 2,
+            y: (containerSize.height - displaySize.height) / 2,
+            width: displaySize.width,
+            height: displaySize.height
+        )
+    }
 }

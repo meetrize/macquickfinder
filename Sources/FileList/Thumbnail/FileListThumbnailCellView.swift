@@ -79,7 +79,7 @@ final class FileListThumbnailCellView: NSView {
         super.layout()
         let bounds = self.bounds
         imageContainer.frame = bounds
-        imageView.frame = imageInsetFrame(in: imageContainer.bounds)
+        updateImageViewFrame()
         selectionOverlay.frame = bounds
         
         let overlayHeight = FileListThumbnailMetrics.labelOverlayHeight
@@ -203,12 +203,10 @@ final class FileListThumbnailCellView: NSView {
                 self.imageView.imageScaling = .scaleProportionallyDown
                 self.imageView.wantsLayer = false
             case .thumbnail:
-                self.imageView.imageScaling = .scaleAxesIndependently
-                self.imageView.wantsLayer = true
-                self.imageView.layer?.contentsGravity = .resizeAspectFill
-                self.imageView.layer?.masksToBounds = true
+                self.imageView.imageScaling = .scaleProportionallyUpOrDown
+                self.imageView.wantsLayer = false
             }
-            self.imageView.frame = self.imageInsetFrame(in: self.imageContainer.bounds)
+            self.updateImageViewFrame()
             self.imageView.alphaValue = 1
         }
         
@@ -225,8 +223,24 @@ final class FileListThumbnailCellView: NSView {
         }
     }
     
+    private func updateImageViewFrame() {
+        let containerBounds = imageContainer.bounds
+        switch imagePresentation {
+        case .icon:
+            imageView.frame = imageInsetFrame(in: containerBounds)
+        case .thumbnail:
+            guard let image = imageView.image else {
+                imageView.frame = containerBounds
+                return
+            }
+            imageView.frame = FileListThumbnailMetrics.aspectFillFrame(
+                imageSize: image.size,
+                in: containerBounds.size
+            )
+        }
+    }
+    
     private func imageInsetFrame(in bounds: NSRect) -> NSRect {
-        guard imagePresentation == .icon else { return bounds }
         let inset = bounds.width * FileListThumbnailMetrics.iconContentInsetRatio
         return bounds.insetBy(dx: inset, dy: inset)
     }
