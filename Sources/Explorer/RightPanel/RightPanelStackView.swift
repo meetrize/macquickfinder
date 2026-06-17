@@ -26,14 +26,22 @@ struct RightPanelStackView: View {
         GeometryReader { geo in
             let totalHeight = geo.size.height
             let showBoth = showPreview && showSnippets
+            let showResizeDivider = showBoth && !settings.isSnippetsContentCollapsed && !settings.isPreviewContentCollapsed
             let storedPreviewHeight = clampedPreviewHeight(
                 totalHeight * CGFloat(splitRatio),
                 totalHeight: totalHeight
             )
             let previewHeight = dragPreviewHeight ?? storedPreviewHeight
+            let expandedPreviewHeight: CGFloat = {
+                // Snippets 折叠后只占一个标题栏：预览应自动撑满剩余空间
+                if showBoth, settings.isSnippetsContentCollapsed, !settings.isPreviewContentCollapsed {
+                    return max(previewMinHeight, totalHeight - snippetsMinHeight)
+                }
+                return previewHeight
+            }()
             let effectivePreviewHeight = settings.isPreviewContentCollapsed
                 ? PanelTopBarMetrics.totalHeight
-                : previewHeight
+                : expandedPreviewHeight
 
             VStack(spacing: 0) {
                 if showPreview {
@@ -45,7 +53,7 @@ struct RightPanelStackView: View {
                     .frame(height: effectivePreviewHeight)
                 }
 
-                if showBoth {
+                if showResizeDivider {
                     VerticalResizeDivider(
                         previewHeight: effectivePreviewHeight,
                         totalHeight: totalHeight,
@@ -73,11 +81,7 @@ struct RightPanelStackView: View {
                         showHiddenFiles: showHiddenFiles,
                         panelWidth: panelWidth
                     )
-                    .frame(
-                        maxHeight: settings.isSnippetsContentCollapsed
-                            ? PanelTopBarMetrics.totalHeight
-                            : .infinity
-                    )
+                    .frame(maxHeight: .infinity)
                 }
             }
             .animation(nil, value: effectivePreviewHeight)
@@ -86,7 +90,9 @@ struct RightPanelStackView: View {
 
     private func clampedPreviewHeight(_ height: CGFloat, totalHeight: CGFloat) -> CGFloat {
         guard totalHeight > 0 else { return 80 }
-        let divider = showPreview && showSnippets ? VerticalResizeDividerMetrics.hitHeight : 0
+        let divider = showPreview && showSnippets && !settings.isSnippetsContentCollapsed && !settings.isPreviewContentCollapsed
+            ? VerticalResizeDividerMetrics.hitHeight
+            : 0
         let maxTop = max(previewMinHeight, totalHeight - snippetsMinHeight - divider)
         return min(max(height, previewMinHeight), maxTop)
     }

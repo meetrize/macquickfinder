@@ -41,8 +41,12 @@ struct SnippetsPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topBar
-            if !settings.isSnippetsContentCollapsed {
+            if settings.isSnippetsContentCollapsed {
+                Spacer(minLength: 0)
+                Divider()
+                topBar
+            } else {
+                topBar
                 Divider()
                 snippetGrid
                 Divider()
