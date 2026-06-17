@@ -426,7 +426,7 @@ struct SettingsView: View {
                     Label("高级", systemImage: "slider.horizontal.3")
                 }
         }
-        .frame(width: 480, height: 320)
+        .frame(width: 520, height: 420)
     }
 }
 
@@ -452,6 +452,7 @@ private struct SnippetsSettingsTab: View {
 private struct GeneralSettingsTab: View {
     @AppStorage(AppSettings.blankDoubleClickActionKey)
     private var blankDoubleClickAction = BlankDoubleClickAction.navigateToParent.rawValue
+    @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
     
     var body: some View {
         Form {
@@ -463,22 +464,98 @@ private struct GeneralSettingsTab: View {
                 }
                 .pickerStyle(.radioGroup)
             }
+
+            DefaultFileViewerSettingsSection(model: defaultFileViewerSettings, style: .compact)
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            defaultFileViewerSettings.refresh()
+        }
     }
 }
 
 private struct AdvancedSettingsTab: View {
+    @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
+
     var body: some View {
         Form {
-            Section {
-                Text("暂无高级选项")
-                    .foregroundStyle(.secondary)
-            }
+            DefaultFileViewerSettingsSection(model: defaultFileViewerSettings, style: .detailed)
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            defaultFileViewerSettings.refresh()
+        }
+    }
+}
+
+private enum DefaultFileViewerSettingsSectionStyle {
+    case compact
+    case detailed
+}
+
+private struct DefaultFileViewerSettingsSection: View {
+    @ObservedObject var model: DefaultFileViewerSettingsModel
+    let style: DefaultFileViewerSettingsSectionStyle
+
+    var body: some View {
+        Section {
+            LabeledContent("当前默认") {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(model.isDefault ? Color.green : Color.secondary.opacity(0.5))
+                        .frame(width: 8, height: 8)
+                    Text(model.currentHandlerName)
+                }
+            }
+
+            HStack {
+                Button("设为默认文件夹查看器") {
+                    model.setAsDefault()
+                }
+                .disabled(model.isDefault || model.isApplying)
+
+                Button("恢复 Finder") {
+                    model.restoreFinder()
+                }
+                .disabled(model.isFinderDefault || model.isApplying)
+            }
+
+            if model.showsRestartReminder {
+                Text("更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if style == .detailed {
+                Text("可将 MeoFind 设为系统默认文件夹查看器，使多数应用中的「在 Finder 中显示」等操作打开本应用。无法替代桌面图标、Dock 中的 Finder，以及系统自带的打开/保存对话框。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("默认文件夹查看器")
+        }
+        .alert("默认文件夹查看器", isPresented: alertBinding) {
+            Button("好", role: .cancel) {
+                model.alertMessage = nil
+            }
+        } message: {
+            if let alertMessage = model.alertMessage {
+                Text(alertMessage)
+            }
+        }
+    }
+
+    private var alertBinding: Binding<Bool> {
+        Binding(
+            get: { model.alertMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    model.alertMessage = nil
+                }
+            }
+        )
     }
 }
 
