@@ -3892,12 +3892,17 @@ struct FilePreviewView: View {
     @State private var pdfPageCount: Int = 0
     @State private var pdfScalePercent: Int = 0
     @State private var pdfNavigateAction: PDFNavigationAction? = nil
+    @State private var pdfPageInput: String = ""
     @State private var textWrapEnabled: Bool = true
     @State private var textPreviewAction: TextPreviewAction? = nil
+    @State private var markdownMode: MarkdownDisplayMode = .preview
+    @State private var markdownPreviewScale: CGFloat = 1.0
+    @State private var markdownSourceFontSize: CGFloat = 13
     @State private var mediaControlAction: MediaControlAction? = nil
     @State private var mediaIsPlaying: Bool = false
     @State private var mediaIsMuted: Bool = false
     @State private var officeReloadToken: Int = 0
+    @State private var officeNavigateAction: OfficeNavigationAction? = nil
     @State private var archiveExpanded: Bool = true
     @State private var archiveReloadToken: Int = 0
     @State private var archiveCopyAction: ArchivePreviewAction? = nil
@@ -3948,8 +3953,7 @@ struct FilePreviewView: View {
                     Button {
                         imageZoomAction = .fit
                     } label: {
-                        Text("适配")
-                            .font(.caption)
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
                     }
                     .buttonStyle(.borderless)
                     .help("适配窗口")
@@ -3957,8 +3961,7 @@ struct FilePreviewView: View {
                     Button {
                         imageZoomAction = .actualSize
                     } label: {
-                        Text("100%")
-                            .font(.caption)
+                        Image(systemName: "1.magnifyingglass")
                     }
                     .buttonStyle(.borderless)
                     .help("原始大小")
@@ -3988,10 +3991,26 @@ struct FilePreviewView: View {
                     .help("缩小")
                     .disabled(pdfScalePercent > 0 && pdfScalePercent <= 25)
 
-                    Text(pdfPageStatusText)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .frame(minWidth: 52, alignment: .center)
+                    HStack(spacing: 4) {
+                        TextField("", text: $pdfPageInput)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.caption)
+                            .frame(width: 44)
+                            .onSubmit {
+                                let trimmed = pdfPageInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard let page = Int(trimmed), pdfPageCount > 0 else {
+                                    pdfPageInput = pdfCurrentPage > 0 ? "\(pdfCurrentPage)" : ""
+                                    return
+                                }
+                                let clamped = min(max(page, 1), pdfPageCount)
+                                pdfNavigateAction = .goToPage(clamped)
+                            }
+
+                        Text("/\(pdfPageCount > 0 ? "\(pdfPageCount)" : "--")")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(minWidth: 74, alignment: .center)
 
                     Text(pdfScalePercent > 0 ? "\(pdfScalePercent)%" : "--")
                         .font(.caption)
@@ -4042,6 +4061,70 @@ struct FilePreviewView: View {
                     .buttonStyle(.borderless)
                     .help(textWrapEnabled ? "关闭自动换行" : "开启自动换行")
 
+                    if isMarkdownFile(selectedItem) {
+                        Button {
+                            markdownMode = .preview
+                        } label: {
+                            Image(systemName: markdownMode == .preview ? "eye.fill" : "eye")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("预览模式")
+
+                        Button {
+                            markdownMode = .source
+                        } label: {
+                            Image(systemName: markdownMode == .source ? "doc.plaintext.fill" : "doc.plaintext")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("源码模式")
+
+                        if markdownMode == .preview {
+                            Button {
+                                markdownPreviewScale = min(markdownPreviewScale + 0.1, 3.0)
+                            } label: {
+                                Image(systemName: "plus.magnifyingglass")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("放大（整体）")
+
+                            Button {
+                                markdownPreviewScale = max(markdownPreviewScale - 0.1, 0.5)
+                            } label: {
+                                Image(systemName: "minus.magnifyingglass")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("缩小（整体）")
+                            .disabled(markdownPreviewScale <= 0.5)
+
+                            Text("\(Int((markdownPreviewScale * 100).rounded()))%")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(minWidth: 56, alignment: .center)
+                        } else {
+                            Button {
+                                markdownSourceFontSize = min(markdownSourceFontSize + 1, 28)
+                            } label: {
+                                Image(systemName: "plus.magnifyingglass")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("放大字体")
+
+                            Button {
+                                markdownSourceFontSize = max(markdownSourceFontSize - 1, 9)
+                            } label: {
+                                Image(systemName: "minus.magnifyingglass")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("缩小字体")
+                            .disabled(markdownSourceFontSize <= 9)
+
+                            Text("\(Int(markdownSourceFontSize.rounded()))pt")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(minWidth: 56, alignment: .center)
+                        }
+                    }
+
                     Button {
                         textPreviewAction = .copyAll
                     } label: {
@@ -4086,6 +4169,22 @@ struct FilePreviewView: View {
                 }
 
                 if !settings.isPreviewContentCollapsed, let selectedItem, isOfficeFile(selectedItem) {
+                    Button {
+                        officeNavigateAction = .pageUp
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("上一页（滚动）")
+
+                    Button {
+                        officeNavigateAction = .pageDown
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("下一页（滚动）")
+
                     Button {
                         NSWorkspace.shared.open(selectedItem.url)
                     } label: {
@@ -4158,13 +4257,17 @@ struct FilePreviewView: View {
                             mediaIsPlaying: $mediaIsPlaying,
                             mediaIsMuted: $mediaIsMuted,
                             officeReloadToken: $officeReloadToken,
+                            officeNavigateAction: $officeNavigateAction,
                             archiveExpanded: $archiveExpanded,
                             archiveCopyAction: $archiveCopyAction,
                             archiveReloadToken: $archiveReloadToken,
                             pdfCurrentPage: $pdfCurrentPage,
                             pdfPageCount: $pdfPageCount,
                             pdfNavigateAction: $pdfNavigateAction,
-                            pdfScalePercent: $pdfScalePercent
+                            pdfScalePercent: $pdfScalePercent,
+                            markdownMode: $markdownMode,
+                            markdownPreviewScale: $markdownPreviewScale,
+                            markdownSourceFontSize: $markdownSourceFontSize
                         )
                             .id(selectedItem.id)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -4188,6 +4291,7 @@ struct FilePreviewView: View {
             mediaIsPlaying = false
             mediaIsMuted = false
             officeReloadToken = 0
+            officeNavigateAction = nil
             archiveExpanded = true
             archiveReloadToken = 0
             archiveCopyAction = nil
@@ -4195,6 +4299,17 @@ struct FilePreviewView: View {
             pdfPageCount = 0
             pdfScalePercent = 0
             pdfNavigateAction = nil
+            pdfPageInput = ""
+            markdownMode = .preview
+            markdownPreviewScale = 1.0
+            markdownSourceFontSize = 13
+        }
+        .onChange(of: pdfCurrentPage) { newValue in
+            if newValue > 0 {
+                pdfPageInput = "\(newValue)"
+            } else {
+                pdfPageInput = ""
+            }
         }
     }
     
@@ -4215,6 +4330,10 @@ struct FilePreviewView: View {
             "config", "ini", "gitignore", "properties", "log", "sql", "csv"
         ]
         return textExtensions.contains(ext)
+    }
+
+    private func isMarkdownFile(_ item: FileItem) -> Bool {
+        item.url.pathExtension.lowercased() == "md"
     }
 
     private func isMediaFile(_ item: FileItem) -> Bool {
@@ -4253,6 +4372,7 @@ struct FileContentView: View {
     @Binding var mediaIsPlaying: Bool
     @Binding var mediaIsMuted: Bool
     @Binding var officeReloadToken: Int
+    @Binding var officeNavigateAction: OfficeNavigationAction?
     @Binding var archiveExpanded: Bool
     @Binding var archiveCopyAction: ArchivePreviewAction?
     @Binding var archiveReloadToken: Int
@@ -4260,6 +4380,9 @@ struct FileContentView: View {
     @Binding var pdfPageCount: Int
     @Binding var pdfNavigateAction: PDFNavigationAction?
     @Binding var pdfScalePercent: Int
+    @Binding var markdownMode: MarkdownDisplayMode
+    @Binding var markdownPreviewScale: CGFloat
+    @Binding var markdownSourceFontSize: CGFloat
 
     @State private var textContent: String = ""
     @State private var image: NSImage? = nil
@@ -4324,8 +4447,16 @@ struct FileContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let officeURL = officeURL {
-                QuickLookPreview(url: officeURL, reloadToken: officeReloadToken)
+                QuickLookPreview(
+                    url: officeURL,
+                    reloadToken: officeReloadToken,
+                    navigationAction: $officeNavigateAction
+                )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // QuickLook（尤其是 PPTX）内部滚动条有时会被内容“顶住/遮住”，
+                    // 给右侧/底部留一点空隙，避免滚动条被覆盖。
+                    .padding(.trailing, 10)
+                    .padding(.bottom, 6)
             } else if !archiveEntries.isEmpty {
                 ArchiveListPreview(
                     entries: archiveEntries,
@@ -4335,12 +4466,22 @@ struct FileContentView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             } else if !textContent.isEmpty {
-                TextFilePreview(
-                    text: textContent,
-                    wrapLines: textWrapEnabled,
-                    action: $textPreviewAction
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if item.url.pathExtension.lowercased() == "md", markdownMode == .preview {
+                    MarkdownFilePreview(
+                        markdown: textContent,
+                        wrapLines: textWrapEnabled,
+                        zoomScale: $markdownPreviewScale
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    TextFilePreview(
+                        text: textContent,
+                        wrapLines: textWrapEnabled,
+                        fontSize: item.url.pathExtension.lowercased() == "md" ? markdownSourceFontSize : NSFont.systemFontSize,
+                        action: $textPreviewAction
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             } else {
                 Text("Preview not available for this file type")
                     .foregroundColor(.secondary)
@@ -4348,7 +4489,8 @@ struct FileContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .padding(isImagePreview ? 0 : 12)
+        // QuickLook 自己带滚动与边距，外层 padding 反而容易造成滚动条被遮挡。
+        .padding((isImagePreview || officeURL != nil) ? 0 : 12)
         .task(id: "\(item.id)-\(archiveReloadToken)") {
             imageZoomScale = 1.0
             imageZoomAction = nil
@@ -4632,11 +4774,122 @@ enum PDFNavigationAction: Equatable {
     case zoomOut
     case fitWidth
     case fitPage
+    case goToPage(Int)
+}
+
+enum MarkdownDisplayMode: Equatable {
+    case preview
+    case source
+}
+
+private struct MarkdownFilePreview: NSViewRepresentable {
+    let markdown: String
+    let wrapLines: Bool
+    @Binding var zoomScale: CGFloat
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = !wrapLines
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+
+        let textView = NSTextView()
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.drawsBackground = false
+        textView.isRichText = true
+        textView.usesAdaptiveColorMappingForDarkAppearance = true
+        textView.textContainer?.widthTracksTextView = wrapLines
+        textView.textContainerInset = NSSize(width: 10, height: 10)
+        textView.autoresizingMask = wrapLines ? [.width] : []
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = !wrapLines
+        textView.maxSize = NSSize(
+            width: CGFloat.greatestFiniteMagnitude,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+        textView.minSize = NSSize(width: 0, height: 0)
+        if !wrapLines {
+            textView.textContainer?.containerSize = NSSize(
+                width: CGFloat.greatestFiniteMagnitude,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        }
+
+        scrollView.documentView = textView
+        context.coordinator.textView = textView
+        context.coordinator.currentScale = 1.0
+
+        applyMarkdown(markdown, to: textView)
+        applyScale(zoomScale, to: textView, context: context)
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = context.coordinator.textView else { return }
+
+        scrollView.hasHorizontalScroller = !wrapLines
+        textView.textContainer?.widthTracksTextView = wrapLines
+        textView.autoresizingMask = wrapLines ? [.width] : []
+        textView.isHorizontallyResizable = !wrapLines
+        if wrapLines {
+            textView.textContainer?.containerSize = NSSize(
+                width: scrollView.contentSize.width,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        } else {
+            textView.textContainer?.containerSize = NSSize(
+                width: CGFloat.greatestFiniteMagnitude,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        }
+
+        if context.coordinator.lastMarkdown != markdown {
+            applyMarkdown(markdown, to: textView)
+            context.coordinator.lastMarkdown = markdown
+            textView.scrollToBeginningOfDocument(nil)
+        }
+
+        applyScale(zoomScale, to: textView, context: context)
+    }
+
+    private func applyMarkdown(_ markdown: String, to textView: NSTextView) {
+        let rendered: NSAttributedString
+        if let attr = try? AttributedString(markdown: markdown) {
+            rendered = NSAttributedString(attr)
+        } else {
+            rendered = NSAttributedString(string: markdown)
+        }
+        textView.textStorage?.setAttributedString(rendered)
+    }
+
+    private func applyScale(_ target: CGFloat, to textView: NSTextView, context: Context) {
+        let clamped = min(max(target, 0.5), 3.0)
+        let current = context.coordinator.currentScale
+        guard abs(clamped - current) > 0.0001 else { return }
+        let factor = clamped / max(current, 0.0001)
+        textView.scaleUnitSquare(to: NSSize(width: factor, height: factor))
+        context.coordinator.currentScale = clamped
+    }
+
+    final class Coordinator {
+        weak var textView: NSTextView?
+        var lastMarkdown: String = ""
+        var currentScale: CGFloat = 1.0
+    }
 }
 
 private struct TextFilePreview: NSViewRepresentable {
     let text: String
     let wrapLines: Bool
+    let fontSize: CGFloat
     @Binding var action: TextPreviewAction?
     
     func makeCoordinator() -> Coordinator {
@@ -4656,7 +4909,7 @@ private struct TextFilePreview: NSViewRepresentable {
         textView.isSelectable = true
         textView.drawsBackground = false
         textView.isRichText = false
-        textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.textContainer?.widthTracksTextView = wrapLines
         textView.textContainerInset = NSSize(width: 8, height: 8)
         textView.autoresizingMask = wrapLines ? [.width] : []
@@ -4685,6 +4938,9 @@ private struct TextFilePreview: NSViewRepresentable {
         if textView.string != text {
             textView.string = text
             textView.scrollToBeginningOfDocument(nil)
+        }
+        if textView.font?.pointSize != fontSize {
+            textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         }
         scrollView.hasHorizontalScroller = !wrapLines
         textView.textContainer?.widthTracksTextView = wrapLines
@@ -4858,6 +5114,7 @@ private struct MediaPreview: NSViewRepresentable {
 private struct QuickLookPreview: NSViewRepresentable {
     let url: URL
     let reloadToken: Int
+    @Binding var navigationAction: OfficeNavigationAction?
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -4867,6 +5124,7 @@ private struct QuickLookPreview: NSViewRepresentable {
         }
         view.previewItem = url as NSURL
         context.coordinator.lastReloadToken = reloadToken
+        context.coordinator.attach(view)
         return view
     }
 
@@ -4877,18 +5135,79 @@ private struct QuickLookPreview: NSViewRepresentable {
             qlView.previewItem = nil
             qlView.previewItem = url as NSURL
             context.coordinator.lastReloadToken = reloadToken
+            DispatchQueue.main.async { context.coordinator.attach(qlView) }
             return
         }
 
         let currentURL = qlView.previewItem?.previewItemURL
         if currentURL?.path != url.path {
             qlView.previewItem = url as NSURL
+            DispatchQueue.main.async { context.coordinator.attach(qlView) }
+        }
+
+        if let action = navigationAction {
+            DispatchQueue.main.async {
+                context.coordinator.perform(action)
+                navigationAction = nil
+            }
         }
     }
 
     final class Coordinator {
         var lastReloadToken: Int = 0
+        private weak var qlView: QLPreviewView?
+        private weak var scrollView: NSScrollView?
+
+        func attach(_ view: QLPreviewView) {
+            qlView = view
+            scrollView = Self.findScrollView(in: view)
+            // 如果 QuickLook 内部确实是 scrollView，隐藏它的滚动条（保留滚轮滚动能力）
+            if let scrollView {
+                scrollView.hasVerticalScroller = false
+                scrollView.hasHorizontalScroller = false
+                scrollView.autohidesScrollers = true
+            }
+        }
+
+        func perform(_ action: OfficeNavigationAction) {
+            guard let scrollView else { return }
+            let clip = scrollView.contentView
+            guard let docView = scrollView.documentView else { return }
+            let visible = clip.bounds
+            let docBounds = docView.bounds
+            let step = max(visible.height * 0.9, 60)
+
+            var newOrigin = visible.origin
+            switch action {
+            case .pageUp:
+                newOrigin.y = max(0, newOrigin.y - step)
+            case .pageDown:
+                newOrigin.y = min(max(docBounds.height - visible.height, 0), newOrigin.y + step)
+            case .top:
+                newOrigin.y = 0
+            case .bottom:
+                newOrigin.y = max(docBounds.height - visible.height, 0)
+            }
+
+            clip.animator().setBoundsOrigin(newOrigin)
+            scrollView.reflectScrolledClipView(clip)
+        }
+
+        private static func findScrollView(in view: NSView) -> NSScrollView? {
+            if let scroll = view as? NSScrollView { return scroll }
+            for sub in view.subviews {
+                if let found = findScrollView(in: sub) { return found }
+            }
+            return nil
+        }
     }
+}
+
+enum OfficeNavigationAction: Equatable {
+    case pageUp
+    case pageDown
+    case top
+    case bottom
 }
 
 private struct ImagePreviewContent: View {
@@ -5016,8 +5335,8 @@ struct PDFPreview: NSViewRepresentable {
         pdfView.autoScales = true
         pdfView.displayMode = .singlePage
         pdfView.displayDirection = .vertical
-        pdfView.delegate = context.coordinator
         context.coordinator.onStateChanged = onStateChanged
+        context.coordinator.startObserving(pdfView)
         context.coordinator.emitState(from: pdfView)
         return pdfView
     }
@@ -5036,6 +5355,13 @@ struct PDFPreview: NSViewRepresentable {
                 nsView.goToPreviousPage(nil)
             case .next:
                 nsView.goToNextPage(nil)
+            case .goToPage(let pageNumber):
+                if let doc = nsView.document,
+                   pageNumber >= 1,
+                   pageNumber <= doc.pageCount,
+                   let page = doc.page(at: pageNumber - 1) {
+                    nsView.go(to: page)
+                }
             case .zoomIn:
                 nsView.autoScales = false
                 nsView.scaleFactor = min(nsView.scaleFactor * 1.2, 5.0)
@@ -5048,22 +5374,58 @@ struct PDFPreview: NSViewRepresentable {
             case .fitPage:
                 nsView.autoScales = true
             }
-            DispatchQueue.main.async { navigationAction = nil }
-            context.coordinator.emitState(from: nsView)
-        } else {
-            context.coordinator.emitState(from: nsView)
+            // PDFView 的 currentPage/scaleFactor 往往在动作后的下一帧才稳定，异步读取才能实时刷新标题栏状态。
+            DispatchQueue.main.async {
+                navigationAction = nil
+                context.coordinator.emitState(from: nsView)
+            }
         }
     }
 
     final class Coordinator: NSObject, PDFViewDelegate {
         var onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
+        private var pageChangedObserver: NSObjectProtocol?
+        private var scaleChangedObserver: NSObjectProtocol?
+        private weak var observedView: PDFView?
 
         init(onStateChanged: @escaping (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void) {
             self.onStateChanged = onStateChanged
         }
 
-        func pdfViewPageChanged(_ sender: PDFView) {
-            emitState(from: sender)
+        deinit {
+            stopObserving()
+        }
+
+        func startObserving(_ pdfView: PDFView) {
+            if observedView === pdfView { return }
+            stopObserving()
+            observedView = pdfView
+            let center = NotificationCenter.default
+            pageChangedObserver = center.addObserver(
+                forName: .PDFViewPageChanged,
+                object: pdfView,
+                queue: .main
+            ) { [weak self] note in
+                guard let view = note.object as? PDFView else { return }
+                self?.emitState(from: view)
+            }
+            scaleChangedObserver = center.addObserver(
+                forName: .PDFViewScaleChanged,
+                object: pdfView,
+                queue: .main
+            ) { [weak self] note in
+                guard let view = note.object as? PDFView else { return }
+                self?.emitState(from: view)
+            }
+        }
+
+        private func stopObserving() {
+            let center = NotificationCenter.default
+            if let pageChangedObserver { center.removeObserver(pageChangedObserver) }
+            if let scaleChangedObserver { center.removeObserver(scaleChangedObserver) }
+            pageChangedObserver = nil
+            scaleChangedObserver = nil
+            observedView = nil
         }
 
         func emitState(from pdfView: PDFView) {
