@@ -19,9 +19,21 @@ enum SnippetExpansionError: LocalizedError, Equatable {
 }
 
 enum SnippetExpander {
-    static func expand(_ template: String, context: SnippetExecutionContext) throws -> String {
+    static func expand(
+        _ template: String,
+        context: SnippetExecutionContext,
+        scriptType: SnippetScriptType = .shell
+    ) throws -> String {
         let files = context.selectedItems.filter { !$0.isParentDirectoryEntry && !$0.isDirectory }
         let allSelected = context.selectedItems.filter { !$0.isParentDirectoryEntry }
+        
+        func pathForScript(_ path: String) -> String {
+            let standardized = standardize(path)
+            if scriptType == .shell {
+                return shellQuote(standardized)
+            }
+            return standardized
+        }
 
         var result = template
         let replacements: [(String, () throws -> String)] = [
@@ -29,22 +41,22 @@ enum SnippetExpander {
                 guard allSelected.count == 1, let item = allSelected.first else {
                     throw SnippetExpansionError.requiresSingleSelection
                 }
-                return standardize(item.url.path)
+                return pathForScript(item.url.path)
             }),
             ("%d", { standardize(context.cwd) }),
             ("%P", {
                 guard !allSelected.isEmpty else { throw SnippetExpansionError.requiresSelection }
-                return allSelected.map { standardize($0.url.path) }.joined(separator: " ")
+                return allSelected.map { pathForScript($0.url.path) }.joined(separator: " ")
             }),
             ("%f", {
                 guard allSelected.count == 1, let item = allSelected.first, !item.isDirectory else {
                     throw SnippetExpansionError.requiresFileSelection
                 }
-                return standardize(item.url.path)
+                return pathForScript(item.url.path)
             }),
             ("%F", {
                 guard !files.isEmpty else { throw SnippetExpansionError.noFilesInSelection }
-                return files.map { standardize($0.url.path) }.joined(separator: " ")
+                return files.map { pathForScript($0.url.path) }.joined(separator: " ")
             }),
             ("%n", {
                 guard allSelected.count == 1, let item = allSelected.first else {

@@ -112,6 +112,19 @@ struct OutputPanelView: View {
                             .buttonStyle(.plain)
                         }
                         .padding(.trailing, 4)
+                        .contextMenu {
+                            Button("关闭当前") {
+                                jobStore.removeJob(id: job.id)
+                            }
+
+                            Button("关闭其他") {
+                                jobStore.removeOtherJobs(keeping: job.id)
+                            }
+
+                            Button("关闭所有") {
+                                jobStore.removeAllJobs()
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 8)

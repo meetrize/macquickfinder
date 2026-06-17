@@ -40,7 +40,11 @@ final class SnippetExecutor: ObservableObject {
     private func performExecute(_ snippet: Snippet, context: SnippetExecutionContext) {
         let expanded: String
         do {
-            expanded = try SnippetExpander.expand(snippet.content, context: context)
+            expanded = try SnippetExpander.expand(
+                snippet.content,
+                context: context,
+                scriptType: snippet.scriptType
+            )
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             expansionErrorMessage = message

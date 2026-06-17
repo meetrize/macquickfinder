@@ -110,6 +110,28 @@ final class JobStore: ObservableObject {
         }
     }
 
+    /// 关闭除指定 Job 外的所有 Job。
+    func removeOtherJobs(keeping keptJobID: UUID) {
+        let idsToRemove = jobs.map(\.id).filter { $0 != keptJobID }
+        guard !idsToRemove.isEmpty else { return }
+        for id in idsToRemove {
+            cancel(jobID: id)
+        }
+        jobs.removeAll { $0.id != keptJobID }
+        selectedJobID = keptJobID
+    }
+
+    /// 关闭全部 Job（不隐藏输出面板）。
+    func removeAllJobs() {
+        pendingShellRuns.removeAll()
+        for job in jobs where job.status == .running {
+            job.process?.terminate()
+        }
+        jobs.removeAll()
+        selectedJobID = nil
+        closeOutputPanel(clearJobs: false)
+    }
+
     /// 关闭输出面板；可选是否清空 Job 列表（总关闭按钮会取消运行中任务并清空）。
     func closeOutputPanel(clearJobs: Bool = true) {
         pendingShellRuns.removeAll()
