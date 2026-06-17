@@ -4825,6 +4825,7 @@ private struct MarkdownFilePreview: NSViewRepresentable {
         scrollView.documentView = textView
         context.coordinator.textView = textView
         context.coordinator.currentScale = 1.0
+        context.coordinator.lastMarkdown = markdown
 
         applyMarkdown(markdown, to: textView)
         applyScale(zoomScale, to: textView, context: context)
@@ -4861,12 +4862,118 @@ private struct MarkdownFilePreview: NSViewRepresentable {
     }
 
     private func applyMarkdown(_ markdown: String, to textView: NSTextView) {
-        let rendered: NSAttributedString
-        if let attr = try? AttributedString(markdown: markdown) {
-            rendered = NSAttributedString(attr)
-        } else {
-            rendered = NSAttributedString(string: markdown)
+        // 以原始文本作为预览基准，保证换行/缩进完全保留，再做轻量样式增强。
+        let rendered = NSMutableAttributedString(string: markdown)
+
+        let fullRange = NSRange(location: 0, length: rendered.length)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakMode = wrapLines ? .byWordWrapping : .byClipping
+        paragraphStyle.lineSpacing = 2
+        rendered.addAttribute(.paragraphStyle, value: paragraphStyle, range: fullRange)
+        rendered.addAttribute(
+            .font,
+            value: NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .regular),
+            range: fullRange
+        )
+
+        // 低成本标题增强：仅识别 ATX 标题（# 到 ######），并在预览里隐藏前缀 # 号。
+        var renderedString = rendered.string as NSString
+        var fullRenderedRange = NSRange(location: 0, length: renderedString.length)
+        let headingRegex = try? NSRegularExpression(pattern: "^(#{1,6})\\s+(.+)$", options: [.anchorsMatchLines])
+        if let headingRegex {
+            let matches = headingRegex.matches(in: rendered.string, options: [], range: fullRenderedRange)
+            for match in matches.reversed() {
+                guard match.numberOfRanges >= 3, match.range(at: 2).location != NSNotFound else { continue }
+
+                let level = max(1, min(6, match.range(at: 1).length))
+                let markerRange = match.range(at: 1)
+                let titleRange = match.range(at: 2) // 整个「1. 构建前端」都加粗加大
+                let markerEnd = markerRange.location + markerRange.length
+                let removeLength = max(0, titleRange.location - markerEnd)
+                let removeRange = NSRange(location: markerRange.location, length: markerRange.length + removeLength)
+
+                rendered.replaceCharacters(in: removeRange, with: "")
+
+                let adjustedTitleRange = NSRange(
+                    location: max(0, titleRange.location - removeRange.length),
+                    length: titleRange.length
+                )
+                let size = max(13, 22 - CGFloat(level) * 2)
+                let font = NSFont.systemFont(ofSize: size, weight: .semibold)
+                rendered.addAttribute(.font, value: font, range: adjustedTitleRange)
+            }
+            renderedString = rendered.string as NSString
+            fullRenderedRange = NSRange(location: 0, length: renderedString.length)
         }
+
+        // 低成本列表缩进：支持 -, *, + 与有序列表（1. / 2. ...）。
+        let bulletRegex = try? NSRegularExpression(pattern: "^([ \\t]*)([-*+])\\s+", options: [.anchorsMatchLines])
+        bulletRegex?.enumerateMatches(in: rendered.string, options: [], range: fullRenderedRange) { match, _, _ in
+            guard
+                let match,
+                match.numberOfRanges >= 2,
+                match.range.location != NSNotFound
+            else { return }
+            let lineRange = renderedString.lineRange(for: match.range)
+            let leadingWhitespaceCount = max(0, match.range(at: 1).length)
+            let indentBase = CGFloat(leadingWhitespaceCount) * 6
+            let style = NSMutableParagraphStyle()
+            style.lineBreakMode = wrapLines ? .byWordWrapping : .byClipping
+            style.lineSpacing = 2
+            style.firstLineHeadIndent = indentBase
+            style.headIndent = indentBase + 16
+            rendered.addAttribute(.paragraphStyle, value: style, range: lineRange)
+        }
+
+        let orderedListRegex = try? NSRegularExpression(pattern: "^([ \\t]*)(\\d+)\\.\\s+", options: [.anchorsMatchLines])
+        orderedListRegex?.enumerateMatches(in: rendered.string, options: [], range: fullRenderedRange) { match, _, _ in
+            guard
+                let match,
+                match.numberOfRanges >= 2,
+                match.range.location != NSNotFound
+            else { return }
+            let lineRange = renderedString.lineRange(for: match.range)
+            let leadingWhitespaceCount = max(0, match.range(at: 1).length)
+            let indentBase = CGFloat(leadingWhitespaceCount) * 6
+            let style = NSMutableParagraphStyle()
+            style.lineBreakMode = wrapLines ? .byWordWrapping : .byClipping
+            style.lineSpacing = 2
+            style.firstLineHeadIndent = indentBase
+            style.headIndent = indentBase + 20
+            rendered.addAttribute(.paragraphStyle, value: style, range: lineRange)
+        }
+
+        // fenced code block：优先保证可见背景。按围栏行成对识别，并给中间正文区间加样式。
+        let fenceRegex = try? NSRegularExpression(pattern: "^[ \\t]*```.*$", options: [.anchorsMatchLines])
+        if let fenceRegex {
+            let fenceMatches = fenceRegex.matches(in: rendered.string, options: [], range: fullRenderedRange)
+            var i = 0
+            while i + 1 < fenceMatches.count {
+                let openLine = renderedString.lineRange(for: fenceMatches[i].range)
+                let closeLine = renderedString.lineRange(for: fenceMatches[i + 1].range)
+                let start = openLine.location + openLine.length
+                let end = closeLine.location
+                if end > start {
+                    let codeRange = NSRange(location: start, length: end - start)
+                    let blockFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+                    rendered.addAttribute(.font, value: blockFont, range: codeRange)
+                    rendered.addAttribute(
+                        .backgroundColor,
+                        value: NSColor.quaternaryLabelColor.withAlphaComponent(0.12),
+                        range: codeRange
+                    )
+
+                    let codeParagraph = NSMutableParagraphStyle()
+                    codeParagraph.lineBreakMode = .byClipping
+                    codeParagraph.lineSpacing = 2
+                    codeParagraph.firstLineHeadIndent = 8
+                    codeParagraph.headIndent = 8
+                    rendered.addAttribute(.paragraphStyle, value: codeParagraph, range: codeRange)
+                }
+                i += 2
+            }
+        }
+
         textView.textStorage?.setAttributedString(rendered)
     }
 
@@ -5130,6 +5237,7 @@ private struct QuickLookPreview: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         guard let qlView = nsView as? QLPreviewView else { return }
+        context.coordinator.attach(qlView)
 
         if context.coordinator.lastReloadToken != reloadToken {
             qlView.previewItem = nil
@@ -5161,22 +5269,52 @@ private struct QuickLookPreview: NSViewRepresentable {
         func attach(_ view: QLPreviewView) {
             qlView = view
             scrollView = Self.findScrollView(in: view)
-            // 如果 QuickLook 内部确实是 scrollView，隐藏它的滚动条（保留滚轮滚动能力）
-            if let scrollView {
-                scrollView.hasVerticalScroller = false
-                scrollView.hasHorizontalScroller = false
-                scrollView.autohidesScrollers = true
+            hideIndicators(in: view)
+            // QuickLook 的子视图有时异步构建，延迟再隐藏一次，避免无效滚动条回弹显示。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak view] in
+                guard let self, let view else { return }
+                self.scrollView = Self.findScrollView(in: view)
+                self.hideIndicators(in: view)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak view] in
+                guard let self, let view else { return }
+                self.scrollView = Self.findScrollView(in: view)
+                self.hideIndicators(in: view)
             }
         }
 
         func perform(_ action: OfficeNavigationAction) {
+            guard let qlView else { return }
+            qlView.window?.makeFirstResponder(qlView)
+            switch action {
+            case .pageUp:
+                if NSApp.sendAction(#selector(NSResponder.pageUp(_:)), to: nil, from: qlView) {
+                    return
+                }
+            case .pageDown:
+                if NSApp.sendAction(#selector(NSResponder.pageDown(_:)), to: nil, from: qlView) {
+                    return
+                }
+            case .top:
+                if NSApp.sendAction(#selector(NSResponder.scrollToBeginningOfDocument(_:)), to: nil, from: qlView) {
+                    return
+                }
+            case .bottom:
+                if NSApp.sendAction(#selector(NSResponder.scrollToEndOfDocument(_:)), to: nil, from: qlView) {
+                    return
+                }
+            }
+            // 兜底：若响应链没有处理，再尝试直接滚动内部 scrollView。
+            fallbackScroll(action)
+        }
+
+        private func fallbackScroll(_ action: OfficeNavigationAction) {
             guard let scrollView else { return }
             let clip = scrollView.contentView
             guard let docView = scrollView.documentView else { return }
             let visible = clip.bounds
             let docBounds = docView.bounds
             let step = max(visible.height * 0.9, 60)
-
             var newOrigin = visible.origin
             switch action {
             case .pageUp:
@@ -5188,7 +5326,6 @@ private struct QuickLookPreview: NSViewRepresentable {
             case .bottom:
                 newOrigin.y = max(docBounds.height - visible.height, 0)
             }
-
             clip.animator().setBoundsOrigin(newOrigin)
             scrollView.reflectScrolledClipView(clip)
         }
@@ -5199,6 +5336,22 @@ private struct QuickLookPreview: NSViewRepresentable {
                 if let found = findScrollView(in: sub) { return found }
             }
             return nil
+        }
+
+        private func hideIndicators(in view: NSView) {
+            if let scroll = view as? NSScrollView {
+                scroll.hasVerticalScroller = false
+                scroll.hasHorizontalScroller = false
+                scroll.autohidesScrollers = true
+                scroll.scrollerStyle = .overlay
+            }
+            if let scroller = view as? NSScroller {
+                scroller.isHidden = true
+                scroller.alphaValue = 0
+            }
+            for sub in view.subviews {
+                hideIndicators(in: sub)
+            }
         }
     }
 }
