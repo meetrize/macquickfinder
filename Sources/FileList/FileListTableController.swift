@@ -28,7 +28,12 @@ public final class FileListTableController: NSObject {
     var dropHighlightRow: Int?
     var renamingRowID: String?
     var pendingRenameRow = -1
+    /// 行最近一次变为选中时的时间戳；用于限制「二次点击文件名」重命名窗口。
+    var rowRenameEligibleSince: [String: Date] = [:]
+    var lastKnownSelectionIDs: Set<String> = []
     let dragThreshold: CGFloat = 4
+    /// 选中后须在此时间内再次点击文件名才进入重命名（秒）。
+    static let renameSecondClickMaxInterval: TimeInterval = 1
     
     public var onOpenRow: ((FileListRow) -> Void)?
     public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
@@ -978,6 +983,7 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
            !tableView.selectedRowIndexes.contains(row) {
             cancelRename()
         }
+        recordRenameSelectionTimestamps()
         syncSelectionFromTable()
         refreshVisibleRowContentClip()
         refreshVisibleNameLabels()

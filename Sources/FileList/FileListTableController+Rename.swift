@@ -81,7 +81,34 @@ extension FileListTableController {
         
         let item = displayRows[row]
         guard !item.isParentDirectoryEntry else { return false }
-        return interaction.canRename(item)
+        guard interaction.canRename(item) else { return false }
+        return isWithinRenameSecondClickWindow(itemID: item.id)
+    }
+    
+    func recordRenameSelectionTimestamps() {
+        guard let tableView else { return }
+        let currentIDs = Set(
+            tableView.selectedRowIndexes.compactMap { row -> String? in
+                guard row >= 0, row < displayRows.count else { return nil }
+                return displayRows[row].id
+            }
+        )
+        let now = Date()
+        for id in currentIDs.subtracting(lastKnownSelectionIDs) {
+            rowRenameEligibleSince[id] = now
+        }
+        for id in lastKnownSelectionIDs.subtracting(currentIDs) {
+            rowRenameEligibleSince.removeValue(forKey: id)
+        }
+        lastKnownSelectionIDs = currentIDs
+    }
+    
+    func isWithinRenameSecondClickWindow(itemID: String) -> Bool {
+        guard let selectedAt = rowRenameEligibleSince[itemID] else { return false }
+        let elapsed = Date().timeIntervalSince(selectedAt)
+        // 过短易与双击打开冲突；过长则不应再进入内联重命名。
+        return elapsed > NSEvent.doubleClickInterval
+            && elapsed <= Self.renameSecondClickMaxInterval
     }
     
     func renameField(in cell: NSTableCellView) -> FileListInlineRenameField? {

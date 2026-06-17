@@ -5635,34 +5635,37 @@ private struct TextFilePreview: NSViewRepresentable {
     
     final class Coordinator {
         weak var textView: NSTextView?
-        private var renderTask: Task<Void, Never>?
+        private var renderWorkItem: DispatchWorkItem?
         private var generation: UInt64 = 0
 
         deinit {
-            renderTask?.cancel()
+            renderWorkItem?.cancel()
         }
 
         func applyHighlight(text: String, fileExtension: String, fontSize: CGFloat, textView: NSTextView) {
             generation &+= 1
             let currentGeneration = generation
-            renderTask?.cancel()
-            let appearance = textView.effectiveAppearance
-            renderTask = Task {
-                let highlighted = await Task.detached(priority: .userInitiated) {
-                    TextSyntaxHighlighter.highlightedText(
-                        text: text,
-                        fileExtension: fileExtension,
-                        fontSize: fontSize,
-                        appearance: appearance
-                    )
-                }.value
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    guard currentGeneration == self.generation else { return }
+            renderWorkItem?.cancel()
+            let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+
+            var workItem: DispatchWorkItem!
+            workItem = DispatchWorkItem { [weak self] in
+                guard !workItem.isCancelled else { return }
+                let highlighted = TextSyntaxHighlighter.highlightedText(
+                    text: text,
+                    fileExtension: fileExtension,
+                    fontSize: fontSize,
+                    isDark: isDark
+                )
+                DispatchQueue.main.async {
+                    guard !workItem.isCancelled else { return }
+                    guard let self, currentGeneration == self.generation else { return }
                     guard textView.string == text else { return }
                     textView.textStorage?.setAttributedString(highlighted)
                 }
             }
+            renderWorkItem = workItem
+            DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
         }
     }
 }
@@ -5705,7 +5708,7 @@ private enum TextSyntaxHighlighter {
         text: String,
         fileExtension: String,
         fontSize: CGFloat,
-        appearance: NSAppearance
+        isDark: Bool
     ) -> NSAttributedString {
         guard shouldHighlight(text: text) else {
             return makePlainText(text: text, fontSize: fontSize)
@@ -5713,7 +5716,6 @@ private enum TextSyntaxHighlighter {
         guard let language = language(for: fileExtension) else {
             return makePlainText(text: text, fontSize: fontSize)
         }
-        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         let key = cacheKey(text: text, fileExtension: fileExtension, fontSize: fontSize, isDark: isDark)
         if let cached = cache.object(forKey: key as NSString) {
             return cached
