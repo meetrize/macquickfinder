@@ -1161,7 +1161,10 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         switch columnID {
         case .name:
             let indentation = CGFloat(max(0, item.depth)) * 14
-            let iconLeading = 2 + indentation + (item.isExpandable ? 14 : 0)
+            let disclosureSlotWidth: CGFloat = 14
+            let disclosureToIconSpacing: CGFloat = 6
+            // 统一为所有行预留箭头槽位，避免“文件图标与文件夹图标左边缘不对齐”。
+            let iconLeading = 2 + indentation + disclosureSlotWidth + disclosureToIconSpacing
             nameIconLeadingConstraint(in: cell)?.constant = iconLeading
             if let disclosure = disclosureImageView(in: cell) {
                 disclosure.isHidden = !item.isExpandable
