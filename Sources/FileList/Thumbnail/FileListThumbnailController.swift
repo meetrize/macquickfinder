@@ -405,7 +405,7 @@ public final class FileListThumbnailController: NSObject {
             return
         }
         
-        let placeholder = thumbnailGenerator.placeholderIcon(for: row, cellSize: cellSize)
+        let placeholder = thumbnailGenerator.placeholderIcon(for: row, cellSize: cellSize, screenScale: screenScale)
         item.configure(
             row: row,
             isSelected: isRowSelected(row.id),

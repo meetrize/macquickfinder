@@ -21,18 +21,15 @@ final class ThumbnailGenerator {
     }
     
     func cachedImage(for row: FileListRow, cellSize: CGFloat) -> ThumbnailCache.Entry? {
-        cache.entry(for: cacheKey(for: row, cellSize: cellSize))
+        if row.isParentDirectoryEntry { return nil }
+        return cache.entry(for: cacheKey(for: row, cellSize: cellSize))
     }
     
-    func placeholderIcon(for row: FileListRow, cellSize: CGFloat) -> NSImage {
-        let base: NSImage
+    func placeholderIcon(for row: FileListRow, cellSize: CGFloat, screenScale: CGFloat) -> NSImage {
         if row.isParentDirectoryEntry {
-            base = NSImage(systemSymbolName: "arrow.up.circle", accessibilityDescription: nil)
-                ?? NSImage(named: NSImage.folderName)
-                ?? NSImage()
-        } else {
-            base = NSWorkspace.shared.icon(forFile: row.iconPath)
+            return FileListThumbnailMetrics.parentDirectoryIcon(cellSize: cellSize, scale: screenScale)
         }
+        let base = NSWorkspace.shared.icon(forFile: row.iconPath)
         return FileListThumbnailMetrics.scaledIcon(base, cellSize: cellSize)
     }
     
@@ -64,8 +61,10 @@ final class ThumbnailGenerator {
         }
         
         if row.isParentDirectoryEntry || row.isDirectory {
-            let icon = placeholderIcon(for: row, cellSize: cellSize)
-            cache.store(icon, isThumbnail: false, for: key)
+            let icon = placeholderIcon(for: row, cellSize: cellSize, screenScale: screenScale)
+            if !row.isParentDirectoryEntry {
+                cache.store(icon, isThumbnail: false, for: key)
+            }
             DispatchQueue.main.async {
                 completion(.icon(icon))
             }
@@ -102,7 +101,7 @@ final class ThumbnailGenerator {
                     return
                 }
                 
-                let icon = self.placeholderIcon(for: row, cellSize: cellSize)
+                let icon = self.placeholderIcon(for: row, cellSize: cellSize, screenScale: screenScale)
                 self.cache.store(icon, isThumbnail: false, for: key)
                 DispatchQueue.main.async {
                     guard generation == self.activeGeneration else { return }

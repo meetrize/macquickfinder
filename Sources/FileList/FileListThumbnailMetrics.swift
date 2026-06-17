@@ -45,6 +45,33 @@ public enum FileListThumbnailMetrics {
         return copy
     }
     
+    /// 「..」返回上一级：按格子尺寸渲染 SF Symbol，避免小图放大发糊。
+    public static func parentDirectoryIcon(cellSize: CGFloat, scale: CGFloat) -> NSImage {
+        let side = iconFittingSide(in: cellSize)
+        let pointSize = max(20, side * 0.72)
+        var configuration = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)
+        if #available(macOS 11.0, *) {
+            configuration = configuration.applying(
+                NSImage.SymbolConfiguration(hierarchicalColor: .controlAccentColor)
+            )
+        }
+        if scale > 1.5 {
+            configuration = configuration.applying(NSImage.SymbolConfiguration(scale: .large))
+        }
+        
+        guard let symbol = NSImage(
+            systemSymbolName: "arrow.up.circle.fill",
+            accessibilityDescription: "返回上一级"
+        )?.withSymbolConfiguration(configuration) else {
+            return scaledIcon(NSImage(named: NSImage.folderName) ?? NSImage(), cellSize: cellSize)
+        }
+        
+        let image = (symbol.copy() as? NSImage) ?? symbol
+        image.size = NSSize(width: side, height: side)
+        image.isTemplate = false
+        return image
+    }
+    
     /// 在容器内保持比例放大图片：宽、高至少一边贴满容器，另一边居中，超出部分由调用方裁剪。
     public static func aspectFillFrame(imageSize: NSSize, in containerSize: NSSize) -> NSRect {
         guard imageSize.width > 0, imageSize.height > 0,
