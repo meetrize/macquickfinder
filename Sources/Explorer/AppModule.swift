@@ -7174,9 +7174,14 @@ enum FileOperations {
     
     static func open(_ items: [FileItem], onNavigate: (String) -> Void) {
         guard let first = items.first else { return }
+        func isAppBundle(_ item: FileItem) -> Bool {
+            item.isDirectory && item.url.pathExtension.lowercased() == "app"
+        }
         
         if items.count == 1 {
-            if first.isDirectory {
+            if isAppBundle(first) {
+                NSWorkspace.shared.open(first.url)
+            } else if first.isDirectory {
                 onNavigate(first.url.path)
             } else {
                 NSWorkspace.shared.open(first.url)
@@ -7184,10 +7189,10 @@ enum FileOperations {
             return
         }
         
-        for item in items where !item.isDirectory {
+        for item in items where !item.isDirectory || isAppBundle(item) {
             NSWorkspace.shared.open(item.url)
         }
-        if let directory = items.first(where: \.isDirectory) {
+        if let directory = items.first(where: { $0.isDirectory && !isAppBundle($0) }) {
             onNavigate(directory.url.path)
         }
     }
