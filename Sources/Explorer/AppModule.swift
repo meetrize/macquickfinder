@@ -3,6 +3,8 @@ import AppKit
 import ApplicationServices
 import Combine
 import PDFKit
+import AVKit
+import QuickLookUI
 import UniformTypeIdentifiers
 import FileList
 
@@ -3884,6 +3886,21 @@ struct FilePreviewView: View {
     let items: [FileItem]
     @ObservedObject private var settings = SnippetsSettings.shared
     @State private var imageZoomScale: CGFloat = 1.0
+    @State private var imageZoomAction: ImageZoomAction? = nil
+    @State private var imageEffectiveZoomPercent: Int = 0
+    @State private var pdfCurrentPage: Int = 0
+    @State private var pdfPageCount: Int = 0
+    @State private var pdfScalePercent: Int = 0
+    @State private var pdfNavigateAction: PDFNavigationAction? = nil
+    @State private var textWrapEnabled: Bool = true
+    @State private var textPreviewAction: TextPreviewAction? = nil
+    @State private var mediaControlAction: MediaControlAction? = nil
+    @State private var mediaIsPlaying: Bool = false
+    @State private var mediaIsMuted: Bool = false
+    @State private var officeReloadToken: Int = 0
+    @State private var archiveExpanded: Bool = true
+    @State private var archiveReloadToken: Int = 0
+    @State private var archiveCopyAction: ArchivePreviewAction? = nil
     
     private var selectedItem: FileItem? {
         guard let selectedID = selection.first else { return nil }
@@ -3920,12 +3937,196 @@ struct FilePreviewView: View {
                     .help("放大")
                     
                     Button {
-                        imageZoomScale = max(imageZoomScale - 0.25, 1.0)
+                        imageZoomScale = max(imageZoomScale - 0.25, 0.1)
                     } label: {
                         Image(systemName: "minus.magnifyingglass")
                     }
                     .buttonStyle(.borderless)
                     .help("缩小")
+                    .disabled(imageZoomScale <= 0.1)
+
+                    Button {
+                        imageZoomAction = .fit
+                    } label: {
+                        Text("适配")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("适配窗口")
+
+                    Button {
+                        imageZoomAction = .actualSize
+                    } label: {
+                        Text("100%")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("原始大小")
+
+                    Text(imageEffectiveZoomPercent > 0 ? "\(imageEffectiveZoomPercent)%" : "--")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(minWidth: 62, alignment: .center)
+                }
+
+                if !settings.isPreviewContentCollapsed, let selectedItem, isPDFFile(selectedItem) {
+                    Button {
+                        pdfNavigateAction = .previous
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("上一页")
+                    .disabled(pdfCurrentPage <= 1)
+
+                    Button {
+                        pdfNavigateAction = .zoomOut
+                    } label: {
+                        Image(systemName: "minus.magnifyingglass")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("缩小")
+                    .disabled(pdfScalePercent > 0 && pdfScalePercent <= 25)
+
+                    Text(pdfPageStatusText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(minWidth: 52, alignment: .center)
+
+                    Text(pdfScalePercent > 0 ? "\(pdfScalePercent)%" : "--")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(minWidth: 56, alignment: .center)
+
+                    Button {
+                        pdfNavigateAction = .zoomIn
+                    } label: {
+                        Image(systemName: "plus.magnifyingglass")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("放大")
+                    .disabled(pdfScalePercent >= 500)
+
+                    Button {
+                        pdfNavigateAction = .fitWidth
+                    } label: {
+                        Image(systemName: "arrow.left.and.right.square")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("适配宽度")
+
+                    Button {
+                        pdfNavigateAction = .fitPage
+                    } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("整页适配")
+
+                    Button {
+                        pdfNavigateAction = .next
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("下一页")
+                    .disabled(pdfPageCount == 0 || pdfCurrentPage >= pdfPageCount)
+                }
+
+                if !settings.isPreviewContentCollapsed, let selectedItem, isTextFile(selectedItem) {
+                    Button {
+                        textWrapEnabled.toggle()
+                    } label: {
+                        Image(systemName: textWrapEnabled ? "text.justify.left" : "arrow.left.and.right.text.vertical")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(textWrapEnabled ? "关闭自动换行" : "开启自动换行")
+
+                    Button {
+                        textPreviewAction = .copyAll
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("复制全文")
+
+                    Button {
+                        textPreviewAction = .scrollTop
+                    } label: {
+                        Image(systemName: "arrow.up.to.line")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("跳转顶部")
+
+                    Button {
+                        textPreviewAction = .scrollBottom
+                    } label: {
+                        Image(systemName: "arrow.down.to.line")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("跳转底部")
+                }
+
+                if !settings.isPreviewContentCollapsed, let selectedItem, isMediaFile(selectedItem) {
+                    Button {
+                        mediaControlAction = .togglePlayPause
+                    } label: {
+                        Image(systemName: mediaIsPlaying ? "pause.fill" : "play.fill")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(mediaIsPlaying ? "暂停" : "播放")
+
+                    Button {
+                        mediaControlAction = .toggleMute
+                    } label: {
+                        Image(systemName: mediaIsMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(mediaIsMuted ? "取消静音" : "静音")
+                }
+
+                if !settings.isPreviewContentCollapsed, let selectedItem, isOfficeFile(selectedItem) {
+                    Button {
+                        NSWorkspace.shared.open(selectedItem.url)
+                    } label: {
+                        Image(systemName: "arrow.up.forward.app")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("用默认应用打开")
+
+                    Button {
+                        officeReloadToken += 1
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("刷新预览")
+                }
+
+                if !settings.isPreviewContentCollapsed, let selectedItem, isArchiveFile(selectedItem) {
+                    Button {
+                        archiveReloadToken += 1
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("刷新目录")
+
+                    Button {
+                        archiveExpanded.toggle()
+                    } label: {
+                        Image(systemName: archiveExpanded ? "chevron.down" : "chevron.right")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(archiveExpanded ? "折叠到第一层" : "展开到全部层级")
+
+                    Button {
+                        archiveCopyAction = .copyList
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("复制清单")
                 }
                 
                 Button {
@@ -3946,7 +4147,25 @@ struct FilePreviewView: View {
                 
                 if let selectedItem {
                     if !selectedItem.isDirectory {
-                        FileContentView(item: selectedItem, imageZoomScale: $imageZoomScale)
+                        FileContentView(
+                            item: selectedItem,
+                            imageZoomScale: $imageZoomScale,
+                            imageZoomAction: $imageZoomAction,
+                            imageEffectiveZoomPercent: $imageEffectiveZoomPercent,
+                            textWrapEnabled: $textWrapEnabled,
+                            textPreviewAction: $textPreviewAction,
+                            mediaControlAction: $mediaControlAction,
+                            mediaIsPlaying: $mediaIsPlaying,
+                            mediaIsMuted: $mediaIsMuted,
+                            officeReloadToken: $officeReloadToken,
+                            archiveExpanded: $archiveExpanded,
+                            archiveCopyAction: $archiveCopyAction,
+                            archiveReloadToken: $archiveReloadToken,
+                            pdfCurrentPage: $pdfCurrentPage,
+                            pdfPageCount: $pdfPageCount,
+                            pdfNavigateAction: $pdfNavigateAction,
+                            pdfScalePercent: $pdfScalePercent
+                        )
                             .id(selectedItem.id)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     } else {
@@ -3961,6 +4180,21 @@ struct FilePreviewView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onChange(of: selectedItem?.id) { _ in
             imageZoomScale = 1.0
+            imageZoomAction = nil
+            imageEffectiveZoomPercent = 0
+            textWrapEnabled = true
+            textPreviewAction = nil
+            mediaControlAction = nil
+            mediaIsPlaying = false
+            mediaIsMuted = false
+            officeReloadToken = 0
+            archiveExpanded = true
+            archiveReloadToken = 0
+            archiveCopyAction = nil
+            pdfCurrentPage = 0
+            pdfPageCount = 0
+            pdfScalePercent = 0
+            pdfNavigateAction = nil
         }
     }
     
@@ -3968,21 +4202,79 @@ struct FilePreviewView: View {
         let ext = item.url.pathExtension.lowercased()
         return ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"].contains(ext)
     }
+
+    private func isPDFFile(_ item: FileItem) -> Bool {
+        item.url.pathExtension.lowercased() == "pdf"
+    }
+
+    private func isTextFile(_ item: FileItem) -> Bool {
+        let ext = item.url.pathExtension.lowercased()
+        let textExtensions = [
+            "txt", "md", "swift", "java", "py", "js", "ts", "go", "rs", "kt", "php", "rb",
+            "html", "css", "json", "xml", "c", "cpp", "h", "sh", "yaml", "yml",
+            "config", "ini", "gitignore", "properties", "log", "sql", "csv"
+        ]
+        return textExtensions.contains(ext)
+    }
+
+    private func isMediaFile(_ item: FileItem) -> Bool {
+        let ext = item.url.pathExtension.lowercased()
+        return ["mp4", "mov", "mp3", "wav"].contains(ext)
+    }
+
+    private func isOfficeFile(_ item: FileItem) -> Bool {
+        let ext = item.url.pathExtension.lowercased()
+        return ["docx", "xlsx", "pptx"].contains(ext)
+    }
+
+    private func isArchiveFile(_ item: FileItem) -> Bool {
+        let lowerName = item.url.lastPathComponent.lowercased()
+        if lowerName.hasSuffix(".zip") { return true }
+        if lowerName.hasSuffix(".tar") { return true }
+        if lowerName.hasSuffix(".tar.gz") { return true }
+        if lowerName.hasSuffix(".tgz") { return true }
+        return false
+    }
+
+    private var pdfPageStatusText: String {
+        guard pdfPageCount > 0 else { return "--/--" }
+        return "\(max(pdfCurrentPage, 1))/\(pdfPageCount)"
+    }
 }
 
 struct FileContentView: View {
     let item: FileItem
     @Binding var imageZoomScale: CGFloat
+    @Binding var imageZoomAction: ImageZoomAction?
+    @Binding var imageEffectiveZoomPercent: Int
+    @Binding var textWrapEnabled: Bool
+    @Binding var textPreviewAction: TextPreviewAction?
+    @Binding var mediaControlAction: MediaControlAction?
+    @Binding var mediaIsPlaying: Bool
+    @Binding var mediaIsMuted: Bool
+    @Binding var officeReloadToken: Int
+    @Binding var archiveExpanded: Bool
+    @Binding var archiveCopyAction: ArchivePreviewAction?
+    @Binding var archiveReloadToken: Int
+    @Binding var pdfCurrentPage: Int
+    @Binding var pdfPageCount: Int
+    @Binding var pdfNavigateAction: PDFNavigationAction?
+    @Binding var pdfScalePercent: Int
+
     @State private var textContent: String = ""
     @State private var image: NSImage? = nil
     @State private var pdfDocument: PDFDocument? = nil
+    @State private var mediaPlayer: AVPlayer? = nil
+    @State private var officeURL: URL? = nil
+    @State private var archiveEntries: [ArchiveEntryPreview] = []
+    @State private var archiveTruncated: Bool = false
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
-    
+
     private var isImagePreview: Bool {
         image != nil && !isLoading && errorMessage == nil
     }
-    
+
     var body: some View {
         ZStack {
             if isLoading {
@@ -3994,10 +4286,10 @@ struct FileContentView: View {
                         .font(.largeTitle)
                         .foregroundColor(.orange)
                         .padding()
-                    
+
                     Text("Error loading preview")
                         .font(.headline)
-                    
+
                     Text(errorMsg)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -4006,13 +4298,49 @@ struct FileContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let image = image {
-                ImagePreviewContent(image: image, zoomScale: imageZoomScale)
+                ImagePreviewContent(
+                    image: image,
+                    zoomScale: $imageZoomScale,
+                    zoomAction: $imageZoomAction,
+                    effectiveZoomPercent: $imageEffectiveZoomPercent
+                )
             } else if let pdfDoc = pdfDocument {
-                PDFPreview(document: pdfDoc)
+                PDFPreview(
+                    document: pdfDoc,
+                    navigationAction: $pdfNavigateAction
+                ) { currentPage, pageCount, scalePercent in
+                    pdfCurrentPage = currentPage
+                    pdfPageCount = pageCount
+                    pdfScalePercent = scalePercent
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let player = mediaPlayer {
+                MediaPreview(
+                    player: player,
+                    controlAction: $mediaControlAction
+                ) { isPlaying, isMuted in
+                    mediaIsPlaying = isPlaying
+                    mediaIsMuted = isMuted
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let officeURL = officeURL {
+                QuickLookPreview(url: officeURL, reloadToken: officeReloadToken)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if !archiveEntries.isEmpty {
+                ArchiveListPreview(
+                    entries: archiveEntries,
+                    truncated: archiveTruncated,
+                    expanded: archiveExpanded,
+                    copyAction: $archiveCopyAction
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             } else if !textContent.isEmpty {
-                TextFilePreview(text: textContent)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                TextFilePreview(
+                    text: textContent,
+                    wrapLines: textWrapEnabled,
+                    action: $textPreviewAction
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Text("Preview not available for this file type")
                     .foregroundColor(.secondary)
@@ -4021,28 +4349,48 @@ struct FileContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(isImagePreview ? 0 : 12)
-        .task(id: item.id) {
+        .task(id: "\(item.id)-\(archiveReloadToken)") {
             imageZoomScale = 1.0
+            imageZoomAction = nil
+            imageEffectiveZoomPercent = 0
+            textPreviewAction = nil
+            mediaControlAction = nil
+            mediaIsPlaying = false
+            mediaIsMuted = false
+            officeReloadToken = 0
+            archiveCopyAction = nil
+            pdfCurrentPage = 0
+            pdfPageCount = 0
+            pdfScalePercent = 0
+            pdfNavigateAction = nil
             await loadContent()
         }
     }
-    
+
     private func loadContent() async {
         let url = item.url
         let ext = url.pathExtension.lowercased()
         let itemID = item.id
-        
+
         await MainActor.run {
             isLoading = true
             errorMessage = nil
             textContent = ""
             image = nil
             pdfDocument = nil
+            mediaPlayer = nil
+            officeURL = nil
+            archiveEntries = []
+            archiveTruncated = false
         }
-        
+
         func finish(
             image loadedImage: NSImage? = nil,
             pdf loadedPDF: PDFDocument? = nil,
+            media loadedMediaPlayer: AVPlayer? = nil,
+            office loadedOfficeURL: URL? = nil,
+            archive loadedArchiveEntries: [ArchiveEntryPreview]? = nil,
+            archiveTruncated loadedArchiveTruncated: Bool = false,
             text content: String? = nil,
             error: String? = nil
         ) async {
@@ -4050,16 +4398,22 @@ struct FileContentView: View {
                 guard !Task.isCancelled, item.id == itemID else { return }
                 image = loadedImage
                 pdfDocument = loadedPDF
+                mediaPlayer = loadedMediaPlayer
+                officeURL = loadedOfficeURL
+                archiveEntries = loadedArchiveEntries ?? []
+                archiveTruncated = loadedArchiveTruncated
                 if let content { textContent = content }
                 errorMessage = error
                 isLoading = false
             }
         }
-        
-        // Load image files
-        if ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic"].contains(ext) {
-            let nsImage = NSImage(contentsOf: url)
+
+        if ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"].contains(ext) {
+            let imageData = try? await Task.detached(priority: .userInitiated) {
+                try Data(contentsOf: url, options: [.mappedIfSafe])
+            }.value
             guard !Task.isCancelled else { return }
+            let nsImage = imageData.flatMap { NSImage(data: $0) }
             if let loadedImage = nsImage {
                 await finish(image: loadedImage)
             } else {
@@ -4067,11 +4421,32 @@ struct FileContentView: View {
             }
             return
         }
-        
-        // Load PDF files
-        if ext == "pdf" {
-            let pdfDoc = PDFDocument(url: url)
+
+        if ["mp4", "mov", "mp3", "wav"].contains(ext) {
+            await MainActor.run {
+                mediaIsPlaying = false
+                mediaIsMuted = false
+                mediaControlAction = nil
+            }
+            let player = AVPlayer(url: url)
+            player.actionAtItemEnd = .pause
             guard !Task.isCancelled else { return }
+            await finish(media: player)
+            return
+        }
+
+        if ["docx", "xlsx", "pptx"].contains(ext) {
+            guard !Task.isCancelled else { return }
+            await finish(office: url)
+            return
+        }
+
+        if ext == "pdf" {
+            let pdfData = try? await Task.detached(priority: .userInitiated) {
+                try Data(contentsOf: url, options: [.mappedIfSafe])
+            }.value
+            guard !Task.isCancelled else { return }
+            let pdfDoc = pdfData.flatMap { PDFDocument(data: $0) }
             if let loadedPDF = pdfDoc {
                 await finish(pdf: loadedPDF)
             } else {
@@ -4079,12 +4454,110 @@ struct FileContentView: View {
             }
             return
         }
-        
-        // Load text files
-        let textExtensions = ["txt", "md", "swift", "java", "py", "js", "html", "css",
-                             "json", "xml", "c", "cpp", "h", "sh", "yaml", "yml",
-                             "config", "ini", "gitignore", "properties", "log"]
-        
+
+        // archive listing
+        let lowerName = url.lastPathComponent.lowercased()
+        let maxEntries = 1_000
+        let timeoutSeconds = 8
+
+        func shellEscape(_ s: String) -> String {
+            "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        }
+
+        func runShellCapture(_ command: String) async throws -> String {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ["-c", command]
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
+            try process.run()
+
+            let start = Date()
+            while process.isRunning {
+                if Task.isCancelled {
+                    process.terminate()
+                    throw CancellationError()
+                }
+                if Date().timeIntervalSince(start) > Double(timeoutSeconds) {
+                    process.terminate()
+                    throw NSError(domain: "ArchivePreview", code: 1, userInfo: [
+                        NSLocalizedDescriptionKey: "目录读取超时"
+                    ])
+                }
+                try await Task.sleep(nanoseconds: 100_000_000)
+            }
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+
+        if lowerName.hasSuffix(".zip") {
+            do {
+                let escaped = shellEscape(url.path)
+                let command =
+                    "/usr/bin/unzip -l " + escaped +
+                    " | /usr/bin/head -n " + "\(maxEntries * 2 + 60)"
+                let output = try await runShellCapture(command)
+
+                var entries: [ArchiveEntryPreview] = []
+                for rawLine in output.split(whereSeparator: \.isNewline) {
+                    if entries.count >= maxEntries { break }
+                    let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let tokens = line.split(whereSeparator: { $0.isWhitespace })
+                    guard tokens.count >= 4 else { continue }
+                    guard let size = Int(tokens[0]) else { continue }
+                    let nameTokens = tokens.dropFirst(3)
+                    let path = nameTokens.joined(separator: " ")
+                    guard !path.isEmpty else { continue }
+                    let isDir = path.hasSuffix("/")
+                    entries.append(.init(path: path, isDirectory: isDir, size: Int64(size)))
+                }
+                if entries.isEmpty {
+                    await finish(error: "无法读取 ZIP 目录")
+                } else {
+                    await finish(archive: entries, archiveTruncated: entries.count >= maxEntries)
+                }
+            } catch {
+                if error is CancellationError { return }
+                await finish(error: error.localizedDescription)
+            }
+            return
+        } else if lowerName.hasSuffix(".tar") || lowerName.hasSuffix(".tar.gz") || lowerName.hasSuffix(".tgz") {
+            do {
+                let escaped = shellEscape(url.path)
+                let command =
+                    "/usr/bin/tar -tf " + escaped +
+                    " 2>&1 | /usr/bin/head -n " + "\(maxEntries + 80)"
+                let output = try await runShellCapture(command)
+
+                var entries: [ArchiveEntryPreview] = []
+                for rawLine in output.split(whereSeparator: \.isNewline) {
+                    if entries.count >= maxEntries { break }
+                    let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if line.isEmpty { continue }
+                    if line.hasPrefix("tar:") { continue }
+                    entries.append(.init(path: line, isDirectory: line.hasSuffix("/"), size: nil))
+                }
+
+                if entries.isEmpty {
+                    await finish(error: "无法读取归档目录")
+                } else {
+                    await finish(archive: entries, archiveTruncated: entries.count >= maxEntries)
+                }
+            } catch {
+                if error is CancellationError { return }
+                await finish(error: error.localizedDescription)
+            }
+            return
+        }
+
+        let textExtensions = [
+            "txt", "md", "swift", "java", "py", "js", "ts", "go", "rs", "kt", "php", "rb",
+            "html", "css", "json", "xml", "c", "cpp", "h", "sh", "yaml", "yml",
+            "config", "ini", "gitignore", "properties", "log", "sql", "csv"
+        ]
+
         if textExtensions.contains(ext) {
             do {
                 let content = try await Task.detached(priority: .userInitiated) {
@@ -4099,8 +4572,7 @@ struct FileContentView: View {
             }
             return
         }
-        
-        // No preview available for other file types
+
         await finish()
     }
 }
@@ -4133,8 +4605,39 @@ private enum TextFilePreviewReader {
     }
 }
 
+enum ImageZoomAction: Equatable {
+    case fit
+    case actualSize
+}
+
+enum TextPreviewAction: Equatable {
+    case copyAll
+    case scrollTop
+    case scrollBottom
+}
+
+enum MediaControlAction: Equatable {
+    case togglePlayPause
+    case toggleMute
+}
+
+enum ArchivePreviewAction: Equatable {
+    case copyList
+}
+
+enum PDFNavigationAction: Equatable {
+    case previous
+    case next
+    case zoomIn
+    case zoomOut
+    case fitWidth
+    case fitPage
+}
+
 private struct TextFilePreview: NSViewRepresentable {
     let text: String
+    let wrapLines: Bool
+    @Binding var action: TextPreviewAction?
     
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -4143,7 +4646,7 @@ private struct TextFilePreview: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = false
+        scrollView.hasHorizontalScroller = !wrapLines
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
@@ -4154,15 +4657,22 @@ private struct TextFilePreview: NSViewRepresentable {
         textView.drawsBackground = false
         textView.isRichText = false
         textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.widthTracksTextView = wrapLines
         textView.textContainerInset = NSSize(width: 8, height: 8)
-        textView.autoresizingMask = [.width]
+        textView.autoresizingMask = wrapLines ? [.width] : []
         textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
+        textView.isHorizontallyResizable = !wrapLines
         textView.maxSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
             height: CGFloat.greatestFiniteMagnitude
         )
+        textView.minSize = NSSize(width: 0, height: 0)
+        if !wrapLines {
+            textView.textContainer?.containerSize = NSSize(
+                width: CGFloat.greatestFiniteMagnitude,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        }
         textView.string = text
         
         scrollView.documentView = textView
@@ -4176,6 +4686,37 @@ private struct TextFilePreview: NSViewRepresentable {
             textView.string = text
             textView.scrollToBeginningOfDocument(nil)
         }
+        scrollView.hasHorizontalScroller = !wrapLines
+        textView.textContainer?.widthTracksTextView = wrapLines
+        textView.autoresizingMask = wrapLines ? [.width] : []
+        textView.isHorizontallyResizable = !wrapLines
+        if wrapLines {
+            textView.textContainer?.containerSize = NSSize(
+                width: scrollView.contentSize.width,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        } else {
+            textView.textContainer?.containerSize = NSSize(
+                width: CGFloat.greatestFiniteMagnitude,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        }
+
+        if let action {
+            switch action {
+            case .copyAll:
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(textView.string, forType: .string)
+            case .scrollTop:
+                textView.scrollToBeginningOfDocument(nil)
+            case .scrollBottom:
+                textView.scrollToEndOfDocument(nil)
+            }
+            DispatchQueue.main.async {
+                self.action = nil
+            }
+        }
     }
     
     final class Coordinator {
@@ -4183,9 +4724,178 @@ private struct TextFilePreview: NSViewRepresentable {
     }
 }
 
+private struct ArchiveEntryPreview: Identifiable, Equatable {
+    let path: String
+    let isDirectory: Bool
+    let size: Int64?
+
+    var id: String { path }
+}
+
+private struct ArchiveListPreview: View {
+    let entries: [ArchiveEntryPreview]
+    let truncated: Bool
+    let expanded: Bool
+    @Binding var copyAction: ArchivePreviewAction?
+
+    private static let sizeFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useAll]
+        formatter.countStyle = .file
+        return formatter
+    }()
+
+    private var displayedEntries: [ArchiveEntryPreview] {
+        if expanded { return entries }
+
+        var map: [String: Bool] = [:] // name -> isDirectory
+        for e in entries {
+            let comps = e.path.split(separator: "/")
+            guard let first = comps.first else { continue }
+            let name = String(first)
+            let isDirAtTop = e.isDirectory || comps.count > 1
+            map[name] = (map[name] ?? false) || isDirAtTop
+        }
+
+        let dirs = map.keys.filter { map[$0] == true }.sorted()
+        let files = map.keys.filter { map[$0] == false }.sorted()
+        return dirs.map { ArchiveEntryPreview(path: $0, isDirectory: true, size: nil) }
+            + files.map { ArchiveEntryPreview(path: $0, isDirectory: false, size: nil) }
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 6) {
+                ForEach(displayedEntries) { entry in
+                    let comps = entry.path.split(separator: "/")
+                    let depth = expanded ? max(0, comps.count - 1) : 0
+
+                    HStack(alignment: .top, spacing: 8) {
+                        Color.clear.frame(width: CGFloat(depth) * 10)
+                        Image(systemName: entry.isDirectory ? "folder" : "doc")
+                            .foregroundColor(entry.isDirectory ? .accentColor : .secondary)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.path)
+                                .font(.system(size: 12, design: .monospaced))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+
+                            if let size = entry.size, !entry.isDirectory {
+                                Text(Self.sizeFormatter.string(fromByteCount: size))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                if truncated && expanded {
+                    Text("[Truncated...]")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 6)
+                }
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 10)
+        }
+        .onChange(of: copyAction) { action in
+            guard let action else { return }
+            switch action {
+            case .copyList:
+                let lines = displayedEntries.map { e in
+                    if let size = e.size, !e.isDirectory {
+                        return "\(e.path)\t\(Self.sizeFormatter.string(fromByteCount: size))"
+                    }
+                    return e.path
+                }
+                let text = lines.joined(separator: "\n")
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(text, forType: .string)
+                DispatchQueue.main.async { copyAction = nil }
+            }
+        }
+    }
+}
+
+private struct MediaPreview: NSViewRepresentable {
+    let player: AVPlayer
+    @Binding var controlAction: MediaControlAction?
+    var onStateChanged: (_ isPlaying: Bool, _ isMuted: Bool) -> Void
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.player = player
+        view.controlsStyle = .floating
+        onStateChanged(player.timeControlStatus == .playing, player.isMuted)
+        return view
+    }
+
+    func updateNSView(_ nsView: AVPlayerView, context: Context) {
+        if nsView.player !== player {
+            nsView.player = player
+        }
+
+        if let action = controlAction {
+            switch action {
+            case .togglePlayPause:
+                if player.timeControlStatus == .playing {
+                    player.pause()
+                } else {
+                    player.play()
+                }
+            case .toggleMute:
+                player.isMuted.toggle()
+            }
+            DispatchQueue.main.async { controlAction = nil }
+        }
+        onStateChanged(player.timeControlStatus == .playing, player.isMuted)
+    }
+}
+
+private struct QuickLookPreview: NSViewRepresentable {
+    let url: URL
+    let reloadToken: Int
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        guard let view = QLPreviewView(frame: .zero, style: .normal) else {
+            return NSView()
+        }
+        view.previewItem = url as NSURL
+        context.coordinator.lastReloadToken = reloadToken
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let qlView = nsView as? QLPreviewView else { return }
+
+        if context.coordinator.lastReloadToken != reloadToken {
+            qlView.previewItem = nil
+            qlView.previewItem = url as NSURL
+            context.coordinator.lastReloadToken = reloadToken
+            return
+        }
+
+        let currentURL = qlView.previewItem?.previewItemURL
+        if currentURL?.path != url.path {
+            qlView.previewItem = url as NSURL
+        }
+    }
+
+    final class Coordinator {
+        var lastReloadToken: Int = 0
+    }
+}
+
 private struct ImagePreviewContent: View {
     let image: NSImage
-    let zoomScale: CGFloat
+    @Binding var zoomScale: CGFloat
+    @Binding var zoomAction: ImageZoomAction?
+    @Binding var effectiveZoomPercent: Int
     
     @State private var panOffset: CGSize = .zero
     @GestureState private var dragTranslation: CGSize = .zero
@@ -4237,6 +4947,24 @@ private struct ImagePreviewContent: View {
                         )
                     }
             )
+            .onAppear {
+                let percent = Int((fitScale * zoomScale * 100).rounded())
+                effectiveZoomPercent = max(1, min(percent, 1000))
+            }
+            .onChange(of: zoomScale) { _ in
+                let percent = Int((fitScale * zoomScale * 100).rounded())
+                effectiveZoomPercent = max(1, min(percent, 1000))
+            }
+            .onChange(of: zoomAction) { action in
+                guard let action else { return }
+                switch action {
+                case .fit:
+                    zoomScale = 1.0
+                case .actualSize:
+                    zoomScale = max(0.1, min(1.0 / max(fitScale, 0.0001), 5.0))
+                }
+                DispatchQueue.main.async { zoomAction = nil }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: zoomScale) { _ in
@@ -4275,18 +5003,89 @@ private struct ImagePreviewContent: View {
 
 struct PDFPreview: NSViewRepresentable {
     let document: PDFDocument
-    
+    @Binding var navigationAction: PDFNavigationAction?
+    var onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onStateChanged: onStateChanged)
+    }
+
     func makeNSView(context: Context) -> PDFView {
         let pdfView = PDFView()
         pdfView.document = document
         pdfView.autoScales = true
         pdfView.displayMode = .singlePage
         pdfView.displayDirection = .vertical
+        pdfView.delegate = context.coordinator
+        context.coordinator.onStateChanged = onStateChanged
+        context.coordinator.emitState(from: pdfView)
         return pdfView
     }
-    
+
     func updateNSView(_ nsView: PDFView, context: Context) {
-        nsView.document = document
+        context.coordinator.onStateChanged = onStateChanged
+        if nsView.document !== document {
+            nsView.document = document
+            nsView.autoScales = true
+            context.coordinator.emitState(from: nsView)
+        }
+
+        if let action = navigationAction {
+            switch action {
+            case .previous:
+                nsView.goToPreviousPage(nil)
+            case .next:
+                nsView.goToNextPage(nil)
+            case .zoomIn:
+                nsView.autoScales = false
+                nsView.scaleFactor = min(nsView.scaleFactor * 1.2, 5.0)
+            case .zoomOut:
+                nsView.autoScales = false
+                nsView.scaleFactor = max(nsView.scaleFactor / 1.2, 0.25)
+            case .fitWidth:
+                nsView.autoScales = false
+                context.coordinator.applyFitWidth(to: nsView)
+            case .fitPage:
+                nsView.autoScales = true
+            }
+            DispatchQueue.main.async { navigationAction = nil }
+            context.coordinator.emitState(from: nsView)
+        } else {
+            context.coordinator.emitState(from: nsView)
+        }
+    }
+
+    final class Coordinator: NSObject, PDFViewDelegate {
+        var onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
+
+        init(onStateChanged: @escaping (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void) {
+            self.onStateChanged = onStateChanged
+        }
+
+        func pdfViewPageChanged(_ sender: PDFView) {
+            emitState(from: sender)
+        }
+
+        func emitState(from pdfView: PDFView) {
+            let pageCount = pdfView.document?.pageCount ?? 0
+            let currentPage: Int
+            if let current = pdfView.currentPage,
+               let index = pdfView.document?.index(for: current) {
+                currentPage = index + 1
+            } else {
+                currentPage = pageCount > 0 ? 1 : 0
+            }
+            let scalePercent = Int((pdfView.scaleFactor * 100).rounded())
+            onStateChanged(currentPage, pageCount, scalePercent)
+        }
+
+        func applyFitWidth(to pdfView: PDFView) {
+            guard let page = pdfView.currentPage else { return }
+            let pageBounds = page.bounds(for: pdfView.displayBox)
+            let availableWidth = max(pdfView.bounds.width - 24, 1)
+            let targetScale = availableWidth / max(pageBounds.width, 1)
+            pdfView.scaleFactor = max(0.25, min(targetScale, 5.0))
+        }
     }
 }
 
