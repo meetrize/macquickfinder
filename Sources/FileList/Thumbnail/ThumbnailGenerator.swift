@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import QuickLookThumbnailing
+import UniformTypeIdentifiers
 
 /// 缩略图生成：Quick Look 为主，系统图标为占位与回退。
 final class ThumbnailGenerator {
@@ -11,7 +12,14 @@ final class ThumbnailGenerator {
     
     private let cache = ThumbnailCache()
     private let queue = DispatchQueue(label: "FileList.ThumbnailGenerator", qos: .userInitiated)
+    /// 限制 QL 并发，避免大目录同时发起数百个生成请求。
+    private let qlSlots = DispatchSemaphore(value: 4)
     private var activeGeneration: UInt = 0
+    
+    private static let placeholderLock = NSLock()
+    private static var genericPlaceholders: [String: NSImage] = [:]
+    private let iconCacheLock = NSLock()
+    private var workspaceIconCache: [String: NSImage] = [:]
     
     func cacheKey(for row: FileListRow, cellSize: CGFloat) -> ThumbnailCache.Key {
         ThumbnailCache.Key(
@@ -20,17 +28,24 @@ final class ThumbnailGenerator {
         )
     }
     
+    /// 内存 + 磁盘缓存查找，供 Cell 即时展示已缓存内容。
     func cachedImage(for row: FileListRow, cellSize: CGFloat) -> ThumbnailCache.Entry? {
         if row.isParentDirectoryEntry { return nil }
         return cache.entry(for: cacheKey(for: row, cellSize: cellSize))
     }
     
-    func placeholderIcon(for row: FileListRow, cellSize: CGFloat, screenScale: CGFloat) -> NSImage {
+    /// 仅查内存 LRU。
+    func memoryCachedImage(for row: FileListRow, cellSize: CGFloat) -> ThumbnailCache.Entry? {
+        if row.isParentDirectoryEntry { return nil }
+        return cache.memoryEntry(for: cacheKey(for: row, cellSize: cellSize))
+    }
+    
+    /// 即时占位图：通用文件夹/文件图标，不访问具体路径。
+    func instantPlaceholder(for row: FileListRow, cellSize: CGFloat, screenScale: CGFloat) -> NSImage {
         if row.isParentDirectoryEntry {
             return FileListThumbnailMetrics.parentDirectoryIcon(cellSize: cellSize, scale: screenScale)
         }
-        let base = NSWorkspace.shared.icon(forFile: row.iconPath)
-        return FileListThumbnailMetrics.scaledIcon(base, cellSize: cellSize)
+        return Self.genericPlaceholder(isDirectory: row.isDirectory, cellSize: cellSize)
     }
     
     func cancelInFlightRequests() {
@@ -49,65 +64,169 @@ final class ThumbnailGenerator {
         screenScale: CGFloat,
         completion: @escaping (Delivery) -> Void
     ) {
-        let key = cacheKey(for: row, cellSize: cellSize)
-        if let cached = cache.entry(for: key) {
-            DispatchQueue.main.async {
-                let image = cached.isThumbnail
-                    ? cached.image
-                    : FileListThumbnailMetrics.scaledIcon(cached.image, cellSize: cellSize)
-                completion(cached.isThumbnail ? .thumbnail(image) : .icon(image))
-            }
-            return
-        }
+        if row.isParentDirectoryEntry { return }
         
-        if row.isParentDirectoryEntry || row.isDirectory {
-            let icon = placeholderIcon(for: row, cellSize: cellSize, screenScale: screenScale)
-            if !row.isParentDirectoryEntry {
-                cache.store(icon, isThumbnail: false, for: key)
-            }
-            DispatchQueue.main.async {
-                completion(.icon(icon))
-            }
+        let key = cacheKey(for: row, cellSize: cellSize)
+        if let cached = cache.memoryEntry(for: key) {
+            deliver(cached, cellSize: cellSize, completion: completion)
             return
         }
         
         let generation = activeGeneration
+        queue.async { [weak self] in
+            guard let self, generation == self.activeGeneration else { return }
+            
+            self.cache.loadEntry(for: key) { diskEntry in
+                guard generation == self.activeGeneration else { return }
+                
+                if let diskEntry {
+                    self.deliver(diskEntry, cellSize: cellSize, completion: completion)
+                    return
+                }
+                
+                self.queue.async {
+                    guard generation == self.activeGeneration else { return }
+                    
+                    if row.isDirectory {
+                        self.loadWorkspaceIcon(
+                            for: row,
+                            key: key,
+                            cellSize: cellSize,
+                            generation: generation,
+                            completion: completion
+                        )
+                        return
+                    }
+                    
+                    self.loadQLThumbnail(
+                        for: row,
+                        key: key,
+                        cellSize: cellSize,
+                        screenScale: screenScale,
+                        generation: generation,
+                        completion: completion
+                    )
+                }
+            }
+        }
+    }
+    
+    // MARK: - Private
+    
+    private func deliver(
+        _ entry: ThumbnailCache.Entry,
+        cellSize: CGFloat,
+        completion: @escaping (Delivery) -> Void
+    ) {
+        let image = entry.isThumbnail
+            ? entry.image
+            : FileListThumbnailMetrics.scaledIcon(entry.image, cellSize: cellSize)
+        DispatchQueue.main.async {
+            completion(entry.isThumbnail ? .thumbnail(image) : .icon(image))
+        }
+    }
+    
+    private func loadWorkspaceIcon(
+        for row: FileListRow,
+        key: ThumbnailCache.Key,
+        cellSize: CGFloat,
+        generation: UInt,
+        completion: @escaping (Delivery) -> Void
+    ) {
+        guard generation == activeGeneration else { return }
+        let icon = workspaceIcon(for: row.iconPath, cellSize: cellSize)
+        cache.store(icon, isThumbnail: false, for: key)
+        DispatchQueue.main.async {
+            guard generation == self.activeGeneration else { return }
+            completion(.icon(icon))
+        }
+    }
+    
+    private func loadQLThumbnail(
+        for row: FileListRow,
+        key: ThumbnailCache.Key,
+        cellSize: CGFloat,
+        screenScale: CGFloat,
+        generation: UInt,
+        completion: @escaping (Delivery) -> Void
+    ) {
         let url = URL(fileURLWithPath: row.iconPath)
         let pixelSize = max(
             FileListThumbnailMetrics.minCellSize,
             CGFloat(FileListThumbnailMetrics.thumbnailSizeBucket(for: cellSize))
         ) * screenScale
         
-        queue.async { [weak self] in
+        qlSlots.wait()
+        guard generation == activeGeneration else {
+            qlSlots.signal()
+            return
+        }
+        
+        let request = QLThumbnailGenerator.Request(
+            fileAt: url,
+            size: CGSize(width: pixelSize, height: pixelSize),
+            scale: screenScale,
+            representationTypes: .thumbnail
+        )
+        
+        QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] representation, _ in
             guard let self else { return }
+            defer { self.qlSlots.signal() }
             guard generation == self.activeGeneration else { return }
             
-            let request = QLThumbnailGenerator.Request(
-                fileAt: url,
-                size: CGSize(width: pixelSize, height: pixelSize),
-                scale: screenScale,
-                representationTypes: .thumbnail
-            )
-            
-            QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { representation, _ in
-                guard generation == self.activeGeneration else { return }
-                
-                if let image = representation?.nsImage {
-                    self.cache.store(image, isThumbnail: true, for: key)
-                    DispatchQueue.main.async {
-                        guard generation == self.activeGeneration else { return }
-                        completion(.thumbnail(image))
-                    }
-                    return
-                }
-                
-                let icon = self.placeholderIcon(for: row, cellSize: cellSize, screenScale: screenScale)
-                self.cache.store(icon, isThumbnail: false, for: key)
+            if let image = representation?.nsImage {
+                self.cache.store(image, isThumbnail: true, for: key)
                 DispatchQueue.main.async {
                     guard generation == self.activeGeneration else { return }
-                    completion(.icon(icon))
+                    completion(.thumbnail(image))
                 }
+                return
+            }
+            
+            let icon = self.workspaceIcon(for: row.iconPath, cellSize: cellSize)
+            self.cache.store(icon, isThumbnail: false, for: key)
+            DispatchQueue.main.async {
+                guard generation == self.activeGeneration else { return }
+                completion(.icon(icon))
             }
         }
+    }
+    
+    private func workspaceIcon(for path: String, cellSize: CGFloat) -> NSImage {
+        iconCacheLock.lock()
+        if let cached = workspaceIconCache[path] {
+            iconCacheLock.unlock()
+            return FileListThumbnailMetrics.scaledIcon(cached, cellSize: cellSize)
+        }
+        iconCacheLock.unlock()
+        
+        let base = NSWorkspace.shared.icon(forFile: path)
+        iconCacheLock.lock()
+        workspaceIconCache[path] = base
+        if workspaceIconCache.count > 300 {
+            workspaceIconCache.removeAll(keepingCapacity: true)
+        }
+        iconCacheLock.unlock()
+        return FileListThumbnailMetrics.scaledIcon(base, cellSize: cellSize)
+    }
+    
+    private static func genericPlaceholder(isDirectory: Bool, cellSize: CGFloat) -> NSImage {
+        let bucket = FileListThumbnailMetrics.thumbnailSizeBucket(for: cellSize)
+        let key = "\(isDirectory)_\(bucket)"
+        placeholderLock.lock()
+        if let cached = genericPlaceholders[key] {
+            placeholderLock.unlock()
+            return cached
+        }
+        placeholderLock.unlock()
+        
+        let base = isDirectory
+            ? NSWorkspace.shared.icon(for: .folder)
+            : NSWorkspace.shared.icon(for: .data)
+        let scaled = FileListThumbnailMetrics.scaledIcon(base, cellSize: cellSize)
+        placeholderLock.lock()
+        genericPlaceholders[key] = scaled
+        placeholderLock.unlock()
+        return scaled
     }
 }

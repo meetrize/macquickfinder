@@ -15,7 +15,24 @@ final class ThumbnailDiskCache {
         try? fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
     }
     
-    func load(for key: ThumbnailCache.Key) -> ThumbnailCache.Entry? {
+    /// 在调用方线程同步读取磁盘缓存（经 I/O 队列），用于 Cell 配置阶段的快速命中。
+    func loadSync(for key: ThumbnailCache.Key) -> ThumbnailCache.Entry? {
+        ioQueue.sync {
+            loadSyncUnsafe(for: key)
+        }
+    }
+    
+    /// 在后台 I/O 队列读取磁盘缓存，避免阻塞主线程。
+    func load(for key: ThumbnailCache.Key, completion: @escaping (ThumbnailCache.Entry?) -> Void) {
+        ioQueue.async { [weak self] in
+            let entry = self?.loadSyncUnsafe(for: key)
+            DispatchQueue.main.async {
+                completion(entry)
+            }
+        }
+    }
+    
+    private func loadSyncUnsafe(for key: ThumbnailCache.Key) -> ThumbnailCache.Entry? {
         let fileURL = fileURL(for: key)
         guard fileManager.fileExists(atPath: fileURL.path),
               let data = try? Data(contentsOf: fileURL),

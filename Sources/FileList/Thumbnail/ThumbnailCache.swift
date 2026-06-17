@@ -27,27 +27,66 @@ final class ThumbnailCache {
     private var accessOrder: [Key] = []
     private var totalCost = 0
     private let diskCache = ThumbnailDiskCache()
+    private let lock = NSLock()
     
     private let maxEntryCount = 500
     private let maxTotalCost = 150 * 1024 * 1024
     
+    /// 内存 + 磁盘同步查找；命中时回填内存 LRU。供 Cell 配置快速展示已缓存缩略图。
     func entry(for key: Key) -> Entry? {
+        lock.lock()
         if let entry = storage[key] {
-            touch(key)
+            touchLocked(key)
+            lock.unlock()
             return entry
         }
-        if let diskEntry = diskCache.load(for: key) {
-            storage[key] = diskEntry
-            accessOrder.append(key)
-            totalCost += diskEntry.cost
-            evictIfNeeded()
-            return diskEntry
+        lock.unlock()
+        
+        guard let diskEntry = diskCache.loadSync(for: key) else { return nil }
+        
+        lock.lock()
+        storage[key] = diskEntry
+        accessOrder.append(key)
+        totalCost += diskEntry.cost
+        evictIfNeededLocked()
+        lock.unlock()
+        return diskEntry
+    }
+    
+    /// 仅查内存 LRU，主线程安全且不做磁盘 I/O。
+    func memoryEntry(for key: Key) -> Entry? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let entry = storage[key] else { return nil }
+        touchLocked(key)
+        return entry
+    }
+    
+    /// 先查内存，未命中则在后台读磁盘缓存。
+    func loadEntry(for key: Key, completion: @escaping (Entry?) -> Void) {
+        if let entry = memoryEntry(for: key) {
+            completion(entry)
+            return
         }
-        return nil
+        
+        diskCache.load(for: key) { [weak self] diskEntry in
+            guard let self, let diskEntry else {
+                completion(nil)
+                return
+            }
+            self.lock.lock()
+            self.storage[key] = diskEntry
+            self.accessOrder.append(key)
+            self.totalCost += diskEntry.cost
+            self.evictIfNeededLocked()
+            self.lock.unlock()
+            completion(diskEntry)
+        }
     }
     
     func store(_ image: NSImage, isThumbnail: Bool, for key: Key) {
         let cost = estimatedCost(of: image)
+        lock.lock()
         if let existing = storage[key] {
             totalCost -= existing.cost
             storage.removeValue(forKey: key)
@@ -58,15 +97,19 @@ final class ThumbnailCache {
         storage[key] = entry
         accessOrder.append(key)
         totalCost += cost
-        evictIfNeeded()
+        evictIfNeededLocked()
+        lock.unlock()
+        
         diskCache.store(image, isThumbnail: isThumbnail, for: key)
     }
     
     /// 仅清空内存 LRU；磁盘缓存保留，供切换目录后快速回填。
     func clearMemory() {
+        lock.lock()
         storage.removeAll()
         accessOrder.removeAll()
         totalCost = 0
+        lock.unlock()
     }
     
     /// 清空内存与磁盘缓存（设置项「清除缩略图缓存」等场景使用）。
@@ -75,12 +118,12 @@ final class ThumbnailCache {
         diskCache.removeAll()
     }
     
-    private func touch(_ key: Key) {
+    private func touchLocked(_ key: Key) {
         accessOrder.removeAll { $0 == key }
         accessOrder.append(key)
     }
     
-    private func evictIfNeeded() {
+    private func evictIfNeededLocked() {
         while (storage.count > maxEntryCount || totalCost > maxTotalCost), let oldest = accessOrder.first {
             accessOrder.removeFirst()
             if let removed = storage.removeValue(forKey: oldest) {

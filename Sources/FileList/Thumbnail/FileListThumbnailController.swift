@@ -87,6 +87,10 @@ public final class FileListThumbnailController: NSObject {
         ])
         collectionView.setDraggingSourceOperationMask(.move, forLocal: true)
         collectionView.setDraggingSourceOperationMask([.move, .copy], forLocal: false)
+        collectionView.register(
+            FileListThumbnailItem.self,
+            forItemWithIdentifier: FileListThumbnailItem.identifier
+        )
         
         applyGridLayout(to: collectionView, cellSize: cellSize)
         
@@ -375,20 +379,35 @@ public final class FileListThumbnailController: NSObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: work)
     }
     
+    private static let visibleThumbnailBatchSize = 8
+    
     private func loadVisibleThumbnails() {
         guard let collectionView, !isPerformingCollectionUpdate else { return }
-        for indexPath in collectionView.indexPathsForVisibleItems() {
+        let indexPaths = collectionView.indexPathsForVisibleItems().sorted { $0.item < $1.item }
+        loadThumbnailBatch(indexPaths: indexPaths, startIndex: 0)
+    }
+    
+    private func loadThumbnailBatch(indexPaths: [IndexPath], startIndex: Int) {
+        guard let collectionView, !isPerformingCollectionUpdate else { return }
+        let end = min(startIndex + Self.visibleThumbnailBatchSize, indexPaths.count)
+        for index in startIndex..<end {
+            let indexPath = indexPaths[index]
             guard let item = collectionView.item(at: indexPath) as? FileListThumbnailItem,
                   indexPath.item >= 0,
                   indexPath.item < displayRows.count else { continue }
             let row = displayRows[indexPath.item]
-            if item.representedRowID == row.id, item.hasLoadedContent { continue }
-            loadThumbnail(for: item, row: row)
+            guard item.representedRowID == row.id, !item.hasLoadedContent else { continue }
+            enqueueThumbnailLoad(for: item, row: row)
+        }
+        guard end < indexPaths.count else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.loadThumbnailBatch(indexPaths: indexPaths, startIndex: end)
         }
     }
     
-    private func loadThumbnail(for item: FileListThumbnailItem, row: FileListRow) {
-        let token = item.beginLoad(for: row.id)
+    /// 仅配置占位与选中态，不做磁盘 I/O 或 QL 生成。
+    private func prepareThumbnailItem(_ item: FileListThumbnailItem, row: FileListRow) {
+        _ = item.beginLoad(for: row.id)
         
         if let cached = thumbnailGenerator.cachedImage(for: row, cellSize: cellSize) {
             let displayImage = cached.isThumbnail
@@ -405,7 +424,11 @@ public final class FileListThumbnailController: NSObject {
             return
         }
         
-        let placeholder = thumbnailGenerator.placeholderIcon(for: row, cellSize: cellSize, screenScale: screenScale)
+        let placeholder = thumbnailGenerator.instantPlaceholder(
+            for: row,
+            cellSize: cellSize,
+            screenScale: screenScale
+        )
         item.configure(
             row: row,
             isSelected: isRowSelected(row.id),
@@ -413,7 +436,20 @@ public final class FileListThumbnailController: NSObject {
             placeholderImage: placeholder,
             cellSize: cellSize
         )
+    }
+    
+    private func enqueueThumbnailLoad(for item: FileListThumbnailItem, row: FileListRow) {
+        if row.isParentDirectoryEntry {
+            let icon = thumbnailGenerator.instantPlaceholder(
+                for: row,
+                cellSize: cellSize,
+                screenScale: screenScale
+            )
+            item.applyLoadedImage(icon, isThumbnail: false, animated: false)
+            return
+        }
         
+        let token = item.loadToken
         thumbnailGenerator.load(
             for: row,
             cellSize: cellSize,
@@ -619,7 +655,6 @@ public final class FileListThumbnailController: NSObject {
                 queue: .main
             ) { [weak self] _ in
                 guard let self else { return }
-                self.thumbnailGenerator.cancelInFlightRequests()
                 self.scheduleVisibleThumbnailLoad()
                 self.scheduleVisibleDirectoryPathsNotify()
             }
@@ -650,15 +685,13 @@ extension FileListThumbnailController: NSCollectionViewDataSource {
         _ collectionView: NSCollectionView,
         itemForRepresentedObjectAt indexPath: IndexPath
     ) -> NSCollectionViewItem {
-        let item = makeThumbnailItem()
+        let item = collectionView.makeItem(
+            withIdentifier: FileListThumbnailItem.identifier,
+            for: indexPath
+        ) as! FileListThumbnailItem
         guard indexPath.item >= 0, indexPath.item < displayRows.count else { return item }
-        let row = displayRows[indexPath.item]
-        loadThumbnail(for: item, row: row)
+        prepareThumbnailItem(item, row: displayRows[indexPath.item])
         return item
-    }
-    
-    private func makeThumbnailItem() -> FileListThumbnailItem {
-        FileListThumbnailItem()
     }
 }
 
