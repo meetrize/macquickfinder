@@ -79,8 +79,6 @@ final class FileListThumbnailCellView: NSView {
         
         renameField.isHidden = true
         renameField.font = .systemFont(ofSize: 11)
-        renameField.textColor = .white
-        renameField.backgroundColor = NSColor.black.withAlphaComponent(0.65)
         bottomOverlay.addSubview(renameField)
         
         updateAppearanceForCurrentTheme()
@@ -92,36 +90,15 @@ final class FileListThumbnailCellView: NSView {
     }
     
     override func hitTest(_ point: NSPoint) -> NSView? {
-        let hit = super.hitTest(point)
-        guard renameField.isHidden else { return hit }
-        if hit === nameLabel || hit?.isDescendant(of: bottomOverlay) == true {
-            return self
+        guard bounds.contains(point) else { return nil }
+        if !renameField.isHidden {
+            let pointInRename = renameField.convert(point, from: self)
+            if renameField.bounds.contains(pointInRename) {
+                return renameField
+            }
         }
-        return hit
-    }
-    
-    override func mouseDown(with event: NSEvent) {
-        forwardMouseEvent(event) { collectionView, indexPath in
-            collectionView.handleItemMouseDown(event, indexPath: indexPath)
-        } fallback: {
-            super.mouseDown(with: event)
-        }
-    }
-    
-    override func mouseUp(with event: NSEvent) {
-        forwardMouseEvent(event) { collectionView, _ in
-            collectionView.handleItemMouseUp(event)
-        } fallback: {
-            super.mouseUp(with: event)
-        }
-    }
-    
-    override func mouseDragged(with event: NSEvent) {
-        forwardMouseEvent(event) { collectionView, _ in
-            collectionView.handleItemMouseDragged(event)
-        } fallback: {
-            super.mouseDragged(with: event)
-        }
+        // 鼠标事件交给 NSCollectionView 统一处理（与列表模式一致）；拖放命中仍由 collectionView 坐标解析。
+        return nil
     }
     
     override func rightMouseDown(with event: NSEvent) {
@@ -138,7 +115,7 @@ final class FileListThumbnailCellView: NSView {
     }
     
     private var enclosingThumbnailCollectionView: FileListThumbnailCollectionView? {
-        var current: NSView? = self
+        var current: NSView? = superview
         while let view = current {
             if let collectionView = view as? FileListThumbnailCollectionView {
                 return collectionView
@@ -146,23 +123,6 @@ final class FileListThumbnailCellView: NSView {
             current = view.superview
         }
         return nil
-    }
-    
-    private func forwardMouseEvent(
-        _ event: NSEvent,
-        handler: (FileListThumbnailCollectionView, IndexPath) -> Void,
-        fallback: () -> Void
-    ) {
-        guard let collectionView = enclosingThumbnailCollectionView else {
-            fallback()
-            return
-        }
-        let point = collectionView.convert(event.locationInWindow, from: nil)
-        guard let indexPath = collectionView.indexPathForItem(at: point) else {
-            fallback()
-            return
-        }
-        handler(collectionView, indexPath)
     }
     
     override func layout() {
@@ -326,13 +286,23 @@ final class FileListThumbnailCellView: NSView {
         renameField.onCommit = onCommit
         renameField.onCancel = onCancel
         renameField.stringValue = name
+        renameField.textColor = .labelColor
+        renameField.backgroundColor = .textBackgroundColor
         renameField.isHidden = false
         nameLabel.isHidden = true
         renameField.updateLayoutWidth(maxAvailableWidth: bounds.width - 8)
         window?.makeFirstResponder(renameField)
+        if let editor = renameField.currentEditor() as? NSTextView {
+            editor.textColor = .labelColor
+            editor.insertionPointColor = .labelColor
+        }
     }
     
     func endRename() {
+        renameField.suppressEndEditingCommit = true
+        if let collectionView = enclosingThumbnailCollectionView {
+            window?.makeFirstResponder(collectionView)
+        }
         renameField.isHidden = true
         nameLabel.isHidden = false
         renameField.onCommit = nil

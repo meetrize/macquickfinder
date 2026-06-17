@@ -93,6 +93,7 @@ final class FileListInlineRenameField: NSTextField {
 extension FileListInlineRenameField: NSTextFieldDelegate {
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            suppressEndEditingCommit = true
             onCommit?(stringValue)
             return true
         }

@@ -130,18 +130,51 @@ enum FileListDragSupport {
     }
     
     static func fileURLs(from pasteboard: NSPasteboard) -> [URL] {
-        guard let items = pasteboard.readObjects(forClasses: [NSURL.self], options: [
-            .urlReadingFileURLsOnly: true
-        ]) as? [URL] else { return [] }
+        if let items = pasteboard.readObjects(forClasses: [NSURL.self], options: [
+            .urlReadingFileURLsOnly: true,
+        ]) as? [URL], !items.isEmpty {
+            return deduplicatedFileURLs(items)
+        }
         
-        var urls: [URL] = []
-        var seen = Set<String>()
-        for url in items {
-            let path = url.standardizedFileURL.path
-            if seen.insert(path).inserted {
-                urls.append(url.standardizedFileURL)
+        if let items = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL],
+           !items.isEmpty {
+            let fileURLs = items.filter { $0.isFileURL }
+            if !fileURLs.isEmpty {
+                return deduplicatedFileURLs(fileURLs)
             }
         }
-        return urls
+        
+        for type in [
+            NSPasteboard.PasteboardType.fileURL,
+            NSPasteboard.PasteboardType("public.file-url"),
+        ] {
+            if let string = pasteboard.string(forType: type)?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !string.isEmpty {
+                let url = URL(string: string) ?? URL(fileURLWithPath: string)
+                if url.isFileURL {
+                    return deduplicatedFileURLs([url])
+                }
+            }
+        }
+        
+        if let paths = pasteboard.propertyList(
+            forType: NSPasteboard.PasteboardType("NSFilenamesPboardType")
+        ) as? [String], !paths.isEmpty {
+            return deduplicatedFileURLs(paths.map { URL(fileURLWithPath: $0) })
+        }
+        
+        return []
+    }
+    
+    private static func deduplicatedFileURLs(_ urls: [URL]) -> [URL] {
+        var result: [URL] = []
+        var seen = Set<String>()
+        for url in urls {
+            let path = url.standardizedFileURL.path
+            if seen.insert(path).inserted {
+                result.append(url.standardizedFileURL)
+            }
+        }
+        return result
     }
 }

@@ -11,6 +11,9 @@ extension FileListThumbnailController {
         )
         guard !dragged.isEmpty else { return }
         
+        resetDragDropSessionState()
+        activeDragURLs = dragged.map { URL(fileURLWithPath: $0.iconPath) }
+        
         let mousePoint = collectionView.convert(event.locationInWindow, from: nil)
         var draggingItems: [NSDraggingItem] = []
         for (index, draggedRow) in dragged.enumerated() {
@@ -34,22 +37,229 @@ extension FileListThumbnailController {
         let session = collectionView.beginDraggingSession(with: draggingItems, event: event, source: self)
         session.animatesToStartingPositionsOnCancelOrFail = true
         session.draggingFormation = dragged.count > 1 ? .pile : .none
+        activeDraggingSession = session
         _ = indexPath
     }
     
     func setDropHighlight(indexPath: IndexPath?) {
-        guard dropHighlightIndexPath != indexPath else { return }
-        if let previous = dropHighlightIndexPath {
-            thumbnailItem(at: previous)?.setDropTargetHighlighted(false)
-        }
-        dropHighlightIndexPath = indexPath
         if let indexPath {
-            thumbnailItem(at: indexPath)?.setDropTargetHighlighted(true)
+            pendingDropTargetIndexPath = indexPath
+        }
+        
+        let previous = dropHighlightIndexPath
+        guard previous != indexPath else { return }
+        dropHighlightIndexPath = indexPath
+        
+        if indexPath != nil {
+            suppressDragSnapBack()
+        } else if activeDraggingSession != nil {
+            activeDraggingSession?.animatesToStartingPositionsOnCancelOrFail = true
+        }
+        
+        guard let collectionView else { return }
+        for visiblePath in collectionView.indexPathsForVisibleItems() {
+            guard let item = collectionView.item(at: visiblePath) as? FileListThumbnailItem else { continue }
+            item.setDropTargetHighlighted(visiblePath == indexPath)
         }
     }
     
-    func clearDropHighlight() {
+    func invalidateDropTarget() {
+        pendingDropTargetIndexPath = nil
         setDropHighlight(indexPath: nil)
+    }
+    
+    func clearDropHighlightVisualOnly() {
+        let previous = dropHighlightIndexPath
+        guard previous != nil else { return }
+        dropHighlightIndexPath = nil
+        
+        guard let collectionView else { return }
+        for visiblePath in collectionView.indexPathsForVisibleItems() {
+            guard let item = collectionView.item(at: visiblePath) as? FileListThumbnailItem else { continue }
+            item.setDropTargetHighlighted(false)
+        }
+    }
+    
+    func resetDragDropSessionState() {
+        pendingDropTargetIndexPath = nil
+        activeDragURLs = nil
+        dropWasPerformed = false
+        activeDraggingSession = nil
+        clearDropHighlightVisualOnly()
+    }
+    
+    /// 与 NSTableView 一致：draggingLocation 为窗口坐标。
+    func dropPoint(in collectionView: NSCollectionView, draggingInfo: NSDraggingInfo) -> NSPoint {
+        collectionView.convert(draggingInfo.draggingLocation, from: nil)
+    }
+    
+    func indexPathForDrop(at point: NSPoint, in collectionView: NSCollectionView) -> IndexPath? {
+        var bestMatch: (indexPath: IndexPath, area: CGFloat)?
+        
+        for indexPath in collectionView.indexPathsForVisibleItems() {
+            guard let frame = collectionView.layoutAttributesForItem(at: indexPath)?.frame else { continue }
+            guard frame.contains(point) else { continue }
+            let area = frame.width * frame.height
+            if bestMatch == nil || area < bestMatch!.area {
+                bestMatch = (indexPath, area)
+            }
+        }
+        
+        if let bestMatch {
+            return bestMatch.indexPath
+        }
+        return collectionView.indexPathForItem(at: point)
+    }
+    
+    func indexPathAtScreenPoint(_ screenPoint: NSPoint) -> IndexPath? {
+        guard let collectionView, let window = collectionView.window else { return nil }
+        let pointInWindow = window.convertPoint(fromScreen: screenPoint)
+        let point = collectionView.convert(pointInWindow, from: nil)
+        return indexPathForDrop(at: point, in: collectionView)
+    }
+    
+    func resolvedDropTarget(
+        in collectionView: NSCollectionView,
+        draggingInfo: NSDraggingInfo
+    ) -> (indexPath: IndexPath, destinationPath: String)? {
+        let point = dropPoint(in: collectionView, draggingInfo: draggingInfo)
+        guard let indexPath = indexPathForDrop(at: point, in: collectionView),
+              indexPath.item >= 0,
+              indexPath.item < displayRows.count else { return nil }
+        
+        let row = displayRows[indexPath.item]
+        guard let destinationPath = interaction.dropDestinationPath(row) else { return nil }
+        return (indexPath, destinationPath)
+    }
+    
+    func handleDraggingUpdated(_ draggingInfo: NSDraggingInfo) -> NSDragOperation {
+        guard let collectionView else {
+            invalidateDropTarget()
+            return []
+        }
+        
+        let urls = resolvedDragURLs(from: draggingInfo.draggingPasteboard)
+        guard !urls.isEmpty else {
+            invalidateDropTarget()
+            return []
+        }
+        
+        guard let target = resolvedDropTarget(in: collectionView, draggingInfo: draggingInfo),
+              interaction.canAcceptDrop(target.destinationPath, urls) else {
+            invalidateDropTarget()
+            return []
+        }
+        
+        setDropHighlight(indexPath: target.indexPath)
+        return FileListDragSupport.shouldCopyFromCurrentEvent() ? .copy : .move
+    }
+    
+    @discardableResult
+    func performDragOperation(_ draggingInfo: NSDraggingInfo) -> Bool {
+        if pendingDropTargetIndexPath == nil,
+           let collectionView,
+           let target = resolvedDropTarget(in: collectionView, draggingInfo: draggingInfo) {
+            pendingDropTargetIndexPath = target.indexPath
+        }
+        suppressDragSnapBack()
+        let copy = FileListDragSupport.shouldCopyFromCurrentEvent()
+        return completeDropIfPossible(
+            pasteboard: draggingInfo.draggingPasteboard,
+            operation: copy ? .copy : .move
+        )
+    }
+    
+    @discardableResult
+    func completeDropAtEndOfDragSession(
+        pasteboard: NSPasteboard,
+        operation: NSDragOperation,
+        screenPoint: NSPoint
+    ) -> Bool {
+        guard !dropWasPerformed else { return true }
+        
+        if operation != [] {
+            let resolvedOperation: NSDragOperation = operation.contains(.copy) ? .copy : .move
+            if completeDropIfPossible(pasteboard: pasteboard, operation: resolvedOperation) {
+                return true
+            }
+        }
+        
+        guard let pending = pendingDropTargetIndexPath,
+              let resolved = indexPathAtScreenPoint(screenPoint),
+              resolved == pending else {
+            return false
+        }
+        
+        return completeDropIfPossible(pasteboard: pasteboard, operation: .move, indexPath: pending)
+    }
+    
+    @discardableResult
+    private func completeDropIfPossible(
+        pasteboard: NSPasteboard,
+        operation: NSDragOperation,
+        indexPath explicitIndexPath: IndexPath? = nil
+    ) -> Bool {
+        guard operation != [], !dropWasPerformed else { return dropWasPerformed }
+        
+        let urls = resolvedDragURLs(from: pasteboard)
+        guard !urls.isEmpty else { return false }
+        
+        let indexPath = explicitIndexPath ?? pendingDropTargetIndexPath ?? dropHighlightIndexPath
+        guard let indexPath,
+              indexPath.item >= 0,
+              indexPath.item < displayRows.count else { return false }
+        
+        let row = displayRows[indexPath.item]
+        guard let destinationPath = interaction.dropDestinationPath(row),
+              interaction.canAcceptDrop(destinationPath, urls) else {
+            return false
+        }
+        
+        interaction.performDrop(destinationPath, urls, operation == .copy)
+        dropWasPerformed = true
+        suppressDragSnapBack()
+        return true
+    }
+    
+    func suppressDragSnapBack() {
+        activeDraggingSession?.animatesToStartingPositionsOnCancelOrFail = false
+    }
+    
+    private func willAcceptDropAtEnd(
+        operation: NSDragOperation,
+        screenPoint: NSPoint,
+        pasteboard: NSPasteboard
+    ) -> Bool {
+        let urls = resolvedDragURLs(from: pasteboard)
+        guard !urls.isEmpty else { return false }
+        
+        let indexPath: IndexPath?
+        if let pending = pendingDropTargetIndexPath,
+           let resolved = indexPathAtScreenPoint(screenPoint),
+           resolved == pending {
+            indexPath = pending
+        } else if operation != [] {
+            indexPath = pendingDropTargetIndexPath ?? dropHighlightIndexPath
+        } else {
+            return false
+        }
+        
+        guard let indexPath,
+              indexPath.item >= 0,
+              indexPath.item < displayRows.count,
+              let destinationPath = interaction.dropDestinationPath(displayRows[indexPath.item]),
+              interaction.canAcceptDrop(destinationPath, urls) else {
+            return false
+        }
+        return true
+    }
+    
+    private func resolvedDragURLs(from pasteboard: NSPasteboard) -> [URL] {
+        var urls = FileListDragSupport.fileURLs(from: pasteboard)
+        if urls.isEmpty, let activeDragURLs {
+            urls = activeDragURLs
+        }
+        return urls
     }
 }
 
@@ -76,31 +286,36 @@ extension FileListThumbnailController: NSDraggingSource {
         endedAt screenPoint: NSPoint,
         operation: NSDragOperation
     ) {
+        if willAcceptDropAtEnd(
+            operation: operation,
+            screenPoint: screenPoint,
+            pasteboard: session.draggingPasteboard
+        ) {
+            session.animatesToStartingPositionsOnCancelOrFail = false
+        }
+        
+        _ = completeDropAtEndOfDragSession(
+            pasteboard: session.draggingPasteboard,
+            operation: operation,
+            screenPoint: screenPoint
+        )
+        
+        let didDrop = dropWasPerformed
+        resetDragDropSessionState()
         dragSessionActive = false
-        cancelSpringLoading()
         mouseDownLocation = nil
         mouseDownEvent = nil
         mouseDownCanStartFileDrag = false
         finishPointerInteractionIfNeeded()
-        if operation != [] {
+        if didDrop || operation != [] {
             DispatchQueue.main.async { [weak self] in
                 self?.interaction.onDragEnded()
             }
         }
     }
-    
-    public func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
-        guard let collectionView, let window = collectionView.window else {
-            cancelSpringLoading()
-            return
-        }
-        let windowPoint = window.convertPoint(fromScreen: screenPoint)
-        let point = collectionView.convert(windowPoint, from: nil)
-        handleSpringLoadingHover(at: springLoadingIndexPath(at: point))
-    }
 }
 
-// MARK: - Drop destination
+// MARK: - NSCollectionViewDelegate
 
 extension FileListThumbnailController {
     public func collectionView(
@@ -109,35 +324,13 @@ extension FileListThumbnailController {
         proposedIndexPath proposedDropIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
         dropOperation proposedDropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>
     ) -> NSDragOperation {
-        let urls = FileListDragSupport.fileURLs(from: draggingInfo.draggingPasteboard)
-        guard !urls.isEmpty else {
-            clearDropHighlight()
-            cancelSpringLoading()
-            return []
+        let operation = handleDraggingUpdated(draggingInfo)
+        if operation != [],
+           let target = resolvedDropTarget(in: collectionView, draggingInfo: draggingInfo) {
+            proposedDropIndexPath.pointee = target.indexPath as NSIndexPath
+            proposedDropOperation.pointee = .on
         }
-        
-        let point = collectionView.convert(draggingInfo.draggingLocation, from: nil)
-        guard let indexPath = collectionView.indexPathForItem(at: point),
-              indexPath.item >= 0,
-              indexPath.item < displayRows.count else {
-            clearDropHighlight()
-            cancelSpringLoading()
-            return []
-        }
-        
-        let row = displayRows[indexPath.item]
-        guard let destinationPath = interaction.dropDestinationPath(row),
-              interaction.canAcceptDrop(destinationPath, urls) else {
-            clearDropHighlight()
-            cancelSpringLoading()
-            return []
-        }
-        
-        proposedDropIndexPath.pointee = indexPath as NSIndexPath
-        proposedDropOperation.pointee = .on
-        setDropHighlight(indexPath: indexPath)
-        handleSpringLoadingHover(at: indexPath)
-        return FileListDragSupport.shouldCopyFromCurrentEvent() ? .copy : .move
+        return operation
     }
     
     public func collectionView(
@@ -146,18 +339,7 @@ extension FileListThumbnailController {
         indexPath: IndexPath,
         dropOperation: NSCollectionView.DropOperation
     ) -> Bool {
-        clearDropHighlight()
-        cancelSpringLoading()
-        let urls = FileListDragSupport.fileURLs(from: draggingInfo.draggingPasteboard)
-        guard !urls.isEmpty,
-              indexPath.item >= 0,
-              indexPath.item < displayRows.count else { return false }
-        guard let destinationPath = interaction.dropDestinationPath(displayRows[indexPath.item]) else {
-            return false
-        }
-        
-        let copy = FileListDragSupport.shouldCopyFromCurrentEvent()
-        interaction.performDrop(destinationPath, urls, copy)
-        return true
+        pendingDropTargetIndexPath = indexPath
+        return performDragOperation(draggingInfo)
     }
 }

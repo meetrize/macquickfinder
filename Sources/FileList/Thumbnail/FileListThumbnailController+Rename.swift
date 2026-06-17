@@ -75,8 +75,6 @@ extension FileListThumbnailController {
         let row = displayRows[indexPath.item]
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        thumbnailItem(at: indexPath)?.endRename()
-        
         if trimmed.isEmpty || trimmed == row.name {
             cancelRename()
             return
@@ -85,6 +83,7 @@ extension FileListThumbnailController {
         renamingRowID = nil
         pendingRenameIndexPath = nil
         interaction.onRenameEditingChanged(false)
+        thumbnailItem(at: indexPath)?.endRename()
         refreshVisibleItemAppearance()
         
         interaction.performRename(row, trimmed) { [weak self] success in

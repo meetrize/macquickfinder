@@ -20,24 +20,34 @@ extension FileListThumbnailController {
         blankMouseDownEvent = nil
         blankDragSelecting = false
         dragSessionActive = false
-        
-        guard event.clickCount == 1 else {
-            pendingRenameIndexPath = nil
-            return
-        }
-        
+        pendingRenameIndexPath = nil
+    }
+    
+    func shouldUseDefaultItemMouseDown(for indexPath: IndexPath, event: NSEvent) -> Bool {
+        guard indexPath.item >= 0, indexPath.item < displayRows.count else { return true }
+        if event.clickCount >= 2 { return true }
         let flags = event.modifierFlags
-        guard !flags.contains(.command), !flags.contains(.shift) else {
-            pendingRenameIndexPath = nil
-            return
-        }
+        if flags.contains(.command) || flags.contains(.shift) { return true }
+        // 普通单击自行处理选中，避免系统 mouseDown 进入框选追踪。
+        return false
+    }
+    
+    func handleItemClickMouseDown(indexPath: IndexPath, event: NSEvent) {
+        guard let collectionView, indexPath.item >= 0, indexPath.item < displayRows.count else { return }
+        guard event.clickCount == 1 else { return }
+        let flags = event.modifierFlags
+        if flags.contains(.command) || flags.contains(.shift) { return }
         
-        if isSoleSelectedIndexPath(indexPath),
-           shouldBeginRenameOnMouseUp(indexPath: indexPath) {
+        if !collectionView.selectionIndexPaths.contains(indexPath) {
+            collectionView.selectionIndexPaths = [indexPath]
+            syncSelectionFromCollection()
+        } else if shouldBeginRenameOnMouseUp(indexPath: indexPath) {
             pendingRenameIndexPath = indexPath
-        } else {
-            pendingRenameIndexPath = nil
         }
+    }
+    
+    func didHandleItemMouseDown(_ event: NSEvent) {
+        mouseDownEvent = event
     }
     
     func handleBlankMouseDown(_ event: NSEvent) {
@@ -62,9 +72,13 @@ extension FileListThumbnailController {
         interaction.onBlankSingleClick()
     }
     
-    func handleBlankMouseUp() {
+    func clearBlankDragState() {
         blankMouseDownEvent = nil
         blankDragSelecting = false
+    }
+    
+    func handleBlankMouseUp() {
+        clearBlankDragState()
         mouseDownCanStartFileDrag = false
     }
     
@@ -105,18 +119,22 @@ extension FileListThumbnailController {
         
         if handleBlankRubberBandDrag(event) { return true }
         
-        guard !dragSessionActive,
+        let itemDragPending = !dragSessionActive
+            && mouseDownIndexPath != nil
+            && mouseDownCanStartFileDrag
+            && mouseDownEvent != nil
+            && mouseDownLocation != nil
+        
+        guard itemDragPending,
               let start = mouseDownLocation,
-              mouseDownEvent != nil,
-              mouseDownCanStartFileDrag,
-              let indexPath = mouseDownIndexPath else { return false }
+              let indexPath = mouseDownIndexPath else { return dragSessionActive }
         
         let distance = hypot(
             event.locationInWindow.x - start.x,
             event.locationInWindow.y - start.y
         )
-        guard distance >= dragThreshold else { return false }
-        guard indexPath.item >= 0, indexPath.item < displayRows.count else { return false }
+        guard distance >= dragThreshold else { return true }
+        guard indexPath.item >= 0, indexPath.item < displayRows.count else { return true }
         
         if let collectionView, !collectionView.selectionIndexPaths.contains(indexPath) {
             let flags = mouseDownEvent?.modifierFlags ?? []
@@ -193,7 +211,7 @@ extension FileListThumbnailController {
     }
     
     func handleKeyDown(_ event: NSEvent) -> Bool {
-        if isRenaming { return false }
+        if isRenaming { return true }
         
         if handleArrowKeyNavigation(event) { return true }
         

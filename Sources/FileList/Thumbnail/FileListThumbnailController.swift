@@ -48,8 +48,12 @@ public final class FileListThumbnailController: NSObject {
     var lastKnownSelectionIDs: Set<String> = []
     var wasAlreadySelectedAtMouseDown = false
     var dropHighlightIndexPath: IndexPath?
-    var springLoadWorkItem: DispatchWorkItem?
-    var springLoadTargetIndexPath: IndexPath?
+    var pendingDropTargetIndexPath: IndexPath?
+    var activeDragURLs: [URL]?
+    var dropWasPerformed = false
+    weak var activeDraggingSession: NSDraggingSession?
+    var skipNextItemMouseUp = false
+    var usedSystemItemMouseDown = false
     let dragThreshold: CGFloat = 4
     static let renameSecondClickMaxInterval: TimeInterval = 1
     
@@ -76,7 +80,11 @@ public final class FileListThumbnailController: NSObject {
         collectionView.backgroundColors = [.textBackgroundColor]
         collectionView.dataSource = self
         collectionView.delegate = self
-        collectionView.registerForDraggedTypes([.fileURL])
+        collectionView.registerForDraggedTypes([
+            .fileURL,
+            NSPasteboard.PasteboardType("public.file-url"),
+            NSPasteboard.PasteboardType("NSFilenamesPboardType"),
+        ])
         collectionView.setDraggingSourceOperationMask(.move, forLocal: true)
         collectionView.setDraggingSourceOperationMask([.move, .copy], forLocal: false)
         
@@ -526,6 +534,11 @@ public final class FileListThumbnailController: NSObject {
               let indexPath = collectionView.selectionIndexPaths.sorted(by: { $0.item < $1.item }).first,
               indexPath.item >= 0,
               indexPath.item < displayRows.count else { return }
+        onOpenRow?(displayRows[indexPath.item])
+    }
+    
+    func openRow(at indexPath: IndexPath) {
+        guard indexPath.item >= 0, indexPath.item < displayRows.count else { return }
         onOpenRow?(displayRows[indexPath.item])
     }
     
