@@ -1,15 +1,64 @@
 import AppKit
+import QuartzCore
+
+// MARK: - NSWindow Frame Hook
+
+/// 在 setFrame / setFrameOrigin 调用栈内同步跟随窗，比 didMove 更早、更连贯
+enum NSWindowSnapFrameHook {
+    private static var isInstalled = false
+
+    static func installIfNeeded() {
+        guard !isInstalled else { return }
+        isInstalled = true
+
+        swizzle(
+            NSWindow.self,
+            original: #selector(NSWindow.setFrameOrigin(_:)),
+            swizzled: #selector(NSWindow.mf_snap_setFrameOrigin(_:))
+        )
+        swizzle(
+            NSWindow.self,
+            original: #selector(NSWindow.setFrame(_:display:)),
+            swizzled: #selector(NSWindow.mf_snap_setFrame(_:display:))
+        )
+    }
+
+    private static func swizzle(_ cls: AnyClass, original: Selector, swizzled: Selector) {
+        guard let originalMethod = class_getInstanceMethod(cls, original),
+              let swizzledMethod = class_getInstanceMethod(cls, swizzled) else { return }
+        method_exchangeImplementations(originalMethod, swizzledMethod)
+    }
+
+    @MainActor
+    static func notifyFrameChanged(_ window: NSWindow) {
+        if Thread.isMainThread {
+            WindowSnapCoordinator.shared.handleFrameChange(window)
+        } else {
+            DispatchQueue.main.sync {
+                WindowSnapCoordinator.shared.handleFrameChange(window)
+            }
+        }
+    }
+}
+
+extension NSWindow {
+    @objc dynamic func mf_snap_setFrameOrigin(_ point: NSPoint) {
+        mf_snap_setFrameOrigin(point)
+        NSWindowSnapFrameHook.notifyFrameChanged(self)
+    }
+
+    @objc dynamic func mf_snap_setFrame(_ frameRect: NSRect, display flag: Bool) {
+        mf_snap_setFrame(frameRect, display: flag)
+        NSWindowSnapFrameHook.notifyFrameChanged(self)
+    }
+}
 
 // MARK: - Types
 
 enum WindowSnapEdge: Equatable {
-    /// moving 左边贴 candidate 右边
     case leftToRight
-    /// moving 右边贴 candidate 左边
     case rightToLeft
-    /// moving 上边贴 candidate 下边
     case topToBottom
-    /// moving 下边贴 candidate 上边
     case bottomToTop
 
     var isHorizontal: Bool {
@@ -23,7 +72,6 @@ enum WindowSnapEdge: Equatable {
 struct WindowSnapLink: Equatable {
     weak var windowA: NSWindow?
     weak var windowB: NSWindow?
-
     var edge: WindowSnapEdge
 
     static func == (lhs: WindowSnapLink, rhs: WindowSnapLink) -> Bool {
@@ -41,6 +89,10 @@ struct WindowSnapLink: Equatable {
         if windowB === window { return windowA }
         return nil
     }
+
+    func leaderIsWindowA(_ leader: NSWindow) -> Bool {
+        windowA === leader
+    }
 }
 
 private struct SnapCandidate: Comparable {
@@ -50,7 +102,6 @@ private struct SnapCandidate: Comparable {
 
     static func < (lhs: SnapCandidate, rhs: SnapCandidate) -> Bool {
         if lhs.distance != rhs.distance { return lhs.distance < rhs.distance }
-        // 距离相同时优先左右吸附
         if lhs.edge.isHorizontal != rhs.edge.isHorizontal {
             return lhs.edge.isHorizontal
         }
@@ -66,14 +117,18 @@ final class WindowSnapCoordinator {
 
     private enum Metrics {
         static let snapThreshold: CGFloat = 12
-        static let releaseThreshold: CGFloat = 20
+        static let releaseThreshold: CGFloat = 56
         static let minOverlap: CGFloat = 80
+        static let syncTimerInterval: TimeInterval = 1.0 / 120.0
     }
 
     private let windows = NSHashTable<NSWindow>.weakObjects()
     private var activeLink: WindowSnapLink?
     private var lastFrames: [ObjectIdentifier: NSRect] = [:]
     private var programmaticMoveWindows = Set<ObjectIdentifier>()
+    private var syncTimer: Timer?
+    private weak var dragLeader: NSWindow?
+    private var mouseUpMonitor: Any?
 
     private init() {}
 
@@ -84,8 +139,11 @@ final class WindowSnapCoordinator {
     // MARK: - Registration
 
     func register(window: NSWindow) {
+        NSWindowSnapFrameHook.installIfNeeded()
+        installMouseUpMonitorIfNeeded()
         guard isEligible(window) else { return }
         windows.add(window)
+        prepareWindowForLinkedMove(window)
         lastFrames[ObjectIdentifier(window)] = window.frame
     }
 
@@ -93,6 +151,9 @@ final class WindowSnapCoordinator {
         windows.remove(window)
         lastFrames.removeValue(forKey: ObjectIdentifier(window))
         programmaticMoveWindows.remove(ObjectIdentifier(window))
+        if dragLeader === window {
+            endLinkedDragSession()
+        }
         if activeLink?.contains(window) == true {
             activeLink = nil
         }
@@ -100,32 +161,21 @@ final class WindowSnapCoordinator {
 
     // MARK: - Event Handlers
 
-    func handleWindowDidMove(_ window: NSWindow) {
+    /// setFrame 钩子入口：与 leader 移动同一调用栈内同步 partner
+    func handleFrameChange(_ window: NSWindow) {
         guard isEnabled, isEligible(window) else { return }
+        guard isRegistered(window) else { return }
         guard !programmaticMoveWindows.contains(ObjectIdentifier(window)) else {
             lastFrames[ObjectIdentifier(window)] = window.frame
             return
         }
 
-        let currentFrame = window.frame
-        let windowID = ObjectIdentifier(window)
-        let previousFrame = lastFrames[windowID] ?? currentFrame
-        let dx = currentFrame.origin.x - previousFrame.origin.x
-        let dy = currentFrame.origin.y - previousFrame.origin.y
+        processUserMove(on: window)
+    }
 
-        if let link = activeLink, link.contains(window) {
-            if shouldReleaseLink(link) {
-                activeLink = nil
-            } else if dx != 0 || dy != 0, let other = link.otherWindow(than: window) {
-                moveFollower(other, dx: dx, dy: dy)
-            }
-        }
-
-        if activeLink == nil {
-            trySnap(moving: window)
-        }
-
-        lastFrames[windowID] = window.frame
+    /// didMove 兜底（部分系统路径可能绕过 setFrame 钩子）
+    func handleWindowDidMove(_ window: NSWindow) {
+        handleFrameChange(window)
     }
 
     func handleWindowDidResize(_ window: NSWindow) {
@@ -133,6 +183,7 @@ final class WindowSnapCoordinator {
         lastFrames[ObjectIdentifier(window)] = window.frame
         guard let link = activeLink, link.contains(window) else { return }
         if shouldReleaseLink(link) {
+            endLinkedDragSession()
             activeLink = nil
         }
     }
@@ -145,10 +196,93 @@ final class WindowSnapCoordinator {
         unregister(window: window)
     }
 
-    // MARK: - Eligibility
+    func endLinkedDragSession() {
+        guard syncTimer != nil || dragLeader != nil else { return }
+
+        syncTimer?.invalidate()
+        syncTimer = nil
+
+        if let link = activeLink, let leader = dragLeader ?? link.windowA ?? link.windowB {
+            syncLinkedPartner(leader: leader, link: link, flushDisplay: true)
+            leader.displayIfNeeded()
+            link.otherWindow(than: leader)?.displayIfNeeded()
+        }
+        dragLeader = nil
+    }
+
+    // MARK: - Private Setup
+
+    private func installMouseUpMonitorIfNeeded() {
+        guard mouseUpMonitor == nil else { return }
+        mouseUpMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { event in
+            WindowSnapCoordinator.shared.endLinkedDragSession()
+            return event
+        }
+    }
+
+    private func prepareWindowForLinkedMove(_ window: NSWindow) {
+        window.disableSnapshotRestoration()
+        guard let contentView = window.contentView else { return }
+        contentView.wantsLayer = true
+        contentView.layerContentsRedrawPolicy = .onSetNeedsDisplay
+        if let layer = contentView.layer {
+            layer.drawsAsynchronously = true
+            layer.actions = [
+                "position": NSNull(),
+                "bounds": NSNull(),
+                "frame": NSNull(),
+            ]
+        }
+    }
 
     private func isEligible(_ window: NSWindow) -> Bool {
         !window.isMiniaturized && !window.styleMask.contains(.fullScreen)
+    }
+
+    private func isRegistered(_ window: NSWindow) -> Bool {
+        windows.allObjects.contains { $0 === window }
+    }
+
+    // MARK: - Move Processing
+
+    private func processUserMove(on window: NSWindow) {
+        if let link = activeLink, link.contains(window) {
+            beginLinkedDragSession(leader: window)
+            syncLinkedPartner(leader: window, link: link, flushDisplay: false)
+            if shouldReleaseLink(link) {
+                endLinkedDragSession()
+                activeLink = nil
+            }
+        } else if activeLink == nil {
+            trySnap(moving: window)
+        }
+
+        lastFrames[ObjectIdentifier(window)] = window.frame
+    }
+
+    private func beginLinkedDragSession(leader: NSWindow) {
+        dragLeader = leader
+        guard syncTimer == nil else { return }
+
+        let timer = Timer(timeInterval: Metrics.syncTimerInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.linkedDragTimerTick()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        syncTimer = timer
+    }
+
+    private func linkedDragTimerTick() {
+        guard let link = activeLink else {
+            endLinkedDragSession()
+            return
+        }
+        guard let leader = dragLeader ?? link.windowA ?? link.windowB, isEligible(leader) else {
+            endLinkedDragSession()
+            return
+        }
+        syncLinkedPartner(leader: leader, link: link, flushDisplay: false)
     }
 
     // MARK: - Snap Detection
@@ -159,7 +293,6 @@ final class WindowSnapCoordinator {
 
         for candidate in windows.allObjects where candidate !== moving && isEligible(candidate) {
             let candidateFrame = candidate.frame
-
             let candidates: [(WindowSnapEdge, CGFloat)] = [
                 (.rightToLeft, abs(movingFrame.maxX - candidateFrame.minX)),
                 (.leftToRight, abs(movingFrame.minX - candidateFrame.maxX)),
@@ -180,11 +313,17 @@ final class WindowSnapCoordinator {
 
         guard let best else { return }
 
-        let snappedFrame = snappedFrame(for: movingFrame, candidate: best.candidate.frame, edge: best.edge)
-        applyProgrammaticFrame(snappedFrame, to: moving)
+        let snappedFrame = snappedFrame(
+            for: movingFrame,
+            candidate: best.candidate.frame,
+            edge: best.edge
+        )
+        applyProgrammaticFrame(snappedFrame, to: moving, flushDisplay: true)
 
         activeLink = WindowSnapLink(windowA: moving, windowB: best.candidate, edge: best.edge)
+        syncLinkedPartner(leader: moving, link: activeLink!, flushDisplay: true)
         lastFrames[ObjectIdentifier(moving)] = moving.frame
+        lastFrames[ObjectIdentifier(best.candidate)] = best.candidate.frame
     }
 
     private func snappedFrame(for moving: NSRect, candidate: NSRect, edge: WindowSnapEdge) -> NSRect {
@@ -192,11 +331,15 @@ final class WindowSnapCoordinator {
         switch edge {
         case .rightToLeft:
             result.origin.x = candidate.minX - moving.width
+            result.origin.y = candidate.maxY - moving.height
         case .leftToRight:
             result.origin.x = candidate.maxX
+            result.origin.y = candidate.maxY - moving.height
         case .topToBottom:
+            result.origin.x = candidate.minX
             result.origin.y = candidate.minY - moving.height
         case .bottomToTop:
+            result.origin.x = candidate.minX
             result.origin.y = candidate.maxY
         }
         return result
@@ -204,20 +347,89 @@ final class WindowSnapCoordinator {
 
     // MARK: - Linked Move
 
-    private func moveFollower(_ follower: NSWindow, dx: CGFloat, dy: CGFloat) {
-        guard dx != 0 || dy != 0 else { return }
-        var frame = follower.frame
-        frame.origin.x += dx
-        frame.origin.y += dy
-        applyProgrammaticFrame(frame, to: follower)
+    private func syncLinkedPartner(leader: NSWindow, link: WindowSnapLink, flushDisplay: Bool) {
+        guard let partner = link.otherWindow(than: leader) else { return }
+        let partnerFrame = partnerFrame(
+            leaderFrame: leader.frame,
+            partnerSize: partner.frame.size,
+            edge: link.edge,
+            leaderIsWindowA: link.leaderIsWindowA(leader)
+        )
+        applyProgrammaticFrame(partnerFrame, to: partner, flushDisplay: flushDisplay)
     }
 
-    private func applyProgrammaticFrame(_ frame: NSRect, to window: NSWindow) {
+    private func partnerFrame(
+        leaderFrame: NSRect,
+        partnerSize: NSSize,
+        edge: WindowSnapEdge,
+        leaderIsWindowA: Bool
+    ) -> NSRect {
+        var origin = CGPoint.zero
+        switch edge {
+        case .rightToLeft:
+            if leaderIsWindowA {
+                origin.x = leaderFrame.maxX
+                origin.y = leaderFrame.maxY - partnerSize.height
+            } else {
+                origin.x = leaderFrame.minX - partnerSize.width
+                origin.y = leaderFrame.maxY - partnerSize.height
+            }
+        case .leftToRight:
+            if leaderIsWindowA {
+                origin.x = leaderFrame.minX - partnerSize.width
+                origin.y = leaderFrame.maxY - partnerSize.height
+            } else {
+                origin.x = leaderFrame.maxX
+                origin.y = leaderFrame.maxY - partnerSize.height
+            }
+        case .topToBottom:
+            if leaderIsWindowA {
+                origin.x = leaderFrame.minX
+                origin.y = leaderFrame.minY - partnerSize.height
+            } else {
+                origin.x = leaderFrame.minX
+                origin.y = leaderFrame.maxY
+            }
+        case .bottomToTop:
+            if leaderIsWindowA {
+                origin.x = leaderFrame.minX
+                origin.y = leaderFrame.maxY
+            } else {
+                origin.x = leaderFrame.minX
+                origin.y = leaderFrame.minY - partnerSize.height
+            }
+        }
+        return NSRect(origin: origin, size: partnerSize)
+    }
+
+    private func applyProgrammaticFrame(_ frame: NSRect, to window: NSWindow, flushDisplay: Bool) {
         let id = ObjectIdentifier(window)
+        let current = window.frame
+        guard current != frame else {
+            lastFrames[id] = frame
+            return
+        }
+
         programmaticMoveWindows.insert(id)
-        window.setFrame(frame, display: true)
+        defer { programmaticMoveWindows.remove(id) }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            context.allowsImplicitAnimation = false
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            if current.size == frame.size {
+                window.setFrameOrigin(frame.origin)
+            } else {
+                window.setFrame(frame, display: flushDisplay)
+            }
+            CATransaction.commit()
+        }
+
+        if flushDisplay {
+            window.displayIfNeeded()
+        }
         lastFrames[id] = window.frame
-        programmaticMoveWindows.remove(id)
     }
 
     // MARK: - Release Detection
@@ -228,7 +440,6 @@ final class WindowSnapCoordinator {
 
         let frameA = a.frame
         let frameB = b.frame
-
         let edgeDistance: CGFloat
         switch link.edge {
         case .rightToLeft:
@@ -240,13 +451,8 @@ final class WindowSnapCoordinator {
         case .bottomToTop:
             edgeDistance = abs(frameA.minY - frameB.maxY)
         }
-
-        if edgeDistance > Metrics.releaseThreshold { return true }
-        if !hasSufficientOverlap(frameA, frameB, for: link.edge) { return true }
-        return false
+        return edgeDistance > Metrics.releaseThreshold
     }
-
-    // MARK: - Geometry Helpers
 
     private func hasSufficientOverlap(_ a: NSRect, _ b: NSRect, for edge: WindowSnapEdge) -> Bool {
         if edge.isHorizontal {
