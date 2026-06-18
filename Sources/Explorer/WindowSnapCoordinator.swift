@@ -575,20 +575,22 @@ final class WindowSnapCoordinator {
                 origin.y = leaderFrame.maxY - partnerSize.height
             }
         case .topToBottom:
+            // windowA 在 windowB 下方：partner 在 leader 上方
             if leaderIsWindowA {
                 origin.x = leaderFrame.minX
-                origin.y = leaderFrame.minY - partnerSize.height
+                origin.y = leaderFrame.maxY
             } else {
                 origin.x = leaderFrame.minX
-                origin.y = leaderFrame.maxY
+                origin.y = leaderFrame.minY - partnerSize.height
             }
         case .bottomToTop:
+            // windowA 在 windowB 上方：partner 在 leader 下方
             if leaderIsWindowA {
                 origin.x = leaderFrame.minX
-                origin.y = leaderFrame.maxY
+                origin.y = leaderFrame.minY - partnerSize.height
             } else {
                 origin.x = leaderFrame.minX
-                origin.y = leaderFrame.minY - partnerSize.height
+                origin.y = leaderFrame.maxY
             }
         }
         return NSRect(origin: origin, size: partnerSize)
