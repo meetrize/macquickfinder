@@ -23,8 +23,11 @@ public struct FileListTableInteraction {
     public var onRenameEditingChanged: (_ isEditing: Bool) -> Void
     public var makeContextMenu: (_ clickedRow: FileListRow, _ selectedIDs: Set<String>) -> NSMenu?
     public var dropDestinationPath: (FileListRow) -> String?
+    /// 拖到列表空白区时的目标目录（通常为当前浏览路径）。
+    public var currentDirectoryDropPath: String?
     public var canAcceptDrop: (_ destinationPath: String, _ urls: [URL]) -> Bool
     public var performDrop: (_ destinationPath: String, _ urls: [URL], _ copy: Bool) -> Void
+    public var onCurrentDirectoryDropHighlightChanged: (_ isTargeted: Bool) -> Void
     public var onSpacePreview: () -> Void
     
     public init(
@@ -48,8 +51,10 @@ public struct FileListTableInteraction {
         onRenameEditingChanged: @escaping (_ isEditing: Bool) -> Void = { _ in },
         makeContextMenu: @escaping (_ clickedRow: FileListRow, _ selectedIDs: Set<String>) -> NSMenu? = { _, _ in nil },
         dropDestinationPath: @escaping (FileListRow) -> String? = { _ in nil },
+        currentDirectoryDropPath: String? = nil,
         canAcceptDrop: @escaping (_ destinationPath: String, _ urls: [URL]) -> Bool = { _, _ in false },
         performDrop: @escaping (_ destinationPath: String, _ urls: [URL], _ copy: Bool) -> Void = { _, _, _ in },
+        onCurrentDirectoryDropHighlightChanged: @escaping (_ isTargeted: Bool) -> Void = { _ in },
         onSpacePreview: @escaping () -> Void = {}
     ) {
         self.searchText = searchText
@@ -72,8 +77,10 @@ public struct FileListTableInteraction {
         self.onRenameEditingChanged = onRenameEditingChanged
         self.makeContextMenu = makeContextMenu
         self.dropDestinationPath = dropDestinationPath
+        self.currentDirectoryDropPath = currentDirectoryDropPath
         self.canAcceptDrop = canAcceptDrop
         self.performDrop = performDrop
+        self.onCurrentDirectoryDropHighlightChanged = onCurrentDirectoryDropHighlightChanged
         self.onSpacePreview = onSpacePreview
     }
 }

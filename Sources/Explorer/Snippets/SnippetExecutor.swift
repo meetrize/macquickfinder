@@ -23,6 +23,20 @@ final class SnippetExecutor: ObservableObject {
         performExecute(snippet, context: context)
     }
 
+    /// 从 AppKit 右键菜单执行；危险命令用 NSAlert 确认，不依赖 Snippets 面板是否可见。
+    func executeFromMenu(_ snippet: Snippet, context: SnippetExecutionContext) {
+        if settings.confirmDestructiveSnippets, isDestructive(snippet.content) {
+            let alert = NSAlert()
+            alert.messageText = "危险命令确认"
+            alert.informativeText = "此 Snippet 可能删除或移动文件，确定执行？"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "取消")
+            alert.addButton(withTitle: "仍要执行")
+            guard alert.runModal() == .alertSecondButtonReturn else { return }
+        }
+        performExecute(snippet, context: context)
+    }
+
     func confirmDestructiveExecution() {
         guard let snippet = pendingDestructiveSnippet, let context = pendingContext else { return }
         pendingDestructiveSnippet = nil

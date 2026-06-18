@@ -31,6 +31,11 @@ enum FileListDragSupport {
         NSApp.currentEvent?.modifierFlags.contains(.option) == true
     }
     
+    static func shouldCopy(from draggingInfo: NSDraggingInfo) -> Bool {
+        if shouldCopyFromCurrentEvent() { return true }
+        return draggingInfo.draggingSourceOperationMask.contains(.copy)
+    }
+    
     static func makeDragGhost(for path: String, name: String, showLabel: Bool) -> DragGhost {
         let icon = NSWorkspace.shared.icon(forFile: path)
         let iconDrawSize = NSSize(width: iconSize, height: iconSize)

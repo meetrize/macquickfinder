@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 /// 缩略图网格的数据源、布局与选择控制器。
 public final class FileListThumbnailController: NSObject {
@@ -85,6 +86,7 @@ public final class FileListThumbnailController: NSObject {
         collectionView.delegate = self
         collectionView.registerForDraggedTypes([
             .fileURL,
+            NSPasteboard.PasteboardType(UTType.fileURL.identifier),
             NSPasteboard.PasteboardType("public.file-url"),
             NSPasteboard.PasteboardType("NSFilenamesPboardType"),
         ])

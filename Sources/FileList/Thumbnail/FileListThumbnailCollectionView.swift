@@ -32,6 +32,7 @@ final class FileListThumbnailCollectionView: NSCollectionView {
     override func draggingExited(_ sender: NSDraggingInfo?) {
         guard let sender, let controller = interactionController else {
             interactionController?.invalidateDropTarget()
+            interactionController?.setCurrentDirectoryDropHighlight(false)
             return
         }
         // 进入 cell 子视图时可能误触发 exited；若指针仍在网格内则保持高亮
@@ -41,6 +42,7 @@ final class FileListThumbnailCollectionView: NSCollectionView {
             return
         }
         controller.invalidateDropTarget()
+        controller.setCurrentDirectoryDropHighlight(false)
     }
     
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {

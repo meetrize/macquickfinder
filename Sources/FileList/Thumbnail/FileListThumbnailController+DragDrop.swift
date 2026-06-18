@@ -68,6 +68,10 @@ extension FileListThumbnailController {
         setDropHighlight(indexPath: nil)
     }
     
+    func setCurrentDirectoryDropHighlight(_ isTargeted: Bool) {
+        interaction.onCurrentDirectoryDropHighlightChanged(isTargeted)
+    }
+    
     func clearDropHighlightVisualOnly() {
         let previous = dropHighlightIndexPath
         guard previous != nil else { return }
@@ -121,15 +125,27 @@ extension FileListThumbnailController {
     func resolvedDropTarget(
         in collectionView: NSCollectionView,
         draggingInfo: NSDraggingInfo
-    ) -> (indexPath: IndexPath, destinationPath: String)? {
-        let point = dropPoint(in: collectionView, draggingInfo: draggingInfo)
-        guard let indexPath = indexPathForDrop(at: point, in: collectionView),
-              indexPath.item >= 0,
-              indexPath.item < displayRows.count else { return nil }
+    ) -> (indexPath: IndexPath?, destinationPath: String)? {
+        let urls = resolvedDragURLs(from: draggingInfo.draggingPasteboard)
+        guard !urls.isEmpty else { return nil }
         
-        let row = displayRows[indexPath.item]
-        guard let destinationPath = interaction.dropDestinationPath(row) else { return nil }
-        return (indexPath, destinationPath)
+        let point = dropPoint(in: collectionView, draggingInfo: draggingInfo)
+        if let indexPath = indexPathForDrop(at: point, in: collectionView),
+           indexPath.item >= 0,
+           indexPath.item < displayRows.count {
+            let row = displayRows[indexPath.item]
+            if let destinationPath = interaction.dropDestinationPath(row),
+               interaction.canAcceptDrop(destinationPath, urls) {
+                return (indexPath, destinationPath)
+            }
+        }
+        
+        if let currentPath = interaction.currentDirectoryDropPath,
+           interaction.canAcceptDrop(currentPath, urls) {
+            return (nil, currentPath)
+        }
+        
+        return nil
     }
     
     func handleDraggingUpdated(_ draggingInfo: NSDraggingInfo) -> NSDragOperation {
@@ -147,11 +163,18 @@ extension FileListThumbnailController {
         guard let target = resolvedDropTarget(in: collectionView, draggingInfo: draggingInfo),
               interaction.canAcceptDrop(target.destinationPath, urls) else {
             invalidateDropTarget()
+            setCurrentDirectoryDropHighlight(false)
             return []
         }
         
-        setDropHighlight(indexPath: target.indexPath)
-        return FileListDragSupport.shouldCopyFromCurrentEvent() ? .copy : .move
+        if let indexPath = target.indexPath {
+            setDropHighlight(indexPath: indexPath)
+            setCurrentDirectoryDropHighlight(false)
+        } else {
+            invalidateDropTarget()
+            setCurrentDirectoryDropHighlight(true)
+        }
+        return FileListDragSupport.shouldCopy(from: draggingInfo) ? .copy : .move
     }
     
     @discardableResult
@@ -162,11 +185,15 @@ extension FileListThumbnailController {
             pendingDropTargetIndexPath = target.indexPath
         }
         suppressDragSnapBack()
-        let copy = FileListDragSupport.shouldCopyFromCurrentEvent()
-        return completeDropIfPossible(
+        let copy = FileListDragSupport.shouldCopy(from: draggingInfo)
+        let performed = completeDropIfPossible(
             pasteboard: draggingInfo.draggingPasteboard,
             operation: copy ? .copy : .move
         )
+        if performed {
+            setCurrentDirectoryDropHighlight(false)
+        }
+        return performed
     }
     
     @discardableResult
@@ -205,12 +232,23 @@ extension FileListThumbnailController {
         guard !urls.isEmpty else { return false }
         
         let indexPath = explicitIndexPath ?? pendingDropTargetIndexPath ?? dropHighlightIndexPath
-        guard let indexPath,
-              indexPath.item >= 0,
-              indexPath.item < displayRows.count else { return false }
+        let row: FileListRow?
+        if let indexPath,
+           indexPath.item >= 0,
+           indexPath.item < displayRows.count {
+            row = displayRows[indexPath.item]
+        } else if let currentPath = interaction.currentDirectoryDropPath,
+                  interaction.canAcceptDrop(currentPath, urls) {
+            interaction.performDrop(currentPath, urls, operation == .copy)
+            dropWasPerformed = true
+            suppressDragSnapBack()
+            return true
+        } else {
+            row = nil
+        }
         
-        let row = displayRows[indexPath.item]
-        guard let destinationPath = interaction.dropDestinationPath(row),
+        guard let row,
+              let destinationPath = interaction.dropDestinationPath(row),
               interaction.canAcceptDrop(destinationPath, urls) else {
             return false
         }
@@ -327,7 +365,11 @@ extension FileListThumbnailController {
         let operation = handleDraggingUpdated(draggingInfo)
         if operation != [],
            let target = resolvedDropTarget(in: collectionView, draggingInfo: draggingInfo) {
-            proposedDropIndexPath.pointee = target.indexPath as NSIndexPath
+            if let indexPath = target.indexPath {
+                proposedDropIndexPath.pointee = indexPath as NSIndexPath
+            } else {
+                proposedDropIndexPath.pointee = NSIndexPath(forItem: NSNotFound, inSection: 0)
+            }
             proposedDropOperation.pointee = .on
         }
         return operation

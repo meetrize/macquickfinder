@@ -310,24 +310,35 @@ struct ExplorerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .frame(minWidth: 800, minHeight: 600)
+                .frame(minWidth: 267, minHeight: 200)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
         .commands {
             FileCommands()
             CommandGroup(after: .sidebar) {
+                Button("切换左侧面板") {
+                    windowLayoutCommands?.toggleLeftPanel()
+                }
+                .keyboardShortcut(ExplorerKeyboardShortcuts.toggleLeftPanel)
+
+                Button("切换右侧面板") {
+                    windowLayoutCommands?.toggleRightPanel()
+                }
+                .keyboardShortcut(ExplorerKeyboardShortcuts.toggleRightPanel)
+
+                Divider()
                 Button((windowLayoutCommands?.showPreview ?? true) ? "关闭预览" : "显示预览") {
                     windowLayoutCommands?.togglePreview()
                 }
                 Button((windowLayoutCommands?.showSnippets ?? true) ? "关闭 Snippets" : "显示 Snippets") {
                     windowLayoutCommands?.toggleSnippets()
                 }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .keyboardShortcut(ExplorerKeyboardShortcuts.toggleSnippets)
                 Button((windowLayoutCommands?.isOutputPanelVisible ?? false) ? "关闭输出面板" : "显示输出面板") {
                     windowLayoutCommands?.toggleOutputPanel()
                 }
-                .keyboardShortcut("j", modifiers: .command)
+                .keyboardShortcut(ExplorerKeyboardShortcuts.toggleOutputPanel)
                 Divider()
                 Button("导入 Snippets…") {
                     NotificationCenter.default.post(name: .snippetsImportRequested, object: nil)
@@ -2302,6 +2313,16 @@ struct ContentView: View {
                 showPreview: layout.showPreview,
                 showSnippets: layout.showSnippets,
                 isOutputPanelVisible: layout.isOutputPanelVisible,
+                toggleLeftPanel: { layout.toggleLeftPanelVisibility() },
+                toggleRightPanel: {
+                    if layout.showPreview || layout.showSnippets {
+                        layout.showPreview = false
+                        layout.showSnippets = false
+                    } else {
+                        layout.showPreview = true
+                        layout.showSnippets = true
+                    }
+                },
                 togglePreview: { layout.showPreview.toggle() },
                 toggleSnippets: { layout.showSnippets.toggle() },
                 toggleOutputPanel: { layout.isOutputPanelVisible.toggle() }
@@ -2807,6 +2828,15 @@ struct ContentView: View {
                     selection.removeAll()
                     loadItems()
                 }
+            },
+            appendToMenu: { menu in
+                let selectedItems = FileItem.resolveSelection(ids: selection, from: items)
+                SnippetsContextMenuBuilder.appendSnippetsMenu(
+                    to: menu,
+                    cwd: path,
+                    selectedItems: selectedItems,
+                    showHiddenFiles: showHiddenFiles
+                )
             }
         )
     }
@@ -3649,17 +3679,6 @@ struct FileListView: View {
         }
         .background(FileListAutoFocusRequester(token: focusToken))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onDrop(
-            of: [.fileURL],
-            delegate: FileDropDelegate(isTargeted: $isCurrentDirectoryDropTargeted) { urls, copy in
-                let destination = URL(fileURLWithPath: currentDirectoryPath, isDirectory: true)
-                guard FileOperations.canMoveItems(urls, to: destination) else { return }
-                FileOperations.moveItems(urls, to: destination, copy: copy) {
-                    resetTreeState(keepExpanded: true)
-                    onItemsChanged(invalidationPaths(for: urls, destinationPath: currentDirectoryPath))
-                }
-            }
-        )
         .overlay {
             if isCurrentDirectoryDropTargeted {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -3837,6 +3856,7 @@ struct FileListView: View {
                     clickedRow: clickedRow,
                     selectedItems: selectedItems,
                     currentDirectoryPath: currentDirectoryPath,
+                    showHiddenFiles: showHiddenFiles,
                     actions: contextActions
                 )
             },
@@ -3847,6 +3867,7 @@ struct FileListView: View {
                 guard row.isDirectory else { return nil }
                 return row.iconPath
             },
+            currentDirectoryDropPath: currentDirectoryPath,
             canAcceptDrop: { destinationPath, urls in
                 let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
                 return FileOperations.canMoveItems(urls, to: destination)
@@ -3857,6 +3878,9 @@ struct FileListView: View {
                     resetTreeState(keepExpanded: true)
                     onItemsChanged(invalidationPaths(for: urls, destinationPath: destinationPath))
                 }
+            },
+            onCurrentDirectoryDropHighlightChanged: { isTargeted in
+                isCurrentDirectoryDropTargeted = isTargeted
             },
             onSpacePreview: {
                 guard !selection.isEmpty else { return }
@@ -4252,11 +4276,14 @@ private struct FileDropDelegate: DropDelegate {
     let onDrop: ([URL], Bool) -> Void
     
     func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [.fileURL])
+        if info.hasItemsConforming(to: [.fileURL]) { return true }
+        return !FileDragDrop.fileURLs(from: NSPasteboard(name: .drag)).isEmpty
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        isTargeted = validateDrop(info: info)
+        let hasDrop = validateDrop(info: info)
+        isTargeted = hasDrop
+        guard hasDrop else { return DropProposal(operation: .forbidden) }
         let copy = FileDragDrop.shouldCopyFromDropInfo(info)
         return DropProposal(operation: copy ? .copy : .move)
     }
@@ -4268,6 +4295,14 @@ private struct FileDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         isTargeted = false
         let copy = FileDragDrop.shouldCopyFromDropInfo(info)
+        
+        // 同应用跨窗口拖拽时 SwiftUI itemProviders 常为空，改读 drag pasteboard。
+        let dragURLs = FileDragDrop.fileURLs(from: NSPasteboard(name: .drag))
+        if !dragURLs.isEmpty {
+            onDrop(dragURLs, copy)
+            return true
+        }
+        
         Task { @MainActor in
             let urls = await FileDragDrop.loadFileURLs(from: info.itemProviders(for: [.fileURL]))
             guard !urls.isEmpty else { return }

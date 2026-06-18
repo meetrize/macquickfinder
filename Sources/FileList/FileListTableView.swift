@@ -70,4 +70,30 @@ final class FileListTableView: NSTableView {
         super.resize(withOldSuperviewSize: oldSize)
         interactionController?.schedulePaddingColumnLayout()
     }
+    
+    // MARK: - NSDraggingDestination（比仅依赖 delegate 更可靠，跨窗口拖放尤其需要）
+    
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        interactionController?.handleDraggingUpdated(sender) ?? []
+    }
+    
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        interactionController?.handleDraggingUpdated(sender) ?? []
+    }
+    
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        interactionController?.clearAllDropHighlights()
+    }
+    
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        interactionController?.handleDraggingUpdated(sender) != []
+    }
+    
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        interactionController?.performDragOperation(sender) ?? false
+    }
+    
+    override func concludeDragOperation(_ sender: NSDraggingInfo?) {
+        interactionController?.clearAllDropHighlights()
+    }
 }

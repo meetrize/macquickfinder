@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 public struct FileListBlankMenuActions {
@@ -13,6 +14,7 @@ public struct FileListBlankMenuActions {
     public var openTerminal: () -> Void = {}
     public var isInTrash = false
     public var emptyTrash: () -> Void = {}
+    public var appendToMenu: ((NSMenu) -> Void)?
     
     public init(
         isEnabled: Bool = true,
@@ -26,7 +28,8 @@ public struct FileListBlankMenuActions {
         newFile: @escaping () -> Void = {},
         openTerminal: @escaping () -> Void = {},
         isInTrash: Bool = false,
-        emptyTrash: @escaping () -> Void = {}
+        emptyTrash: @escaping () -> Void = {},
+        appendToMenu: ((NSMenu) -> Void)? = nil
     ) {
         self.isEnabled = isEnabled
         self.canGoBack = canGoBack
@@ -40,5 +43,6 @@ public struct FileListBlankMenuActions {
         self.openTerminal = openTerminal
         self.isInTrash = isInTrash
         self.emptyTrash = emptyTrash
+        self.appendToMenu = appendToMenu
     }
 }

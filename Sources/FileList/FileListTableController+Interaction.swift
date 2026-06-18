@@ -372,6 +372,84 @@ extension FileListTableController {
         setDropHighlight(row: nil)
     }
     
+    func setCurrentDirectoryDropHighlight(_ isTargeted: Bool) {
+        interaction.onCurrentDirectoryDropHighlightChanged(isTargeted)
+    }
+    
+    func clearAllDropHighlights() {
+        clearDropHighlight()
+        setCurrentDirectoryDropHighlight(false)
+    }
+    
+    func resolvedDropTarget(
+        in tableView: NSTableView,
+        draggingInfo: NSDraggingInfo,
+        urls: [URL]
+    ) -> (row: Int?, destinationPath: String)? {
+        let point = tableView.convert(draggingInfo.draggingLocation, from: nil)
+        let row = tableView.row(at: point)
+        
+        if row >= 0, row < displayRows.count {
+            let rowItem = displayRows[row]
+            if let destinationPath = interaction.dropDestinationPath(rowItem),
+               interaction.canAcceptDrop(destinationPath, urls) {
+                return (row, destinationPath)
+            }
+        }
+        
+        if let currentPath = interaction.currentDirectoryDropPath,
+           interaction.canAcceptDrop(currentPath, urls) {
+            return (nil, currentPath)
+        }
+        
+        return nil
+    }
+    
+    func handleDraggingUpdated(_ draggingInfo: NSDraggingInfo) -> NSDragOperation {
+        guard let tableView else {
+            clearAllDropHighlights()
+            return []
+        }
+        
+        let urls = FileListDragSupport.fileURLs(from: draggingInfo.draggingPasteboard)
+        guard !urls.isEmpty else {
+            clearAllDropHighlights()
+            return []
+        }
+        
+        guard let target = resolvedDropTarget(in: tableView, draggingInfo: draggingInfo, urls: urls) else {
+            clearAllDropHighlights()
+            return []
+        }
+        
+        if let row = target.row {
+            setDropHighlight(row: row)
+            setCurrentDirectoryDropHighlight(false)
+        } else {
+            clearDropHighlight()
+            setCurrentDirectoryDropHighlight(true)
+        }
+        
+        return FileListDragSupport.shouldCopy(from: draggingInfo) ? .copy : .move
+    }
+    
+    @discardableResult
+    func performDragOperation(_ draggingInfo: NSDraggingInfo) -> Bool {
+        guard let tableView else { return false }
+        
+        let urls = FileListDragSupport.fileURLs(from: draggingInfo.draggingPasteboard)
+        guard !urls.isEmpty else { return false }
+        
+        guard let target = resolvedDropTarget(in: tableView, draggingInfo: draggingInfo, urls: urls) else {
+            return false
+        }
+        
+        let copy = FileListDragSupport.shouldCopy(from: draggingInfo)
+        clearAllDropHighlights()
+        interaction.performDrop(target.destinationPath, urls, copy)
+        return true
+    }
+    
     // MARK: - Helpers
     
     func effectiveSelectionIDs() -> Set<String> {
@@ -459,31 +537,23 @@ extension FileListTableController {
     public func tableView(
         _ tableView: NSTableView,
         validateDrop info: NSDraggingInfo,
-        proposedRow row: Int,
-        proposedDropOperation dropOperation: NSTableView.DropOperation
+        proposedRow row: UnsafeMutablePointer<Int>,
+        proposedDropOperation dropOperation: UnsafeMutablePointer<NSTableView.DropOperation>
     ) -> NSDragOperation {
-        let urls = FileListDragSupport.fileURLs(from: info.draggingPasteboard)
-        guard !urls.isEmpty else {
-            clearDropHighlight()
-            return []
-        }
+        let operation = handleDraggingUpdated(info)
+        guard operation != [] else { return [] }
         
         let point = tableView.convert(info.draggingLocation, from: nil)
-        let targetRow = row >= 0 ? row : tableView.row(at: point)
-        guard targetRow >= 0, targetRow < displayRows.count else {
-            clearDropHighlight()
-            return []
+        let targetRow = tableView.row(at: point)
+        if targetRow >= 0,
+           targetRow < displayRows.count,
+           interaction.dropDestinationPath(displayRows[targetRow]) != nil {
+            row.pointee = targetRow
+        } else {
+            row.pointee = -1
         }
-        
-        let rowItem = displayRows[targetRow]
-        guard let destinationPath = interaction.dropDestinationPath(rowItem),
-              interaction.canAcceptDrop(destinationPath, urls) else {
-            clearDropHighlight()
-            return []
-        }
-        
-        setDropHighlight(row: targetRow)
-        return FileListDragSupport.shouldCopyFromCurrentEvent() ? .copy : .move
+        dropOperation.pointee = .on
+        return operation
     }
     
     public func tableView(
@@ -492,14 +562,7 @@ extension FileListTableController {
         row: Int,
         dropOperation: NSTableView.DropOperation
     ) -> Bool {
-        clearDropHighlight()
-        let urls = FileListDragSupport.fileURLs(from: info.draggingPasteboard)
-        guard !urls.isEmpty, row >= 0, row < displayRows.count else { return false }
-        guard let destinationPath = interaction.dropDestinationPath(displayRows[row]) else { return false }
-        
-        let copy = FileListDragSupport.shouldCopyFromCurrentEvent()
-        interaction.performDrop(destinationPath, urls, copy)
-        return true
+        performDragOperation(info)
     }
     
     public func tableView(
@@ -508,6 +571,6 @@ extension FileListTableController {
         endedAt screenPoint: NSPoint,
         operation: NSDragOperation
     ) {
-        clearDropHighlight()
+        clearAllDropHighlights()
     }
 }

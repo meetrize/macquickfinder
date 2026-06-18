@@ -2,11 +2,14 @@ import AppKit
 import CoreServices
 import FileList
 
+@MainActor
 enum FileListRowContextMenuBuilder {
+    @MainActor
     static func makeMenu(
         clickedRow: FileListRow,
         selectedItems: [FileItem],
         currentDirectoryPath: String,
+        showHiddenFiles: Bool,
         actions: FileContextActions
     ) -> NSMenu? {
         let menu = NSMenu()
@@ -17,6 +20,12 @@ enum FileListRowContextMenuBuilder {
            let item = selectedItems.first,
            item.isParentDirectoryEntry {
             menu.addItem(menuItem(title: "打开") { actions.open(item) })
+            SnippetsContextMenuBuilder.appendSnippetsMenu(
+                to: menu,
+                cwd: currentDirectoryPath,
+                selectedItems: selectedItems,
+                showHiddenFiles: showHiddenFiles
+            )
             return menu.items.isEmpty ? nil : menu
         }
         
@@ -87,6 +96,13 @@ enum FileListRowContextMenuBuilder {
             menu.addItem(.separator())
             menu.addItem(menuItem(title: "在此处打开终端") { actions.openTerminal(item) })
         }
+
+        SnippetsContextMenuBuilder.appendSnippetsMenu(
+            to: menu,
+            cwd: currentDirectoryPath,
+            selectedItems: selectedItems,
+            showHiddenFiles: showHiddenFiles
+        )
         
         menu.addItem(menuItem(title: "属性") { actions.showInfo(fileSelection) })
         return menu

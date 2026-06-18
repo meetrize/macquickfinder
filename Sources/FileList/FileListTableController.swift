@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 /// NSTableView 数据源、列配置、排序与表头交互的统一控制器。
 public final class FileListTableController: NSObject {
@@ -88,7 +89,12 @@ public final class FileListTableController: NSObject {
         tableView.dataSource = self
         tableView.target = self
         tableView.doubleAction = #selector(handleDoubleClick(_:))
-        tableView.registerForDraggedTypes([.fileURL])
+        tableView.registerForDraggedTypes([
+            .fileURL,
+            NSPasteboard.PasteboardType(UTType.fileURL.identifier),
+            NSPasteboard.PasteboardType("public.file-url"),
+            NSPasteboard.PasteboardType("NSFilenamesPboardType"),
+        ])
         tableView.setDraggingSourceOperationMask(.move, forLocal: true)
         tableView.setDraggingSourceOperationMask([.move, .copy], forLocal: false)
         

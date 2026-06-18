@@ -241,6 +241,8 @@ struct WindowLayoutCommands {
     var showPreview: Bool
     var showSnippets: Bool
     var isOutputPanelVisible: Bool
+    var toggleLeftPanel: () -> Void
+    var toggleRightPanel: () -> Void
     var togglePreview: () -> Void
     var toggleSnippets: () -> Void
     var toggleOutputPanel: () -> Void

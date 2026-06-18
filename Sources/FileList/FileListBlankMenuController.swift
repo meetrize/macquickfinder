@@ -41,6 +41,7 @@ public final class FileListBlankMenuController: NSObject {
         menu.addItem(makeItem(title: "新建文件", action: .newFile, enabled: true))
         menu.addItem(.separator())
         menu.addItem(makeItem(title: "在此处打开终端", action: .openTerminal, enabled: true))
+        actions.appendToMenu?(menu)
         
         return menu
     }
