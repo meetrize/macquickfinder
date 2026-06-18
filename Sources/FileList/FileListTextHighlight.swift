@@ -61,7 +61,7 @@ enum FileListTextHighlight {
         return result
     }
     
-    /// 缩略图格子底部 overlay 用：白字 + 黄底高亮。
+    /// 缩略图格子底部 overlay 用：黑字 + 黄底高亮。
     static func attributedOverlayName(
         _ text: String,
         searchText: String,
@@ -71,7 +71,7 @@ enum FileListTextHighlight {
         let font = isDirectory
             ? NSFont.boldSystemFont(ofSize: 11)
             : NSFont.systemFont(ofSize: 11)
-        let color = isHidden ? NSColor.white.withAlphaComponent(0.72) : NSColor.white
+        let color = isHidden ? NSColor.black.withAlphaComponent(0.45) : NSColor.black
         let attributes = baseAttributes(font: font, color: color)
         
         guard !searchText.isEmpty else {

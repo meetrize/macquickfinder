@@ -72,6 +72,32 @@ public enum FileListThumbnailMetrics {
         return image
     }
     
+    /// 缩略图底部条用紧凑大小文案（如 `1k`、`12m`；0 仅显示 `0`，不带单位）。
+    public static func compactSizeDisplay(bytes: Int64) -> String {
+        guard bytes != 0 else { return "0" }
+        let units: [(Int64, String)] = [
+            (1_099_511_627_776, "t"),
+            (1_073_741_824, "g"),
+            (1_048_576, "m"),
+            (1_024, "k"),
+        ]
+        for (threshold, suffix) in units where bytes >= threshold {
+            let value = Double(bytes) / Double(threshold)
+            if value >= 100 {
+                return "\(Int(value.rounded()))\(suffix)"
+            }
+            if value >= 10 {
+                return "\(Int(value.rounded()))\(suffix)"
+            }
+            let rounded = (value * 10).rounded() / 10
+            if rounded == rounded.rounded(.towardZero) {
+                return "\(Int(rounded))\(suffix)"
+            }
+            return String(format: "%.1f\(suffix)", rounded)
+        }
+        return "\(bytes)"
+    }
+    
     /// 在容器内保持比例放大图片：宽、高至少一边贴满容器，另一边居中，超出部分由调用方裁剪。
     public static func aspectFillFrame(imageSize: NSSize, in containerSize: NSSize) -> NSRect {
         guard imageSize.width > 0, imageSize.height > 0,
