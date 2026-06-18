@@ -3086,7 +3086,10 @@ private struct FavoritesSidebarRows: View {
             onDropURLs: onDropURLs
         )
         .id(showsTitle)
-        .frame(maxWidth: showsTitle ? .infinity : FavoriteSidebarRailLayout.contentWidth)
+        .frame(
+            maxWidth: showsTitle ? .infinity : FavoriteSidebarRailLayout.contentWidth,
+            alignment: .leading
+        )
         .clipped()
         .fixedSize(horizontal: false, vertical: true)
     }

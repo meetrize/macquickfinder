@@ -23,6 +23,12 @@ enum FavoriteSidebarRailLayout {
 private enum FavoriteSidebarMetrics {
     static let railContentWidth = FavoriteSidebarRailLayout.contentWidth
     static let sidebarColumnWidth: CGFloat = 240
+    /// 与 `SidebarRow`（body + vertical 4）视觉行高对齐。
+    static let sidebarRowHeight: CGFloat = 24
+    static let railRowHeight: CGFloat = 28
+    static let rowContentInset: CGFloat = 8
+    /// 侧栏模式下图标左边距（比 `SidebarRow` 视觉基准左移 3pt 以与 Devices 对齐）。
+    static let sidebarIconLeadingInset: CGFloat = 3
 }
 
 // MARK: - Controller
@@ -405,21 +411,24 @@ private final class FavoriteSidebarCellView: NSTableCellView {
         addSubview(iconView)
         addSubview(titleField)
         
-        iconLeadingConstraint = iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8)
+        iconLeadingConstraint = iconView.leadingAnchor.constraint(
+            equalTo: leadingAnchor,
+            constant: FavoriteSidebarMetrics.sidebarIconLeadingInset
+        )
         iconCenterConstraint = iconView.centerXAnchor.constraint(equalTo: centerXAnchor)
         titleLeadingConstraint = titleField.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 8)
         
         NSLayoutConstraint.activate([
             background.leadingAnchor.constraint(equalTo: leadingAnchor),
             background.trailingAnchor.constraint(equalTo: trailingAnchor),
-            background.topAnchor.constraint(equalTo: topAnchor, constant: 1),
-            background.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -1),
+            background.topAnchor.constraint(equalTo: topAnchor),
+            background.bottomAnchor.constraint(equalTo: bottomAnchor),
             
             iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
             iconView.widthAnchor.constraint(equalToConstant: 16),
             iconView.heightAnchor.constraint(equalToConstant: 16),
             
-            titleField.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
+            titleField.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -FavoriteSidebarMetrics.rowContentInset),
             titleField.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }
@@ -528,7 +537,8 @@ final class FavoritesTableView: NSTableView {
     
     func applyShowsTitleLayout(_ showsTitle: Bool) {
         configuredShowsTitle = showsTitle
-        rowHeight = showsTitle ? 30 : 28
+        rowHeight = showsTitle ? FavoriteSidebarMetrics.sidebarRowHeight : FavoriteSidebarMetrics.railRowHeight
+        rowSizeStyle = .custom
         columnAutoresizingStyle = showsTitle
             ? .uniformColumnAutoresizingStyle
             : .noColumnAutoresizing
@@ -553,10 +563,12 @@ final class FavoritesTableView: NSTableView {
         backgroundColor = .clear
         focusRingType = .none
         selectionHighlightStyle = .none
+        style = .fullWidth
+        rowSizeStyle = .custom
         allowsEmptySelection = true
         allowsMultipleSelection = false
         usesAlternatingRowBackgroundColors = false
-        intercellSpacing = NSSize(width: 0, height: 2)
+        intercellSpacing = .zero
         clipsToBounds = true
         
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("FavoriteColumn"))
