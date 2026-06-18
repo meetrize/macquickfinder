@@ -65,8 +65,26 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
             }
             tableView?.reloadData()
             tableView?.invalidateIntrinsicContentSize()
+            if layoutChanged {
+                scheduleLayoutRefreshAfterModeChange()
+            }
         }
         refreshRowHighlighting()
+    }
+    
+    func scheduleLayoutRefreshAfterModeChange() {
+        guard let tableView else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let tableView = self.tableView else { return }
+            tableView.layoutSubtreeIfNeeded()
+            self.refreshRowHighlighting()
+            for row in 0..<tableView.numberOfRows {
+                if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: false) as? FavoriteSidebarCellView {
+                    cell.needsLayout = true
+                    cell.layoutSubtreeIfNeeded()
+                }
+            }
+        }
     }
     
     func item(at row: Int) -> FavoriteItem? {
@@ -88,6 +106,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
             
             if let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? FavoriteSidebarRowView {
                 rowView.isFavoriteSelected = selected
+                rowView.updateTooltip(parent.showsTitle ? nil : item.name)
             }
             if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: true) as? FavoriteSidebarCellView {
                 cell.configure(item: item, showsTitle: parent.showsTitle, isSelected: selected)
@@ -127,7 +146,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         rowView.rowIndex = row
         if let item = item(at: row) {
             rowView.isFavoriteSelected = parent.isSelected(item.path)
-            rowView.toolTip = parent.showsTitle ? nil : item.name
+            rowView.updateTooltip(parent.showsTitle ? nil : item.name)
         }
         return rowView
     }
@@ -147,6 +166,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     }
     
     func handleRightMouseDown(_ event: NSEvent) {
+        RailTooltipPresenter.hide()
         guard let tableView else { return }
         let point = tableView.convert(event.locationInWindow, from: nil)
         let row = tableView.row(at: point)
@@ -178,6 +198,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     
     func beginReorderDrag(forRow row: Int, event: NSEvent, in rowView: NSView) {
         guard let tableView, let item = item(at: row) else { return }
+        RailTooltipPresenter.hide()
         reorderDragRow = row
         
         let pasteboardItem = NSPasteboardItem()
@@ -379,8 +400,9 @@ private final class FavoriteSidebarCellView: NSTableCellView {
     private let titleField = NSTextField(labelWithString: "")
     private let background = NSBox()
     private var iconLeadingConstraint: NSLayoutConstraint?
-    private var iconCenterConstraint: NSLayoutConstraint?
+    private var iconRailCenterConstraint: NSLayoutConstraint?
     private var titleLeadingConstraint: NSLayoutConstraint?
+    private var showsTitleLayout = true
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -415,7 +437,10 @@ private final class FavoriteSidebarCellView: NSTableCellView {
             equalTo: leadingAnchor,
             constant: FavoriteSidebarMetrics.sidebarIconLeadingInset
         )
-        iconCenterConstraint = iconView.centerXAnchor.constraint(equalTo: centerXAnchor)
+        iconRailCenterConstraint = iconView.centerXAnchor.constraint(
+            equalTo: leadingAnchor,
+            constant: FavoriteSidebarMetrics.railContentWidth / 2
+        )
         titleLeadingConstraint = titleField.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 8)
         
         NSLayoutConstraint.activate([
@@ -441,15 +466,24 @@ private final class FavoriteSidebarCellView: NSTableCellView {
         
         titleField.stringValue = showsTitle ? item.name : ""
         titleField.isHidden = !showsTitle
+        titleField.alphaValue = showsTitle ? 1 : 0
         titleField.textColor = isSelected ? .controlAccentColor : .labelColor
         
         iconLeadingConstraint?.isActive = showsTitle
-        iconCenterConstraint?.isActive = !showsTitle
+        iconRailCenterConstraint?.isActive = !showsTitle
         titleLeadingConstraint?.isActive = showsTitle
+        showsTitleLayout = showsTitle
         
         background.fillColor = isSelected
             ? NSColor.unemphasizedSelectedContentBackgroundColor
             : .clear
+    }
+    
+    override func layout() {
+        super.layout()
+        guard !showsTitleLayout else { return }
+        // 模式切换瞬间 cell 可能比窄栏更宽；按固定轨道宽度居中，不依赖 cell.bounds.width。
+        iconRailCenterConstraint?.constant = FavoriteSidebarMetrics.railContentWidth / 2
     }
 }
 
@@ -461,9 +495,50 @@ private final class FavoriteSidebarRowView: NSTableRowView {
     private var mouseDownLocation: NSPoint = .zero
     private let dragThreshold: CGFloat = 4
     private var didBeginDrag = false
+    private var tooltipText: String?
+    private var trackingArea: NSTrackingArea?
     
     override func drawSelection(in dirtyRect: NSRect) {
         // 选中样式由 cell 自己绘制。
+    }
+    
+    func updateTooltip(_ text: String?) {
+        let normalized = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let next = normalized?.isEmpty == false ? normalized : nil
+        guard tooltipText != next else { return }
+        tooltipText = next
+        toolTip = nil
+        updateTrackingAreas()
+    }
+    
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+            self.trackingArea = nil
+        }
+        guard tooltipText != nil else { return }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+    
+    override func mouseEntered(with event: NSEvent) {
+        guard let tooltipText else { return }
+        RailTooltipPresenter.show(text: tooltipText, anchor: self)
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        RailTooltipPresenter.hide()
+    }
+    
+    deinit {
+        RailTooltipPresenter.hide()
     }
     
     private func selectRowIfNeeded() {
@@ -508,6 +583,13 @@ final class FavoritesTableView: NSTableView {
         controller?.handleRightMouseDown(event)
     }
     
+    override func resize(withOldSuperviewSize oldSize: NSSize) {
+        super.resize(withOldSuperviewSize: oldSize)
+        guard !configuredShowsTitle else { return }
+        guard abs(oldSize.width - frame.width) > 0.5 else { return }
+        controller?.refreshRowHighlighting()
+    }
+    
     override var intrinsicContentSize: NSSize {
         let rowCount = max(numberOfRows, 0)
         guard rowCount > 0 else {
@@ -539,6 +621,7 @@ final class FavoritesTableView: NSTableView {
         configuredShowsTitle = showsTitle
         rowHeight = showsTitle ? FavoriteSidebarMetrics.sidebarRowHeight : FavoriteSidebarMetrics.railRowHeight
         rowSizeStyle = .custom
+        style = showsTitle ? .fullWidth : .plain
         columnAutoresizingStyle = showsTitle
             ? .uniformColumnAutoresizingStyle
             : .noColumnAutoresizing
@@ -556,6 +639,8 @@ final class FavoritesTableView: NSTableView {
             column.width = FavoriteSidebarMetrics.railContentWidth
         }
         invalidateIntrinsicContentSize()
+        needsLayout = true
+        layoutSubtreeIfNeeded()
     }
     
     private func install(showsTitle: Bool) {
@@ -563,7 +648,6 @@ final class FavoritesTableView: NSTableView {
         backgroundColor = .clear
         focusRingType = .none
         selectionHighlightStyle = .none
-        style = .fullWidth
         rowSizeStyle = .custom
         allowsEmptySelection = true
         allowsMultipleSelection = false
@@ -624,13 +708,20 @@ struct FavoritesSidebarHost: NSViewRepresentable {
         tableView.dataSource = context.coordinator
         tableView.delegate = context.coordinator
         tableView.reloadData()
+        if !showsTitle {
+            context.coordinator.scheduleLayoutRefreshAfterModeChange()
+        }
         return tableView
     }
     
     func updateNSView(_ tableView: FavoritesTableView, context: Context) {
+        let previousShowsTitle = tableView.configuredShowsTitle
         context.coordinator.parent = self
         tableView.installIfNeeded(showsTitle: showsTitle)
         context.coordinator.syncFromParent()
+        if previousShowsTitle != showsTitle {
+            context.coordinator.scheduleLayoutRefreshAfterModeChange()
+        }
     }
     
     static func sizeThatFits(

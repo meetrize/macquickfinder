@@ -3086,12 +3086,13 @@ private struct FavoritesSidebarRows: View {
             onDropURLs: onDropURLs
         )
         .id(showsTitle)
+        .frame(width: showsTitle ? nil : FavoriteSidebarRailLayout.contentWidth)
         .frame(
             maxWidth: showsTitle ? .infinity : FavoriteSidebarRailLayout.contentWidth,
-            alignment: .leading
+            alignment: showsTitle ? .leading : .center
         )
         .clipped()
-        .fixedSize(horizontal: false, vertical: true)
+        .fixedSize(horizontal: !showsTitle, vertical: true)
     }
 }
 
@@ -3268,6 +3269,7 @@ struct SidebarRailView: View {
                         isSelected: isSelected,
                         onDropURLs: handleFavoriteDrop
                     )
+                    .frame(maxWidth: .infinity)
                 }
                 
                 Divider()
@@ -3362,7 +3364,7 @@ struct SidebarRailView: View {
     }
 }
 
-private enum RailTooltipPresenter {
+enum RailTooltipPresenter {
     private static let panel = RailTooltipPanel()
     
     static func show(text: String, anchor: NSView) {
