@@ -3,7 +3,6 @@ import QuartzCore
 
 // MARK: - NSWindow Frame Hook
 
-/// 在 leader 的 setFrame 生效前先移动 follower，避免 follower 永远慢一帧
 enum NSWindowSnapFrameHook {
     private static var isInstalled = false
 
@@ -32,16 +31,13 @@ enum NSWindowSnapFrameHook {
 
 extension NSWindow {
     @objc dynamic func mf_snap_setFrameOrigin(_ point: NSPoint) {
-        let targetFrame = NSRect(origin: point, size: frame.size)
-        WindowSnapCoordinator.shared.willMoveLeader(self, to: targetFrame)
         mf_snap_setFrameOrigin(point)
-        WindowSnapCoordinator.shared.didMoveLeader(self)
+        WindowSnapCoordinator.shared.leaderFrameUpdated(self)
     }
 
     @objc dynamic func mf_snap_setFrame(_ frameRect: NSRect, display flag: Bool) {
-        WindowSnapCoordinator.shared.willMoveLeader(self, to: frameRect)
         mf_snap_setFrame(frameRect, display: flag)
-        WindowSnapCoordinator.shared.didMoveLeader(self)
+        WindowSnapCoordinator.shared.leaderFrameUpdated(self)
     }
 }
 
@@ -101,6 +97,28 @@ private struct SnapCandidate: Comparable {
     }
 }
 
+// MARK: - RunLoop Sync
+
+/// 标题栏拖动时主线程 RunLoop 处于 eventTracking 模式，必须用 .common / .eventTracking 才能持续回调
+private final class DragRunLoopSync {
+    private var timer: Timer?
+
+    func start(tick: @escaping () -> Void) {
+        guard timer == nil else { return }
+        let timer = Timer(timeInterval: 1.0 / 120.0, repeats: true) { _ in
+            tick()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        RunLoop.main.add(timer, forMode: .eventTracking)
+        self.timer = timer
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+}
+
 // MARK: - Coordinator
 
 @MainActor
@@ -111,15 +129,19 @@ final class WindowSnapCoordinator {
         static let snapThreshold: CGFloat = 12
         static let releaseThreshold: CGFloat = 56
         static let minOverlap: CGFloat = 80
+        static let moveEpsilon: CGFloat = 0.25
     }
 
     private let windows = NSHashTable<NSWindow>.weakObjects()
     private var activeLink: WindowSnapLink?
-    private var lastFrames: [ObjectIdentifier: NSRect] = [:]
     private var programmaticMoveWindows = Set<ObjectIdentifier>()
     private weak var dragLeader: NSWindow?
-    private var mouseUpMonitor: Any?
-    private var isBatchingScreenUpdate = false
+    private var mouseEventMonitor: Any?
+    private let dragRunLoopSync = DragRunLoopSync()
+    private var isContinuousSyncActive = false
+    private var lastMouseLocation: NSPoint?
+    /// 拖动中 leader 的估算 frame（鼠标增量更新，setFrame 时与真实 frame 校准）
+    private var sessionLeaderFrame: NSRect?
 
     private init() {}
 
@@ -131,109 +153,66 @@ final class WindowSnapCoordinator {
 
     func register(window: NSWindow) {
         NSWindowSnapFrameHook.installIfNeeded()
-        installMouseUpMonitorIfNeeded()
+        installMouseEventMonitorIfNeeded()
         guard isEligible(window) else { return }
         windows.add(window)
         prepareWindowForLinkedMove(window)
-        lastFrames[ObjectIdentifier(window)] = window.frame
     }
 
     func unregister(window: NSWindow) {
         windows.remove(window)
-        lastFrames.removeValue(forKey: ObjectIdentifier(window))
         programmaticMoveWindows.remove(ObjectIdentifier(window))
         if dragLeader === window {
             dragLeader = nil
         }
         if activeLink?.contains(window) == true {
-            activeLink = nil
+            setActiveLink(nil)
         }
     }
 
-    // MARK: - Frame Hook Entry Points
+    // MARK: - Event Handlers
 
-    /// leader 即将移动：根据目标 frame 先移动 follower，再让 leader 移动
-    func willMoveLeader(_ leader: NSWindow, to targetLeaderFrame: NSRect) {
+    func leaderFrameUpdated(_ leader: NSWindow) {
         guard isEnabled, isEligible(leader), isRegistered(leader) else { return }
         guard !isProgrammatic(leader) else { return }
 
-        guard let link = activeLink, link.contains(leader), let partner = link.otherWindow(than: leader) else {
-            return
-        }
-
-        dragLeader = leader
-        let partnerTarget = pixelAligned(partnerFrame(
-            leaderFrame: pixelAligned(targetLeaderFrame),
-            partnerSize: partner.frame.size,
-            edge: link.edge,
-            leaderIsWindowA: link.leaderIsWindowA(leader)
-        ))
-
-        guard partner.frame != partnerTarget else { return }
-
-        isBatchingScreenUpdate = true
-        moveWindow(partner, to: partnerTarget)
-        isBatchingScreenUpdate = false
-    }
-
-    /// leader 移动完成：更新状态、检测解除吸附或尝试新吸附
-    func didMoveLeader(_ window: NSWindow) {
-        guard isEnabled, isEligible(window), isRegistered(window) else { return }
-        guard !isProgrammatic(window) else {
-            lastFrames[ObjectIdentifier(window)] = window.frame
-            return
-        }
-
-        lastFrames[ObjectIdentifier(window)] = window.frame
-
-        if let link = activeLink, link.contains(window) {
-            dragLeader = window
-            if shouldReleaseLink(link) {
-                activeLink = nil
-                dragLeader = nil
+        if let link = activeLink, link.contains(leader) {
+            dragLeader = leader
+            if NSEvent.pressedMouseButtons & 1 != 0 {
+                // setFrame 回调时与真实位置校准，消除估算漂移
+                sessionLeaderFrame = leader.frame
+                syncLayoutFromSession(flushDisplay: false)
+            } else {
+                syncPartnerToLeader(flushDisplay: false)
+            }
+            if NSEvent.pressedMouseButtons & 1 == 0, shouldReleaseLink(link) {
+                setActiveLink(nil)
             }
             return
         }
 
         if activeLink == nil {
-            trySnap(moving: window)
+            trySnap(moving: leader)
         }
     }
 
-    /// didMove 兜底：仅处理 hook 未覆盖的路径
     func handleWindowDidMove(_ window: NSWindow) {
         guard isEnabled, isEligible(window), isRegistered(window) else { return }
-        guard !isProgrammatic(window) else {
-            lastFrames[ObjectIdentifier(window)] = window.frame
+        guard !isProgrammatic(window) else { return }
+
+        if activeLink?.contains(window) == true {
+            dragLeader = window
             return
         }
 
-        guard let link = activeLink, link.contains(window), let partner = link.otherWindow(than: window) else {
-            didMoveLeader(window)
-            return
-        }
-
-        // hook 已处理常规拖动；此处仅修正漂移
-        dragLeader = window
-        let expected = pixelAligned(partnerFrame(
-            leaderFrame: pixelAligned(window.frame),
-            partnerSize: partner.frame.size,
-            edge: link.edge,
-            leaderIsWindowA: link.leaderIsWindowA(window)
-        ))
-        if partner.frame != expected {
-            moveWindow(partner, to: expected)
-        }
-        lastFrames[ObjectIdentifier(window)] = window.frame
+        leaderFrameUpdated(window)
     }
 
     func handleWindowDidResize(_ window: NSWindow) {
         guard isEnabled else { return }
-        lastFrames[ObjectIdentifier(window)] = window.frame
         guard let link = activeLink, link.contains(window) else { return }
         if shouldReleaseLink(link) {
-            activeLink = nil
-            dragLeader = nil
+            setActiveLink(nil)
         }
     }
 
@@ -245,38 +224,168 @@ final class WindowSnapCoordinator {
         unregister(window: window)
     }
 
-    func endLinkedDragSession() {
-        guard dragLeader != nil else { return }
+    // MARK: - Active Link Lifecycle
 
-        if let link = activeLink, let leader = dragLeader ?? link.windowA ?? link.windowB {
-            if let partner = link.otherWindow(than: leader) {
-                let expected = pixelAligned(partnerFrame(
-                    leaderFrame: pixelAligned(leader.frame),
-                    partnerSize: partner.frame.size,
-                    edge: link.edge,
-                    leaderIsWindowA: link.leaderIsWindowA(leader)
-                ))
-                moveWindow(partner, to: expected, flushDisplay: true)
-                leader.displayIfNeeded()
-                partner.displayIfNeeded()
+    private func setActiveLink(_ link: WindowSnapLink?) {
+        activeLink = link
+        if link == nil {
+            stopContinuousSync()
+            dragLeader = nil
+            sessionLeaderFrame = nil
+            return
+        }
+        startContinuousSync()
+        lastMouseLocation = nil
+        sessionLeaderFrame = nil
+    }
+
+    private func finalizeDragIfNeeded() {
+        guard activeLink != nil else { return }
+        if let leader = dragLeader ?? activeLink?.windowA ?? activeLink?.windowB {
+            sessionLeaderFrame = leader.frame
+        }
+        syncPartnerToLeader(flushDisplay: true)
+        if let link = activeLink {
+            refreshLinkedWindowsChrome(link)
+            if shouldReleaseLink(link) {
+                setActiveLink(nil)
             }
         }
         dragLeader = nil
+        lastMouseLocation = nil
+        sessionLeaderFrame = nil
+    }
+
+    private func handleMouseDown() {
+        guard activeLink != nil else { return }
+        let mouse = NSEvent.mouseLocation
+        lastMouseLocation = mouse
+        if let leader = topmostRegisteredWindow(at: mouse), activeLink?.contains(leader) == true {
+            dragLeader = leader
+            sessionLeaderFrame = leader.frame
+        } else if let leader = dragLeader ?? activeLink?.windowA {
+            sessionLeaderFrame = leader.frame
+        }
+    }
+
+    // MARK: - Continuous Sync
+
+    private func startContinuousSync() {
+        guard !isContinuousSyncActive else { return }
+        isContinuousSyncActive = true
+        dragRunLoopSync.start { [weak self] in
+            self?.continuousSyncTick()
+        }
+    }
+
+    private func stopContinuousSync() {
+        dragRunLoopSync.stop()
+        isContinuousSyncActive = false
+    }
+
+    /// 用鼠标增量更新 leader 估算位置，再绝对计算另一扇窗位置（顶/左对齐，无累积误差）
+    private func continuousSyncTick() {
+        guard isEnabled, let link = activeLink else { return }
+        guard NSEvent.pressedMouseButtons & 1 != 0 else { return }
+        guard let leader = dragLeader ?? link.windowA ?? link.windowB,
+              link.otherWindow(than: leader) != nil else { return }
+
+        if sessionLeaderFrame == nil {
+            sessionLeaderFrame = leader.frame
+        }
+        guard var estimatedLeader = sessionLeaderFrame else { return }
+
+        let mouse = NSEvent.mouseLocation
+        if let lastMouse = lastMouseLocation {
+            let dx = mouse.x - lastMouse.x
+            let dy = mouse.y - lastMouse.y
+            if hypot(dx, dy) >= Metrics.moveEpsilon {
+                estimatedLeader.origin.x += dx
+                estimatedLeader.origin.y += dy
+                sessionLeaderFrame = estimatedLeader
+            }
+        }
+        lastMouseLocation = mouse
+
+        syncLayoutFromSession(flushDisplay: false)
+    }
+
+    /// 根据 session 中 leader 的估算 frame，绝对定位另一扇窗
+    private func syncLayoutFromSession(flushDisplay: Bool) {
+        guard let link = activeLink,
+              let leader = dragLeader ?? link.windowA ?? link.windowB,
+              let partner = link.otherWindow(than: leader),
+              let leaderFrame = sessionLeaderFrame else { return }
+
+        let target = pixelAligned(
+            partnerFrame(
+                leaderFrame: leaderFrame,
+                partnerSize: partner.frame.size,
+                edge: link.edge,
+                leaderIsWindowA: link.leaderIsWindowA(leader)
+            ),
+            scale: partner.backingScaleFactor
+        )
+
+        movePartnerWindow(partner, to: target, flushDisplay: flushDisplay)
+    }
+
+    private func syncPartnerToLeader(flushDisplay: Bool) {
+        guard let link = activeLink,
+              let leader = dragLeader ?? link.windowA ?? link.windowB,
+              let partner = link.otherWindow(than: leader) else { return }
+
+        sessionLeaderFrame = leader.frame
+
+        let target = pixelAligned(
+            partnerFrame(
+                leaderFrame: leader.frame,
+                partnerSize: partner.frame.size,
+                edge: link.edge,
+                leaderIsWindowA: link.leaderIsWindowA(leader)
+            ),
+            scale: partner.backingScaleFactor
+        )
+
+        movePartnerWindow(partner, to: target, flushDisplay: flushDisplay)
+    }
+
+    private func topmostRegisteredWindow(at mouse: NSPoint) -> NSWindow? {
+        windows.allObjects
+            .filter { isEligible($0) && $0.frame.contains(mouse) }
+            .max(by: { $0.orderedIndex < $1.orderedIndex })
     }
 
     // MARK: - Private Setup
 
-    private func installMouseUpMonitorIfNeeded() {
-        guard mouseUpMonitor == nil else { return }
-        mouseUpMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { event in
-            WindowSnapCoordinator.shared.endLinkedDragSession()
+    private func installMouseEventMonitorIfNeeded() {
+        guard mouseEventMonitor == nil else { return }
+        mouseEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { event in
+            switch event.type {
+            case .leftMouseDown:
+                WindowSnapCoordinator.shared.handleMouseDown()
+            case .leftMouseUp:
+                WindowSnapCoordinator.shared.finalizeDragIfNeeded()
+            default:
+                break
+            }
             return event
         }
     }
 
     private func prepareWindowForLinkedMove(_ window: NSWindow) {
-        window.disableSnapshotRestoration()
         window.animationBehavior = .none
+    }
+
+    private func refreshWindowChrome(_ window: NSWindow) {
+        window.hasShadow = true
+        window.invalidateShadow()
+        window.displayIfNeeded()
+    }
+
+    private func refreshLinkedWindowsChrome(_ link: WindowSnapLink) {
+        if let windowA = link.windowA { refreshWindowChrome(windowA) }
+        if let windowB = link.windowB { refreshWindowChrome(windowB) }
     }
 
     private func isEligible(_ window: NSWindow) -> Bool {
@@ -291,13 +400,21 @@ final class WindowSnapCoordinator {
         programmaticMoveWindows.contains(ObjectIdentifier(window))
     }
 
-    private func pixelAligned(_ rect: NSRect) -> NSRect {
+    private func pixelAligned(_ rect: NSRect, scale: CGFloat) -> NSRect {
+        guard scale > 0 else { return rect }
         var result = rect
-        result.origin.x = round(result.origin.x)
-        result.origin.y = round(result.origin.y)
-        result.size.width = round(result.size.width)
-        result.size.height = round(result.size.height)
+        result.origin.x = round(result.origin.x * scale) / scale
+        result.origin.y = round(result.origin.y * scale) / scale
+        result.size.width = round(result.size.width * scale) / scale
+        result.size.height = round(result.size.height * scale) / scale
         return result
+    }
+
+    private func shouldMove(from current: NSRect, to target: NSRect) -> Bool {
+        abs(current.origin.x - target.origin.x) >= Metrics.moveEpsilon
+            || abs(current.origin.y - target.origin.y) >= Metrics.moveEpsilon
+            || abs(current.size.width - target.size.width) >= Metrics.moveEpsilon
+            || abs(current.size.height - target.size.height) >= Metrics.moveEpsilon
     }
 
     // MARK: - Snap Detection
@@ -335,21 +452,12 @@ final class WindowSnapCoordinator {
         )
         moveWindow(moving, to: snappedFrame, flushDisplay: true)
 
-        activeLink = WindowSnapLink(windowA: moving, windowB: best.candidate, edge: best.edge)
+        setActiveLink(WindowSnapLink(windowA: moving, windowB: best.candidate, edge: best.edge))
         dragLeader = moving
-
+        syncPartnerToLeader(flushDisplay: true)
         if let link = activeLink {
-            let partnerFrame = pixelAligned(partnerFrame(
-                leaderFrame: pixelAligned(moving.frame),
-                partnerSize: best.candidate.frame.size,
-                edge: link.edge,
-                leaderIsWindowA: true
-            ))
-            moveWindow(best.candidate, to: partnerFrame, flushDisplay: true)
+            refreshLinkedWindowsChrome(link)
         }
-
-        lastFrames[ObjectIdentifier(moving)] = moving.frame
-        lastFrames[ObjectIdentifier(best.candidate)] = best.candidate.frame
     }
 
     private func snappedFrame(for moving: NSRect, candidate: NSRect, edge: WindowSnapEdge) -> NSRect {
@@ -368,7 +476,7 @@ final class WindowSnapCoordinator {
             result.origin.x = candidate.minX
             result.origin.y = candidate.maxY
         }
-        return pixelAligned(result)
+        return result
     }
 
     // MARK: - Linked Move Geometry
@@ -417,31 +525,40 @@ final class WindowSnapCoordinator {
         return NSRect(origin: origin, size: partnerSize)
     }
 
-    private func moveWindow(_ window: NSWindow, to frame: NSRect, flushDisplay: Bool = false) {
-        let id = ObjectIdentifier(window)
-        let target = pixelAligned(frame)
-        let current = window.frame
-        guard current != target else {
-            lastFrames[id] = target
-            return
-        }
+    private func movePartnerWindow(_ partner: NSWindow, to frame: NSRect, flushDisplay: Bool) {
+        let id = ObjectIdentifier(partner)
+        let target = pixelAligned(frame, scale: partner.backingScaleFactor)
+        let current = partner.frame
+        guard shouldMove(from: current, to: target) else { return }
 
         programmaticMoveWindows.insert(id)
         defer { programmaticMoveWindows.remove(id) }
 
-        // 拖动中批量更新时不立即刷新，减少跟随窗跳动感
-        let shouldDisplay = flushDisplay && !isBatchingScreenUpdate
+        if flushDisplay {
+            partner.setFrame(target, display: true)
+        } else {
+            partner.setFrameOrigin(target.origin)
+        }
+    }
+
+    private func moveWindow(_ window: NSWindow, to frame: NSRect, flushDisplay: Bool) {
+        let id = ObjectIdentifier(window)
+        let target = pixelAligned(frame, scale: window.backingScaleFactor)
+        let current = window.frame
+        guard shouldMove(from: current, to: target) else { return }
+
+        programmaticMoveWindows.insert(id)
+        defer { programmaticMoveWindows.remove(id) }
 
         if current.size == target.size {
             window.setFrameOrigin(target.origin)
         } else {
-            window.setFrame(target, display: shouldDisplay)
+            window.setFrame(target, display: flushDisplay)
         }
 
-        if shouldDisplay {
+        if flushDisplay {
             window.displayIfNeeded()
         }
-        lastFrames[id] = window.frame
     }
 
     // MARK: - Release Detection
