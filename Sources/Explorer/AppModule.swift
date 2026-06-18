@@ -2523,41 +2523,37 @@ struct ContentView: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
     
-    @ViewBuilder
     private var explorerFileListSection: some View {
-        if isLoading {
-            ProgressView()
-                .padding()
-        } else {
-            FileListView(
-                items: filteredItems,
-                selection: $selection,
-                showPreview: $showPreview,
-                searchText: searchText,
-                quickSearchText: $quickSearchText,
-                isQuickSearchVisible: $isQuickSearchVisible,
-                isFileListRenaming: $isFileListRenaming,
-                focusToken: fileListFocusToken,
-                currentDirectoryPath: path,
-                canNavigateToParent: FileItem.canNavigateUp(from: path),
-                showHiddenFiles: showHiddenFiles,
-                directorySizeOverlay: directorySizeOverlay,
-                directoryItemCountOverlay: directoryItemCountOverlay,
-                viewMode: fileListViewMode,
-                thumbnailCellSize: thumbnailCellSize,
-                onThumbnailCellSizeChange: { thumbnailCellSize = $0 },
-                onItemOpen: openItem,
-                onBlankDoubleClick: handleBlankDoubleClick,
-                onItemsChanged: handleFileListItemsChanged,
-                onScheduleVisibleDirectorySizes: scheduleVisibleDirectorySizes,
-                onScheduleVisibleDirectoryItemCounts: scheduleVisibleDirectoryItemCounts,
-                contextActions: fileContextActions,
-                blankMenuActions: blankMenuActions,
-                canNavigateBack: canNavigateBack,
-                onNavigateBack: navigateBack
-            )
-            .focusedValue(\.fileCommandHandlers, fileCommandHandlers)
-        }
+        FileListView(
+            items: filteredItems,
+            selection: $selection,
+            showPreview: $showPreview,
+            searchText: searchText,
+            quickSearchText: $quickSearchText,
+            isQuickSearchVisible: $isQuickSearchVisible,
+            isFileListRenaming: $isFileListRenaming,
+            focusToken: fileListFocusToken,
+            currentDirectoryPath: path,
+            canNavigateToParent: FileItem.canNavigateUp(from: path),
+            showHiddenFiles: showHiddenFiles,
+            directorySizeOverlay: directorySizeOverlay,
+            directoryItemCountOverlay: directoryItemCountOverlay,
+            viewMode: fileListViewMode,
+            thumbnailCellSize: thumbnailCellSize,
+            isLoading: isLoading,
+            onThumbnailCellSizeChange: { thumbnailCellSize = $0 },
+            onItemOpen: openItem,
+            onBlankDoubleClick: handleBlankDoubleClick,
+            onItemsChanged: handleFileListItemsChanged,
+            onScheduleVisibleDirectorySizes: scheduleVisibleDirectorySizes,
+            onScheduleVisibleDirectoryItemCounts: scheduleVisibleDirectoryItemCounts,
+            contextActions: fileContextActions,
+            blankMenuActions: blankMenuActions,
+            canNavigateBack: canNavigateBack,
+            onNavigateBack: navigateBack
+        )
+        .focusedValue(\.fileCommandHandlers, fileCommandHandlers)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
     
     private func clampPreviewWidth(_ width: CGFloat, maxWidth: CGFloat) -> CGFloat {
@@ -3563,6 +3559,7 @@ struct FileListView: View {
     let directoryItemCountOverlay: DirectoryItemCountOverlay
     let viewMode: FileListViewMode
     let thumbnailCellSize: CGFloat
+    let isLoading: Bool
     let onThumbnailCellSizeChange: (CGFloat) -> Void
     let onItemOpen: (FileItem) -> Void
     let onBlankDoubleClick: () -> Void
@@ -3634,14 +3631,21 @@ struct FileListView: View {
     var body: some View {
         FileListPanelLayout {
             Group {
-                switch viewMode {
-                case .list:
-                    fileTable
-                case .thumbnail:
-                    fileThumbnailGrid
+                if isLoading {
+                    FileListLoadingPlaceholderView(
+                        viewMode: viewMode,
+                        thumbnailCellSize: thumbnailCellSize
+                    )
+                } else {
+                    switch viewMode {
+                    case .list:
+                        fileTable
+                    case .thumbnail:
+                        fileThumbnailGrid
+                    }
                 }
             }
-            .frame(maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .background(FileListAutoFocusRequester(token: focusToken))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
