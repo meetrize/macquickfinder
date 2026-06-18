@@ -142,6 +142,8 @@ final class WindowSnapCoordinator {
     private var lastMouseLocation: NSPoint?
     /// 拖动中 leader 的估算 frame（鼠标增量更新，setFrame 时与真实 frame 校准）
     private var sessionLeaderFrame: NSRect?
+    /// 仅标题栏拖动时为 true，避免普通点击误触发联动
+    private var isTitleBarDragActive = false
 
     private init() {}
 
@@ -177,16 +179,15 @@ final class WindowSnapCoordinator {
         guard !isProgrammatic(leader) else { return }
 
         if let link = activeLink, link.contains(leader) {
-            dragLeader = leader
-            if NSEvent.pressedMouseButtons & 1 != 0 {
-                // setFrame 回调时与真实位置校准，消除估算漂移
+            if isTitleBarDragActive, NSEvent.pressedMouseButtons & 1 != 0 {
+                dragLeader = leader
                 sessionLeaderFrame = leader.frame
                 syncLayoutFromSession(flushDisplay: false)
-            } else {
+            } else if NSEvent.pressedMouseButtons & 1 == 0 {
                 syncPartnerToLeader(flushDisplay: false)
-            }
-            if NSEvent.pressedMouseButtons & 1 == 0, shouldReleaseLink(link) {
-                setActiveLink(nil)
+                if shouldReleaseLink(link) {
+                    setActiveLink(nil)
+                }
             }
             return
         }
@@ -201,7 +202,9 @@ final class WindowSnapCoordinator {
         guard !isProgrammatic(window) else { return }
 
         if activeLink?.contains(window) == true {
-            dragLeader = window
+            if isTitleBarDragActive {
+                dragLeader = window
+            }
             return
         }
 
@@ -232,6 +235,8 @@ final class WindowSnapCoordinator {
             stopContinuousSync()
             dragLeader = nil
             sessionLeaderFrame = nil
+            isTitleBarDragActive = false
+            lastMouseLocation = nil
             return
         }
         startContinuousSync()
@@ -254,18 +259,24 @@ final class WindowSnapCoordinator {
         dragLeader = nil
         lastMouseLocation = nil
         sessionLeaderFrame = nil
+        isTitleBarDragActive = false
     }
 
     private func handleMouseDown() {
         guard activeLink != nil else { return }
         let mouse = NSEvent.mouseLocation
-        lastMouseLocation = mouse
-        if let leader = topmostRegisteredWindow(at: mouse), activeLink?.contains(leader) == true {
-            dragLeader = leader
-            sessionLeaderFrame = leader.frame
-        } else if let leader = dragLeader ?? activeLink?.windowA {
-            sessionLeaderFrame = leader.frame
+        guard let leader = topmostRegisteredWindow(at: mouse),
+              activeLink?.contains(leader) == true,
+              isMouseInTitleBar(leader, at: mouse) else {
+            isTitleBarDragActive = false
+            lastMouseLocation = nil
+            return
         }
+
+        isTitleBarDragActive = true
+        dragLeader = leader
+        sessionLeaderFrame = leader.frame
+        lastMouseLocation = mouse
     }
 
     // MARK: - Continuous Sync
@@ -286,6 +297,7 @@ final class WindowSnapCoordinator {
     /// 用鼠标增量更新 leader 估算位置，再绝对计算另一扇窗位置（顶/左对齐，无累积误差）
     private func continuousSyncTick() {
         guard isEnabled, let link = activeLink else { return }
+        guard isTitleBarDragActive else { return }
         guard NSEvent.pressedMouseButtons & 1 != 0 else { return }
         guard let leader = dragLeader ?? link.windowA ?? link.windowB,
               link.otherWindow(than: leader) != nil else { return }
@@ -354,6 +366,12 @@ final class WindowSnapCoordinator {
         windows.allObjects
             .filter { isEligible($0) && $0.frame.contains(mouse) }
             .max(by: { $0.orderedIndex < $1.orderedIndex })
+    }
+
+    /// 判断点击是否落在标题栏/工具栏区域（contentLayoutRect 之上）
+    private func isMouseInTitleBar(_ window: NSWindow, at mouse: NSPoint) -> Bool {
+        guard window.frame.contains(mouse) else { return false }
+        return mouse.y > window.contentLayoutRect.maxY
     }
 
     // MARK: - Private Setup
