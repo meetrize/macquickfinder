@@ -15,6 +15,16 @@ enum FavoriteSidebarPasteboard {
     ]
 }
 
+enum FavoriteSidebarRailLayout {
+    /// 与 `LeftPanelLayoutConstants.railWidth`（54）减去左右 padding（8）对齐。
+    static let contentWidth: CGFloat = 46
+}
+
+private enum FavoriteSidebarMetrics {
+    static let railContentWidth = FavoriteSidebarRailLayout.contentWidth
+    static let sidebarColumnWidth: CGFloat = 240
+}
+
 // MARK: - Controller
 
 @MainActor
@@ -23,6 +33,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     weak var tableView: FavoritesTableView?
     
     private var lastItemPaths: [String] = []
+    private var lastShowsTitle = true
     private var pendingDropRow = -1
     private var pendingDropOperation: NSTableView.DropOperation = .on
     private var reorderDragRow = -1
@@ -31,10 +42,21 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         self.parent = parent
     }
     
+    func bootstrap(showsTitle: Bool) {
+        lastShowsTitle = showsTitle
+        lastItemPaths = parent.favoritesStore.items.map(\.path)
+    }
+    
     func syncFromParent() {
         let paths = parent.favoritesStore.items.map(\.path)
-        if paths != lastItemPaths {
+        let showsTitle = parent.showsTitle
+        let layoutChanged = showsTitle != lastShowsTitle
+        if paths != lastItemPaths || layoutChanged {
             lastItemPaths = paths
+            lastShowsTitle = showsTitle
+            if layoutChanged {
+                tableView?.applyShowsTitleLayout(showsTitle)
+            }
             tableView?.reloadData()
             tableView?.invalidateIntrinsicContentSize()
         }
@@ -61,7 +83,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
             if let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? FavoriteSidebarRowView {
                 rowView.isFavoriteSelected = selected
             }
-            if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: false) as? FavoriteSidebarCellView {
+            if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: true) as? FavoriteSidebarCellView {
                 cell.configure(item: item, showsTitle: parent.showsTitle, isSelected: selected)
             }
         }
@@ -480,21 +502,50 @@ final class FavoritesTableView: NSTableView {
     override var intrinsicContentSize: NSSize {
         let rowCount = max(numberOfRows, 0)
         guard rowCount > 0 else {
-            return NSSize(width: NSView.noIntrinsicMetric, height: 0)
+            return NSSize(
+                width: configuredShowsTitle ? NSView.noIntrinsicMetric : FavoriteSidebarMetrics.railContentWidth,
+                height: 0
+            )
         }
         let height = CGFloat(rowCount) * rowHeight + CGFloat(max(rowCount - 1, 0)) * intercellSpacing.height
-        return NSSize(width: NSView.noIntrinsicMetric, height: height)
+        let width = configuredShowsTitle
+            ? NSView.noIntrinsicMetric
+            : FavoriteSidebarMetrics.railContentWidth
+        return NSSize(width: width, height: height)
     }
     
     private var isInstalled = false
+    private(set) var configuredShowsTitle = true
     
     func installIfNeeded(showsTitle: Bool) {
         guard !isInstalled else {
-            rowHeight = showsTitle ? 30 : 28
+            applyShowsTitleLayout(showsTitle)
             return
         }
         isInstalled = true
         install(showsTitle: showsTitle)
+    }
+    
+    func applyShowsTitleLayout(_ showsTitle: Bool) {
+        configuredShowsTitle = showsTitle
+        rowHeight = showsTitle ? 30 : 28
+        columnAutoresizingStyle = showsTitle
+            ? .uniformColumnAutoresizingStyle
+            : .noColumnAutoresizing
+        
+        guard let column = tableColumns.first else { return }
+        if showsTitle {
+            column.resizingMask = .autoresizingMask
+            column.minWidth = 100
+            column.maxWidth = 10_000
+            column.width = FavoriteSidebarMetrics.sidebarColumnWidth
+        } else {
+            column.resizingMask = []
+            column.minWidth = FavoriteSidebarMetrics.railContentWidth
+            column.maxWidth = FavoriteSidebarMetrics.railContentWidth
+            column.width = FavoriteSidebarMetrics.railContentWidth
+        }
+        invalidateIntrinsicContentSize()
     }
     
     private func install(showsTitle: Bool) {
@@ -502,16 +553,15 @@ final class FavoritesTableView: NSTableView {
         backgroundColor = .clear
         focusRingType = .none
         selectionHighlightStyle = .none
-        columnAutoresizingStyle = .uniformColumnAutoresizingStyle
         allowsEmptySelection = true
         allowsMultipleSelection = false
         usesAlternatingRowBackgroundColors = false
         intercellSpacing = NSSize(width: 0, height: 2)
-        rowHeight = showsTitle ? 30 : 28
+        clipsToBounds = true
         
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("FavoriteColumn"))
-        column.width = 240
         addTableColumn(column)
+        applyShowsTitleLayout(showsTitle)
         
         registerForDraggedTypes(FavoriteSidebarPasteboard.draggedTypes)
         setDraggingSourceOperationMask(.move, forLocal: true)
@@ -558,6 +608,7 @@ struct FavoritesSidebarHost: NSViewRepresentable {
         tableView.controller = context.coordinator
         context.coordinator.tableView = tableView
         context.coordinator.parent = self
+        context.coordinator.bootstrap(showsTitle: showsTitle)
         tableView.dataSource = context.coordinator
         tableView.delegate = context.coordinator
         tableView.reloadData()
@@ -568,6 +619,22 @@ struct FavoritesSidebarHost: NSViewRepresentable {
         context.coordinator.parent = self
         tableView.installIfNeeded(showsTitle: showsTitle)
         context.coordinator.syncFromParent()
+    }
+    
+    static func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView: FavoritesTableView,
+        context: Context
+    ) -> CGSize? {
+        let intrinsic = nsView.intrinsicContentSize
+        let width: CGFloat
+        if nsView.configuredShowsTitle {
+            width = proposal.width ?? FavoriteSidebarMetrics.sidebarColumnWidth
+        } else {
+            width = FavoriteSidebarMetrics.railContentWidth
+        }
+        let height = intrinsic.height == NSView.noIntrinsicMetric ? 0 : intrinsic.height
+        return CGSize(width: width, height: height)
     }
 }
 
