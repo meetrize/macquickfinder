@@ -2657,7 +2657,7 @@ struct ContentView: View {
                 )
             }
             await DirectoryItemCountService.shared.schedule(
-                paths: folderPaths,
+                paths: folderPaths.filter { !FileListApplicationBundle.isBundle(path: $0) },
                 showHiddenFiles: shouldShowHiddenFiles,
                 priority: .normal
             )
@@ -2712,10 +2712,12 @@ struct ContentView: View {
     private func scheduleVisibleDirectoryItemCounts(_ visiblePaths: [String]) {
         guard fileListViewMode == .thumbnail,
               !TrashLoader.isTrashPath(path) else { return }
+        let paths = visiblePaths.filter { !FileListApplicationBundle.isBundle(path: $0) }
+        guard !paths.isEmpty else { return }
         let shouldShowHiddenFiles = showHiddenFiles
         Task {
             await DirectoryItemCountService.shared.schedule(
-                paths: visiblePaths,
+                paths: paths,
                 showHiddenFiles: shouldShowHiddenFiles,
                 priority: .visible
             )
@@ -3005,6 +3007,25 @@ private struct LeadingResizeDivider: NSViewRepresentable {
     }
 }
 
+private struct FavoritesSidebarRows: View {
+    @ObservedObject var favoritesStore: FavoritesStore
+    @Binding var path: String
+    var showsTitle: Bool
+    var isSelected: (String) -> Bool
+    var onDropURLs: ([URL], String, Bool) -> Void
+    
+    var body: some View {
+        FavoritesSidebarHost(
+            favoritesStore: favoritesStore,
+            path: $path,
+            showsTitle: showsTitle,
+            isSelected: isSelected,
+            onDropURLs: onDropURLs
+        )
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 struct SidebarView: View {
     @Binding var path: String
     @ObservedObject private var favoritesStore = FavoritesStore.shared
@@ -3016,21 +3037,13 @@ struct SidebarView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 sidebarSection("Favorites") {
-                    ForEach(favoritesStore.items) { location in
-                        SidebarRow(
-                            title: location.name,
-                            icon: location.icon,
-                            isSelected: isSelected(location.path),
-                            dropDestinationPath: location.path,
-                            onDropURLs: handleSidebarDrop,
-                            onSelect: { path = location.path }
-                        )
-                        .contextMenu {
-                            Button("取消收藏", role: .destructive) {
-                                favoritesStore.remove(path: location.path)
-                            }
-                        }
-                    }
+                    FavoritesSidebarRows(
+                        favoritesStore: favoritesStore,
+                        path: $path,
+                        showsTitle: true,
+                        isSelected: isSelected,
+                        onDropURLs: handleFavoriteDrop
+                    )
                 }
                 
                 sidebarSection("Devices") {
@@ -3132,6 +3145,28 @@ struct SidebarView: View {
         return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
     }
     
+    private func handleFavoriteDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
+        var filesToMove: [URL] = []
+        
+        for url in urls {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
+            if isDirectory.boolValue {
+                favoritesStore.addDirectory(at: url.path)
+            } else {
+                filesToMove.append(url)
+            }
+        }
+        
+        guard !filesToMove.isEmpty else { return }
+        if TrashLoader.isTrashPath(destinationPath) {
+            FileOperations.trashItems(filesToMove, completion: onItemsChanged)
+            return
+        }
+        let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
+        FileOperations.moveItems(filesToMove, to: destination, copy: copy, completion: onItemsChanged)
+    }
+    
     private func handleSidebarDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
         if TrashLoader.isTrashPath(destinationPath) {
             FileOperations.trashItems(urls, completion: onItemsChanged)
@@ -3169,17 +3204,13 @@ struct SidebarRailView: View {
         ScrollView {
             VStack(spacing: 10) {
                 VStack(spacing: 6) {
-                    ForEach(favoritesStore.items) { location in
-                        SidebarRow(
-                            title: location.name,
-                            icon: location.icon,
-                            isSelected: isSelected(location.path),
-                            dropDestinationPath: location.path,
-                            onDropURLs: handleSidebarDrop,
-                            onSelect: { path = location.path },
-                            showsTitle: false
-                        )
-                    }
+                    FavoritesSidebarRows(
+                        favoritesStore: favoritesStore,
+                        path: $path,
+                        showsTitle: false,
+                        isSelected: isSelected,
+                        onDropURLs: handleFavoriteDrop
+                    )
                 }
                 
                 Divider()
@@ -3252,6 +3283,28 @@ struct SidebarRailView: View {
         
         let systemVolumeRoots: Set<String> = ["/", "/System/Volumes/Data"]
         return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
+    }
+    
+    private func handleFavoriteDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
+        var filesToMove: [URL] = []
+        
+        for url in urls {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
+            if isDirectory.boolValue {
+                favoritesStore.addDirectory(at: url.path)
+            } else {
+                filesToMove.append(url)
+            }
+        }
+        
+        guard !filesToMove.isEmpty else { return }
+        if TrashLoader.isTrashPath(destinationPath) {
+            FileOperations.trashItems(filesToMove, completion: onItemsChanged)
+            return
+        }
+        let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
+        FileOperations.moveItems(filesToMove, to: destination, copy: copy, completion: onItemsChanged)
     }
     
     private func handleSidebarDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
@@ -3403,7 +3456,7 @@ struct SidebarRow: View {
     let onSelect: () -> Void
     var showsTitle: Bool = true
     var trailingAccessory: (() -> AnyView)? = nil
-    
+
     @State private var isDropTargeted = false
     
     var body: some View {
@@ -3436,15 +3489,14 @@ struct SidebarRow: View {
         .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         
         Group {
-            if showsTitle {
+            Button(action: onSelect) {
                 rowContent
-                    .onTapGesture(perform: onSelect)
-            } else {
-                Button(action: onSelect) {
-                    rowContent
+            }
+            .buttonStyle(.plain)
+            .background {
+                if !showsTitle {
+                    RailHoverTooltipAnchor(text: title)
                 }
-                .buttonStyle(.plain)
-                .background(RailHoverTooltipAnchor(text: title))
             }
         }
         .onDrop(
@@ -4179,7 +4231,7 @@ private struct FileListAutoFocusRequester: NSViewRepresentable {
     }
 }
 
-private enum FileDragDrop {
+enum FileDragDrop {
     static func shouldCopyFromCurrentEvent() -> Bool {
         NSApp.currentEvent?.modifierFlags.contains(.option) == true
     }
@@ -4187,6 +4239,46 @@ private enum FileDragDrop {
     static func shouldCopyFromDropInfo(_ info: DropInfo) -> Bool {
         _ = info
         return shouldCopyFromCurrentEvent()
+    }
+    
+    static func shouldCopyFromDraggingInfo(_ info: NSDraggingInfo) -> Bool {
+        _ = info
+        return shouldCopyFromCurrentEvent()
+    }
+    
+    static func dragOperation(for info: NSDraggingInfo) -> NSDragOperation {
+        shouldCopyFromDraggingInfo(info) ? .copy : .move
+    }
+    
+    static func fileURLs(from pasteboard: NSPasteboard) -> [URL] {
+        var urls: [URL] = []
+        var seen = Set<String>()
+        
+        func append(_ url: URL) {
+            let standardized = url.standardizedFileURL
+            if seen.insert(standardized.path).inserted {
+                urls.append(standardized)
+            }
+        }
+        
+        if let objects = pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL] {
+            objects.forEach { append($0) }
+        }
+        
+        if let paths = pasteboard.propertyList(
+            forType: NSPasteboard.PasteboardType("NSFilenamesPboardType")
+        ) as? [String] {
+            paths.forEach { append(URL(fileURLWithPath: $0)) }
+        }
+        
+        if let paths = pasteboard.propertyList(forType: .fileURL) as? [String] {
+            paths.forEach { append(URL(fileURLWithPath: $0)) }
+        }
+        
+        return urls
     }
     
     static func loadFileURLs(from providers: [NSItemProvider]) async -> [URL] {
@@ -6957,6 +7049,38 @@ final class FavoritesStore: ObservableObject {
         save()
     }
     
+    func move(from source: IndexSet, to destination: Int) {
+        items.move(fromOffsets: source, toOffset: destination)
+        save()
+    }
+    
+    func moveItem(withPath draggedPath: String, toInsertBefore insertIndex: Int) {
+        let normalizedDragged = (draggedPath as NSString).standardizingPath
+        guard let fromIndex = items.firstIndex(where: { Self.pathsRepresentSameLocation($0.path, normalizedDragged) }) else {
+            return
+        }
+        
+        var targetIndex = insertIndex
+        if fromIndex < targetIndex {
+            targetIndex -= 1
+        }
+        guard targetIndex != fromIndex else { return }
+        
+        let item = items.remove(at: fromIndex)
+        let clampedIndex = max(0, min(targetIndex, items.count))
+        items.insert(item, at: clampedIndex)
+        save()
+    }
+    
+    static func pathsRepresentSameLocation(_ lhs: String, _ rhs: String) -> Bool {
+        let normalizedLHS = (lhs as NSString).standardizingPath
+        let normalizedRHS = (rhs as NSString).standardizingPath
+        if normalizedLHS == normalizedRHS { return true }
+        
+        let systemVolumeRoots: Set<String> = ["/", "/System/Volumes/Data"]
+        return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
+    }
+    
     private func load() {
         guard let data = UserDefaults.standard.data(forKey: AppSettings.favoritesKey),
               let decoded = try? JSONDecoder().decode([FavoriteItem].self, from: data) else {
@@ -6969,15 +7093,6 @@ final class FavoritesStore: ObservableObject {
     private func save() {
         guard let data = try? JSONEncoder().encode(items) else { return }
         UserDefaults.standard.set(data, forKey: AppSettings.favoritesKey)
-    }
-    
-    private static func pathsRepresentSameLocation(_ lhs: String, _ rhs: String) -> Bool {
-        let normalizedLHS = (lhs as NSString).standardizingPath
-        let normalizedRHS = (rhs as NSString).standardizingPath
-        if normalizedLHS == normalizedRHS { return true }
-        
-        let systemVolumeRoots: Set<String> = ["/", "/System/Volumes/Data"]
-        return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
     }
 }
 

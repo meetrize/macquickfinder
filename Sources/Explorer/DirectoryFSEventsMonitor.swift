@@ -123,8 +123,10 @@ final class DirectoryFSEventsMonitor {
             }
             guard DirectorySizePreferences.autoCalculateDirectorySizes else {
                 let showHidden = showHiddenFiles
+                let itemCountPaths = paths.filter { !FileListApplicationBundle.isBundle(path: $0) }
+                guard !itemCountPaths.isEmpty else { return }
                 await DirectoryItemCountService.shared.schedule(
-                    paths: paths,
+                    paths: itemCountPaths,
                     showHiddenFiles: showHidden,
                     priority: .visible
                 )
@@ -135,11 +137,14 @@ final class DirectoryFSEventsMonitor {
                 showHiddenFiles: showHidden,
                 priority: .visible
             )
-            await DirectoryItemCountService.shared.schedule(
-                paths: paths,
-                showHiddenFiles: showHidden,
-                priority: .visible
-            )
+            let itemCountPaths = paths.filter { !FileListApplicationBundle.isBundle(path: $0) }
+            if !itemCountPaths.isEmpty {
+                await DirectoryItemCountService.shared.schedule(
+                    paths: itemCountPaths,
+                    showHiddenFiles: showHidden,
+                    priority: .visible
+                )
+            }
         }
     }
 }

@@ -118,6 +118,7 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
     
     func withChildCountDisplay(_ info: DirectoryItemCountDisplayInfo) -> FileListRow {
         guard isDirectory, !isParentDirectoryEntry else { return self }
+        guard !FileListApplicationBundle.isBundle(path: iconPath) else { return self }
         guard info != .unknown else {
             guard childCountDisplay != nil else { return self }
             return FileListRow(

@@ -59,13 +59,12 @@ final class FileListThumbnailCellView: NSView {
         sizeLabel.drawsBackground = false
         bottomOverlay.addSubview(sizeLabel)
         
-        countLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        countLabel.font = .systemFont(ofSize: FileListThumbnailMetrics.folderCountFontSize, weight: .bold)
         countLabel.alignment = .center
         countLabel.isEditable = false
         countLabel.isSelectable = false
         countLabel.isBordered = false
         countLabel.drawsBackground = false
-        countLabel.shadow = NSShadow()
         imageContainer.addSubview(countLabel)
         
         renameField.isHidden = true
@@ -90,6 +89,31 @@ final class FileListThumbnailCellView: NSView {
         }
         // 鼠标事件交给 NSCollectionView 统一处理（与列表模式一致）；拖放命中仍由 collectionView 坐标解析。
         return nil
+    }
+    
+    private var tooltipTrackingArea: NSTrackingArea?
+    
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let tooltipTrackingArea {
+            removeTrackingArea(tooltipTrackingArea)
+            self.tooltipTrackingArea = nil
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        tooltipTrackingArea = area
+    }
+    
+    override func mouseEntered(with event: NSEvent) {
+        guard event.trackingArea === tooltipTrackingArea,
+              let tip = toolTip, !tip.isEmpty
+        else { return }
+        FileListThumbnailToolTip.show(tip, for: self)
     }
     
     override func rightMouseDown(with event: NSEvent) {
@@ -133,6 +157,8 @@ final class FileListThumbnailCellView: NSView {
         
         let horizontalPadding: CGFloat = 4
         let labelSpacing: CGFloat = 4
+        let labelY = FileListThumbnailMetrics.overlayLabelVerticalInset
+        let sizeLabelY = labelY - FileListThumbnailMetrics.overlaySizeLabelExtraDownshift
         sizeLabel.sizeToFit()
         let sizeWidth = sizeLabel.isHidden ? 0 : ceil(sizeLabel.bounds.width)
         let nameWidth = max(
@@ -141,19 +167,19 @@ final class FileListThumbnailCellView: NSView {
         )
         nameLabel.frame = NSRect(
             x: horizontalPadding,
-            y: 2,
+            y: labelY,
             width: nameWidth,
             height: overlayHeight - 4
         )
         sizeLabel.frame = NSRect(
             x: bounds.width - horizontalPadding - sizeWidth,
-            y: 2,
+            y: sizeLabelY,
             width: sizeWidth,
             height: overlayHeight - 4
         )
         renameField.frame = NSRect(
             x: horizontalPadding,
-            y: 2,
+            y: labelY,
             width: bounds.width - horizontalPadding * 2,
             height: overlayHeight - 4
         )
@@ -172,9 +198,10 @@ final class FileListThumbnailCellView: NSView {
         
         countLabel.sizeToFit()
         let iconFrame = imageView.frame
+        let centerY = iconFrame.midY - FileListThumbnailMetrics.folderCountDownshift
         countLabel.frame = NSRect(
             x: iconFrame.midX - countLabel.bounds.width / 2,
-            y: iconFrame.midY - countLabel.bounds.height / 2,
+            y: centerY - countLabel.bounds.height / 2,
             width: countLabel.bounds.width,
             height: countLabel.bounds.height
         )
@@ -206,12 +233,7 @@ final class FileListThumbnailCellView: NSView {
         
         applyThumbnailSizeLabel(for: row)
         
-        if let countText = row.childCountDisplay, !countText.isEmpty, row.isDirectory, !row.isParentDirectoryEntry {
-            countLabel.isHidden = false
-            countLabel.stringValue = countText
-        } else {
-            countLabel.isHidden = true
-        }
+        applyFolderItemCountLabel(for: row)
         
         toolTip = thumbnailToolTip(for: row)
         selectionOverlay.isHidden = !isSelected
@@ -229,12 +251,7 @@ final class FileListThumbnailCellView: NSView {
             isDirectory: row.isDirectory,
             isHidden: row.isHidden
         )
-        if let countText = row.childCountDisplay, !countText.isEmpty, row.isDirectory, !row.isParentDirectoryEntry {
-            countLabel.isHidden = false
-            countLabel.stringValue = countText
-        } else {
-            countLabel.isHidden = true
-        }
+        applyFolderItemCountLabel(for: row)
         selectionOverlay.isHidden = !isSelected
         updateAppearanceForCurrentTheme()
         needsLayout = true
@@ -245,12 +262,7 @@ final class FileListThumbnailCellView: NSView {
         
         applyThumbnailSizeLabel(for: row)
         
-        if let countText = row.childCountDisplay, !countText.isEmpty, row.isDirectory, !row.isParentDirectoryEntry {
-            countLabel.isHidden = false
-            countLabel.stringValue = countText
-        } else {
-            countLabel.isHidden = true
-        }
+        applyFolderItemCountLabel(for: row)
         
         toolTip = thumbnailToolTip(for: row)
         updateAppearanceForCurrentTheme()
@@ -380,7 +392,7 @@ final class FileListThumbnailCellView: NSView {
         if !sizeText.isEmpty {
             lines.append("大小：\(sizeText)")
         }
-        if let countText = row.childCountDisplay, !countText.isEmpty, row.isDirectory {
+        if let countText = folderItemCountText(for: row) {
             lines.append("项目：\(countText)")
         }
         if !row.dateDisplay.isEmpty {
@@ -388,6 +400,25 @@ final class FileListThumbnailCellView: NSView {
         }
         lines.append("路径：\(row.id)")
         return lines.joined(separator: "\n")
+    }
+    
+    private func folderItemCountText(for row: FileListRow) -> String? {
+        guard row.isDirectory,
+              !row.isParentDirectoryEntry,
+              !FileListApplicationBundle.isBundle(path: row.iconPath),
+              let countText = row.childCountDisplay,
+              !countText.isEmpty
+        else { return nil }
+        return countText
+    }
+    
+    private func applyFolderItemCountLabel(for row: FileListRow) {
+        if let countText = folderItemCountText(for: row) {
+            countLabel.isHidden = false
+            countLabel.stringValue = countText
+        } else {
+            countLabel.isHidden = true
+        }
     }
     
     private func applyThumbnailSizeLabel(for row: FileListRow) {
@@ -423,12 +454,8 @@ final class FileListThumbnailCellView: NSView {
         bottomOverlay.layer?.backgroundColor = overlayBackground.cgColor
         sizeLabel.textColor = sizeTextColor
         
-        countLabel.textColor = .white
-        let countShadow = countLabel.shadow ?? NSShadow()
-        countShadow.shadowColor = NSColor.black.withAlphaComponent(0.45)
-        countShadow.shadowOffset = NSSize(width: 0, height: -0.5)
-        countShadow.shadowBlurRadius = 1.5
-        countLabel.shadow = countShadow
+        countLabel.textColor = NSColor.white.withAlphaComponent(FileListThumbnailMetrics.folderCountTextAlpha)
+        countLabel.shadow = nil
         
         if isCellSelected {
             selectionOverlay.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.2).cgColor

@@ -33,6 +33,7 @@ public final class FileListThumbnailController: NSObject {
     private var pendingDirectoryItemCountRefresh = false
     private var lastReportedVisibleDirectoryPaths: [String] = []
     private var visiblePathsNotifyWorkItem: DispatchWorkItem?
+    private var previousToolTipDelay: TimeInterval?
     
     // Interaction state
     var mouseDownIndexPath: IndexPath?
@@ -67,6 +68,7 @@ public final class FileListThumbnailController: NSObject {
     
     deinit {
         thumbnailGenerator.shutdown()
+        restoreToolTipDelayIfNeeded()
         tearDownObservers()
     }
     
@@ -107,8 +109,22 @@ public final class FileListThumbnailController: NSObject {
         self.scrollView = scrollView
         self.collectionView = collectionView
         hasInstalledCollectionView = true
+        applyInstantToolTipDelay()
         installObservers()
         return scrollView
+    }
+    
+    private func applyInstantToolTipDelay() {
+        if previousToolTipDelay == nil {
+            previousToolTipDelay = FileListThumbnailToolTip.initialDelay
+        }
+        FileListThumbnailToolTip.initialDelay = 0
+    }
+    
+    private func restoreToolTipDelayIfNeeded() {
+        guard let previousToolTipDelay else { return }
+        FileListThumbnailToolTip.initialDelay = previousToolTipDelay
+        self.previousToolTipDelay = nil
     }
     
     public func update(
@@ -234,12 +250,13 @@ public final class FileListThumbnailController: NSObject {
                 )
             }
             
-            if let directoryItemCountDisplay {
+            if let directoryItemCountDisplay, !FileListApplicationBundle.isBundle(path: row.iconPath) {
                 let info = directoryItemCountDisplay(row.iconPath)
                 if info != .unknown {
                     updated = updated.withChildCountDisplay(info)
                 }
-            } else if let cached = existingByID[row.id], let childCount = cached.childCountDisplay {
+            } else if let cached = existingByID[row.id], let childCount = cached.childCountDisplay,
+                      !FileListApplicationBundle.isBundle(path: row.iconPath) {
                 updated = updated.withChildCountDisplay(
                     DirectoryItemCountDisplayInfo(count: -1, text: childCount)
                 )
@@ -276,6 +293,7 @@ public final class FileListThumbnailController: NSObject {
         var changed = false
         displayRows = displayRows.map { row in
             guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
+            guard !FileListApplicationBundle.isBundle(path: row.iconPath) else { return row }
             let info = directoryItemCountDisplay(row.iconPath)
             guard info != .unknown, row.childCountDisplay != info.text else { return row }
             changed = true
@@ -283,6 +301,7 @@ public final class FileListThumbnailController: NSObject {
         }
         sourceRows = sourceRows.map { row in
             guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
+            guard !FileListApplicationBundle.isBundle(path: row.iconPath) else { return row }
             let info = directoryItemCountDisplay(row.iconPath)
             guard info != .unknown, row.childCountDisplay != info.text else { return row }
             changed = true

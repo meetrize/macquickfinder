@@ -77,6 +77,12 @@ final class ThumbnailGenerator {
         if row.isParentDirectoryEntry {
             return FileListThumbnailMetrics.parentDirectoryIcon(cellSize: cellSize, scale: screenScale)
         }
+        if FileListApplicationBundle.isBundle(path: row.iconPath) {
+            return FileListThumbnailMetrics.scaledIcon(
+                NSWorkspace.shared.icon(for: .application),
+                cellSize: cellSize
+            )
+        }
         return Self.genericPlaceholder(isDirectory: row.isDirectory, cellSize: cellSize)
     }
     
@@ -115,6 +121,15 @@ final class ThumbnailGenerator {
         completion: @escaping (Delivery) -> Void
     ) {
         if row.isParentDirectoryEntry { return }
+        
+        if FileListApplicationBundle.isBundle(path: row.iconPath) {
+            loadApplicationBundleIcon(
+                for: row,
+                cellSize: cellSize,
+                completion: completion
+            )
+            return
+        }
         
         let key = cacheKey(for: row, cellSize: cellSize)
         if let cached = cache.memoryEntry(for: key) {
@@ -173,6 +188,22 @@ final class ThumbnailGenerator {
             : FileListThumbnailMetrics.scaledIcon(entry.image, cellSize: cellSize)
         DispatchQueue.main.async {
             completion(entry.isThumbnail ? .thumbnail(image) : .icon(image))
+        }
+    }
+    
+    private func loadApplicationBundleIcon(
+        for row: FileListRow,
+        cellSize: CGFloat,
+        completion: @escaping (Delivery) -> Void
+    ) {
+        let generation = activeGeneration
+        queue.async { [weak self] in
+            guard let self, generation == self.activeGeneration else { return }
+            let icon = self.workspaceIcon(for: row.iconPath, cellSize: cellSize)
+            DispatchQueue.main.async {
+                guard generation == self.activeGeneration else { return }
+                completion(.icon(icon))
+            }
         }
     }
     

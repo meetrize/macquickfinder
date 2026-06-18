@@ -62,6 +62,7 @@ actor DirectoryItemCountService {
         let generation = activeGeneration
         for path in paths {
             guard DirectorySizeVolumeFilter.shouldAutoCalculate(path: path) else { continue }
+            guard !FileListApplicationBundle.isBundle(path: path) else { continue }
             enqueue(
                 WorkItem(
                     path: path,

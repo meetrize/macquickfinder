@@ -32,6 +32,9 @@ final class DirectoryItemCountOverlay: ObservableObject {
     }
     
     func countDisplay(for path: String) -> DirectoryItemCountDisplayInfo {
+        guard !FileListApplicationBundle.isBundle(path: path) else {
+            return .unknown
+        }
         guard let count = counts[path] else {
             return .unknown
         }

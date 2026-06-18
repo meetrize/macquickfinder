@@ -1,3 +1,4 @@
+import FileList
 import SwiftUI
 
 struct FolderPreviewView: View {
@@ -186,11 +187,13 @@ struct FolderPreviewView: View {
 
     private func scheduleMetadata() async {
         guard !TrashLoader.isTrashPath(folder.id) else { return }
-        await DirectoryItemCountService.shared.schedule(
-            paths: [folder.id],
-            showHiddenFiles: showHiddenFiles,
-            priority: .visible
-        )
+        if !FileListApplicationBundle.isBundle(path: folder.id) {
+            await DirectoryItemCountService.shared.schedule(
+                paths: [folder.id],
+                showHiddenFiles: showHiddenFiles,
+                priority: .visible
+            )
+        }
         if autoCalculateDirectorySizes {
             await DirectorySizeService.shared.schedule(
                 paths: [folder.id],

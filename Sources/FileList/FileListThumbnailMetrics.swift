@@ -12,6 +12,11 @@ public enum FileListThumbnailMetrics {
     public static let contentInset: CGFloat = 8
     public static let labelOverlayHeight: CGFloat = 20
     public static let sizeBadgeCornerRadius: CGFloat = 4
+    public static let overlayLabelVerticalInset: CGFloat = 2
+    public static let overlaySizeLabelExtraDownshift: CGFloat = 2
+    public static let folderCountFontSize: CGFloat = 15
+    public static let folderCountDownshift: CGFloat = 5
+    public static let folderCountTextAlpha: CGFloat = 0.72
     public static let iconContentInsetRatio: CGFloat = 0.12
     public static let selectionBorderWidth: CGFloat = 2
     public static let cellCornerRadius: CGFloat = 4
