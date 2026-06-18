@@ -7,10 +7,9 @@ private enum OutputPanelFocusField: Hashable {
 }
 
 struct OutputPanelView: View {
+    @ObservedObject var layout: ExplorerWindowLayoutState
     var maxPanelHeight: CGFloat = 800
-
     @ObservedObject private var jobStore = JobStore.shared
-    @ObservedObject private var settings = SnippetsSettings.shared
     @State private var findText = ""
     @State private var commandDraft = ""
     @State private var isOutputAreaActive = false
@@ -19,10 +18,10 @@ struct OutputPanelView: View {
     @FocusState private var focusedField: OutputPanelFocusField?
 
     private var effectivePanelHeight: CGFloat {
-        if settings.isOutputPanelContentCollapsed {
+        if layout.isOutputPanelContentCollapsed {
             return OutputPanelMetrics.titleBarHeight
         }
-        return dragPanelHeight ?? CGFloat(settings.outputPanelHeight)
+        return dragPanelHeight ?? CGFloat(layout.outputPanelHeight)
     }
 
     private var isOutputContextActive: Bool {
@@ -30,18 +29,18 @@ struct OutputPanelView: View {
     }
 
     var body: some View {
-        if settings.isOutputPanelVisible {
+        if layout.isOutputPanelVisible {
             VStack(spacing: 0) {
-                if settings.isOutputPanelContentCollapsed {
+                if layout.isOutputPanelContentCollapsed {
                     Divider()
                 } else {
                     OutputPanelResizeHandle(
-                        panelHeight: dragPanelHeight ?? CGFloat(settings.outputPanelHeight),
+                        panelHeight: dragPanelHeight ?? CGFloat(layout.outputPanelHeight),
                         minHeight: 80,
                         maxHeight: maxPanelHeight,
                         onHeightChange: { dragPanelHeight = $0 },
                         onDragEnded: { finalHeight in
-                            settings.outputPanelHeight = Double(finalHeight)
+                            layout.outputPanelHeight = Double(finalHeight)
                             dragPanelHeight = nil
                         }
                     )
@@ -58,7 +57,7 @@ struct OutputPanelView: View {
     private var panelContent: some View {
         VStack(spacing: 0) {
             jobTabBar
-            if !settings.isOutputPanelContentCollapsed {
+            if !layout.isOutputPanelContentCollapsed {
                 if let job = jobStore.selectedJob {
                     VStack(spacing: 0) {
                         outputArea(job: job)
@@ -132,12 +131,12 @@ struct OutputPanelView: View {
             }
 
             Button {
-                settings.isOutputPanelContentCollapsed.toggle()
+                layout.isOutputPanelContentCollapsed.toggle()
             } label: {
-                Image(systemName: settings.isOutputPanelContentCollapsed ? "chevron.up" : "chevron.down")
+                Image(systemName: layout.isOutputPanelContentCollapsed ? "chevron.up" : "chevron.down")
             }
             .buttonStyle(.borderless)
-            .help(settings.isOutputPanelContentCollapsed ? "展开输出面板" : "折叠输出面板")
+            .help(layout.isOutputPanelContentCollapsed ? "展开输出面板" : "折叠输出面板")
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
 

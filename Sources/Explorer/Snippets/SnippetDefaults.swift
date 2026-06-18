@@ -9,6 +9,7 @@ enum SnippetDefaults {
 }
 
 enum ExplorerAppSettings {
+    static let showPreviewKey = "showPreview"
     static let showSnippetsKey = "showSnippets"
     static let previewSnippetsSplitRatioKey = "previewSnippetsSplitRatio"
     static let outputPanelVisibleKey = "snippets.outputPanelVisible"

@@ -305,12 +305,11 @@ private struct LucideIcon: View {
 @main
 struct ExplorerApp: App {
     @NSApplicationDelegateAdaptor(ExplorerAppDelegate.self) private var appDelegate
-    @State private var showPreview = true
-    @AppStorage(ExplorerAppSettings.showSnippetsKey) private var showSnippets = true
+    @FocusedValue(\.windowLayoutCommands) private var windowLayoutCommands
     
     var body: some Scene {
         WindowGroup {
-            ContentView(showPreview: $showPreview, showSnippets: $showSnippets)
+            ContentView()
                 .frame(minWidth: 800, minHeight: 600)
         }
         .windowStyle(.titleBar)
@@ -318,15 +317,15 @@ struct ExplorerApp: App {
         .commands {
             FileCommands()
             CommandGroup(after: .sidebar) {
-                Button(showPreview ? "关闭预览" : "显示预览") {
-                    showPreview.toggle()
+                Button((windowLayoutCommands?.showPreview ?? true) ? "关闭预览" : "显示预览") {
+                    windowLayoutCommands?.togglePreview()
                 }
-                Button(showSnippets ? "关闭 Snippets" : "显示 Snippets") {
-                    showSnippets.toggle()
+                Button((windowLayoutCommands?.showSnippets ?? true) ? "关闭 Snippets" : "显示 Snippets") {
+                    windowLayoutCommands?.toggleSnippets()
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
-                Button(SnippetsSettings.shared.isOutputPanelVisible ? "关闭输出面板" : "显示输出面板") {
-                    SnippetsSettings.shared.isOutputPanelVisible.toggle()
+                Button((windowLayoutCommands?.isOutputPanelVisible ?? false) ? "关闭输出面板" : "显示输出面板") {
+                    windowLayoutCommands?.toggleOutputPanel()
                 }
                 .keyboardShortcut("j", modifiers: .command)
                 Divider()
@@ -2043,13 +2042,10 @@ private struct PathBreadcrumbEllipsisMenu: View {
 }
 
 struct ContentView: View {
-    @Binding var showPreview: Bool
-    @Binding var showSnippets: Bool
-    @AppStorage(ExplorerAppSettings.previewSnippetsSplitRatioKey) private var previewSnippetsSplitRatio = 0.55
+    @StateObject private var layout = ExplorerWindowLayoutState()
     @AppStorage(AppSettings.blankDoubleClickActionKey)
     private var blankDoubleClickActionRaw = BlankDoubleClickAction.navigateToParent.rawValue
     @State private var path = FileManager.default.homeDirectoryForCurrentUser.path
-    @AppStorage(AppSettings.lastOpenedPathKey) private var storedLastOpenedPath = ""
     @State private var items: [FileItem] = []
     @State private var selection: Set<FileItem.ID> = []
     @State private var sortOrder: SortOrder = .nameAscending
@@ -2067,12 +2063,7 @@ struct ContentView: View {
     @State private var navigationBackStack: [String] = []
     @State private var isApplyingHistoryNavigation = false
     @State private var lastRecordedPath: String?
-    @AppStorage(AppSettings.previewPanelWidthKey) private var storedPreviewPanelWidth = 320.0
     @AppStorage(AppSettings.autoCalculateDirectorySizesKey) private var autoCalculateDirectorySizes = true
-    @AppStorage(AppSettings.leftPanelModeKey) private var storedLeftPanelModeRaw = LeftPanelMode.sidebar.rawValue
-    @AppStorage(AppSettings.leftPanelLastVisibleModeKey)
-    private var storedLeftPanelLastVisibleModeRaw = LeftPanelVisibleMode.sidebar.rawValue
-    @AppStorage(AppSettings.leftPanelSidebarWidthKey) private var storedLeftPanelSidebarWidth = 240.0
     @AppStorage(FileListStorageKeys.viewMode) private var fileListViewModeRaw = FileListViewMode.list.rawValue
     @AppStorage(FileListStorageKeys.thumbnailCellSize) private var thumbnailCellSize = FileListThumbnailMetrics.defaultCellSize
     @State private var livePreviewPanelWidth: CGFloat = 320
@@ -2111,57 +2102,21 @@ struct ContentView: View {
     private let minPreviewPanelWidth: CGFloat = 200
     private let minMainPanelWidth: CGFloat = 360
     
-    private var leftPanelMode: LeftPanelMode {
-        LeftPanelMode(rawValue: storedLeftPanelModeRaw) ?? .sidebar
-    }
+    private var leftPanelMode: LeftPanelMode { layout.leftPanelMode }
     
-    private func setLeftPanelMode(_ mode: LeftPanelMode) {
-        storedLeftPanelModeRaw = mode.rawValue
-    }
+    private var leftPanelLastVisibleMode: LeftPanelVisibleMode { layout.leftPanelLastVisibleMode }
     
-    private var leftPanelLastVisibleMode: LeftPanelVisibleMode {
-        LeftPanelVisibleMode(rawValue: storedLeftPanelLastVisibleModeRaw) ?? .sidebar
-    }
-    
-    private func setLeftPanelLastVisibleMode(_ mode: LeftPanelVisibleMode) {
-        storedLeftPanelLastVisibleModeRaw = mode.rawValue
-    }
-    
-    private var leftPanelSidebarWidth: CGFloat {
-        CGFloat(storedLeftPanelSidebarWidth)
-    }
-    
-    private func setLeftPanelSidebarWidth(_ width: CGFloat) {
-        storedLeftPanelSidebarWidth = Double(leftPanelConstants.clampedSidebarWidth(width))
-    }
+    private var leftPanelSidebarWidth: CGFloat { layout.leftPanelSidebarWidthValue }
     
     private var leftPanelVisibleWidth: CGFloat {
-        switch leftPanelMode {
-        case .sidebar:
-            return leftPanelSidebarWidth
-        case .rail:
-            return leftPanelConstants.railWidth
-        case .hidden:
-            return 0
-        }
+        layout.leftPanelVisibleWidth
     }
     
     private func handleLeftPanelDrag(delta: CGFloat) {
         let baseWidth = liveLeftPanelDragWidth ?? leftPanelVisibleWidth
         let proposed = baseWidth + delta
         liveLeftPanelDragWidth = proposed
-        
-        let result = LeftPanelStateMachine.applyDrag(
-            proposedWidth: proposed,
-            currentMode: leftPanelMode,
-            lastVisible: leftPanelLastVisibleMode,
-            sidebarWidth: leftPanelSidebarWidth,
-            constants: leftPanelConstants
-        )
-        
-        setLeftPanelMode(result.mode)
-        setLeftPanelLastVisibleMode(result.lastVisible)
-        setLeftPanelSidebarWidth(result.sidebarWidth)
+        layout.applyLeftPanelDrag(proposedWidth: proposed, baseWidth: baseWidth)
     }
     
     private func handleLeftPanelDragEnded() {
@@ -2169,34 +2124,11 @@ struct ContentView: View {
     }
     
     private func toggleLeftPanelVisibility() {
-        if leftPanelMode == .hidden {
-            setLeftPanelMode(leftPanelLastVisibleMode.asPanelMode)
-            if leftPanelMode == .sidebar {
-                setLeftPanelSidebarWidth(leftPanelSidebarWidth)
-            }
-            return
-        }
-        
-        if leftPanelMode == .sidebar {
-            setLeftPanelLastVisibleMode(.sidebar)
-        } else if leftPanelMode == .rail {
-            setLeftPanelLastVisibleMode(.rail)
-        }
-        setLeftPanelMode(.hidden)
+        layout.toggleLeftPanelVisibility()
     }
     
     private func restoredLaunchPath() -> String {
-        let trimmed = storedLastOpenedPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return FileManager.default.homeDirectoryForCurrentUser.path
-        }
-        let standardized = (trimmed as NSString).standardizingPath
-        var isDirectory: ObjCBool = false
-        if FileManager.default.fileExists(atPath: standardized, isDirectory: &isDirectory),
-           isDirectory.boolValue {
-            return standardized
-        }
-        return FileManager.default.homeDirectoryForCurrentUser.path
+        ExplorerWindowLayoutState.restoredLastOpenedPath()
     }
     
     var body: some View {
@@ -2255,7 +2187,7 @@ struct ContentView: View {
                     HStack(spacing: 0) {
                         explorerBrowserColumn
                         
-                        if showPreview || showSnippets {
+                        if layout.showPreview || layout.showSnippets {
                             explorerRightPanelColumn(maxPreviewWidth: maxPreviewWidth)
                         }
                     }
@@ -2263,7 +2195,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .onAppear {
                         livePreviewPanelWidth = clampPreviewWidth(
-                            CGFloat(storedPreviewPanelWidth),
+                            CGFloat(layout.previewPanelWidth),
                             maxWidth: maxPreviewWidth
                         )
                     }
@@ -2272,7 +2204,7 @@ struct ContentView: View {
                         let clamped = clampPreviewWidth(livePreviewPanelWidth, maxWidth: maxPreview)
                         if clamped != livePreviewPanelWidth {
                             livePreviewPanelWidth = clamped
-                            storedPreviewPanelWidth = Double(clamped)
+                            layout.previewPanelWidth = Double(clamped)
                         }
                     }
                 }
@@ -2280,10 +2212,11 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            OutputPanelView(maxPanelHeight: outputMaxHeight)
+            OutputPanelView(layout: layout, maxPanelHeight: outputMaxHeight)
             }
             .frame(width: outer.size.width, height: outer.size.height)
         }
+        .background(WindowKeyLayoutTracker(layout: layout).frame(width: 0, height: 0).accessibilityHidden(true))
         .background(
             BarFieldOutsideClickHandler(
                 activeField: $activeBarField,
@@ -2297,14 +2230,14 @@ struct ContentView: View {
             }
             
             // 初始化时做一次自愈：持久化宽度可能越界。
-            setLeftPanelSidebarWidth(leftPanelSidebarWidth)
+            layout.healLeftPanelSidebarWidth()
             if let launchPath = externalFolderOpenCenter.consumePendingPath() {
                 path = launchPath
             } else {
                 path = restoredLaunchPath()
             }
             lastRecordedPath = path
-            storedLastOpenedPath = path
+            layout.recordLastOpenedPath(path)
             loadItems()
         }
         .onReceive(externalFolderOpenCenter.$targetPath.compactMap { $0 }) { newPath in
@@ -2316,7 +2249,7 @@ struct ContentView: View {
                 navigationBackStack.append(oldPath)
             }
             lastRecordedPath = newPath
-            storedLastOpenedPath = (newPath as NSString).standardizingPath
+            layout.recordLastOpenedPath(newPath)
             loadItems()
         }
         .onChange(of: autoCalculateDirectorySizes) { enabled in
@@ -2363,6 +2296,17 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .focusedValue(\.textFieldEditing, isTextFieldEditing)
+        .focusedValue(
+            \.windowLayoutCommands,
+            WindowLayoutCommands(
+                showPreview: layout.showPreview,
+                showSnippets: layout.showSnippets,
+                isOutputPanelVisible: layout.isOutputPanelVisible,
+                togglePreview: { layout.showPreview.toggle() },
+                toggleSnippets: { layout.showSnippets.toggle() },
+                toggleOutputPanel: { layout.isOutputPanelVisible.toggle() }
+            )
+        )
         .background(TextEditingKeyMonitor(isBarFieldEditing: isTextFieldEditing))
         .background(BarTextFieldFocusSync(activeField: $activeBarField))
         .navigationTitle(currentDirectoryTitle)
@@ -2503,16 +2447,14 @@ struct ContentView: View {
             minTrailingWidth: minPreviewPanelWidth,
             maxTrailingWidth: maxPreviewWidth,
             onDragEnded: {
-                storedPreviewPanelWidth = Double(livePreviewPanelWidth)
+                layout.previewPanelWidth = Double(livePreviewPanelWidth)
             }
         )
         .frame(width: 6)
         .frame(maxHeight: .infinity)
         
         RightPanelStackView(
-            showPreview: $showPreview,
-            showSnippets: $showSnippets,
-            splitRatio: $previewSnippetsSplitRatio,
+            layout: layout,
             selection: selection,
             items: items,
             cwd: path,
@@ -2533,7 +2475,7 @@ struct ContentView: View {
         FileListView(
             items: filteredItems,
             selection: $selection,
-            showPreview: $showPreview,
+            showPreview: $layout.showPreview,
             searchText: searchText,
             quickSearchText: $quickSearchText,
             isQuickSearchVisible: $isQuickSearchVisible,
@@ -4436,6 +4378,7 @@ private final class ResizeDividerNSView: NSView {
 
 struct FilePreviewView: View {
     @Binding var showPreview: Bool
+    @ObservedObject var layout: ExplorerWindowLayoutState
     let selection: Set<FileItem.ID>
     let items: [FileItem]
     let showHiddenFiles: Bool
@@ -4445,7 +4388,6 @@ struct FilePreviewView: View {
     let onNavigate: (String) -> Void
     let onOpenItem: (FileItem) -> Void
     let onOpenTerminalAtPath: (String) -> Void
-    @ObservedObject private var settings = SnippetsSettings.shared
     @State private var imageZoomScale: CGFloat = 1.0
     @State private var imageZoomAction: ImageZoomAction? = nil
     @State private var imageEffectiveZoomPercent: Int = 0
@@ -4494,14 +4436,14 @@ struct FilePreviewView: View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 Button {
-                    settings.isPreviewContentCollapsed.toggle()
+                    layout.isPreviewContentCollapsed.toggle()
                 } label: {
-                    Image(systemName: settings.isPreviewContentCollapsed ? "chevron.up" : "chevron.down")
+                    Image(systemName: layout.isPreviewContentCollapsed ? "chevron.up" : "chevron.down")
                 }
                 .buttonStyle(.borderless)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .help(settings.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
+                .help(layout.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
 
                 if isShowingFolderChildPreview {
                     Button {
@@ -4520,7 +4462,7 @@ struct FilePreviewView: View {
                 
                 Spacer(minLength: 0)
                 
-                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isImageFile(item) {
+                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isImageFile(item) {
                     Button {
                         imageZoomScale = min(imageZoomScale + 0.25, 5.0)
                     } label: {
@@ -4560,7 +4502,7 @@ struct FilePreviewView: View {
                         .frame(minWidth: 62, alignment: .center)
                 }
 
-                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isPDFFile(item) {
+                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isPDFFile(item) {
                     Button {
                         pdfNavigateAction = .previous
                     } label: {
@@ -4640,7 +4582,7 @@ struct FilePreviewView: View {
                     .disabled(pdfPageCount == 0 || pdfCurrentPage >= pdfPageCount)
                 }
 
-                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isTextFile(item) {
+                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isTextFile(item) {
                     Button {
                         textWrapEnabled.toggle()
                     } label: {
@@ -4738,7 +4680,7 @@ struct FilePreviewView: View {
                     .help("跳转底部")
                 }
 
-                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isMediaFile(item) {
+                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isMediaFile(item) {
                     Button {
                         mediaControlAction = .togglePlayPause
                     } label: {
@@ -4756,7 +4698,7 @@ struct FilePreviewView: View {
                     .help(mediaIsMuted ? "取消静音" : "静音")
                 }
 
-                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isOfficeFile(item) {
+                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isOfficeFile(item) {
                     Button {
                         officeNavigateAction = .pageUp
                     } label: {
@@ -4790,7 +4732,7 @@ struct FilePreviewView: View {
                     .help("刷新预览")
                 }
 
-                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isArchiveFile(item) {
+                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isArchiveFile(item) {
                     Button {
                         archiveReloadToken += 1
                     } label: {
@@ -4829,7 +4771,7 @@ struct FilePreviewView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, PanelTopBarMetrics.verticalPadding)
             
-            if !settings.isPreviewContentCollapsed {
+            if !layout.isPreviewContentCollapsed {
                 Divider()
                 
                 if let selectedItem {

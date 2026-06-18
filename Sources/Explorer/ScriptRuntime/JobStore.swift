@@ -142,7 +142,11 @@ final class JobStore: ObservableObject {
             jobs.removeAll()
             selectedJobID = nil
         }
-        settings.isOutputPanelVisible = false
+        if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
+            ActiveWindowLayoutCenter.shared.hideOutputPanel(on: layout)
+        } else {
+            ActiveWindowLayoutCenter.shared.hideOutputPanelOnAllWindows()
+        }
     }
 
     func clearOutput(jobID: UUID) {
@@ -181,7 +185,9 @@ final class JobStore: ObservableObject {
         )
 
         if settings.autoShowOutputPanelOnShellRun {
-            settings.isOutputPanelVisible = true
+            if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
+                ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
+            }
         }
 
         switch snippet.scriptType {

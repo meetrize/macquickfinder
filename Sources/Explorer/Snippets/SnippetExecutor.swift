@@ -56,8 +56,9 @@ final class SnippetExecutor: ObservableObject {
             )
             jobStore.markFailed(jobID: jobID, message: message + "\n")
             if settings.autoShowOutputPanelOnShellRun {
-                settings.isOutputPanelVisible = true
-                settings.isOutputPanelContentCollapsed = false
+                if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
+                    ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
+                }
             }
             return
         }
@@ -84,8 +85,9 @@ final class SnippetExecutor: ObservableObject {
         )
 
         if settings.autoShowOutputPanelOnShellRun {
-            settings.isOutputPanelVisible = true
-            settings.isOutputPanelContentCollapsed = false
+            if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
+                ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
+            }
         }
 
         switch snippet.scriptType {

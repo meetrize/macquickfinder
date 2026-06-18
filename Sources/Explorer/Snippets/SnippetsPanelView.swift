@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct SnippetsPanelView: View {
     @Binding var showSnippets: Bool
+    @ObservedObject var layout: ExplorerWindowLayoutState
     let selection: Set<FileItem.ID>
     let items: [FileItem]
     let cwd: String
@@ -11,7 +12,6 @@ struct SnippetsPanelView: View {
     let panelWidth: CGFloat
 
     @ObservedObject private var store = SnippetStore.shared
-    @ObservedObject private var settings = SnippetsSettings.shared
     @ObservedObject private var executor = SnippetExecutor.shared
 
     @State private var searchText = ""
@@ -39,7 +39,7 @@ struct SnippetsPanelView: View {
         store.sortedVisible(
             context: visibilityContext,
             searchQuery: searchText,
-            pinRecentlyExecuted: settings.pinRecentlyExecutedSnippets
+            pinRecentlyExecuted: SnippetsSettings.shared.pinRecentlyExecutedSnippets
         )
     }
 
@@ -49,7 +49,7 @@ struct SnippetsPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if settings.isSnippetsContentCollapsed {
+            if layout.isSnippetsContentCollapsed {
                 Spacer(minLength: 0)
                 Divider()
                 topBar
@@ -99,14 +99,14 @@ struct SnippetsPanelView: View {
     private var topBar: some View {
         HStack(spacing: 6) {
             Button {
-                settings.isSnippetsContentCollapsed.toggle()
+                layout.isSnippetsContentCollapsed.toggle()
             } label: {
-                Image(systemName: settings.isSnippetsContentCollapsed ? "chevron.up" : "chevron.down")
+                Image(systemName: layout.isSnippetsContentCollapsed ? "chevron.up" : "chevron.down")
             }
             .buttonStyle(.borderless)
             .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
             .contentShape(Rectangle())
-            .help(settings.isSnippetsContentCollapsed ? "展开 Snippets" : "折叠 Snippets")
+            .help(layout.isSnippetsContentCollapsed ? "展开 Snippets" : "折叠 Snippets")
 
             Text("Snippets")
                 .font(.callout)

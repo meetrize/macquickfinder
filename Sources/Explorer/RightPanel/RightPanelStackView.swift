@@ -1,9 +1,7 @@
 import SwiftUI
 
 struct RightPanelStackView: View {
-    @Binding var showPreview: Bool
-    @Binding var showSnippets: Bool
-    @Binding var splitRatio: Double
+    @ObservedObject var layout: ExplorerWindowLayoutState
 
     let selection: Set<FileItem.ID>
     let items: [FileItem]
@@ -17,42 +15,42 @@ struct RightPanelStackView: View {
     let onOpenItem: (FileItem) -> Void
     let onOpenTerminalAtPath: (String) -> Void
 
-    @ObservedObject private var settings = SnippetsSettings.shared
     @State private var dragPreviewHeight: CGFloat?
 
     private var previewMinHeight: CGFloat {
-        settings.isPreviewContentCollapsed ? PanelTopBarMetrics.totalHeight : 80
+        layout.isPreviewContentCollapsed ? PanelTopBarMetrics.totalHeight : 80
     }
 
     private var snippetsMinHeight: CGFloat {
-        settings.isSnippetsContentCollapsed ? PanelTopBarMetrics.totalHeight : 80
+        layout.isSnippetsContentCollapsed ? PanelTopBarMetrics.totalHeight : 80
     }
 
     var body: some View {
         GeometryReader { geo in
             let totalHeight = geo.size.height
-            let showBoth = showPreview && showSnippets
-            let showResizeDivider = showBoth && !settings.isSnippetsContentCollapsed && !settings.isPreviewContentCollapsed
+            let showBoth = layout.showPreview && layout.showSnippets
+            let showResizeDivider = showBoth && !layout.isSnippetsContentCollapsed && !layout.isPreviewContentCollapsed
             let storedPreviewHeight = clampedPreviewHeight(
-                totalHeight * CGFloat(splitRatio),
+                totalHeight * CGFloat(layout.previewSnippetsSplitRatio),
                 totalHeight: totalHeight
             )
             let previewHeight = dragPreviewHeight ?? storedPreviewHeight
             let expandedPreviewHeight: CGFloat = {
                 // Snippets 折叠后只占一个标题栏：预览应自动撑满剩余空间
-                if showBoth, settings.isSnippetsContentCollapsed, !settings.isPreviewContentCollapsed {
+                if showBoth, layout.isSnippetsContentCollapsed, !layout.isPreviewContentCollapsed {
                     return max(previewMinHeight, totalHeight - snippetsMinHeight)
                 }
                 return previewHeight
             }()
-            let effectivePreviewHeight = settings.isPreviewContentCollapsed
+            let effectivePreviewHeight = layout.isPreviewContentCollapsed
                 ? PanelTopBarMetrics.totalHeight
                 : expandedPreviewHeight
 
             VStack(spacing: 0) {
-                if showPreview {
+                if layout.showPreview {
                     FilePreviewView(
-                        showPreview: $showPreview,
+                        showPreview: $layout.showPreview,
+                        layout: layout,
                         selection: selection,
                         items: items,
                         showHiddenFiles: showHiddenFiles,
@@ -78,16 +76,17 @@ struct RightPanelStackView: View {
                                 dragPreviewHeight = nil
                                 return
                             }
-                            splitRatio = Double(finalHeight / totalHeight)
+                            layout.previewSnippetsSplitRatio = Double(finalHeight / totalHeight)
                             dragPreviewHeight = nil
                         }
                     )
                     .frame(height: VerticalResizeDividerMetrics.hitHeight)
                 }
 
-                if showSnippets {
+                if layout.showSnippets {
                     SnippetsPanelView(
-                        showSnippets: $showSnippets,
+                        showSnippets: $layout.showSnippets,
+                        layout: layout,
                         selection: selection,
                         items: items,
                         cwd: cwd,
@@ -103,7 +102,7 @@ struct RightPanelStackView: View {
 
     private func clampedPreviewHeight(_ height: CGFloat, totalHeight: CGFloat) -> CGFloat {
         guard totalHeight > 0 else { return 80 }
-        let divider = showPreview && showSnippets && !settings.isSnippetsContentCollapsed && !settings.isPreviewContentCollapsed
+        let divider = layout.showPreview && layout.showSnippets && !layout.isSnippetsContentCollapsed && !layout.isPreviewContentCollapsed
             ? VerticalResizeDividerMetrics.hitHeight
             : 0
         let maxTop = max(previewMinHeight, totalHeight - snippetsMinHeight - divider)
