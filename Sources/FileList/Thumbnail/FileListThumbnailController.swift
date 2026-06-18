@@ -66,6 +66,7 @@ public final class FileListThumbnailController: NSObject {
     }
     
     deinit {
+        thumbnailGenerator.shutdown()
         tearDownObservers()
     }
     

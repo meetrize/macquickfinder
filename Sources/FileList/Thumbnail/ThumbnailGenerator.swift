@@ -3,6 +3,37 @@ import Foundation
 import QuickLookThumbnailing
 import UniformTypeIdentifiers
 
+/// 限制 QL 并发；回调强引用 gate，避免生成器释放后信号量未归还。
+private final class QLConcurrencyGate {
+    private let slots = DispatchSemaphore(value: 4)
+    private let lock = NSLock()
+    private var inFlight = 0
+    
+    func acquire() {
+        slots.wait()
+        lock.lock()
+        inFlight += 1
+        lock.unlock()
+    }
+    
+    func release() {
+        lock.lock()
+        inFlight -= 1
+        lock.unlock()
+        slots.signal()
+    }
+    
+    func waitUntilIdle() {
+        while true {
+            lock.lock()
+            let count = inFlight
+            lock.unlock()
+            if count == 0 { return }
+            Thread.sleep(forTimeInterval: 0.005)
+        }
+    }
+}
+
 /// 缩略图生成：Quick Look 为主，系统图标为占位与回退。
 final class ThumbnailGenerator {
     enum Delivery {
@@ -12,9 +43,10 @@ final class ThumbnailGenerator {
     
     private let cache = ThumbnailCache()
     private let queue = DispatchQueue(label: "FileList.ThumbnailGenerator", qos: .userInitiated)
-    /// 限制 QL 并发，避免大目录同时发起数百个生成请求。
-    private let qlSlots = DispatchSemaphore(value: 4)
+    private let qlGate = QLConcurrencyGate()
     private var activeGeneration: UInt = 0
+    private let shutdownLock = NSLock()
+    private var didShutdown = false
     
     private static let placeholderLock = NSLock()
     private static var genericPlaceholders: [String: NSImage] = [:]
@@ -46,6 +78,24 @@ final class ThumbnailGenerator {
             return FileListThumbnailMetrics.parentDirectoryIcon(cellSize: cellSize, scale: screenScale)
         }
         return Self.genericPlaceholder(isDirectory: row.isDirectory, cellSize: cellSize)
+    }
+    
+    deinit {
+        shutdown()
+    }
+    
+    /// 取消进行中的请求并等待 QL 槽位全部归还，避免析构时信号量仍被占用。
+    func shutdown() {
+        shutdownLock.lock()
+        guard !didShutdown else {
+            shutdownLock.unlock()
+            return
+        }
+        didShutdown = true
+        shutdownLock.unlock()
+        
+        activeGeneration &+= 1
+        qlGate.waitUntilIdle()
     }
     
     func cancelInFlightRequests() {
@@ -156,9 +206,10 @@ final class ThumbnailGenerator {
             CGFloat(FileListThumbnailMetrics.thumbnailSizeBucket(for: cellSize))
         ) * screenScale
         
-        qlSlots.wait()
+        let gate = qlGate
+        gate.acquire()
         guard generation == activeGeneration else {
-            qlSlots.signal()
+            gate.release()
             return
         }
         
@@ -170,8 +221,8 @@ final class ThumbnailGenerator {
         )
         
         QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] representation, _ in
+            defer { gate.release() }
             guard let self else { return }
-            defer { self.qlSlots.signal() }
             guard generation == self.activeGeneration else { return }
             
             if let image = representation?.nsImage {
