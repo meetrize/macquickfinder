@@ -21,4 +21,5 @@ enum ExplorerAppSettings {
     static let snippetsContentCollapsedKey = "snippets.contentCollapsed"
     static let outputPanelContentCollapsedKey = "snippets.outputPanelContentCollapsed"
     static let previewContentCollapsedKey = "snippets.previewContentCollapsed"
+    static let windowSnapEnabledKey = "windowSnapEnabled"
 }

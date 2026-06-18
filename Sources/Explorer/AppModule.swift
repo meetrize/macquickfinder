@@ -364,33 +364,82 @@ extension Notification.Name {
 private final class ExternalFolderOpenCenter: ObservableObject {
     static let shared = ExternalFolderOpenCenter()
 
-    @Published private(set) var targetPath: String?
-    private var pendingPath: String?
+    struct OpenRequest: Equatable {
+        let directoryPath: String
+        let selectionPath: String?
+    }
+
+    @Published private(set) var targetRequest: OpenRequest?
+    private var pendingRequest: OpenRequest?
 
     private init() {}
 
     func requestOpen(urls: [URL]) {
-        guard let resolvedPath = resolveDirectoryPath(from: urls) else { return }
-        pendingPath = resolvedPath
-        targetPath = resolvedPath
+        guard let resolvedRequest = resolveOpenRequest(from: urls) else { return }
+        pendingRequest = resolvedRequest
+        targetRequest = resolvedRequest
     }
 
-    func consumePendingPath() -> String? {
-        let path = pendingPath
-        pendingPath = nil
-        return path
+    func consumePendingRequest() -> OpenRequest? {
+        let request = pendingRequest
+        pendingRequest = nil
+        return request
     }
 
-    private func resolveDirectoryPath(from urls: [URL]) -> String? {
+    private func resolveOpenRequest(from urls: [URL]) -> OpenRequest? {
         for url in urls {
             let standardized = url.standardizedFileURL
             var isDirectory: ObjCBool = false
-            if FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDirectory),
-               isDirectory.boolValue {
-                return standardized.path
+            guard FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDirectory) else {
+                continue
             }
+            if isDirectory.boolValue {
+                return OpenRequest(
+                    directoryPath: standardized.path,
+                    selectionPath: nil
+                )
+            }
+            let parentDirectory = standardized.deletingLastPathComponent()
+            guard parentDirectory.path != standardized.path else { continue }
+            return OpenRequest(
+                directoryPath: parentDirectory.path,
+                selectionPath: standardized.path
+            )
         }
         return nil
+    }
+}
+
+private struct ExternalNavigationTarget: Equatable {
+    let directoryPath: String
+    let selectionPath: String?
+}
+
+private extension ExternalNavigationTarget {
+    init(request: ExternalFolderOpenCenter.OpenRequest) {
+        self.init(
+            directoryPath: request.directoryPath,
+            selectionPath: request.selectionPath
+        )
+    }
+}
+
+private extension ContentView {
+    func applyExternalNavigationTarget(_ target: ExternalNavigationTarget) {
+        pendingExternalSelectionPath = target.selectionPath
+        if path == target.directoryPath {
+            loadItems()
+        } else {
+            path = target.directoryPath
+        }
+    }
+
+    func applyPendingExternalSelectionIfNeeded(loadedItems: [FileItem], for directoryPath: String) {
+        guard directoryPath == path else { return }
+        guard let pendingExternalSelectionPath else { return }
+        defer { self.pendingExternalSelectionPath = nil }
+        guard loadedItems.contains(where: { $0.id == pendingExternalSelectionPath }) else { return }
+        selection = [pendingExternalSelectionPath]
     }
 }
 
@@ -402,7 +451,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
-        let urls = filenames.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        let urls = filenames.map { URL(fileURLWithPath: $0) }
         Task { @MainActor in
             ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
         }
@@ -411,7 +460,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
         Task { @MainActor in
             ExternalFolderOpenCenter.shared.requestOpen(
-                urls: [URL(fileURLWithPath: filename, isDirectory: true)]
+                urls: [URL(fileURLWithPath: filename)]
             )
         }
         return true
@@ -462,6 +511,8 @@ private struct SnippetsSettingsTab: View {
 private struct GeneralSettingsTab: View {
     @AppStorage(AppSettings.blankDoubleClickActionKey)
     private var blankDoubleClickAction = BlankDoubleClickAction.navigateToParent.rawValue
+    @AppStorage(ExplorerAppSettings.windowSnapEnabledKey)
+    private var windowSnapEnabled = true
     @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
     
     var body: some View {
@@ -473,6 +524,10 @@ private struct GeneralSettingsTab: View {
                     }
                 }
                 .pickerStyle(.radioGroup)
+            }
+
+            Section {
+                Toggle("启用窗口吸附与联动移动", isOn: $windowSnapEnabled)
             }
 
             DefaultFileViewerSettingsSection(model: defaultFileViewerSettings, style: .compact)
@@ -2083,6 +2138,7 @@ struct ContentView: View {
     @State private var isPathBarTextMode = false
     @State private var liveLeftPanelDragWidth: CGFloat?
     @StateObject private var externalFolderOpenCenter = ExternalFolderOpenCenter.shared
+    @State private var pendingExternalSelectionPath: String?
     
     private let leftPanelConstants = LeftPanelLayoutConstants()
     
@@ -2242,8 +2298,9 @@ struct ContentView: View {
             
             // 初始化时做一次自愈：持久化宽度可能越界。
             layout.healLeftPanelSidebarWidth()
-            if let launchPath = externalFolderOpenCenter.consumePendingPath() {
-                path = launchPath
+            if let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
+                pendingExternalSelectionPath = launchRequest.selectionPath
+                path = launchRequest.directoryPath
             } else {
                 path = restoredLaunchPath()
             }
@@ -2251,9 +2308,8 @@ struct ContentView: View {
             layout.recordLastOpenedPath(path)
             loadItems()
         }
-        .onReceive(externalFolderOpenCenter.$targetPath.compactMap { $0 }) { newPath in
-            guard newPath != path else { return }
-            path = newPath
+        .onReceive(externalFolderOpenCenter.$targetRequest.compactMap { $0 }) { request in
+            applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
         }
         .onChange(of: path) { newPath in
             if let oldPath = lastRecordedPath, oldPath != newPath, !isApplyingHistoryNavigation {
@@ -2605,6 +2661,10 @@ struct ContentView: View {
                 isLoading = false
                 didApplyItems = true
                 fileListFocusToken &+= 1
+                applyPendingExternalSelectionIfNeeded(
+                    loadedItems: loadedItems,
+                    for: currentPath
+                )
             }
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
@@ -2979,6 +3039,37 @@ private struct LeadingResizeDivider: NSViewRepresentable {
     }
 }
 
+@MainActor
+private enum FavoriteSidebarDrop {
+    static func handle(
+        urls: [URL],
+        to destinationPath: String,
+        copy: Bool,
+        favoritesStore: FavoritesStore,
+        onItemsChanged: @escaping () -> Void
+    ) {
+        var filesToMove: [URL] = []
+        
+        for url in urls {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
+            if isDirectory.boolValue && !FileListApplicationBundle.isBundle(path: url.path) {
+                favoritesStore.addDirectory(at: url.path)
+            } else {
+                filesToMove.append(url)
+            }
+        }
+        
+        guard !filesToMove.isEmpty else { return }
+        if TrashLoader.isTrashPath(destinationPath) {
+            FileOperations.trashItems(filesToMove, completion: onItemsChanged)
+            return
+        }
+        let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
+        FileOperations.moveItems(filesToMove, to: destination, copy: copy, completion: onItemsChanged)
+    }
+}
+
 private struct FavoritesSidebarRows: View {
     @ObservedObject var favoritesStore: FavoritesStore
     @Binding var path: String
@@ -3118,25 +3209,13 @@ struct SidebarView: View {
     }
     
     private func handleFavoriteDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
-        var filesToMove: [URL] = []
-        
-        for url in urls {
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
-            if isDirectory.boolValue {
-                favoritesStore.addDirectory(at: url.path)
-            } else {
-                filesToMove.append(url)
-            }
-        }
-        
-        guard !filesToMove.isEmpty else { return }
-        if TrashLoader.isTrashPath(destinationPath) {
-            FileOperations.trashItems(filesToMove, completion: onItemsChanged)
-            return
-        }
-        let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
-        FileOperations.moveItems(filesToMove, to: destination, copy: copy, completion: onItemsChanged)
+        FavoriteSidebarDrop.handle(
+            urls: urls,
+            to: destinationPath,
+            copy: copy,
+            favoritesStore: favoritesStore,
+            onItemsChanged: onItemsChanged
+        )
     }
     
     private func handleSidebarDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
@@ -3258,25 +3337,13 @@ struct SidebarRailView: View {
     }
     
     private func handleFavoriteDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
-        var filesToMove: [URL] = []
-        
-        for url in urls {
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
-            if isDirectory.boolValue {
-                favoritesStore.addDirectory(at: url.path)
-            } else {
-                filesToMove.append(url)
-            }
-        }
-        
-        guard !filesToMove.isEmpty else { return }
-        if TrashLoader.isTrashPath(destinationPath) {
-            FileOperations.trashItems(filesToMove, completion: onItemsChanged)
-            return
-        }
-        let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
-        FileOperations.moveItems(filesToMove, to: destination, copy: copy, completion: onItemsChanged)
+        FavoriteSidebarDrop.handle(
+            urls: urls,
+            to: destinationPath,
+            copy: copy,
+            favoritesStore: favoritesStore,
+            onItemsChanged: onItemsChanged
+        )
     }
     
     private func handleSidebarDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {

@@ -104,10 +104,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         return rowView
     }
     
-    func tableView(_ tableView: NSTableView, menuFor event: NSEvent) -> NSMenu? {
-        guard parent.showsTitle else { return nil }
-        let point = tableView.convert(event.locationInWindow, from: nil)
-        let row = tableView.row(at: point)
+    func makeContextMenu(for row: Int) -> NSMenu? {
         guard let item = item(at: row) else { return nil }
         
         let menu = NSMenu()
@@ -119,6 +116,28 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         removeItem.target = self
         removeItem.representedObject = item.path
         return menu
+    }
+    
+    func handleRightMouseDown(_ event: NSEvent) {
+        guard let tableView else { return }
+        let point = tableView.convert(event.locationInWindow, from: nil)
+        let row = tableView.row(at: point)
+        guard row >= 0 else { return }
+        
+        tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        if let item = item(at: row) {
+            selectPath(item.path)
+        }
+        
+        if let menu = makeContextMenu(for: row) {
+            NSMenu.popUpContextMenu(menu, with: event, for: tableView)
+        }
+    }
+    
+    func tableView(_ tableView: NSTableView, menuFor event: NSEvent) -> NSMenu? {
+        let point = tableView.convert(event.locationInWindow, from: nil)
+        let row = tableView.row(at: point)
+        return makeContextMenu(for: row)
     }
     
     @objc private func removeFavorite(_ sender: NSMenuItem) {
@@ -423,9 +442,17 @@ private final class FavoriteSidebarRowView: NSTableRowView {
     }
     
     override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.control) {
+            controller?.handleRightMouseDown(event)
+            return
+        }
         mouseDownLocation = event.locationInWindow
         didBeginDrag = false
         selectRowIfNeeded()
+    }
+    
+    override func rightMouseDown(with event: NSEvent) {
+        controller?.handleRightMouseDown(event)
     }
     
     override func mouseUp(with event: NSEvent) {
@@ -445,6 +472,10 @@ private final class FavoriteSidebarRowView: NSTableRowView {
 
 final class FavoritesTableView: NSTableView {
     weak var controller: FavoritesSidebarController?
+    
+    override func rightMouseDown(with event: NSEvent) {
+        controller?.handleRightMouseDown(event)
+    }
     
     override var intrinsicContentSize: NSSize {
         let rowCount = max(numberOfRows, 0)

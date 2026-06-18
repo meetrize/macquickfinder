@@ -293,6 +293,7 @@ struct WindowKeyLayoutTracker: NSViewRepresentable {
             guard let layout else { return }
 
             ActiveWindowLayoutCenter.shared.register(layout)
+            WindowSnapCoordinator.shared.register(window: window)
 
             let center = NotificationCenter.default
             observers.append(center.addObserver(
@@ -308,6 +309,34 @@ struct WindowKeyLayoutTracker: NSViewRepresentable {
                 queue: .main
             ) { [weak self] _ in
                 self?.unregisterIfKeyWindow()
+            })
+            observers.append(center.addObserver(
+                forName: NSWindow.didMoveNotification,
+                object: window,
+                queue: .main
+            ) { _ in
+                WindowSnapCoordinator.shared.handleWindowDidMove(window)
+            })
+            observers.append(center.addObserver(
+                forName: NSWindow.didResizeNotification,
+                object: window,
+                queue: .main
+            ) { _ in
+                WindowSnapCoordinator.shared.handleWindowDidResize(window)
+            })
+            observers.append(center.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: window,
+                queue: .main
+            ) { _ in
+                WindowSnapCoordinator.shared.handleWindowWillClose(window)
+            })
+            observers.append(center.addObserver(
+                forName: NSWindow.didMiniaturizeNotification,
+                object: window,
+                queue: .main
+            ) { _ in
+                WindowSnapCoordinator.shared.handleWindowDidMiniaturize(window)
             })
 
             syncKeyWindowRegistration()
