@@ -126,6 +126,7 @@ extension FileListTableController {
             let deltaY = event.locationInWindow.y - startEvent.locationInWindow.y
             guard hypot(deltaX, deltaY) >= dragThreshold else { return true }
             blankDragSelecting = true
+            FileListContentInteractionNotifier.notifyDidBegin()
         }
         
         let startY = tableView.convert(startEvent.locationInWindow, from: nil).y
@@ -138,6 +139,9 @@ extension FileListTableController {
     }
     
     func handleBlankMouseUp() {
+        if blankDragSelecting || dragSessionActive {
+            FileListContentInteractionNotifier.notifyDidEnd()
+        }
         blankMouseDownEvent = nil
         blankDragSelecting = false
         mouseDownCanStartFileDrag = false
@@ -325,6 +329,8 @@ extension FileListTableController {
             selection: effectiveSelectionIDs()
         )
         guard !dragged.isEmpty else { return }
+
+        FileListContentInteractionNotifier.notifyDidBegin()
         
         let mousePoint = tableView.convert(event.locationInWindow, from: nil)
         var draggingItems: [NSDraggingItem] = []
@@ -499,6 +505,7 @@ extension FileListTableController: NSDraggingSource {
         operation: NSDragOperation
     ) {
         dragSessionActive = false
+        FileListContentInteractionNotifier.notifyDidEnd()
         mouseDownLocation = nil
         mouseDownEvent = nil
         mouseDownCanStartFileDrag = false

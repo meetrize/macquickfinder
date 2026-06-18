@@ -1,4 +1,5 @@
 import AppKit
+import FileList
 import QuartzCore
 
 // MARK: - NSWindow Frame Hook
@@ -146,8 +147,15 @@ final class WindowSnapCoordinator {
     private var isTitleBarDragActive = false
     /// 无吸附时标题栏拖动的窗口，松手时用于再次检测吸附
     private weak var snapDragCandidate: NSWindow?
+    /// 从标题栏按下开始的窗口拖动（含首次吸附前）
+    private var isSnapTitleBarDragSession = false
+    /// 文件列表内容区交互（拖文件、框选）嵌套计数
+    private var contentInteractionDepth = 0
+    private var contentInteractionObservers: [NSObjectProtocol] = []
 
-    private init() {}
+    private init() {
+        installContentInteractionObservers()
+    }
 
     var isEnabled: Bool {
         UserDefaults.standard.object(forKey: ExplorerAppSettings.windowSnapEnabledKey) as? Bool ?? true
@@ -198,17 +206,12 @@ final class WindowSnapCoordinator {
         guard !isProgrammatic(leader) else { return }
 
         if let link = activeLink, link.contains(leader) {
-            let mayRelease = !isTitleBarDragActive || NSEvent.pressedMouseButtons & 1 == 0
-            if mayRelease, shouldReleaseLink(link) {
-                releaseActiveLink(attemptResnapWith: leader)
-                return
-            }
-            if isTitleBarDragActive, NSEvent.pressedMouseButtons & 1 != 0 {
+            // 拖动过程中只联动，解除吸附留给松手时处理
+            if NSEvent.pressedMouseButtons & 1 != 0 {
+                guard shouldPerformLinkedWindowSync() else { return }
                 dragLeader = leader
                 sessionLeaderFrame = leader.frame
                 syncLayoutFromSession(flushDisplay: false)
-            } else if NSEvent.pressedMouseButtons & 1 == 0 {
-                syncPartnerToLeader(flushDisplay: false)
             }
             return
         }
@@ -223,10 +226,21 @@ final class WindowSnapCoordinator {
         guard !isProgrammatic(window) else { return }
 
         if activeLink?.contains(window) == true {
-            if isTitleBarDragActive {
+            if isWindowTitleBarDragSession {
                 dragLeader = window
             }
             return
+        }
+
+        // 窗口被拖动时兜底：不依赖标题栏命中检测也能触发吸附
+        if activeLink == nil,
+           contentInteractionDepth == 0,
+           NSEvent.pressedMouseButtons & 1 != 0 {
+            snapDragCandidate = window
+            if !isSnapTitleBarDragSession {
+                isSnapTitleBarDragSession = true
+                startContinuousSync()
+            }
         }
 
         leaderFrameUpdated(window)
@@ -254,24 +268,29 @@ final class WindowSnapCoordinator {
 
     // MARK: - Active Link Lifecycle
 
-    private func setActiveLink(_ link: WindowSnapLink?) {
+    private func setActiveLink(_ link: WindowSnapLink?, preserveTitleBarSession: Bool = false) {
         activeLink = link
         if link == nil {
             stopContinuousSync()
             dragLeader = nil
             sessionLeaderFrame = nil
             isTitleBarDragActive = false
+            if !preserveTitleBarSession {
+                isSnapTitleBarDragSession = false
+                snapDragCandidate = nil
+            }
             lastMouseLocation = nil
             return
         }
-        startContinuousSync()
         lastMouseLocation = nil
         sessionLeaderFrame = nil
     }
 
     /// 解除吸附；若边缘仍足够近则立即尝试重新吸附
     private func releaseActiveLink(attemptResnapWith window: NSWindow?) {
-        setActiveLink(nil)
+        let preserveSession = isSnapTitleBarDragSession
+            && NSEvent.pressedMouseButtons & 1 != 0
+        setActiveLink(nil, preserveTitleBarSession: preserveSession)
         if let window {
             trySnap(moving: window)
         }
@@ -289,7 +308,7 @@ final class WindowSnapCoordinator {
         if let leader {
             sessionLeaderFrame = leader.frame
         }
-        syncPartnerToLeader(flushDisplay: true)
+        syncPartnerToLeader(flushDisplay: true, ignoreContentInteraction: true)
         refreshLinkedWindowsChrome(link)
         dragLeader = nil
         lastMouseLocation = nil
@@ -303,31 +322,41 @@ final class WindowSnapCoordinator {
               isEligible(leader), isRegistered(leader),
               isMouseInTitleBar(leader, at: mouse) else {
             snapDragCandidate = nil
+            isSnapTitleBarDragSession = false
             if activeLink != nil {
                 isTitleBarDragActive = false
+                dragLeader = nil
                 lastMouseLocation = nil
+                sessionLeaderFrame = nil
+                stopContinuousSync()
             }
             return
         }
 
         snapDragCandidate = leader
+        isSnapTitleBarDragSession = true
+        lastMouseLocation = mouse
+        startContinuousSync()
 
         guard activeLink != nil else { return }
 
         isTitleBarDragActive = true
         dragLeader = leader
         sessionLeaderFrame = leader.frame
-        lastMouseLocation = mouse
     }
 
     private func handleMouseUp() {
         if activeLink != nil {
-            finalizeDragIfNeeded()
-            return
+            if isWindowTitleBarDragSession {
+                finalizeDragIfNeeded()
+            }
+        } else if isEnabled, let window = snapDragCandidate {
+            trySnap(moving: window)
         }
-        guard isEnabled, let window = snapDragCandidate else { return }
         snapDragCandidate = nil
-        trySnap(moving: window)
+        isSnapTitleBarDragSession = false
+        isTitleBarDragActive = false
+        stopContinuousSync()
     }
 
     // MARK: - Continuous Sync
@@ -347,8 +376,18 @@ final class WindowSnapCoordinator {
 
     /// 用鼠标增量更新 leader 估算位置，再绝对计算另一扇窗位置（顶/左对齐，无累积误差）
     private func continuousSyncTick() {
-        guard isEnabled, let link = activeLink else { return }
-        guard isTitleBarDragActive else { return }
+        guard isEnabled else { return }
+
+        if activeLink == nil {
+            guard isSnapTitleBarDragSession,
+                  NSEvent.pressedMouseButtons & 1 != 0,
+                  let window = snapDragCandidate else { return }
+            trySnap(moving: window)
+            return
+        }
+
+        guard let link = activeLink else { return }
+        guard shouldPerformLinkedWindowSync() else { return }
         guard NSEvent.pressedMouseButtons & 1 != 0 else { return }
         guard let leader = dragLeader ?? link.windowA ?? link.windowB,
               link.otherWindow(than: leader) != nil else { return }
@@ -375,6 +414,7 @@ final class WindowSnapCoordinator {
 
     /// 根据 session 中 leader 的估算 frame，绝对定位另一扇窗
     private func syncLayoutFromSession(flushDisplay: Bool) {
+        guard shouldPerformLinkedWindowSync() else { return }
         guard let link = activeLink,
               let leader = dragLeader ?? link.windowA ?? link.windowB,
               let partner = link.otherWindow(than: leader),
@@ -393,7 +433,10 @@ final class WindowSnapCoordinator {
         movePartnerWindow(partner, to: target, flushDisplay: flushDisplay)
     }
 
-    private func syncPartnerToLeader(flushDisplay: Bool) {
+    private func syncPartnerToLeader(flushDisplay: Bool, ignoreContentInteraction: Bool = false) {
+        if !ignoreContentInteraction {
+            guard shouldPerformLinkedWindowSync() else { return }
+        }
         guard let link = activeLink,
               let leader = dragLeader ?? link.windowA ?? link.windowB,
               let partner = link.otherWindow(than: leader) else { return }
@@ -440,6 +483,50 @@ final class WindowSnapCoordinator {
             }
             return event
         }
+    }
+
+    private func installContentInteractionObservers() {
+        guard contentInteractionObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        contentInteractionObservers.append(center.addObserver(
+            forName: .mf_contentPointerInteractionDidBegin,
+            object: nil,
+            queue: .main
+        ) { _ in
+            WindowSnapCoordinator.shared.noteContentPointerInteractionBegan()
+        })
+        contentInteractionObservers.append(center.addObserver(
+            forName: .mf_contentPointerInteractionDidEnd,
+            object: nil,
+            queue: .main
+        ) { _ in
+            WindowSnapCoordinator.shared.noteContentPointerInteractionEnded()
+        })
+    }
+
+    func noteContentPointerInteractionBegan() {
+        contentInteractionDepth += 1
+        isTitleBarDragActive = false
+        isSnapTitleBarDragSession = false
+        snapDragCandidate = nil
+        dragLeader = nil
+        lastMouseLocation = nil
+        sessionLeaderFrame = nil
+        stopContinuousSync()
+    }
+
+    func noteContentPointerInteractionEnded() {
+        contentInteractionDepth = max(0, contentInteractionDepth - 1)
+    }
+
+    private var isWindowTitleBarDragSession: Bool {
+        isTitleBarDragActive || isSnapTitleBarDragSession
+    }
+
+    private func shouldPerformLinkedWindowSync() -> Bool {
+        guard activeLink != nil, isWindowTitleBarDragSession else { return false }
+        if contentInteractionDepth > 0 { return false }
+        return true
     }
 
     private func prepareWindowForLinkedMove(_ window: NSWindow) {
@@ -523,7 +610,12 @@ final class WindowSnapCoordinator {
 
         setActiveLink(WindowSnapLink(windowA: moving, windowB: best.candidate, edge: best.edge))
         dragLeader = moving
-        syncPartnerToLeader(flushDisplay: true)
+        if isSnapTitleBarDragSession {
+            isTitleBarDragActive = true
+            lastMouseLocation = NSEvent.mouseLocation
+            startContinuousSync()
+        }
+        syncPartnerToLeader(flushDisplay: true, ignoreContentInteraction: true)
         if let link = activeLink {
             refreshLinkedWindowsChrome(link)
         }

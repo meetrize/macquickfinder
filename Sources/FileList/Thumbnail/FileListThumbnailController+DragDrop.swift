@@ -10,6 +10,8 @@ extension FileListThumbnailController {
             selection: effectiveSelectionIDs()
         )
         guard !dragged.isEmpty else { return }
+
+        FileListContentInteractionNotifier.notifyDidBegin()
         
         resetDragDropSessionState()
         activeDragURLs = dragged.map { URL(fileURLWithPath: $0.iconPath) }
@@ -341,6 +343,7 @@ extension FileListThumbnailController: NSDraggingSource {
         let didDrop = dropWasPerformed
         resetDragDropSessionState()
         dragSessionActive = false
+        FileListContentInteractionNotifier.notifyDidEnd()
         mouseDownLocation = nil
         mouseDownEvent = nil
         mouseDownCanStartFileDrag = false

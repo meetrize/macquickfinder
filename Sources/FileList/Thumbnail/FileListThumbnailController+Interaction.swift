@@ -78,6 +78,9 @@ extension FileListThumbnailController {
     }
     
     func handleBlankMouseUp() {
+        if blankDragSelecting || dragSessionActive {
+            FileListContentInteractionNotifier.notifyDidEnd()
+        }
         clearBlankDragState()
         mouseDownCanStartFileDrag = false
     }
@@ -157,6 +160,7 @@ extension FileListThumbnailController {
             let deltaY = event.locationInWindow.y - startEvent.locationInWindow.y
             guard hypot(deltaX, deltaY) >= dragThreshold else { return true }
             blankDragSelecting = true
+            FileListContentInteractionNotifier.notifyDidBegin()
         }
         
         let startPoint = collectionView.convert(startEvent.locationInWindow, from: nil)
