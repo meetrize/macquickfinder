@@ -338,6 +338,13 @@ struct WindowKeyLayoutTracker: NSViewRepresentable {
             ) { _ in
                 WindowSnapCoordinator.shared.handleWindowDidMiniaturize(window)
             })
+            observers.append(center.addObserver(
+                forName: NSWindow.didDeminiaturizeNotification,
+                object: window,
+                queue: .main
+            ) { _ in
+                WindowSnapCoordinator.shared.handleWindowDidDeminiaturize(window)
+            })
 
             syncKeyWindowRegistration()
         }
