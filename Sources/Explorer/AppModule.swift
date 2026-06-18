@@ -2517,7 +2517,13 @@ struct ContentView: View {
             items: items,
             cwd: path,
             showHiddenFiles: showHiddenFiles,
-            panelWidth: livePreviewPanelWidth
+            autoCalculateDirectorySizes: shouldAutoCalculateDirectorySizes(for: path),
+            directorySizeOverlay: directorySizeOverlay,
+            directoryItemCountOverlay: directoryItemCountOverlay,
+            panelWidth: livePreviewPanelWidth,
+            onNavigate: { path = $0 },
+            onOpenItem: openItem,
+            onOpenTerminalAtPath: { TerminalHelper.open(at: $0) }
         )
         .frame(width: livePreviewPanelWidth)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -4340,6 +4346,13 @@ struct FilePreviewView: View {
     @Binding var showPreview: Bool
     let selection: Set<FileItem.ID>
     let items: [FileItem]
+    let showHiddenFiles: Bool
+    let autoCalculateDirectorySizes: Bool
+    @ObservedObject var directorySizeOverlay: DirectorySizeOverlay
+    @ObservedObject var directoryItemCountOverlay: DirectoryItemCountOverlay
+    let onNavigate: (String) -> Void
+    let onOpenItem: (FileItem) -> Void
+    let onOpenTerminalAtPath: (String) -> Void
     @ObservedObject private var settings = SnippetsSettings.shared
     @State private var imageZoomScale: CGFloat = 1.0
     @State private var imageZoomAction: ImageZoomAction? = nil
@@ -4362,6 +4375,7 @@ struct FilePreviewView: View {
     @State private var archiveExpanded: Bool = true
     @State private var archiveReloadToken: Int = 0
     @State private var archiveCopyAction: ArchivePreviewAction? = nil
+    @State private var folderInlineChild: FileItem?
     
     private var selectedItems: [FileItem] {
         FileItem.resolveSelection(ids: selection, from: items)
@@ -4369,6 +4383,19 @@ struct FilePreviewView: View {
     
     private var selectedItem: FileItem? {
         selectedItems.first
+    }
+
+    private var previewContentItem: FileItem? {
+        folderInlineChild ?? selectedItem
+    }
+
+    private var isShowingFolderChildPreview: Bool {
+        folderInlineChild != nil
+    }
+
+    private var toolbarFileItem: FileItem? {
+        guard let item = previewContentItem, !item.isDirectory else { return nil }
+        return item
     }
     
     var body: some View {
@@ -4384,14 +4411,24 @@ struct FilePreviewView: View {
                 .contentShape(Rectangle())
                 .help(settings.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
 
-                Text(selectedItem?.name ?? "预览")
+                if isShowingFolderChildPreview {
+                    Button {
+                        folderInlineChild = nil
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("返回文件夹")
+                }
+
+                Text(previewContentItem?.name ?? selectedItem?.name ?? "预览")
                     .font(.callout)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 
                 Spacer(minLength: 0)
                 
-                if !settings.isPreviewContentCollapsed, let selectedItem, isImageFile(selectedItem) {
+                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isImageFile(item) {
                     Button {
                         imageZoomScale = min(imageZoomScale + 0.25, 5.0)
                     } label: {
@@ -4431,7 +4468,7 @@ struct FilePreviewView: View {
                         .frame(minWidth: 62, alignment: .center)
                 }
 
-                if !settings.isPreviewContentCollapsed, let selectedItem, isPDFFile(selectedItem) {
+                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isPDFFile(item) {
                     Button {
                         pdfNavigateAction = .previous
                     } label: {
@@ -4511,7 +4548,7 @@ struct FilePreviewView: View {
                     .disabled(pdfPageCount == 0 || pdfCurrentPage >= pdfPageCount)
                 }
 
-                if !settings.isPreviewContentCollapsed, let selectedItem, isTextFile(selectedItem) {
+                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isTextFile(item) {
                     Button {
                         textWrapEnabled.toggle()
                     } label: {
@@ -4520,7 +4557,7 @@ struct FilePreviewView: View {
                     .buttonStyle(.borderless)
                     .help(textWrapEnabled ? "关闭自动换行" : "开启自动换行")
 
-                    if isMarkdownFile(selectedItem) {
+                    if isMarkdownFile(item) {
                         Button {
                             markdownMode = .preview
                         } label: {
@@ -4609,7 +4646,7 @@ struct FilePreviewView: View {
                     .help("跳转底部")
                 }
 
-                if !settings.isPreviewContentCollapsed, let selectedItem, isMediaFile(selectedItem) {
+                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isMediaFile(item) {
                     Button {
                         mediaControlAction = .togglePlayPause
                     } label: {
@@ -4627,7 +4664,7 @@ struct FilePreviewView: View {
                     .help(mediaIsMuted ? "取消静音" : "静音")
                 }
 
-                if !settings.isPreviewContentCollapsed, let selectedItem, isOfficeFile(selectedItem) {
+                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isOfficeFile(item) {
                     Button {
                         officeNavigateAction = .pageUp
                     } label: {
@@ -4645,7 +4682,7 @@ struct FilePreviewView: View {
                     .help("下一页（滚动）")
 
                     Button {
-                        NSWorkspace.shared.open(selectedItem.url)
+                        NSWorkspace.shared.open(item.url)
                     } label: {
                         Image(systemName: "arrow.up.forward.app")
                     }
@@ -4661,7 +4698,7 @@ struct FilePreviewView: View {
                     .help("刷新预览")
                 }
 
-                if !settings.isPreviewContentCollapsed, let selectedItem, isArchiveFile(selectedItem) {
+                if !settings.isPreviewContentCollapsed, let item = toolbarFileItem, isArchiveFile(item) {
                     Button {
                         archiveReloadToken += 1
                     } label: {
@@ -4704,7 +4741,49 @@ struct FilePreviewView: View {
                 Divider()
                 
                 if let selectedItem {
-                    if !selectedItem.isDirectory {
+                    if let folderInlineChild {
+                        FileContentView(
+                            item: folderInlineChild,
+                            imageZoomScale: $imageZoomScale,
+                            imageZoomAction: $imageZoomAction,
+                            imageEffectiveZoomPercent: $imageEffectiveZoomPercent,
+                            textWrapEnabled: $textWrapEnabled,
+                            textPreviewAction: $textPreviewAction,
+                            mediaControlAction: $mediaControlAction,
+                            mediaIsPlaying: $mediaIsPlaying,
+                            mediaIsMuted: $mediaIsMuted,
+                            officeReloadToken: $officeReloadToken,
+                            officeNavigateAction: $officeNavigateAction,
+                            archiveExpanded: $archiveExpanded,
+                            archiveCopyAction: $archiveCopyAction,
+                            archiveReloadToken: $archiveReloadToken,
+                            pdfCurrentPage: $pdfCurrentPage,
+                            pdfPageCount: $pdfPageCount,
+                            pdfNavigateAction: $pdfNavigateAction,
+                            pdfScalePercent: $pdfScalePercent,
+                            markdownMode: $markdownMode,
+                            markdownPreviewScale: $markdownPreviewScale,
+                            markdownSourceFontSize: $markdownSourceFontSize
+                        )
+                        .id(folderInlineChild.id)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    } else if selectedItem.isDirectory {
+                        FolderPreviewView(
+                            folder: selectedItem,
+                            showHiddenFiles: showHiddenFiles,
+                            autoCalculateDirectorySizes: autoCalculateDirectorySizes,
+                            sizeOverlay: directorySizeOverlay,
+                            countOverlay: directoryItemCountOverlay,
+                            showContentsList: true,
+                            onNavigate: onNavigate,
+                            onOpenFolder: { onOpenItem(selectedItem) },
+                            onOpenTerminal: { onOpenTerminalAtPath(selectedItem.id) },
+                            onPreviewChild: { folderInlineChild = $0 },
+                            onOpenChild: onOpenItem
+                        )
+                        .id(selectedItem.id)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    } else {
                         FileContentView(
                             item: selectedItem,
                             imageZoomScale: $imageZoomScale,
@@ -4730,8 +4809,6 @@ struct FilePreviewView: View {
                         )
                             .id(selectedItem.id)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    } else {
-                        Spacer(minLength: 0)
                     }
                 } else {
                     Text("Select a file to preview")
@@ -4741,27 +4818,11 @@ struct FilePreviewView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onChange(of: selectedItem?.id) { _ in
-            imageZoomScale = 1.0
-            imageZoomAction = nil
-            imageEffectiveZoomPercent = 0
-            textWrapEnabled = true
-            textPreviewAction = nil
-            mediaControlAction = nil
-            mediaIsPlaying = false
-            mediaIsMuted = false
-            officeReloadToken = 0
-            officeNavigateAction = nil
-            archiveExpanded = true
-            archiveReloadToken = 0
-            archiveCopyAction = nil
-            pdfCurrentPage = 0
-            pdfPageCount = 0
-            pdfScalePercent = 0
-            pdfNavigateAction = nil
-            pdfPageInput = ""
-            markdownMode = .preview
-            markdownPreviewScale = 1.0
-            markdownSourceFontSize = 13
+            folderInlineChild = nil
+            resetPreviewControls()
+        }
+        .onChange(of: folderInlineChild?.id) { _ in
+            resetPreviewControls()
         }
         .onChange(of: pdfCurrentPage) { newValue in
             if newValue > 0 {
@@ -4770,6 +4831,30 @@ struct FilePreviewView: View {
                 pdfPageInput = ""
             }
         }
+    }
+    
+    private func resetPreviewControls() {
+        imageZoomScale = 1.0
+        imageZoomAction = nil
+        imageEffectiveZoomPercent = 0
+        textWrapEnabled = true
+        textPreviewAction = nil
+        mediaControlAction = nil
+        mediaIsPlaying = false
+        mediaIsMuted = false
+        officeReloadToken = 0
+        officeNavigateAction = nil
+        archiveExpanded = true
+        archiveReloadToken = 0
+        archiveCopyAction = nil
+        pdfCurrentPage = 0
+        pdfPageCount = 0
+        pdfScalePercent = 0
+        pdfNavigateAction = nil
+        pdfPageInput = ""
+        markdownMode = .preview
+        markdownPreviewScale = 1.0
+        markdownSourceFontSize = 13
     }
     
     private func isImageFile(_ item: FileItem) -> Bool {

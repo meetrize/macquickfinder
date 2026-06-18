@@ -9,7 +9,13 @@ struct RightPanelStackView: View {
     let items: [FileItem]
     let cwd: String
     let showHiddenFiles: Bool
+    let autoCalculateDirectorySizes: Bool
+    let directorySizeOverlay: DirectorySizeOverlay
+    let directoryItemCountOverlay: DirectoryItemCountOverlay
     let panelWidth: CGFloat
+    let onNavigate: (String) -> Void
+    let onOpenItem: (FileItem) -> Void
+    let onOpenTerminalAtPath: (String) -> Void
 
     @ObservedObject private var settings = SnippetsSettings.shared
     @State private var dragPreviewHeight: CGFloat?
@@ -48,7 +54,14 @@ struct RightPanelStackView: View {
                     FilePreviewView(
                         showPreview: $showPreview,
                         selection: selection,
-                        items: items
+                        items: items,
+                        showHiddenFiles: showHiddenFiles,
+                        autoCalculateDirectorySizes: autoCalculateDirectorySizes,
+                        directorySizeOverlay: directorySizeOverlay,
+                        directoryItemCountOverlay: directoryItemCountOverlay,
+                        onNavigate: onNavigate,
+                        onOpenItem: onOpenItem,
+                        onOpenTerminalAtPath: onOpenTerminalAtPath
                     )
                     .frame(height: effectivePreviewHeight)
                 }
