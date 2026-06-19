@@ -658,57 +658,79 @@ enum BarTextFieldID: Hashable {
     case search
 }
 
-/// 记录各输入框对应的 NSTextField，供工具栏搜索栏等无法使用 SwiftUI FocusState 的场景聚焦。
+/// 按窗口记录各输入框对应的 NSTextField，多窗口互不干扰。
 private enum BarTextFieldFocusRegistry {
-    private static weak var pathField: NSTextField?
-    private static weak var searchField: NSTextField?
-    private static weak var pathBarRoot: NSView?
-    private static weak var pathNavigateButton: NSView?
-    private static weak var pathBarBlankClickArea: NSView?
-    private static var pendingSelectAll: BarTextFieldID?
-    
+    private final class WindowState {
+        weak var pathField: NSTextField?
+        weak var searchField: NSTextField?
+        weak var pathBarRoot: NSView?
+        weak var pathNavigateButton: NSView?
+        weak var pathBarBlankClickArea: NSView?
+        var pendingSelectAll: BarTextFieldID?
+    }
+
+    private static let states = NSMapTable<NSWindow, WindowState>.weakToStrongObjects()
+
+    private static func state(for window: NSWindow) -> WindowState {
+        if let existing = states.object(forKey: window) { return existing }
+        let created = WindowState()
+        states.setObject(created, forKey: window)
+        return created
+    }
+
+    private static func state(for view: NSView) -> WindowState? {
+        guard let window = view.window else { return nil }
+        return state(for: window)
+    }
+
+    private static func field(for id: BarTextFieldID, in window: NSWindow) -> NSTextField? {
+        let windowState = state(for: window)
+        switch id {
+        case .path: return windowState.pathField
+        case .search: return windowState.searchField
+        }
+    }
+
     static func register(_ field: NSTextField, for id: BarTextFieldID) {
+        guard let window = field.window else { return }
+        let windowState = state(for: window)
         switch id {
-        case .path: pathField = field
-        case .search: searchField = field
+        case .path: windowState.pathField = field
+        case .search: windowState.searchField = field
         }
     }
-    
-    static func requestSelectAll(_ id: BarTextFieldID) {
-        pendingSelectAll = id
+
+    static func requestSelectAll(_ id: BarTextFieldID, in window: NSWindow) {
+        state(for: window).pendingSelectAll = id
     }
-    
-    static func applyPendingSelectAll(for id: BarTextFieldID) {
-        guard pendingSelectAll == id else { return }
-        pendingSelectAll = nil
-        selectAll(id)
+
+    static func applyPendingSelectAll(for id: BarTextFieldID, in window: NSWindow) {
+        let windowState = state(for: window)
+        guard windowState.pendingSelectAll == id else { return }
+        windowState.pendingSelectAll = nil
+        selectAll(id, in: window)
     }
-    
-    static func clearPendingSelectAll() {
-        pendingSelectAll = nil
+
+    static func clearPendingSelectAll(in window: NSWindow) {
+        state(for: window).pendingSelectAll = nil
     }
-    
-    static func hasPendingSelectAll(_ id: BarTextFieldID) -> Bool {
-        pendingSelectAll == id
+
+    static func hasPendingSelectAll(_ id: BarTextFieldID, in window: NSWindow) -> Bool {
+        state(for: window).pendingSelectAll == id
     }
-    
-    static func focus(_ id: BarTextFieldID) {
-        let field: NSTextField?
-        switch id {
-        case .path: field = pathField
-        case .search: field = searchField
-        }
-        guard let field, let window = field.window else { return }
+
+    static func focus(_ id: BarTextFieldID, in window: NSWindow) {
+        guard let field = field(for: id, in: window) else { return }
         window.makeFirstResponder(field)
     }
-    
-    static func selectAll(_ id: BarTextFieldID) {
-        if id == .path, let field = pathField as? PathBarTextField {
+
+    static func selectAll(_ id: BarTextFieldID, in window: NSWindow) {
+        if id == .path, let field = field(for: .path, in: window) as? PathBarTextField {
             field.prepareSelectAllOnFocus()
             field.selectAllText()
             return
         }
-        guard let field = field(for: id), let window = field.window else { return }
+        guard let field = field(for: id, in: window) else { return }
         if field.currentEditor() == nil {
             field.selectText(nil)
         }
@@ -721,30 +743,31 @@ private enum BarTextFieldFocusRegistry {
             field.currentEditor()?.selectAll(nil)
         }
     }
-    
+
     /// 聚焦路径/搜索框并立刻全选；若 field editor 尚未就绪则短轮询补齐。
-    static func focusAndSelectAll(_ id: BarTextFieldID) {
-        requestSelectAll(id)
-        guard let field = field(for: id), field.window != nil else {
-            focusWhenReady(id, selectAll: true)
+    static func focusAndSelectAll(_ id: BarTextFieldID, in window: NSWindow) {
+        requestSelectAll(id, in: window)
+        guard let field = field(for: id, in: window), field.window != nil else {
+            focusWhenReady(id, in: window, selectAll: true)
             return
         }
-        focus(id)
+        focus(id, in: window)
         if field.currentEditor() == nil {
             field.selectText(nil)
         }
-        selectAll(id)
+        selectAll(id, in: window)
         guard hasActiveFieldEditor(field) else {
-            focusWhenReady(id, selectAll: true)
+            focusWhenReady(id, in: window, selectAll: true)
             return
         }
         DispatchQueue.main.async {
-            selectAll(id)
+            selectAll(id, in: window)
         }
     }
-    
+
     static func focusWhenReady(
         _ id: BarTextFieldID,
+        in window: NSWindow,
         selectAll: Bool = false,
         onComplete: ((Bool) -> Void)? = nil,
         attempt: Int = 0
@@ -753,111 +776,112 @@ private enum BarTextFieldFocusRegistry {
             onComplete?(false)
             return
         }
-        guard let field = field(for: id), field.window != nil else {
+        guard let field = field(for: id, in: window), field.window != nil else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
-                focusWhenReady(id, selectAll: selectAll, onComplete: onComplete, attempt: attempt + 1)
+                focusWhenReady(id, in: window, selectAll: selectAll, onComplete: onComplete, attempt: attempt + 1)
             }
             return
         }
-        
-        focus(id)
+
+        focus(id, in: window)
         if field.currentEditor() == nil {
             field.selectText(nil)
         }
         if let editor = field.currentEditor() {
             field.window?.makeFirstResponder(editor)
         }
-        
+
         guard hasActiveFieldEditor(field) else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
-                focusWhenReady(id, selectAll: selectAll, onComplete: onComplete, attempt: attempt + 1)
+                focusWhenReady(id, in: window, selectAll: selectAll, onComplete: onComplete, attempt: attempt + 1)
             }
             return
         }
-        
+
         if selectAll {
-            requestSelectAll(id)
-            Self.selectAll(id)
+            requestSelectAll(id, in: window)
+            Self.selectAll(id, in: window)
             DispatchQueue.main.async {
-                Self.selectAll(id)
+                Self.selectAll(id, in: window)
                 onComplete?(true)
             }
         } else {
             onComplete?(true)
         }
     }
-    
-    static func resign(_ id: BarTextFieldID) {
-        guard let field = field(for: id), let window = field.window else { return }
+
+    static func resign(_ id: BarTextFieldID, in window: NSWindow) {
+        guard let field = field(for: id, in: window) else { return }
         guard isFieldEditing(field) else { return }
         window.makeFirstResponder(nil)
     }
-    
+
     /// 结束 field editor，确保下次进入文本模式时 textDidBeginEditing 会再次触发。
-    static func endEditing(_ id: BarTextFieldID) {
-        guard let field = field(for: id) else { return }
+    static func endEditing(_ id: BarTextFieldID, in window: NSWindow) {
+        guard let field = field(for: id, in: window) else { return }
         if field.currentEditor() != nil {
             field.abortEditing()
         }
-        field.window?.makeFirstResponder(nil)
+        window.makeFirstResponder(nil)
     }
-    
+
     static func isClickInside(_ id: BarTextFieldID, event: NSEvent) -> Bool {
-        guard let field = field(for: id) else { return false }
-        guard let window = field.window ?? event.window,
-              let contentView = window.contentView else { return false }
-        guard let hitView = contentView.hitTest(event.locationInWindow) else { return false }
+        guard let window = event.window,
+              let field = field(for: id, in: window),
+              let contentView = window.contentView,
+              let hitView = contentView.hitTest(event.locationInWindow) else {
+            return false
+        }
         return hitView === field || hitView.isDescendant(of: field)
     }
-    
+
     static func isClickInsideNavigateButton(event: NSEvent) -> Bool {
-        guard let button = pathNavigateButton,
-              let window = event.window,
+        guard let window = event.window,
+              let button = state(for: window).pathNavigateButton,
               let contentView = window.contentView,
               let hitView = contentView.hitTest(event.locationInWindow) else {
             return false
         }
         return hitView === button || hitView.isDescendant(of: button)
     }
-    
+
     static func isClickInsidePathBar(event: NSEvent) -> Bool {
         if isClickInsideNavigateButton(event: event) { return true }
         if isClickInside(.path, event: event) { return true }
-        if isClickInsideRegisteredView(pathBarBlankClickArea, event: event) { return true }
-        return isClickInsideRegisteredView(pathBarRoot, event: event)
+        guard let window = event.window else { return false }
+        let windowState = state(for: window)
+        if isClickInsideRegisteredView(windowState.pathBarBlankClickArea, event: event) { return true }
+        return isClickInsideRegisteredView(windowState.pathBarRoot, event: event)
     }
-    
+
     static func registerPathBarRoot(_ view: NSView) {
-        pathBarRoot = view
+        guard let windowState = state(for: view) else { return }
+        windowState.pathBarRoot = view
     }
-    
+
     static func registerPathNavigateButton(_ view: NSView) {
-        pathNavigateButton = view
+        guard let windowState = state(for: view) else { return }
+        windowState.pathNavigateButton = view
     }
-    
+
     static func registerPathBarBlankClickArea(_ view: NSView) {
-        pathBarBlankClickArea = view
+        guard let windowState = state(for: view) else { return }
+        windowState.pathBarBlankClickArea = view
     }
-    
+
     private static func isClickInsideRegisteredView(_ view: NSView?, event: NSEvent) -> Bool {
         guard let view, view.window != nil else { return false }
         let point = view.convert(event.locationInWindow, from: nil)
         return view.bounds.contains(point)
     }
-    
-    private static func field(for id: BarTextFieldID) -> NSTextField? {
-        switch id {
-        case .path: return pathField
-        case .search: return searchField
-        }
-    }
-    
-    static func currentEditingField() -> BarTextFieldID? {
-        if let searchField, hasActiveFieldEditor(searchField) { return .search }
-        if let pathField, hasActiveFieldEditor(pathField) { return .path }
+
+    static func currentEditingField(in window: NSWindow) -> BarTextFieldID? {
+        let windowState = state(for: window)
+        if let searchField = windowState.searchField, hasActiveFieldEditor(searchField) { return .search }
+        if let pathField = windowState.pathField, hasActiveFieldEditor(pathField) { return .path }
         return nil
     }
-    
+
     private static func hasActiveFieldEditor(_ field: NSTextField) -> Bool {
         guard let editor = field.currentEditor() else { return false }
         guard let window = field.window, let responder = window.firstResponder else { return false }
@@ -865,13 +889,45 @@ private enum BarTextFieldFocusRegistry {
         if let view = responder as? NSView, view.isDescendant(of: editor) { return true }
         return false
     }
-    
+
     private static func isFieldEditing(_ field: NSTextField) -> Bool {
         if hasActiveFieldEditor(field) { return true }
         guard let window = field.window, let responder = window.firstResponder else { return false }
         if responder === field { return field.currentEditor() != nil }
         if let view = responder as? NSView, view.isDescendant(of: field) { return true }
         return false
+    }
+}
+
+/// 绑定当前 SwiftUI 视图所在的 NSWindow，供地址栏/搜索栏按窗口隔离焦点状态。
+private struct HostWindowReader: NSViewRepresentable {
+    @Binding var window: NSWindow?
+
+    func makeNSView(context: Context) -> TrackerView {
+        let view = TrackerView()
+        view.onWindowChange = { newWindow in
+            DispatchQueue.main.async {
+                window = newWindow
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: TrackerView, context: Context) {
+        nsView.reportWindow()
+    }
+
+    final class TrackerView: NSView {
+        var onWindowChange: ((NSWindow?) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            reportWindow()
+        }
+
+        func reportWindow() {
+            onWindowChange?(window)
+        }
     }
 }
 
@@ -891,11 +947,13 @@ private struct BarFieldOutsideClickHandler: NSViewRepresentable {
     
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
+        context.coordinator.anchorView = view
         context.coordinator.start()
         return view
     }
     
     func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.anchorView = nsView
         context.coordinator.tableItems = tableItems
     }
     
@@ -903,6 +961,7 @@ private struct BarFieldOutsideClickHandler: NSViewRepresentable {
         @Binding var activeField: BarTextFieldID?
         @Binding var isPathBarTextMode: Bool
         var tableItems: [FileItem]
+        weak var anchorView: NSView?
         private var monitor: Any?
         
         init(
@@ -924,7 +983,9 @@ private struct BarFieldOutsideClickHandler: NSViewRepresentable {
         }
         
         private func handleMouseDown(_ event: NSEvent) {
-            let editingField = BarTextFieldFocusRegistry.currentEditingField()
+            guard let window = event.window else { return }
+            guard window === anchorView?.window else { return }
+            let editingField = BarTextFieldFocusRegistry.currentEditingField(in: window)
             let shouldDismissPathText = isPathBarTextMode
             guard editingField != nil || shouldDismissPathText else { return }
             
@@ -944,9 +1005,9 @@ private struct BarFieldOutsideClickHandler: NSViewRepresentable {
             
             if let editingField {
                 if shouldDismissPathText, editingField == .path {
-                    BarTextFieldFocusRegistry.endEditing(.path)
+                    BarTextFieldFocusRegistry.endEditing(.path, in: window)
                 } else {
-                    BarTextFieldFocusRegistry.resign(editingField)
+                    BarTextFieldFocusRegistry.resign(editingField, in: window)
                 }
                 if activeField == editingField {
                     activeField = nil
@@ -1064,16 +1125,19 @@ private struct BarTextFieldFocusSync: NSViewRepresentable {
     
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
+        context.coordinator.anchorView = view
         context.coordinator.start()
         return view
     }
     
     func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.anchorView = nsView
         context.coordinator.syncFromResponder()
     }
     
     final class Coordinator {
         @Binding var activeField: BarTextFieldID?
+        weak var anchorView: NSView?
         private var monitor: Any?
         
         init(activeField: Binding<BarTextFieldID?>) {
@@ -1084,10 +1148,11 @@ private struct BarTextFieldFocusSync: NSViewRepresentable {
             guard monitor == nil else { return }
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown]) { [weak self] event in
                 if event.type == .leftMouseDown {
-                    self?.syncFromResponder()
+                    guard let self, event.window === self.anchorView?.window else { return event }
+                    self.syncFromResponder(for: event.window)
                 } else {
                     DispatchQueue.main.async {
-                        self?.syncFromResponder()
+                        self?.syncFromResponder(for: self?.anchorView?.window)
                     }
                 }
                 return event
@@ -1095,8 +1160,9 @@ private struct BarTextFieldFocusSync: NSViewRepresentable {
         }
         
         /// 仅在有真实 field editor 时提升 activeField，避免同一次点击把尚未完成的聚焦清回 nil。
-        fileprivate func syncFromResponder() {
-            guard let current = BarTextFieldFocusRegistry.currentEditingField() else { return }
+        fileprivate func syncFromResponder(for eventWindow: NSWindow? = nil) {
+            guard let window = eventWindow ?? anchorView?.window else { return }
+            guard let current = BarTextFieldFocusRegistry.currentEditingField(in: window) else { return }
             guard activeField != current else { return }
             activeField = current
         }
@@ -1134,9 +1200,10 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
         let wasRetainHighlight = context.coordinator.retainHighlight
         context.coordinator.retainHighlight = retainHighlight
         context.coordinator.refreshEditingState()
-        if fieldID == .path, retainHighlight, !wasRetainHighlight {
-            BarTextFieldFocusRegistry.applyPendingSelectAll(for: .path)
-            BarTextFieldFocusRegistry.selectAll(.path)
+        if fieldID == .path, retainHighlight, !wasRetainHighlight,
+           let window = context.coordinator.textField?.window {
+            BarTextFieldFocusRegistry.applyPendingSelectAll(for: .path, in: window)
+            BarTextFieldFocusRegistry.selectAll(.path, in: window)
         }
     }
     
@@ -1145,7 +1212,7 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
         @Binding var activeField: BarTextFieldID?
         var retainHighlight = false
         private weak var anchorView: NSView?
-        private weak var textField: NSTextField?
+        fileprivate weak var textField: NSTextField?
         private var observers: [NSObjectProtocol] = []
         private var retryCount = 0
         private var isHooked = false
@@ -1186,7 +1253,9 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
                 ) { [weak self] _ in
                     guard let self else { return }
                     self.activateField()
-                    BarTextFieldFocusRegistry.applyPendingSelectAll(for: self.fieldID)
+                    if let window = self.textField?.window {
+                        BarTextFieldFocusRegistry.applyPendingSelectAll(for: self.fieldID, in: window)
+                    }
                 }
             )
             observers.append(
@@ -1216,12 +1285,17 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
         
         private func deactivateFieldIfNeeded() {
             guard activeField == fieldID else { return }
-            activeField = BarTextFieldFocusRegistry.currentEditingField()
+            if let window = textField?.window {
+                activeField = BarTextFieldFocusRegistry.currentEditingField(in: window)
+            } else {
+                activeField = nil
+            }
         }
         
         fileprivate func refreshEditingState() {
             guard textField != nil else { return }
-            if BarTextFieldFocusRegistry.currentEditingField() == fieldID {
+            if let window = textField?.window,
+               BarTextFieldFocusRegistry.currentEditingField(in: window) == fieldID {
                 activateField()
             } else if !retainHighlight {
                 deactivateFieldIfNeeded()
@@ -1297,7 +1371,9 @@ struct BarTextField: View {
                 Button {
                     text = ""
                     activeField = fieldID
-                    BarTextFieldFocusRegistry.focus(fieldID)
+                    if let window = NSApp.keyWindow {
+                        BarTextFieldFocusRegistry.focus(fieldID, in: window)
+                    }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 12))
@@ -1469,12 +1545,12 @@ private struct PathBarTextFieldRepresentable: NSViewRepresentable {
         field.onEditingEnded = { [weak coordinator = context.coordinator] in
             coordinator?.handleEditingEnded()
         }
-        BarTextFieldFocusRegistry.register(field, for: .path)
         context.coordinator.field = field
         return field
     }
     
     func updateNSView(_ nsView: PathBarTextField, context: Context) {
+        BarTextFieldFocusRegistry.register(nsView, for: .path)
         context.coordinator.text = $text
         context.coordinator.activeField = $activeField
         context.coordinator.onSubmit = onSubmit
@@ -1491,19 +1567,22 @@ private struct PathBarTextFieldRepresentable: NSViewRepresentable {
         nsView.isEnabled = true
         
         guard isVisible else { return }
+        guard let window = nsView.window else { return }
         
-        let shouldSelectAll = BarTextFieldFocusRegistry.hasPendingSelectAll(.path)
+        let shouldSelectAll = BarTextFieldFocusRegistry.hasPendingSelectAll(.path, in: window)
             || (!wasVisible && isVisible)
         guard shouldSelectAll else { return }
         
         nsView.prepareSelectAllOnFocus()
         nsView.selectAllText()
-        BarTextFieldFocusRegistry.clearPendingSelectAll()
+        BarTextFieldFocusRegistry.clearPendingSelectAll(in: window)
         DispatchQueue.main.async {
             nsView.prepareSelectAllOnFocus()
             nsView.window?.makeFirstResponder(nsView)
             nsView.selectAllText()
-            BarTextFieldFocusRegistry.clearPendingSelectAll()
+            if let window = nsView.window {
+                BarTextFieldFocusRegistry.clearPendingSelectAll(in: window)
+            }
         }
     }
     
@@ -1523,7 +1602,11 @@ private struct PathBarTextFieldRepresentable: NSViewRepresentable {
         func handleEditingEnded() {
             guard !retainHighlight else { return }
             guard activeField.wrappedValue == .path else { return }
-            activeField.wrappedValue = BarTextFieldFocusRegistry.currentEditingField()
+            if let window = field?.window {
+                activeField.wrappedValue = BarTextFieldFocusRegistry.currentEditingField(in: window)
+            } else {
+                activeField.wrappedValue = nil
+            }
         }
     }
 }
@@ -1683,6 +1766,7 @@ private struct PathBarView: View {
     @Binding var path: String
     @Binding var activeField: BarTextFieldID?
     @Binding var isTextMode: Bool
+    var hostWindow: NSWindow?
     var showHiddenFiles: Bool
     var onSubmit: () -> Void
     
@@ -1800,13 +1884,21 @@ private struct PathBarView: View {
         }
         .onChange(of: isTextMode) { active in
             guard !active, mode == .text else { return }
-            BarTextFieldFocusRegistry.clearPendingSelectAll()
+            if let window = resolvedHostWindow {
+                BarTextFieldFocusRegistry.clearPendingSelectAll(in: window)
+            }
             editingText = displayPath
             committedViaSubmit = false
             mode = .breadcrumb
-            BarTextFieldFocusRegistry.endEditing(.path)
+            if let window = resolvedHostWindow {
+                BarTextFieldFocusRegistry.endEditing(.path, in: window)
+            }
             if activeField == .path {
-                activeField = BarTextFieldFocusRegistry.currentEditingField()
+                if let window = resolvedHostWindow {
+                    activeField = BarTextFieldFocusRegistry.currentEditingField(in: window)
+                } else {
+                    activeField = nil
+                }
             }
         }
         .onChange(of: activeField) { newValue in
@@ -1828,31 +1920,40 @@ private struct PathBarView: View {
                 committedViaSubmit = false
                 mode = .breadcrumb
                 isTextMode = false
-                BarTextFieldFocusRegistry.endEditing(.path)
+                if let window = resolvedHostWindow {
+                    BarTextFieldFocusRegistry.endEditing(.path, in: window)
+                }
             }
         }
     }
     
+    private var resolvedHostWindow: NSWindow? {
+        hostWindow ?? NSApp.keyWindow
+    }
+    
     private func requestPathFieldFocus() {
-        BarTextFieldFocusRegistry.focusAndSelectAll(.path)
+        guard let window = resolvedHostWindow else { return }
+        BarTextFieldFocusRegistry.focusAndSelectAll(.path, in: window)
         activeField = .path
     }
     
     private func enterTextMode() {
-        BarTextFieldFocusRegistry.requestSelectAll(.path)
+        guard let window = resolvedHostWindow else { return }
+        BarTextFieldFocusRegistry.requestSelectAll(.path, in: window)
         editingText = displayPath
         activeField = .path
         isTextMode = true
         if mode == .text {
-            BarTextFieldFocusRegistry.focusAndSelectAll(.path)
+            BarTextFieldFocusRegistry.focusAndSelectAll(.path, in: window)
         } else {
             mode = .text
         }
     }
     
     private func handlePathBarTrailingClick() {
+        guard let window = resolvedHostWindow else { return }
         if mode == .text {
-            BarTextFieldFocusRegistry.focusAndSelectAll(.path)
+            BarTextFieldFocusRegistry.focusAndSelectAll(.path, in: window)
         } else {
             enterTextMode()
         }
@@ -1860,7 +1961,9 @@ private struct PathBarView: View {
     
     private func commitPath() {
         committedViaSubmit = true
-        BarTextFieldFocusRegistry.clearPendingSelectAll()
+        if let window = resolvedHostWindow {
+            BarTextFieldFocusRegistry.clearPendingSelectAll(in: window)
+        }
         let newValue = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !newValue.isEmpty {
             if newValue == TrashLoader.displayName {
@@ -1870,19 +1973,29 @@ private struct PathBarView: View {
             }
         }
         onSubmit()
-        BarTextFieldFocusRegistry.endEditing(.path)
-        activeField = BarTextFieldFocusRegistry.currentEditingField()
+        if let window = resolvedHostWindow {
+            BarTextFieldFocusRegistry.endEditing(.path, in: window)
+            activeField = BarTextFieldFocusRegistry.currentEditingField(in: window)
+        } else {
+            activeField = nil
+        }
         mode = .breadcrumb
     }
 
     private func navigateToPendingPath(_ targetPath: String) {
         committedViaSubmit = true
-        BarTextFieldFocusRegistry.clearPendingSelectAll()
+        if let window = resolvedHostWindow {
+            BarTextFieldFocusRegistry.clearPendingSelectAll(in: window)
+        }
         path = targetPath
         editingText = targetPath
         isTextMode = false
-        BarTextFieldFocusRegistry.endEditing(.path)
-        activeField = BarTextFieldFocusRegistry.currentEditingField()
+        if let window = resolvedHostWindow {
+            BarTextFieldFocusRegistry.endEditing(.path, in: window)
+            activeField = BarTextFieldFocusRegistry.currentEditingField(in: window)
+        } else {
+            activeField = nil
+        }
         mode = .breadcrumb
     }
 }
@@ -2055,7 +2168,9 @@ private struct PathBarBlankClickArea: NSViewRepresentable {
         }
         
         override func mouseDown(with event: NSEvent) {
-            BarTextFieldFocusRegistry.requestSelectAll(.path)
+            if let window {
+                BarTextFieldFocusRegistry.requestSelectAll(.path, in: window)
+            }
             coordinator?.onClick()
         }
         
@@ -2433,10 +2548,9 @@ struct ContentView: View {
     @State private var isApplyingHistoryNavigation = false
     @State private var lastRecordedPath: String?
     @AppStorage(AppSettings.autoCalculateDirectorySizesKey) private var autoCalculateDirectorySizes = true
-    @AppStorage(FileListStorageKeys.viewMode) private var fileListViewModeRaw = FileListViewMode.list.rawValue
-    @AppStorage(FileListStorageKeys.thumbnailCellSize) private var thumbnailCellSize = FileListThumbnailMetrics.defaultCellSize
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
+    @State private var hostWindow: NSWindow?
     @State private var isFileListRenaming = false
     @State private var isPathBarTextMode = false
     @State private var liveLeftPanelDragWidth: CGFloat?
@@ -2455,7 +2569,11 @@ struct ContentView: View {
     }
     
     private var fileListViewMode: FileListViewMode {
-        FileListViewMode(rawValue: fileListViewModeRaw) ?? .list
+        layout.fileListViewMode
+    }
+
+    private var thumbnailCellSize: CGFloat {
+        layout.thumbnailCellSizeValue
     }
 
     private var currentDirectoryTitle: String {
@@ -2592,6 +2710,7 @@ struct ContentView: View {
             .frame(width: outer.size.width, height: outer.size.height)
         }
         .background(WindowKeyLayoutTracker(layout: layout).frame(width: 0, height: 0).accessibilityHidden(true))
+        .background(HostWindowReader(window: $hostWindow).frame(width: 0, height: 0).accessibilityHidden(true))
         .background(
             BarFieldOutsideClickHandler(
                 activeField: $activeBarField,
@@ -2663,6 +2782,7 @@ struct ContentView: View {
                 path: $path,
                 activeField: $activeBarField,
                 isTextMode: $isPathBarTextMode,
+                hostWindow: hostWindow,
                 showHiddenFiles: showHiddenFiles,
                 onSubmit: { loadItems() }
             )
@@ -2733,7 +2853,10 @@ struct ContentView: View {
             .hideSharedBackgroundIfAvailable()
             
             ToolbarItem(placement: .primaryAction) {
-                Picker("视图", selection: $fileListViewModeRaw) {
+                Picker("视图", selection: Binding(
+                    get: { layout.fileListViewModeRaw },
+                    set: { layout.setFileListViewMode(FileListViewMode(rawValue: $0) ?? .list) }
+                )) {
                     ForEach(FileListViewMode.allCases, id: \.rawValue) { mode in
                         Image(systemName: mode.systemImageName)
                             .tag(mode.rawValue)
@@ -2753,14 +2876,14 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                         Slider(
                             value: Binding(
-                                get: { thumbnailCellSize },
-                                set: { thumbnailCellSize = FileListThumbnailMetrics.steppedCellSize(from: $0) }
+                                get: { layout.thumbnailCellSizeValue },
+                                set: { layout.thumbnailCellSizeValue = FileListThumbnailMetrics.steppedCellSize(from: $0) }
                             ),
                             in: FileListThumbnailMetrics.minCellSize...FileListThumbnailMetrics.maxCellSize,
                             step: FileListThumbnailMetrics.cellSizeStep
                         )
                         .frame(width: 120)
-                        Text("\(Int(FileListThumbnailMetrics.steppedCellSize(from: thumbnailCellSize)))")
+                        Text("\(Int(FileListThumbnailMetrics.steppedCellSize(from: layout.thumbnailCellSizeValue)))")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                             .frame(width: 30, alignment: .trailing)
@@ -2816,8 +2939,8 @@ struct ContentView: View {
             .hideSharedBackgroundIfAvailable()
         }
         .onChange(of: activeBarField) { field in
-            guard let field else { return }
-            BarTextFieldFocusRegistry.focus(field)
+            guard let field, let hostWindow else { return }
+            BarTextFieldFocusRegistry.focus(field, in: hostWindow)
         }
         .background {
             Button("Focus Search") {
@@ -2880,7 +3003,7 @@ struct ContentView: View {
             viewMode: fileListViewMode,
             thumbnailCellSize: thumbnailCellSize,
             isLoading: isLoading,
-            onThumbnailCellSizeChange: { thumbnailCellSize = $0 },
+            onThumbnailCellSizeChange: { layout.thumbnailCellSizeValue = $0 },
             onItemOpen: openItem,
             onBlankDoubleClick: handleBlankDoubleClick,
             onItemsChanged: handleFileListItemsChanged,

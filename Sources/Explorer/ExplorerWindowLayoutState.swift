@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import FileList
 import SwiftUI
 
 /// 单窗口 UI 布局状态：运行期各窗口互不影响，写入 UserDefaults 时以最后一次操作为准。
@@ -53,6 +54,14 @@ final class ExplorerWindowLayoutState: ObservableObject {
         didSet { persistBool(ExplorerAppSettings.previewContentCollapsedKey, isPreviewContentCollapsed) }
     }
 
+    @Published private(set) var fileListViewModeRaw: String {
+        didSet { persistString(FileListStorageKeys.viewMode, fileListViewModeRaw) }
+    }
+
+    @Published var thumbnailCellSize: Double {
+        didSet { persistDouble(FileListStorageKeys.thumbnailCellSize, thumbnailCellSize) }
+    }
+
     private let defaults: UserDefaults
     private let leftPanelConstants = LeftPanelLayoutConstants()
 
@@ -71,6 +80,21 @@ final class ExplorerWindowLayoutState: ObservableObject {
         isSnippetsContentCollapsed = stored.isSnippetsContentCollapsed
         isOutputPanelContentCollapsed = stored.isOutputPanelContentCollapsed
         isPreviewContentCollapsed = stored.isPreviewContentCollapsed
+        fileListViewModeRaw = stored.fileListViewModeRaw
+        thumbnailCellSize = stored.thumbnailCellSize
+    }
+
+    var fileListViewMode: FileListViewMode {
+        FileListViewMode(rawValue: fileListViewModeRaw) ?? .list
+    }
+
+    func setFileListViewMode(_ mode: FileListViewMode) {
+        fileListViewModeRaw = mode.rawValue
+    }
+
+    var thumbnailCellSizeValue: CGFloat {
+        get { CGFloat(thumbnailCellSize) }
+        set { thumbnailCellSize = Double(newValue) }
     }
 
     var leftPanelMode: LeftPanelMode {
@@ -175,6 +199,8 @@ final class ExplorerWindowLayoutState: ObservableObject {
         var isSnippetsContentCollapsed: Bool
         var isOutputPanelContentCollapsed: Bool
         var isPreviewContentCollapsed: Bool
+        var fileListViewModeRaw: String
+        var thumbnailCellSize: Double
     }
 
     private static func loadSnapshot(from defaults: UserDefaults) -> Snapshot {
@@ -191,7 +217,10 @@ final class ExplorerWindowLayoutState: ObservableObject {
             outputPanelHeight: defaults.object(forKey: ExplorerAppSettings.outputPanelHeightKey) as? Double ?? 200,
             isSnippetsContentCollapsed: defaults.object(forKey: ExplorerAppSettings.snippetsContentCollapsedKey) as? Bool ?? false,
             isOutputPanelContentCollapsed: defaults.object(forKey: ExplorerAppSettings.outputPanelContentCollapsedKey) as? Bool ?? false,
-            isPreviewContentCollapsed: defaults.object(forKey: ExplorerAppSettings.previewContentCollapsedKey) as? Bool ?? false
+            isPreviewContentCollapsed: defaults.object(forKey: ExplorerAppSettings.previewContentCollapsedKey) as? Bool ?? false,
+            fileListViewModeRaw: defaults.string(forKey: FileListStorageKeys.viewMode) ?? FileListViewMode.list.rawValue,
+            thumbnailCellSize: defaults.object(forKey: FileListStorageKeys.thumbnailCellSize) as? Double
+                ?? Double(FileListThumbnailMetrics.defaultCellSize)
         )
     }
 
