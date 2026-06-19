@@ -140,9 +140,6 @@ final class WindowSnapCoordinator {
     private var mouseEventMonitor: Any?
     private let dragRunLoopSync = DragRunLoopSync()
     private var isContinuousSyncActive = false
-    private var lastMouseLocation: NSPoint?
-    /// 拖动中 leader 的估算 frame（鼠标增量更新，setFrame 时与真实 frame 校准）
-    private var sessionLeaderFrame: NSRect?
     /// 仅标题栏拖动时为 true，避免普通点击误触发联动
     private var isTitleBarDragActive = false
     /// 无吸附时标题栏拖动的窗口，松手时用于再次检测吸附
@@ -210,8 +207,7 @@ final class WindowSnapCoordinator {
             if NSEvent.pressedMouseButtons & 1 != 0 {
                 guard shouldPerformLinkedWindowSync() else { return }
                 dragLeader = leader
-                sessionLeaderFrame = leader.frame
-                syncLayoutFromSession(flushDisplay: false)
+                syncPartnerToLeader(flushDisplay: false)
             }
             return
         }
@@ -273,17 +269,13 @@ final class WindowSnapCoordinator {
         if link == nil {
             stopContinuousSync()
             dragLeader = nil
-            sessionLeaderFrame = nil
             isTitleBarDragActive = false
             if !preserveTitleBarSession {
                 isSnapTitleBarDragSession = false
                 snapDragCandidate = nil
             }
-            lastMouseLocation = nil
             return
         }
-        lastMouseLocation = nil
-        sessionLeaderFrame = nil
     }
 
     /// 解除吸附；若边缘仍足够近则立即尝试重新吸附
@@ -305,14 +297,9 @@ final class WindowSnapCoordinator {
             return
         }
 
-        if let leader {
-            sessionLeaderFrame = leader.frame
-        }
         syncPartnerToLeader(flushDisplay: true, ignoreContentInteraction: true)
         refreshLinkedWindowsChrome(link)
         dragLeader = nil
-        lastMouseLocation = nil
-        sessionLeaderFrame = nil
         isTitleBarDragActive = false
     }
 
@@ -326,8 +313,6 @@ final class WindowSnapCoordinator {
             if activeLink != nil {
                 isTitleBarDragActive = false
                 dragLeader = nil
-                lastMouseLocation = nil
-                sessionLeaderFrame = nil
                 stopContinuousSync()
             }
             return
@@ -335,14 +320,12 @@ final class WindowSnapCoordinator {
 
         snapDragCandidate = leader
         isSnapTitleBarDragSession = true
-        lastMouseLocation = mouse
         startContinuousSync()
 
         guard activeLink != nil else { return }
 
         isTitleBarDragActive = true
         dragLeader = leader
-        sessionLeaderFrame = leader.frame
     }
 
     private func handleMouseUp() {
@@ -374,7 +357,7 @@ final class WindowSnapCoordinator {
         isContinuousSyncActive = false
     }
 
-    /// 用鼠标增量更新 leader 估算位置，再绝对计算另一扇窗位置（顶/左对齐，无累积误差）
+    /// 拖动期间以 leader 真实 frame 绝对计算 partner 位置（顶/左对齐，吸附边零重叠）
     private func continuousSyncTick() {
         guard isEnabled else { return }
 
@@ -386,51 +369,9 @@ final class WindowSnapCoordinator {
             return
         }
 
-        guard let link = activeLink else { return }
         guard shouldPerformLinkedWindowSync() else { return }
         guard NSEvent.pressedMouseButtons & 1 != 0 else { return }
-        guard let leader = dragLeader ?? link.windowA ?? link.windowB,
-              link.otherWindow(than: leader) != nil else { return }
-
-        if sessionLeaderFrame == nil {
-            sessionLeaderFrame = leader.frame
-        }
-        guard var estimatedLeader = sessionLeaderFrame else { return }
-
-        let mouse = NSEvent.mouseLocation
-        if let lastMouse = lastMouseLocation {
-            let dx = mouse.x - lastMouse.x
-            let dy = mouse.y - lastMouse.y
-            if hypot(dx, dy) >= Metrics.moveEpsilon {
-                estimatedLeader.origin.x += dx
-                estimatedLeader.origin.y += dy
-                sessionLeaderFrame = estimatedLeader
-            }
-        }
-        lastMouseLocation = mouse
-
-        syncLayoutFromSession(flushDisplay: false)
-    }
-
-    /// 根据 session 中 leader 的估算 frame，绝对定位另一扇窗
-    private func syncLayoutFromSession(flushDisplay: Bool) {
-        guard shouldPerformLinkedWindowSync() else { return }
-        guard let link = activeLink,
-              let leader = dragLeader ?? link.windowA ?? link.windowB,
-              let partner = link.otherWindow(than: leader),
-              let leaderFrame = sessionLeaderFrame else { return }
-
-        let target = pixelAligned(
-            partnerFrame(
-                leaderFrame: leaderFrame,
-                partnerSize: partner.frame.size,
-                edge: link.edge,
-                leaderIsWindowA: link.leaderIsWindowA(leader)
-            ),
-            scale: partner.backingScaleFactor
-        )
-
-        movePartnerWindow(partner, to: target, flushDisplay: flushDisplay)
+        syncPartnerToLeader(flushDisplay: false)
     }
 
     private func syncPartnerToLeader(flushDisplay: Bool, ignoreContentInteraction: Bool = false) {
@@ -441,16 +382,11 @@ final class WindowSnapCoordinator {
               let leader = dragLeader ?? link.windowA ?? link.windowB,
               let partner = link.otherWindow(than: leader) else { return }
 
-        sessionLeaderFrame = leader.frame
-
-        let target = pixelAligned(
-            partnerFrame(
-                leaderFrame: leader.frame,
-                partnerSize: partner.frame.size,
-                edge: link.edge,
-                leaderIsWindowA: link.leaderIsWindowA(leader)
-            ),
-            scale: partner.backingScaleFactor
+        let target = linkedPartnerFrame(
+            leader: leader,
+            partner: partner,
+            edge: link.edge,
+            leaderIsWindowA: link.leaderIsWindowA(leader)
         )
 
         movePartnerWindow(partner, to: target, flushDisplay: flushDisplay)
@@ -514,8 +450,6 @@ final class WindowSnapCoordinator {
         isSnapTitleBarDragSession = false
         snapDragCandidate = nil
         dragLeader = nil
-        lastMouseLocation = nil
-        sessionLeaderFrame = nil
         stopContinuousSync()
     }
 
@@ -570,6 +504,14 @@ final class WindowSnapCoordinator {
         return result
     }
 
+    private func pixelAlignedSize(_ size: NSSize, scale: CGFloat) -> NSSize {
+        guard scale > 0 else { return size }
+        return NSSize(
+            width: round(size.width * scale) / scale,
+            height: round(size.height * scale) / scale
+        )
+    }
+
     private func shouldMove(from current: NSRect, to target: NSRect) -> Bool {
         abs(current.origin.x - target.origin.x) >= Metrics.moveEpsilon
             || abs(current.origin.y - target.origin.y) >= Metrics.moveEpsilon
@@ -606,8 +548,10 @@ final class WindowSnapCoordinator {
         guard let best else { return }
 
         let snappedFrame = snappedFrame(
-            for: movingFrame,
+            for: moving.frame.size,
+            movingScale: moving.backingScaleFactor,
             candidate: best.candidate.frame,
+            candidateScale: best.candidate.backingScaleFactor,
             edge: best.edge
         )
         moveWindow(moving, to: snappedFrame, flushDisplay: true)
@@ -616,7 +560,6 @@ final class WindowSnapCoordinator {
         dragLeader = moving
         if isSnapTitleBarDragSession {
             isTitleBarDragActive = true
-            lastMouseLocation = NSEvent.mouseLocation
             startContinuousSync()
         }
         syncPartnerToLeader(flushDisplay: true, ignoreContentInteraction: true)
@@ -625,33 +568,44 @@ final class WindowSnapCoordinator {
         }
     }
 
-    private func snappedFrame(for moving: NSRect, candidate: NSRect, edge: WindowSnapEdge) -> NSRect {
-        var result = moving
+    private func snappedFrame(
+        for movingSize: NSSize,
+        movingScale: CGFloat,
+        candidate candidateFrame: NSRect,
+        candidateScale: CGFloat,
+        edge: WindowSnapEdge
+    ) -> NSRect {
+        let candidate = pixelAligned(candidateFrame, scale: candidateScale)
+        let size = pixelAlignedSize(movingSize, scale: movingScale)
+        var origin = CGPoint.zero
         switch edge {
         case .rightToLeft:
-            result.origin.x = candidate.minX - moving.width
-            result.origin.y = candidate.maxY - moving.height
+            origin.x = candidate.minX - size.width
+            origin.y = candidate.maxY - size.height
         case .leftToRight:
-            result.origin.x = candidate.maxX
-            result.origin.y = candidate.maxY - moving.height
+            origin.x = candidate.maxX
+            origin.y = candidate.maxY - size.height
         case .topToBottom:
-            result.origin.x = candidate.minX
-            result.origin.y = candidate.minY - moving.height
+            origin.x = candidate.minX
+            origin.y = candidate.minY - size.height
         case .bottomToTop:
-            result.origin.x = candidate.minX
-            result.origin.y = candidate.maxY
+            origin.x = candidate.minX
+            origin.y = candidate.maxY
         }
-        return result
+        return NSRect(origin: origin, size: size)
     }
 
     // MARK: - Linked Move Geometry
 
-    private func partnerFrame(
-        leaderFrame: NSRect,
-        partnerSize: NSSize,
+    /// 由 leader 精确推导 partner frame：吸附边贴齐（零重叠），垂直吸附左对齐、水平吸附顶对齐
+    private func linkedPartnerFrame(
+        leader: NSWindow,
+        partner: NSWindow,
         edge: WindowSnapEdge,
         leaderIsWindowA: Bool
     ) -> NSRect {
+        let leaderFrame = pixelAligned(leader.frame, scale: leader.backingScaleFactor)
+        let partnerSize = pixelAlignedSize(partner.frame.size, scale: partner.backingScaleFactor)
         var origin = CGPoint.zero
         switch edge {
         case .rightToLeft:
@@ -671,7 +625,6 @@ final class WindowSnapCoordinator {
                 origin.y = leaderFrame.maxY - partnerSize.height
             }
         case .topToBottom:
-            // windowA 在 windowB 下方：partner 在 leader 上方
             if leaderIsWindowA {
                 origin.x = leaderFrame.minX
                 origin.y = leaderFrame.maxY
@@ -680,7 +633,6 @@ final class WindowSnapCoordinator {
                 origin.y = leaderFrame.minY - partnerSize.height
             }
         case .bottomToTop:
-            // windowA 在 windowB 上方：partner 在 leader 下方
             if leaderIsWindowA {
                 origin.x = leaderFrame.minX
                 origin.y = leaderFrame.minY - partnerSize.height
@@ -694,17 +646,16 @@ final class WindowSnapCoordinator {
 
     private func movePartnerWindow(_ partner: NSWindow, to frame: NSRect, flushDisplay: Bool) {
         let id = ObjectIdentifier(partner)
-        let target = pixelAligned(frame, scale: partner.backingScaleFactor)
         let current = partner.frame
-        guard shouldMove(from: current, to: target) else { return }
+        guard shouldMove(from: current, to: frame) else { return }
 
         programmaticMoveWindows.insert(id)
         defer { programmaticMoveWindows.remove(id) }
 
-        if flushDisplay {
-            partner.setFrame(target, display: true)
+        if current.size == frame.size {
+            partner.setFrameOrigin(frame.origin)
         } else {
-            partner.setFrameOrigin(target.origin)
+            partner.setFrame(frame, display: flushDisplay)
         }
     }
 
