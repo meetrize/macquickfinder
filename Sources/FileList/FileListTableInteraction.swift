@@ -22,6 +22,8 @@ public struct FileListTableInteraction {
     public var performRename: (_ item: FileListRow, _ newName: String, _ completion: @escaping (Bool) -> Void) -> Void
     public var onRenameEditingChanged: (_ isEditing: Bool) -> Void
     public var makeContextMenu: (_ clickedRow: FileListRow, _ selectedIDs: Set<String>) -> NSMenu?
+    public var popUpContextMenu: (_ menu: NSMenu, _ event: NSEvent, _ view: NSView, _ fileURLs: [URL]) -> Void
+    public var servicesRequestor: (any FileListServicesMenuRequestor)?
     public var dropDestinationPath: (FileListRow) -> String?
     /// 拖到列表空白区时的目标目录（通常为当前浏览路径）。
     public var currentDirectoryDropPath: String?
@@ -50,6 +52,10 @@ public struct FileListTableInteraction {
         performRename: @escaping (_ item: FileListRow, _ newName: String, _ completion: @escaping (Bool) -> Void) -> Void = { _, _, completion in completion(false) },
         onRenameEditingChanged: @escaping (_ isEditing: Bool) -> Void = { _ in },
         makeContextMenu: @escaping (_ clickedRow: FileListRow, _ selectedIDs: Set<String>) -> NSMenu? = { _, _ in nil },
+        popUpContextMenu: @escaping (_ menu: NSMenu, _ event: NSEvent, _ view: NSView, _ fileURLs: [URL]) -> Void = { menu, event, view, _ in
+            NSMenu.popUpContextMenu(menu, with: event, for: view)
+        },
+        servicesRequestor: (any FileListServicesMenuRequestor)? = nil,
         dropDestinationPath: @escaping (FileListRow) -> String? = { _ in nil },
         currentDirectoryDropPath: String? = nil,
         canAcceptDrop: @escaping (_ destinationPath: String, _ urls: [URL]) -> Bool = { _, _ in false },
@@ -76,6 +82,8 @@ public struct FileListTableInteraction {
         self.performRename = performRename
         self.onRenameEditingChanged = onRenameEditingChanged
         self.makeContextMenu = makeContextMenu
+        self.popUpContextMenu = popUpContextMenu
+        self.servicesRequestor = servicesRequestor
         self.dropDestinationPath = dropDestinationPath
         self.currentDirectoryDropPath = currentDirectoryDropPath
         self.canAcceptDrop = canAcceptDrop

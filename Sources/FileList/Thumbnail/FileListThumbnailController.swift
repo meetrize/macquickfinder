@@ -141,6 +141,7 @@ public final class FileListThumbnailController: NSObject {
         self.selectionGet = selectionGet
         self.selectionSet = selectionSet
         self.preferencesStore = preferencesStore
+        collectionView?.servicesRequestor = interaction.servicesRequestor
         
         let normalizedCellSize = FileListThumbnailMetrics.steppedCellSize(from: cellSize)
         let cellSizeChanged = self.cellSize != normalizedCellSize

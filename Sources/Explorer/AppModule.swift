@@ -479,6 +479,10 @@ private extension ContentView {
 }
 
 private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        FileServicesMenuSupport.registerIfNeeded()
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         Task { @MainActor in
             ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
@@ -4428,6 +4432,10 @@ struct FileListView: View {
                     actions: contextActions
                 )
             },
+            popUpContextMenu: { menu, event, view, fileURLs in
+                FileServicesMenuSupport.popUpContextMenu(menu, with: event, for: view, fileURLs: fileURLs)
+            },
+            servicesRequestor: FileServicesMenuRequestor.shared,
             dropDestinationPath: { row in
                 if row.isParentDirectoryEntry {
                     return parentDirectoryURL?.path

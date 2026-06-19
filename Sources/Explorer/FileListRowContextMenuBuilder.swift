@@ -107,6 +107,9 @@ enum FileListRowContextMenuBuilder {
             selectedItems: selectedItems,
             showHiddenFiles: showHiddenFiles
         )
+
+        let fileURLs = fileSelection.map(\.url)
+        FileServicesMenuSupport.appendToMenu(menu, fileURLs: fileURLs)
         
         menu.addItem(menuItem(title: "属性") { actions.showInfo(fileSelection) })
         return menu

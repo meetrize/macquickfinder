@@ -2,7 +2,21 @@ import AppKit
 
 final class FileListTableView: NSTableView {
     weak var interactionController: FileListTableController?
-    
+    weak var servicesRequestor: (any FileListServicesMenuRequestor)?
+
+    override func validRequestor(
+        forSendType sendType: NSPasteboard.PasteboardType?,
+        returnType: NSPasteboard.PasteboardType?
+    ) -> Any? {
+        if let requestor = servicesRequestor?.validRequestor(
+            forSendType: sendType,
+            returnType: returnType
+        ) {
+            return requestor
+        }
+        return super.validRequestor(forSendType: sendType, returnType: returnType)
+    }
+
     override func becomeFirstResponder() -> Bool {
         let focused = super.becomeFirstResponder()
         if focused {

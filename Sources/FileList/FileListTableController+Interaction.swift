@@ -310,7 +310,8 @@ extension FileListTableController {
             let clickedRow = displayRows[row]
             let selectedIDs = selectedRowIDs(from: tableView)
             if let menu = interaction.makeContextMenu(clickedRow, selectedIDs) {
-                NSMenu.popUpContextMenu(menu, with: event, for: tableView)
+                let fileURLs = FileListServiceURLs.from(rows: displayRows, selectedIDs: selectedIDs)
+                interaction.popUpContextMenu(menu, event, tableView, fileURLs)
             }
             return
         }

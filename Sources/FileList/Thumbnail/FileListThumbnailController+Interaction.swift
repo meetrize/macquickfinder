@@ -199,7 +199,8 @@ extension FileListThumbnailController {
             let clickedRow = displayRows[indexPath.item]
             let selectedIDs = selectedIDs(from: collectionView)
             if let menu = interaction.makeContextMenu(clickedRow, selectedIDs) {
-                NSMenu.popUpContextMenu(menu, with: event, for: collectionView)
+                let fileURLs = FileListServiceURLs.from(rows: displayRows, selectedIDs: selectedIDs)
+                interaction.popUpContextMenu(menu, event, collectionView, fileURLs)
             }
             return
         }

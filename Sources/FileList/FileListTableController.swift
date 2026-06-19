@@ -140,6 +140,7 @@ public final class FileListTableController: NSObject {
         self.selectionGet = selectionGet
         self.selectionSet = selectionSet
         self.preferencesStore = preferencesStore
+        (tableView as? FileListTableView)?.servicesRequestor = interaction.servicesRequestor
         
         let searchChanged = interaction.searchText != lastSearchText
         lastSearchText = interaction.searchText
