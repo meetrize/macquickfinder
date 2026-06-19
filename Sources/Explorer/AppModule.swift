@@ -2607,11 +2607,30 @@ struct ContentView: View {
         layout.leftPanelVisibleWidth
     }
     
+    /// 拖拽过程中面板宽度跟随鼠标；松手后回退到 `leftPanelVisibleWidth`。
+    private var leftPanelDisplayWidth: CGFloat {
+        if let live = liveLeftPanelDragWidth {
+            switch leftPanelMode {
+            case .sidebar:
+                return leftPanelConstants.clampedSidebarWidth(live)
+            case .rail:
+                return leftPanelConstants.railDisplayWidth(liveDragWidth: live)
+            case .hidden:
+                return 0
+            }
+        }
+        return leftPanelVisibleWidth
+    }
+    
     private func handleLeftPanelDrag(delta: CGFloat) {
-        let baseWidth = liveLeftPanelDragWidth ?? leftPanelVisibleWidth
+        let baseWidth = liveLeftPanelDragWidth ?? leftPanelDisplayWidth
         let proposed = baseWidth + delta
         liveLeftPanelDragWidth = proposed
         layout.applyLeftPanelDrag(proposedWidth: proposed, baseWidth: baseWidth)
+        if layout.leftPanelMode == .hidden {
+            // 拖入隐藏后 divider 会被移出视图，mouseUp 可能到不了；清掉 live 宽度避免再次显示时用脏值。
+            liveLeftPanelDragWidth = nil
+        }
     }
     
     private func handleLeftPanelDragEnded() {
@@ -2619,6 +2638,7 @@ struct ContentView: View {
     }
     
     private func toggleLeftPanelVisibility() {
+        liveLeftPanelDragWidth = nil
         layout.toggleLeftPanelVisibility()
     }
     
@@ -2639,44 +2659,47 @@ struct ContentView: View {
                 HStack(spacing: 0) {
                     if leftPanelMode != .hidden {
                         Group {
-                            switch leftPanelMode {
-                            case .sidebar:
-                                SidebarView(
-                                    path: $path,
-                                    onItemsChanged: {
-                                        selection.removeAll()
-                                        loadItems()
-                                    },
-                                    onReload: {
-                                        selection.removeAll()
-                                        loadItems()
-                                    }
-                                )
-                            case .rail:
-                                SidebarRailView(
-                                    path: $path,
-                                    onItemsChanged: {
-                                        selection.removeAll()
-                                        loadItems()
-                                    },
-                                    onReload: {
-                                        selection.removeAll()
-                                        loadItems()
-                                    }
-                                )
-                            case .hidden:
-                                EmptyView()
+                            Group {
+                                switch leftPanelMode {
+                                case .sidebar:
+                                    SidebarView(
+                                        path: $path,
+                                        onItemsChanged: {
+                                            selection.removeAll()
+                                            loadItems()
+                                        },
+                                        onReload: {
+                                            selection.removeAll()
+                                            loadItems()
+                                        }
+                                    )
+                                case .rail:
+                                    SidebarRailView(
+                                        path: $path,
+                                        onItemsChanged: {
+                                            selection.removeAll()
+                                            loadItems()
+                                        },
+                                        onReload: {
+                                            selection.removeAll()
+                                            loadItems()
+                                        }
+                                    )
+                                case .hidden:
+                                    EmptyView()
+                                }
                             }
+                            .frame(width: leftPanelDisplayWidth)
+                            .frame(maxHeight: .infinity)
+                            
+                            LeadingResizeDivider(
+                                onResize: handleLeftPanelDrag(delta:),
+                                onDragEnded: handleLeftPanelDragEnded
+                            )
+                            .frame(width: 6)
+                            .frame(maxHeight: .infinity)
                         }
-                        .frame(width: leftPanelVisibleWidth)
-                        .frame(maxHeight: .infinity)
-                        
-                        LeadingResizeDivider(
-                            onResize: handleLeftPanelDrag(delta:),
-                            onDragEnded: handleLeftPanelDragEnded
-                        )
-                        .frame(width: 6)
-                        .frame(maxHeight: .infinity)
+                        .animation(nil, value: liveLeftPanelDragWidth)
                     }
                     
                     HStack(spacing: 0) {

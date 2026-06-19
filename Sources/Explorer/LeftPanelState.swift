@@ -37,6 +37,14 @@ struct LeftPanelLayoutConstants: Sendable {
     func clampedSidebarWidth(_ width: CGFloat) -> CGFloat {
         min(max(width, sidebarMinWidth), sidebarMaxWidth)
     }
+    
+    /// 工具栏模式拖拽时的显示宽度：可随鼠标变宽，但不窄于 `railWidth`；低于 `hideThreshold` 视为隐藏。
+    func railDisplayWidth(liveDragWidth: CGFloat) -> CGFloat {
+        if liveDragWidth < hideThreshold {
+            return railWidth
+        }
+        return max(liveDragWidth, railWidth)
+    }
 }
 
 struct LeftPanelTransitionResult: Sendable {

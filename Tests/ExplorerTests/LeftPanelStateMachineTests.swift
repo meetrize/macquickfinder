@@ -64,5 +64,16 @@ final class LeftPanelStateMachineTests: XCTestCase {
         XCTAssertEqual(result.mode, .sidebar)
         XCTAssertEqual(result.sidebarWidth, 200, accuracy: 0.001)
     }
+    
+    func testRailDisplayWidthDoesNotGoBelowRailWidth() {
+        var constants = LeftPanelLayoutConstants()
+        constants.railWidth = 44
+        constants.hideThreshold = 28
+        
+        XCTAssertEqual(constants.railDisplayWidth(liveDragWidth: 80), 80, accuracy: 0.001)
+        XCTAssertEqual(constants.railDisplayWidth(liveDragWidth: 44), 44, accuracy: 0.001)
+        XCTAssertEqual(constants.railDisplayWidth(liveDragWidth: 35), 44, accuracy: 0.001)
+        XCTAssertEqual(constants.railDisplayWidth(liveDragWidth: 20), 44, accuracy: 0.001)
+    }
 }
 
