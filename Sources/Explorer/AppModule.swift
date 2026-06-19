@@ -541,6 +541,12 @@ struct SettingsView: View {
                 .tag(SettingsTab.advanced)
         }
         .frame(width: 520, height: 460)
+        .onAppear {
+            if let ext = SettingsWindowPresenter.shared.consumePendingPrefillExtension() {
+                selectedTab = .preview
+                previewPrefillExtension = ext
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .openPreviewSettingsRequested)) { notification in
             selectedTab = .preview
             if let ext = notification.userInfo?["extension"] as? String {
@@ -2766,6 +2772,7 @@ struct ContentView: View {
         }
         .background(WindowKeyLayoutTracker(layout: layout).frame(width: 0, height: 0).accessibilityHidden(true))
         .background(HostWindowReader(window: $hostWindow).frame(width: 0, height: 0).accessibilityHidden(true))
+        .settingsWindowOpenBridge()
         .background(
             BarFieldOutsideClickHandler(
                 activeField: $activeBarField,

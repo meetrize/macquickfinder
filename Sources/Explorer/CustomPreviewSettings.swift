@@ -311,16 +311,3 @@ struct CustomPreviewUnavailableView: View {
         .padding()
     }
 }
-
-func openPreviewSettings(prefillExtension: String? = nil) {
-    if let prefillExtension, !prefillExtension.isEmpty {
-        NotificationCenter.default.post(
-            name: .openPreviewSettingsRequested,
-            object: nil,
-            userInfo: ["extension": prefillExtension]
-        )
-    } else {
-        NotificationCenter.default.post(name: .openPreviewSettingsRequested, object: nil)
-    }
-    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-}
