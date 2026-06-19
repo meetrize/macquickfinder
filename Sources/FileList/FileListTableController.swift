@@ -1114,21 +1114,28 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         return disclosure.frame.insetBy(dx: -4, dy: -2).contains(pointInCell)
     }
     
-    func isFileNameTextPoint(_ point: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
+    func isFileDragStartPoint(_ point: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
         guard row >= 0, row < displayRows.count else { return false }
         let column = tableView.column(at: point)
         guard column >= 0, column < tableView.tableColumns.count else { return false }
         guard FileListColumnID.from(column: tableView.tableColumns[column]) == .name else { return false }
-        guard let nameCell = tableView.view(atColumn: column, row: row, makeIfNecessary: false) as? NSTableCellView,
-              let label = nameLabel(in: nameCell) else {
+        guard let nameCell = tableView.view(atColumn: column, row: row, makeIfNecessary: false) as? NSTableCellView else {
             return false
         }
         
         let pointInCell = nameCell.convert(point, from: tableView)
+        
+        if let icon = nameCell.imageView, !icon.isHidden {
+            if icon.frame.insetBy(dx: -2, dy: -2).contains(pointInCell) {
+                return true
+            }
+        }
+        
+        guard let label = nameLabel(in: nameCell) else { return false }
         let pointInLabel = label.convert(pointInCell, from: nameCell)
         guard label.bounds.contains(pointInLabel) else { return false }
         
-        // 仅文字本体区域触发文件拖拽；名称列右侧空白应交给框选逻辑。
+        // 仅图标与文字本体区域触发文件拖拽；名称列右侧空白应交给框选逻辑。
         let textRect = label.visibleTextRect()
         return textRect.contains(pointInLabel)
     }

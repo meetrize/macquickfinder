@@ -27,7 +27,7 @@ extension FileListTableController {
             return
         }
         if let tableView, row >= 0, row < displayRows.count {
-            mouseDownCanStartFileDrag = isFileNameTextPoint(pointInTable, row: row, in: tableView)
+            mouseDownCanStartFileDrag = isFileDragStartPoint(pointInTable, row: row, in: tableView)
         } else {
             mouseDownCanStartFileDrag = false
         }
@@ -36,7 +36,7 @@ extension FileListTableController {
         mouseDownEvent = event
         dragSessionActive = false
         
-        // 在行内非文件名文字区按下时，拖动应进入框选而非文件拖拽。
+        // 在行内非图标/文件名文字区按下时，拖动应进入框选而非文件拖拽。
         if row >= 0, !mouseDownCanStartFileDrag {
             blankMouseDownEvent = event
             blankDragSelecting = false
