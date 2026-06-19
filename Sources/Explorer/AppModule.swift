@@ -507,24 +507,46 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 }
 
 struct SettingsView: View {
+    @State private var selectedTab: SettingsTab = .general
+    @State private var previewPrefillExtension: String?
+    @State private var showPreviewRuleEditor = false
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             GeneralSettingsTab()
                 .tabItem {
                     Label("通用", systemImage: "gearshape")
                 }
-            
+                .tag(SettingsTab.general)
+
             SnippetsSettingsTab()
                 .tabItem {
                     Label("Snippets", systemImage: "terminal")
                 }
-            
+                .tag(SettingsTab.snippets)
+
+            PreviewSettingsTab(
+                prefillExtension: $previewPrefillExtension,
+                showEditor: $showPreviewRuleEditor
+            )
+            .tabItem {
+                Label("预览", systemImage: "eye")
+            }
+            .tag(SettingsTab.preview)
+
             AdvancedSettingsTab()
                 .tabItem {
                     Label("高级", systemImage: "slider.horizontal.3")
                 }
+                .tag(SettingsTab.advanced)
         }
-        .frame(width: 520, height: 420)
+        .frame(width: 520, height: 460)
+        .onReceive(NotificationCenter.default.publisher(for: .openPreviewSettingsRequested)) { notification in
+            selectedTab = .preview
+            if let ext = notification.userInfo?["extension"] as? String {
+                previewPrefillExtension = ext
+            }
+        }
     }
 }
 
@@ -5904,11 +5926,6 @@ struct FilePreviewView: View {
         htmlMode = .preview
     }
     
-    private func isImageFile(_ item: FileItem) -> Bool {
-        let ext = item.url.pathExtension.lowercased()
-        return ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"].contains(ext)
-    }
-
     private func resetImageViewTransform() {
         performImageEdit {
             imageZoomScale = 1.0
@@ -5945,35 +5962,31 @@ struct FilePreviewView: View {
     }
 
     private func isPDFFile(_ item: FileItem) -> Bool {
-        item.url.pathExtension.lowercased() == "pdf"
+        PreviewTypeClassifier.isPDFFile(item.url.pathExtension)
     }
 
     private func isTextFile(_ item: FileItem) -> Bool {
-        let ext = item.url.pathExtension.lowercased()
-        let textExtensions = [
-            "txt", "md", "swift", "java", "py", "js", "ts", "go", "rs", "kt", "php", "rb",
-            "html", "css", "json", "xml", "c", "cpp", "h", "sh", "yaml", "yml", "vue",
-            "config", "ini", "gitignore", "properties", "log", "sql", "csv"
-        ]
-        return textExtensions.contains(ext)
+        PreviewTypeClassifier.isTextFile(item.url.pathExtension)
     }
 
     private func isMarkdownFile(_ item: FileItem) -> Bool {
-        item.url.pathExtension.lowercased() == "md"
+        PreviewTypeClassifier.isMarkdownFile(item.url.pathExtension)
     }
 
     private func isHtmlFile(_ item: FileItem) -> Bool {
-        item.url.pathExtension.lowercased() == "html" || item.url.pathExtension.lowercased() == "htm"
+        PreviewTypeClassifier.isHtmlFile(item.url.pathExtension)
     }
 
     private func isMediaFile(_ item: FileItem) -> Bool {
-        let ext = item.url.pathExtension.lowercased()
-        return ["mp4", "mov", "mp3", "wav"].contains(ext)
+        PreviewTypeClassifier.isMediaFile(item.url.pathExtension)
     }
 
     private func isOfficeFile(_ item: FileItem) -> Bool {
-        let ext = item.url.pathExtension.lowercased()
-        return ["docx", "xlsx", "pptx"].contains(ext)
+        PreviewTypeClassifier.isOfficeFile(item.url.pathExtension)
+    }
+
+    private func isImageFile(_ item: FileItem) -> Bool {
+        PreviewTypeClassifier.isImageFile(item.url.pathExtension)
     }
 
     private func isArchiveFile(_ item: FileItem) -> Bool {
@@ -6034,14 +6047,22 @@ struct FileContentView: View {
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
     @State private var imageSaveErrorMessage: String? = nil
+    @ObservedObject private var customPreviewStore = CustomPreviewRuleStore.shared
+
+    private var fileExtension: String {
+        item.url.pathExtension.lowercased()
+    }
 
     private var isImagePreview: Bool {
         image != nil && !isLoading && errorMessage == nil
     }
 
     private var isHtmlPreviewMode: Bool {
-        let ext = item.url.pathExtension.lowercased()
-        return (ext == "html" || ext == "htm") && htmlMode == .preview
+        PreviewTypeClassifier.isHtmlFile(fileExtension) && htmlMode == .preview
+    }
+
+    private var usesMarkdownPreview: Bool {
+        PreviewTypeClassifier.isMarkdownFile(fileExtension) && markdownMode == .preview
     }
 
     private var imageResizePreviewIdentity: String {
@@ -6128,8 +6149,7 @@ struct FileContentView: View {
                 HTMLFilePreview(fileURL: item.url)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if !textContent.isEmpty {
-                let ext = item.url.pathExtension.lowercased()
-                if ext == "md", markdownMode == .preview {
+                if usesMarkdownPreview {
                     MarkdownFilePreview(
                         markdown: textContent,
                         wrapLines: textWrapEnabled,
@@ -6139,13 +6159,23 @@ struct FileContentView: View {
                 } else {
                     TextFilePreview(
                         text: textContent,
-                        fileExtension: item.url.pathExtension.lowercased(),
+                        fileExtension: fileExtension,
                         wrapLines: textWrapEnabled,
-                        fontSize: item.url.pathExtension.lowercased() == "md" ? markdownSourceFontSize : NSFont.systemFontSize,
+                        fontSize: PreviewTypeClassifier.isMarkdownFile(fileExtension) ? markdownSourceFontSize : NSFont.systemFontSize,
                         action: $textPreviewAction
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+            } else if !isLoading, errorMessage == nil {
+                CustomPreviewUnavailableView(
+                    fileExtension: fileExtension,
+                    onAddRule: { mode in
+                        customPreviewStore.upsertRule(forExtension: fileExtension, mode: mode)
+                    },
+                    onOpenSettings: {
+                        openPreviewSettings(prefillExtension: fileExtension)
+                    }
+                )
             } else {
                 Text("Preview not available for this file type")
                     .foregroundColor(.secondary)
@@ -6155,7 +6185,7 @@ struct FileContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // QuickLook 自己带滚动与边距，外层 padding 反而容易造成滚动条被遮挡。
         .padding((isImagePreview || officeURL != nil) ? 0 : 12)
-        .task(id: "\(item.id)-\(archiveReloadToken)") {
+        .task(id: "\(item.id)-\(archiveReloadToken)-\(customPreviewStore.revision)") {
             imageZoomScale = 1.0
             imageZoomAction = nil
             imageEffectiveZoomPercent = 0
@@ -6204,8 +6234,7 @@ struct FileContentView: View {
     }
 
     private func isHtmlFile(_ item: FileItem) -> Bool {
-        let ext = item.url.pathExtension.lowercased()
-        return ext == "html" || ext == "htm"
+        PreviewTypeClassifier.isHtmlFile(item.url.pathExtension)
     }
 
     private func saveEditedImage() async {
@@ -6399,7 +6428,12 @@ struct FileContentView: View {
             isLoading = false
         }
 
-        if ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"].contains(ext) {
+        if let overrideRule = customPreviewStore.overridingRule(for: ext) {
+            await loadCustomPreview(mode: overrideRule.mode, url: url, ext: ext, itemID: itemID, finish: finish)
+            return
+        }
+
+        if BuiltinPreviewExtensions.image.contains(ext) {
             let imageData = try? await Task.detached(priority: .userInitiated) {
                 try Data(contentsOf: url, options: [.mappedIfSafe])
             }.value
@@ -6412,19 +6446,19 @@ struct FileContentView: View {
             return
         }
 
-        if ["mp4", "mov", "mp3", "wav"].contains(ext) {
+        if BuiltinPreviewExtensions.media.contains(ext) {
             guard !Task.isCancelled else { return }
             finish(mediaURL: url)
             return
         }
 
-        if ["docx", "xlsx", "pptx"].contains(ext) {
+        if BuiltinPreviewExtensions.office.contains(ext) {
             guard !Task.isCancelled else { return }
             finish(office: url)
             return
         }
 
-        if ext == "pdf" {
+        if BuiltinPreviewExtensions.pdf.contains(ext) {
             let pdfData = try? await Task.detached(priority: .userInitiated) {
                 try Data(contentsOf: url, options: [.mappedIfSafe])
             }.value
@@ -6534,11 +6568,7 @@ struct FileContentView: View {
             return
         }
 
-        let textExtensions = [
-            "txt", "md", "swift", "java", "py", "js", "ts", "go", "rs", "kt", "php", "rb",
-            "html", "css", "json", "xml", "c", "cpp", "h", "sh", "yaml", "yml", "vue",
-            "config", "ini", "gitignore", "properties", "log", "sql", "csv"
-        ]
+        let textExtensions = BuiltinPreviewExtensions.text
 
         if textExtensions.contains(ext) {
             if isHtmlFile(item), htmlMode == .preview {
@@ -6569,7 +6599,81 @@ struct FileContentView: View {
             return
         }
 
+        if let customMode = customPreviewStore.activeMode(for: ext) {
+            await loadCustomPreview(mode: customMode, url: url, ext: ext, itemID: itemID, finish: finish)
+            return
+        }
+
         finish()
+    }
+
+    private func loadCustomPreview(
+        mode: CustomPreviewMode,
+        url: URL,
+        ext: String,
+        itemID: String,
+        finish: @MainActor (
+            _ imageData: Data?,
+            _ pdfData: Data?,
+            _ mediaURL: URL?,
+            _ office: URL?,
+            _ archive: [ArchiveEntryPreview]?,
+            _ archiveTruncated: Bool,
+            _ text: String?,
+            _ error: String?
+        ) -> Void
+    ) async {
+        switch mode {
+        case .quickLook:
+            guard !Task.isCancelled else { return }
+            finish(nil, nil, nil, url, nil, false, nil, nil)
+        case .media:
+            guard !Task.isCancelled else { return }
+            finish(nil, nil, url, nil, nil, false, nil, nil)
+        case .image:
+            let imageData = try? await Task.detached(priority: .userInitiated) {
+                try Data(contentsOf: url, options: [.mappedIfSafe])
+            }.value
+            guard !Task.isCancelled else { return }
+            if let imageData {
+                finish(imageData, nil, nil, nil, nil, false, nil, nil)
+            } else {
+                finish(nil, nil, nil, nil, nil, false, nil, "Unable to decode image format")
+            }
+        case .pdf:
+            let pdfData = try? await Task.detached(priority: .userInitiated) {
+                try Data(contentsOf: url, options: [.mappedIfSafe])
+            }.value
+            guard !Task.isCancelled else { return }
+            if let pdfData {
+                finish(nil, pdfData, nil, nil, nil, false, nil, nil)
+            } else {
+                finish(nil, nil, nil, nil, nil, false, nil, "Unable to load PDF document")
+            }
+        case .html where htmlMode == .preview:
+            await MainActor.run { finish(nil, nil, nil, nil, nil, false, nil, nil) }
+            Task.detached(priority: .utility) { [url, itemID] in
+                let content = try? TextFilePreviewReader.readPreview(from: url)
+                await MainActor.run {
+                    guard item.id == itemID else { return }
+                    if let content {
+                        textContent = content
+                    }
+                }
+            }
+        case .text, .markdown, .html:
+            do {
+                let content = try await Task.detached(priority: .userInitiated) {
+                    try TextFilePreviewReader.readPreview(from: url)
+                }.value
+                guard !Task.isCancelled else { return }
+                finish(nil, nil, nil, nil, nil, false, content, nil)
+            } catch {
+                guard !Task.isCancelled else { return }
+                if error is CancellationError { return }
+                finish(nil, nil, nil, nil, nil, false, nil, error.localizedDescription)
+            }
+        }
     }
 }
 
