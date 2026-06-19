@@ -630,6 +630,7 @@ private enum BarTextFieldFocusRegistry {
     private static weak var searchField: NSTextField?
     private static weak var pathBarRoot: NSView?
     private static weak var pathNavigateButton: NSView?
+    private static weak var pathBarBlankClickArea: NSView?
     private static var pendingSelectAll: BarTextFieldID?
     
     static func register(_ field: NSTextField, for id: BarTextFieldID) {
@@ -728,6 +729,15 @@ private enum BarTextFieldFocusRegistry {
         window.makeFirstResponder(nil)
     }
     
+    /// 结束 field editor，确保下次进入文本模式时 textDidBeginEditing 会再次触发。
+    static func endEditing(_ id: BarTextFieldID) {
+        guard let field = field(for: id) else { return }
+        if field.currentEditor() != nil {
+            field.abortEditing()
+        }
+        field.window?.makeFirstResponder(nil)
+    }
+    
     static func isClickInside(_ id: BarTextFieldID, event: NSEvent) -> Bool {
         guard let field = field(for: id) else { return false }
         guard let window = field.window ?? event.window,
@@ -747,17 +757,10 @@ private enum BarTextFieldFocusRegistry {
     }
     
     static func isClickInsidePathBar(event: NSEvent) -> Bool {
-        guard let window = event.window,
-              let contentView = window.contentView,
-              let hitView = contentView.hitTest(event.locationInWindow) else {
-            return false
-        }
-        if let button = pathNavigateButton,
-           hitView === button || hitView.isDescendant(of: button) {
-            return true
-        }
-        guard let root = pathBarRoot else { return false }
-        return hitView === root || hitView.isDescendant(of: root)
+        if isClickInsideNavigateButton(event: event) { return true }
+        if isClickInside(.path, event: event) { return true }
+        if isClickInsideRegisteredView(pathBarBlankClickArea, event: event) { return true }
+        return isClickInsideRegisteredView(pathBarRoot, event: event)
     }
     
     static func registerPathBarRoot(_ view: NSView) {
@@ -766,6 +769,16 @@ private enum BarTextFieldFocusRegistry {
     
     static func registerPathNavigateButton(_ view: NSView) {
         pathNavigateButton = view
+    }
+    
+    static func registerPathBarBlankClickArea(_ view: NSView) {
+        pathBarBlankClickArea = view
+    }
+    
+    private static func isClickInsideRegisteredView(_ view: NSView?, event: NSEvent) -> Bool {
+        guard let view, view.window != nil else { return false }
+        let point = view.convert(event.locationInWindow, from: nil)
+        return view.bounds.contains(point)
     }
     
     private static func field(for id: BarTextFieldID) -> NSTextField? {
@@ -866,7 +879,11 @@ private struct BarFieldOutsideClickHandler: NSViewRepresentable {
             }
             
             if let editingField {
-                BarTextFieldFocusRegistry.resign(editingField)
+                if shouldDismissPathText, editingField == .path {
+                    BarTextFieldFocusRegistry.endEditing(.path)
+                } else {
+                    BarTextFieldFocusRegistry.resign(editingField)
+                }
                 if activeField == editingField {
                     activeField = nil
                 }
@@ -1419,6 +1436,7 @@ private struct PathBarView: View {
     
     private let cornerRadius: CGFloat = 7
     private let fieldHeight: CGFloat = 28
+    private let pathBarTrailingClickWidth: CGFloat = 40
     
     private var showsFocusBorder: Bool {
         mode == .text || activeField == .path
@@ -1490,6 +1508,13 @@ private struct PathBarView: View {
                 .allowsHitTesting(false)
         }
         .overlay(alignment: .trailing) {
+            if mode == .text {
+                PathBarBlankClickArea(onClick: handlePathBarTrailingClick)
+                    .frame(width: pathBarTrailingClickWidth, height: fieldHeight)
+                    .help("点击全选路径")
+            }
+        }
+        .overlay(alignment: .trailing) {
             if let targetPath = pendingNavigablePath {
                 PathBarNavigateButton(targetPath: targetPath) { target in
                     navigateToPendingPath(target)
@@ -1527,7 +1552,7 @@ private struct PathBarView: View {
             editingText = displayPath
             committedViaSubmit = false
             mode = .breadcrumb
-            BarTextFieldFocusRegistry.resign(.path)
+            BarTextFieldFocusRegistry.endEditing(.path)
             if activeField == .path {
                 activeField = BarTextFieldFocusRegistry.currentEditingField()
             }
@@ -1545,12 +1570,13 @@ private struct PathBarView: View {
             }
             
             if oldValue == .path, mode == .text, newValue != .path {
-                guard newValue == .search else { return }
                 if !committedViaSubmit {
                     editingText = displayPath
                 }
                 committedViaSubmit = false
                 mode = .breadcrumb
+                isTextMode = false
+                BarTextFieldFocusRegistry.endEditing(.path)
             }
         }
     }
@@ -1561,6 +1587,10 @@ private struct PathBarView: View {
             BarTextFieldFocusRegistry.focusWhenReady(.path, selectAll: true) { succeeded in
                 guard succeeded else { return }
                 activeField = .path
+                // 再次全选：field editor 可能复用上次的插入点，需覆盖 SwiftUI 渲染后的选中状态。
+                DispatchQueue.main.async {
+                    BarTextFieldFocusRegistry.selectAll(.path)
+                }
             }
         }
     }
@@ -1577,6 +1607,15 @@ private struct PathBarView: View {
         }
     }
     
+    private func handlePathBarTrailingClick() {
+        if mode == .text {
+            BarTextFieldFocusRegistry.requestSelectAll(.path)
+            requestPathFieldFocus()
+        } else {
+            enterTextMode()
+        }
+    }
+    
     private func commitPath() {
         committedViaSubmit = true
         BarTextFieldFocusRegistry.clearPendingSelectAll()
@@ -1589,7 +1628,7 @@ private struct PathBarView: View {
             }
         }
         onSubmit()
-        BarTextFieldFocusRegistry.resign(.path)
+        BarTextFieldFocusRegistry.endEditing(.path)
         activeField = BarTextFieldFocusRegistry.currentEditingField()
         mode = .breadcrumb
     }
@@ -1600,7 +1639,7 @@ private struct PathBarView: View {
         path = targetPath
         editingText = targetPath
         isTextMode = false
-        BarTextFieldFocusRegistry.resign(.path)
+        BarTextFieldFocusRegistry.endEditing(.path)
         activeField = BarTextFieldFocusRegistry.currentEditingField()
         mode = .breadcrumb
     }
@@ -1627,21 +1666,8 @@ private struct PathBarRootRegistrar: NSViewRepresentable {
         }
         
         fileprivate func registerIfNeeded() {
-            var candidate: NSView? = self
-            while let view = candidate {
-                let typeName = String(describing: type(of: view))
-                if typeName.contains("HostingView") {
-                    BarTextFieldFocusRegistry.registerPathBarRoot(view)
-                    return
-                }
-                if view.bounds.height >= 24, view.bounds.height <= 52, view.bounds.width > 80 {
-                    BarTextFieldFocusRegistry.registerPathBarRoot(view)
-                }
-                candidate = view.superview
-            }
-            if let host = superview {
-                BarTextFieldFocusRegistry.registerPathBarRoot(host)
-            }
+            guard bounds.width > 0, bounds.height >= 24, bounds.height <= 52 else { return }
+            BarTextFieldFocusRegistry.registerPathBarRoot(self)
         }
         
         override func hitTest(_ point: NSPoint) -> NSView? {
@@ -1693,14 +1719,6 @@ private struct PathBarNavigateButton: NSViewRepresentable {
         
         fileprivate func registerWithFocusRegistry() {
             BarTextFieldFocusRegistry.registerPathNavigateButton(self)
-            var candidate: NSView? = superview
-            while let view = candidate {
-                if view.bounds.height >= 24, view.bounds.height <= 52, view.bounds.width > 80 {
-                    BarTextFieldFocusRegistry.registerPathBarRoot(view)
-                    return
-                }
-                candidate = view.superview
-            }
         }
     }
     
@@ -1778,6 +1796,21 @@ private struct PathBarBlankClickArea: NSViewRepresentable {
     
     final class ClickView: NSView {
         weak var coordinator: Coordinator?
+        
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            registerIfNeeded()
+        }
+        
+        override func layout() {
+            super.layout()
+            registerIfNeeded()
+        }
+        
+        private func registerIfNeeded() {
+            guard bounds.width > 0, bounds.height > 0 else { return }
+            BarTextFieldFocusRegistry.registerPathBarBlankClickArea(self)
+        }
         
         override func mouseDown(with event: NSEvent) {
             BarTextFieldFocusRegistry.requestSelectAll(.path)
