@@ -6,6 +6,7 @@ import PDFKit
 import AVKit
 import QuickLookUI
 import UniformTypeIdentifiers
+import WebKit
 import FileList
 
 enum BlankDoubleClickAction: String, CaseIterable, Identifiable {
@@ -4972,6 +4973,7 @@ struct FilePreviewView: View {
     @State private var markdownMode: MarkdownDisplayMode = .preview
     @State private var markdownPreviewScale: CGFloat = 1.0
     @State private var markdownSourceFontSize: CGFloat = 13
+    @State private var htmlMode: HtmlDisplayMode = .preview
     @State private var mediaControlAction: MediaControlAction? = nil
     @State private var mediaIsPlaying: Bool = false
     @State private var mediaIsMuted: Bool = false
@@ -5226,6 +5228,24 @@ struct FilePreviewView: View {
                         }
                     }
 
+                    if isHtmlFile(item) {
+                        Button {
+                            htmlMode = .preview
+                        } label: {
+                            Image(systemName: htmlMode == .preview ? "globe.americas.fill" : "globe.americas")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("HTML 解析预览")
+
+                        Button {
+                            htmlMode = .source
+                        } label: {
+                            Image(systemName: htmlMode == .source ? "doc.plaintext.fill" : "doc.plaintext")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("源码模式")
+                    }
+
                     Button {
                         textPreviewAction = .copyAll
                     } label: {
@@ -5368,7 +5388,8 @@ struct FilePreviewView: View {
                             pdfScalePercent: $pdfScalePercent,
                             markdownMode: $markdownMode,
                             markdownPreviewScale: $markdownPreviewScale,
-                            markdownSourceFontSize: $markdownSourceFontSize
+                            markdownSourceFontSize: $markdownSourceFontSize,
+                            htmlMode: $htmlMode
                         )
                         .id(folderInlineChild.id)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -5410,7 +5431,8 @@ struct FilePreviewView: View {
                             pdfScalePercent: $pdfScalePercent,
                             markdownMode: $markdownMode,
                             markdownPreviewScale: $markdownPreviewScale,
-                            markdownSourceFontSize: $markdownSourceFontSize
+                            markdownSourceFontSize: $markdownSourceFontSize,
+                            htmlMode: $htmlMode
                         )
                             .id(selectedItem.id)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -5460,6 +5482,7 @@ struct FilePreviewView: View {
         markdownMode = .preview
         markdownPreviewScale = 1.0
         markdownSourceFontSize = 13
+        htmlMode = .preview
     }
     
     private func isImageFile(_ item: FileItem) -> Bool {
@@ -5483,6 +5506,10 @@ struct FilePreviewView: View {
 
     private func isMarkdownFile(_ item: FileItem) -> Bool {
         item.url.pathExtension.lowercased() == "md"
+    }
+
+    private func isHtmlFile(_ item: FileItem) -> Bool {
+        item.url.pathExtension.lowercased() == "html" || item.url.pathExtension.lowercased() == "htm"
     }
 
     private func isMediaFile(_ item: FileItem) -> Bool {
@@ -5532,6 +5559,7 @@ struct FileContentView: View {
     @Binding var markdownMode: MarkdownDisplayMode
     @Binding var markdownPreviewScale: CGFloat
     @Binding var markdownSourceFontSize: CGFloat
+    @Binding var htmlMode: HtmlDisplayMode
 
     @State private var textContent: String = ""
     @State private var image: NSImage? = nil
@@ -5545,6 +5573,11 @@ struct FileContentView: View {
 
     private var isImagePreview: Bool {
         image != nil && !isLoading && errorMessage == nil
+    }
+
+    private var isHtmlPreviewMode: Bool {
+        let ext = item.url.pathExtension.lowercased()
+        return (ext == "html" || ext == "htm") && htmlMode == .preview
     }
 
     var body: some View {
@@ -5614,8 +5647,12 @@ struct FileContentView: View {
                     copyAction: $archiveCopyAction
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            } else if isHtmlPreviewMode {
+                HTMLFilePreview(fileURL: item.url)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if !textContent.isEmpty {
-                if item.url.pathExtension.lowercased() == "md", markdownMode == .preview {
+                let ext = item.url.pathExtension.lowercased()
+                if ext == "md", markdownMode == .preview {
                     MarkdownFilePreview(
                         markdown: textContent,
                         wrapLines: textWrapEnabled,
@@ -5656,6 +5693,47 @@ struct FileContentView: View {
             pdfScalePercent = 0
             pdfNavigateAction = nil
             await loadContent()
+        }
+        .onChange(of: htmlMode) { newMode in
+            guard isHtmlFile(item) else { return }
+            if newMode == .source, textContent.isEmpty {
+                Task { await loadTextContentIfNeeded() }
+            }
+        }
+    }
+
+    private func isHtmlFile(_ item: FileItem) -> Bool {
+        let ext = item.url.pathExtension.lowercased()
+        return ext == "html" || ext == "htm"
+    }
+
+    private func loadTextContentIfNeeded() async {
+        let url = item.url
+        let itemID = item.id
+
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+
+        do {
+            let content = try await Task.detached(priority: .userInitiated) {
+                try TextFilePreviewReader.readPreview(from: url)
+            }.value
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard item.id == itemID else { return }
+                textContent = content
+                isLoading = false
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            if error is CancellationError { return }
+            await MainActor.run {
+                guard item.id == itemID else { return }
+                errorMessage = error.localizedDescription
+                isLoading = false
+            }
         }
     }
 
@@ -5870,6 +5948,20 @@ struct FileContentView: View {
         ]
 
         if textExtensions.contains(ext) {
+            if isHtmlFile(item), htmlMode == .preview {
+                await MainActor.run { finish() }
+                Task.detached(priority: .utility) { [url, itemID] in
+                    let content = try? TextFilePreviewReader.readPreview(from: url)
+                    await MainActor.run {
+                        guard item.id == itemID else { return }
+                        if let content {
+                            textContent = content
+                        }
+                    }
+                }
+                return
+            }
+
             do {
                 let content = try await Task.detached(priority: .userInitiated) {
                     try TextFilePreviewReader.readPreview(from: url)
@@ -5949,6 +6041,40 @@ enum PDFNavigationAction: Equatable {
 enum MarkdownDisplayMode: Equatable {
     case preview
     case source
+}
+
+enum HtmlDisplayMode: Equatable {
+    case preview
+    case source
+}
+
+private struct HTMLFilePreview: NSViewRepresentable {
+    let fileURL: URL
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> WKWebView {
+        let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        load(into: webView, coordinator: context.coordinator)
+        return webView
+    }
+
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.lastLoadedPath != fileURL.path else { return }
+        load(into: webView, coordinator: context.coordinator)
+    }
+
+    private func load(into webView: WKWebView, coordinator: Coordinator) {
+        let accessURL = fileURL.deletingLastPathComponent()
+        webView.loadFileURL(fileURL, allowingReadAccessTo: accessURL)
+        coordinator.lastLoadedPath = fileURL.path
+    }
+
+    final class Coordinator {
+        var lastLoadedPath: String?
+    }
 }
 
 private struct MarkdownFilePreview: NSViewRepresentable {
@@ -6511,13 +6637,16 @@ private struct TextFilePreview: NSViewRepresentable {
             )
         }
         textView.textStorage?.setAttributedString(TextSyntaxHighlighter.makePlainText(text: text, fontSize: fontSize))
+        Self.applyWrapStyle(to: textView, wrapLines: wrapLines)
         
         scrollView.documentView = textView
         context.coordinator.textView = textView
+        context.coordinator.lastWrapLines = wrapLines
         context.coordinator.applyHighlight(
             text: text,
             fileExtension: fileExtension,
             fontSize: fontSize,
+            wrapLines: wrapLines,
             textView: textView
         )
         return scrollView
@@ -6536,6 +6665,7 @@ private struct TextFilePreview: NSViewRepresentable {
             text: text,
             fileExtension: fileExtension,
             fontSize: fontSize,
+            wrapLines: wrapLines,
             textView: textView
         )
         scrollView.hasHorizontalScroller = !wrapLines
@@ -6552,6 +6682,16 @@ private struct TextFilePreview: NSViewRepresentable {
                 width: CGFloat.greatestFiniteMagnitude,
                 height: CGFloat.greatestFiniteMagnitude
             )
+        }
+
+        if context.coordinator.lastWrapLines != wrapLines {
+            context.coordinator.lastWrapLines = wrapLines
+            Self.applyWrapStyle(to: textView, wrapLines: wrapLines)
+            textView.scrollToBeginningOfDocument(nil)
+            scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
+            if let textContainer = textView.textContainer {
+                textView.layoutManager?.ensureLayout(for: textContainer)
+            }
         }
 
         if let action {
@@ -6573,6 +6713,7 @@ private struct TextFilePreview: NSViewRepresentable {
     
     final class Coordinator {
         weak var textView: NSTextView?
+        var lastWrapLines: Bool = true
         private var renderWorkItem: DispatchWorkItem?
         private var generation: UInt64 = 0
 
@@ -6580,7 +6721,13 @@ private struct TextFilePreview: NSViewRepresentable {
             renderWorkItem?.cancel()
         }
 
-        func applyHighlight(text: String, fileExtension: String, fontSize: CGFloat, textView: NSTextView) {
+        func applyHighlight(
+            text: String,
+            fileExtension: String,
+            fontSize: CGFloat,
+            wrapLines: Bool,
+            textView: NSTextView
+        ) {
             generation &+= 1
             let currentGeneration = generation
             renderWorkItem?.cancel()
@@ -6600,11 +6747,23 @@ private struct TextFilePreview: NSViewRepresentable {
                     guard let self, currentGeneration == self.generation else { return }
                     guard textView.string == text else { return }
                     textView.textStorage?.setAttributedString(highlighted)
+                    TextFilePreview.applyWrapStyle(to: textView, wrapLines: wrapLines)
                 }
             }
             renderWorkItem = workItem
             DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
         }
+    }
+
+    private static func applyWrapStyle(to textView: NSTextView, wrapLines: Bool) {
+        guard let storage = textView.textStorage, storage.length > 0 else { return }
+        let style = NSMutableParagraphStyle()
+        style.lineBreakMode = wrapLines ? .byWordWrapping : .byClipping
+        storage.addAttribute(
+            .paragraphStyle,
+            value: style,
+            range: NSRange(location: 0, length: storage.length)
+        )
     }
 }
 
