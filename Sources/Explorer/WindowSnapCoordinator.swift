@@ -21,6 +21,21 @@ enum NSWindowSnapFrameHook {
             original: #selector(NSWindow.setFrame(_:display:)),
             swizzled: #selector(NSWindow.mf_snap_setFrame(_:display:))
         )
+        swizzle(
+            NSWindow.self,
+            original: #selector(NSWindow.orderFront(_:)),
+            swizzled: #selector(NSWindow.mf_snap_orderFront(_:))
+        )
+        swizzle(
+            NSWindow.self,
+            original: #selector(NSWindow.makeKeyAndOrderFront(_:)),
+            swizzled: #selector(NSWindow.mf_snap_makeKeyAndOrderFront(_:))
+        )
+        swizzle(
+            NSWindow.self,
+            original: #selector(NSWindow.orderFrontRegardless),
+            swizzled: #selector(NSWindow.mf_snap_orderFrontRegardless)
+        )
     }
 
     private static func swizzle(_ cls: AnyClass, original: Selector, swizzled: Selector) {
@@ -39,6 +54,21 @@ extension NSWindow {
     @objc dynamic func mf_snap_setFrame(_ frameRect: NSRect, display flag: Bool) {
         mf_snap_setFrame(frameRect, display: flag)
         WindowSnapCoordinator.shared.leaderFrameUpdated(self)
+    }
+
+    @objc dynamic func mf_snap_orderFront(_ sender: Any?) {
+        mf_snap_orderFront(sender)
+        WindowSnapCoordinator.shared.windowOrderedFront(self)
+    }
+
+    @objc dynamic func mf_snap_makeKeyAndOrderFront(_ sender: Any?) {
+        mf_snap_makeKeyAndOrderFront(sender)
+        WindowSnapCoordinator.shared.windowOrderedFront(self)
+    }
+
+    @objc dynamic func mf_snap_orderFrontRegardless() {
+        mf_snap_orderFrontRegardless()
+        WindowSnapCoordinator.shared.windowOrderedFront(self)
     }
 }
 
@@ -151,6 +181,7 @@ final class WindowSnapCoordinator {
     private var contentInteractionObservers: [NSObjectProtocol] = []
     /// 联动置前 partner 时避免 order 触发递归
     private var isRaisingLinkedPartner = false
+    private var linkedPartnerRaiseWorkItem: DispatchWorkItem?
 
     private init() {
         installContentInteractionObservers()
@@ -266,16 +297,60 @@ final class WindowSnapCoordinator {
 
     /// 吸附窗口被激活到前台时，将 partner 一并置前（紧贴其下方，不抢焦点）
     func handleWindowDidBecomeKey(_ window: NSWindow) {
-        guard isEnabled, !isRaisingLinkedPartner else { return }
+        guard isEnabled else { return }
         guard isEligible(window), isRegistered(window) else { return }
         guard let link = activeLink, link.contains(window),
               let partner = link.otherWindow(than: window),
               isEligible(partner), isRegistered(partner) else { return }
 
+        raiseLinkedPartner(anchor: window, partner: partner)
+    }
+
+    /// Dock / 程序坞 / 窗口菜单等触发的置前也会走 orderFront / makeKeyAndOrderFront
+    func windowOrderedFront(_ window: NSWindow) {
+        guard isEnabled else { return }
+        guard isEligible(window), isRegistered(window) else { return }
+        guard let link = activeLink, link.contains(window),
+              let partner = link.otherWindow(than: window),
+              isEligible(partner), isRegistered(partner) else { return }
+
+        raiseLinkedPartner(anchor: window, partner: partner)
+    }
+
+    private func raiseLinkedPartner(anchor: NSWindow, partner: NSWindow) {
+        guard !isRaisingLinkedPartner else { return }
+
         isRaisingLinkedPartner = true
         defer { isRaisingLinkedPartner = false }
 
-        partner.order(.below, relativeTo: window.windowNumber)
+        anchor.orderFront(nil)
+        partner.orderFront(nil)
+        partner.order(.below, relativeTo: anchor.windowNumber)
+
+        scheduleLinkedPartnerRaise(anchor: anchor, partner: partner)
+    }
+
+    /// 全屏应用遮挡时，AppKit 可能在置前后再次隐藏 partner；延迟二次校正
+    private func scheduleLinkedPartnerRaise(anchor: NSWindow, partner: NSWindow) {
+        linkedPartnerRaiseWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self, weak anchor, weak partner] in
+            guard let self, let anchor, let partner else { return }
+            guard self.isEnabled,
+                  let link = self.activeLink,
+                  link.contains(anchor),
+                  link.otherWindow(than: anchor) === partner,
+                  self.isEligible(anchor),
+                  self.isEligible(partner) else { return }
+
+            self.isRaisingLinkedPartner = true
+            defer { self.isRaisingLinkedPartner = false }
+
+            anchor.orderFront(nil)
+            partner.orderFront(nil)
+            partner.order(.below, relativeTo: anchor.windowNumber)
+        }
+        linkedPartnerRaiseWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: work)
     }
 
     // MARK: - Active Link Lifecycle
