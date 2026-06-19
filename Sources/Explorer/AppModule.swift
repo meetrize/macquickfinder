@@ -3311,16 +3311,22 @@ private enum FavoriteSidebarDrop {
         urls: [URL],
         to destinationPath: String,
         copy: Bool,
+        insertBefore: Int?,
         favoritesStore: FavoritesStore,
         onItemsChanged: @escaping () -> Void
     ) {
         var filesToMove: [URL] = []
+        var nextInsertIndex = insertBefore ?? favoritesStore.items.count
         
         for url in urls {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
             if isDirectory.boolValue && !FileListApplicationBundle.isBundle(path: url.path) {
-                favoritesStore.addDirectory(at: url.path)
+                let previousCount = favoritesStore.items.count
+                favoritesStore.addDirectory(at: url.path, insertBefore: nextInsertIndex)
+                if favoritesStore.items.count > previousCount {
+                    nextInsertIndex += 1
+                }
             } else {
                 filesToMove.append(url)
             }
@@ -3341,7 +3347,7 @@ private struct FavoritesSidebarRows: View {
     @Binding var path: String
     var showsTitle: Bool
     var isSelected: (String) -> Bool
-    var onDropURLs: ([URL], String, Bool) -> Void
+    var onDropURLs: ([URL], String, Bool, Int?) -> Void
     
     var body: some View {
         FavoritesSidebarHost(
@@ -3481,11 +3487,12 @@ struct SidebarView: View {
         return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
     }
     
-    private func handleFavoriteDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
+    private func handleFavoriteDrop(_ urls: [URL], to destinationPath: String, copy: Bool, insertBefore: Int?) {
         FavoriteSidebarDrop.handle(
             urls: urls,
             to: destinationPath,
             copy: copy,
+            insertBefore: insertBefore,
             favoritesStore: favoritesStore,
             onItemsChanged: onItemsChanged
         )
@@ -3610,11 +3617,12 @@ struct SidebarRailView: View {
         return systemVolumeRoots.contains(normalizedLHS) && systemVolumeRoots.contains(normalizedRHS)
     }
     
-    private func handleFavoriteDrop(_ urls: [URL], to destinationPath: String, copy: Bool) {
+    private func handleFavoriteDrop(_ urls: [URL], to destinationPath: String, copy: Bool, insertBefore: Int?) {
         FavoriteSidebarDrop.handle(
             urls: urls,
             to: destinationPath,
             copy: copy,
+            insertBefore: insertBefore,
             favoritesStore: favoritesStore,
             onItemsChanged: onItemsChanged
         )
@@ -7375,11 +7383,17 @@ final class FavoritesStore: ObservableObject {
         return items.contains { Self.pathsRepresentSameLocation($0.path, normalized) }
     }
     
-    func addDirectory(at path: String) {
+    func addDirectory(at path: String, insertBefore: Int? = nil) {
         let normalized = (path as NSString).standardizingPath
         guard !contains(path: normalized) else { return }
         let name = (normalized as NSString).lastPathComponent
-        items.append(FavoriteItem(path: normalized, name: name, icon: "folder"))
+        let item = FavoriteItem(path: normalized, name: name, icon: "folder")
+        if let insertBefore {
+            let index = min(max(insertBefore, 0), items.count)
+            items.insert(item, at: index)
+        } else {
+            items.append(item)
+        }
         save()
     }
     

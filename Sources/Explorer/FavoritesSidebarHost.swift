@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import FileList
 
 // MARK: - Pasteboard
 
@@ -41,7 +42,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     private var lastItemPaths: [String] = []
     private var lastShowsTitle = true
     private var pendingDropRow = -1
-    private var pendingDropOperation: NSTableView.DropOperation = .on
+    private var pendingInsertBeforeIndex = -1
     private var reorderDragRow = -1
     
     init(parent: FavoritesSidebarHost) {
@@ -280,7 +281,10 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         if !urls.isEmpty {
             let destinationPath = destinationPathForPendingDrop()
             let copy = FileDragDrop.shouldCopyFromDraggingInfo(info)
-            parent.onDropURLs(urls, destinationPath, copy)
+            let insertBefore = addableFavoriteDirectoryURLs(from: urls).isEmpty
+                ? nil
+                : pendingInsertBeforeIndex
+            parent.onDropURLs(urls, destinationPath, copy, insertBefore)
             clearDropIndicator()
             return true
         }
@@ -293,7 +297,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         pasteboard.canReadItem(withDataConformingToTypes: [FavoriteSidebarPasteboard.reorderType.rawValue])
     }
     
-    private func updateReorderDrop(_ info: NSDraggingInfo, in tableView: NSTableView) -> NSDragOperation {
+    private func updateReorderDrop(_ info: NSDraggingInfo, in tableView: FavoritesTableView) -> NSDragOperation {
         guard let draggedPath = info.draggingPasteboard.string(forType: FavoriteSidebarPasteboard.reorderType) else {
             return []
         }
@@ -301,50 +305,75 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         let location = tableView.convert(info.draggingLocation, from: nil)
         let row = tableView.row(at: location)
         
-        if row < 0 {
-            if tableView.numberOfRows == 0 { return [] }
-            pendingDropRow = tableView.numberOfRows
-            pendingDropOperation = .on
-            tableView.setDropRow(tableView.numberOfRows - 1, dropOperation: .on)
-            return .move
-        }
-        
-        guard let target = item(at: row),
-              !FavoritesStore.pathsRepresentSameLocation(draggedPath, target.path) else {
+        if row >= 0,
+           let target = item(at: row),
+           FavoritesStore.pathsRepresentSameLocation(draggedPath, target.path) {
             clearDropIndicator()
             return []
         }
         
-        let rowRect = tableView.rect(ofRow: row)
-        if location.y < rowRect.midY {
-            pendingDropRow = row
-            pendingDropOperation = .above
-            tableView.setDropRow(row, dropOperation: .above)
-        } else {
-            pendingDropRow = row
-            pendingDropOperation = .on
-            tableView.setDropRow(row, dropOperation: .on)
-        }
+        let insertBefore = insertBeforeIndex(for: location, in: tableView)
+        applyInsertDropIndicator(insertBefore: insertBefore, in: tableView)
         return .move
     }
     
-    private func updateFileDrop(_ info: NSDraggingInfo, in tableView: NSTableView) -> NSDragOperation {
+    private func updateFileDrop(_ info: NSDraggingInfo, in tableView: FavoritesTableView) -> NSDragOperation {
+        let urls = FileDragDrop.fileURLs(from: info.draggingPasteboard)
         let location = tableView.convert(info.draggingLocation, from: nil)
         let row = tableView.row(at: location)
         
+        let addableDirectories = addableFavoriteDirectoryURLs(from: urls)
+        if !addableDirectories.isEmpty {
+            let insertBefore = insertBeforeIndex(for: location, in: tableView)
+            applyInsertDropIndicator(insertBefore: insertBefore, in: tableView)
+            return FileDragDrop.dragOperation(for: info)
+        }
+        
+        clearDropIndicator()
         if row >= 0 {
             pendingDropRow = row
-            pendingDropOperation = .on
-            tableView.setDropRow(row, dropOperation: .on)
         } else if tableView.numberOfRows > 0 {
             pendingDropRow = tableView.numberOfRows - 1
-            pendingDropOperation = .on
-            tableView.setDropRow(pendingDropRow, dropOperation: .on)
         } else {
             pendingDropRow = -1
         }
+        pendingInsertBeforeIndex = -1
         
         return FileDragDrop.dragOperation(for: info)
+    }
+    
+    private func addableFavoriteDirectoryURLs(from urls: [URL]) -> [URL] {
+        urls.filter { url in
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+                  isDirectory.boolValue,
+                  !FileListApplicationBundle.isBundle(path: url.path),
+                  !parent.favoritesStore.contains(path: url.path) else {
+                return false
+            }
+            return true
+        }
+    }
+    
+    private func insertBeforeIndex(for location: NSPoint, in tableView: NSTableView) -> Int {
+        let rowCount = tableView.numberOfRows
+        guard rowCount > 0 else { return 0 }
+        
+        let row = tableView.row(at: location)
+        if row < 0 {
+            return rowCount
+        }
+        
+        let rowRect = tableView.rect(ofRow: row)
+        return location.y < rowRect.midY ? row : row + 1
+    }
+    
+    private func applyInsertDropIndicator(insertBefore: Int, in tableView: FavoritesTableView) {
+        let clamped = min(max(insertBefore, 0), tableView.numberOfRows)
+        pendingInsertBeforeIndex = clamped
+        pendingDropRow = clamped > 0 ? clamped - 1 : 0
+        tableView.setDropRow(clamped, dropOperation: .above)
+        tableView.showDropInsertionLine(beforeRow: clamped)
     }
     
     private func acceptReorderDrop(_ pasteboard: NSPasteboard) -> Bool {
@@ -359,15 +388,12 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
             return false
         }
         
-        var insertIndex: Int
-        if pendingDropRow < 0 {
-            insertIndex = items.count
-        } else if pendingDropOperation == .on {
-            insertIndex = pendingDropRow + 1
+        let insertIndex: Int
+        if pendingInsertBeforeIndex >= 0 {
+            insertIndex = min(max(pendingInsertBeforeIndex, 0), items.count)
         } else {
-            insertIndex = pendingDropRow
+            insertIndex = items.count
         }
-        insertIndex = min(max(insertIndex, 0), items.count)
         
         var targetIndex = insertIndex
         if fromIndex < targetIndex {
@@ -389,7 +415,16 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     
     private func clearDropIndicator() {
         pendingDropRow = -1
+        pendingInsertBeforeIndex = -1
         tableView?.setDropRow(-1, dropOperation: .on)
+        tableView?.hideDropInsertionLine()
+    }
+}
+
+private final class FavoriteDropInsertionLineView: NSView {
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.controlAccentColor.setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: 1, yRadius: 1).fill()
     }
 }
 
@@ -578,6 +613,37 @@ private final class FavoriteSidebarRowView: NSTableRowView {
 
 final class FavoritesTableView: NSTableView {
     weak var controller: FavoritesSidebarController?
+    private let dropInsertionLine = FavoriteDropInsertionLineView()
+    
+    func showDropInsertionLine(beforeRow insertBefore: Int) {
+        let y: CGFloat
+        let rowCount = numberOfRows
+        if rowCount == 0 {
+            y = 0
+        } else if insertBefore <= 0 {
+            y = rect(ofRow: 0).minY
+        } else if insertBefore >= rowCount {
+            y = rect(ofRow: rowCount - 1).maxY
+        } else {
+            y = rect(ofRow: insertBefore).minY
+        }
+        
+        let horizontalInset: CGFloat = configuredShowsTitle ? 4 : 2
+        dropInsertionLine.frame = NSRect(
+            x: horizontalInset,
+            y: y - 1,
+            width: max(bounds.width - horizontalInset * 2, 4),
+            height: 2
+        )
+        if dropInsertionLine.superview == nil {
+            addSubview(dropInsertionLine)
+        }
+        dropInsertionLine.isHidden = false
+    }
+    
+    func hideDropInsertionLine() {
+        dropInsertionLine.isHidden = true
+    }
     
     override func rightMouseDown(with event: NSEvent) {
         controller?.handleRightMouseDown(event)
@@ -692,7 +758,7 @@ struct FavoritesSidebarHost: NSViewRepresentable {
     @Binding var path: String
     var showsTitle: Bool
     var isSelected: (String) -> Bool
-    var onDropURLs: ([URL], String, Bool) -> Void
+    var onDropURLs: ([URL], String, Bool, Int?) -> Void
     
     func makeCoordinator() -> FavoritesSidebarController {
         FavoritesSidebarController(parent: self)
