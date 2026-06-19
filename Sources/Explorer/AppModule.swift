@@ -6033,6 +6033,7 @@ struct FileContentView: View {
             } else if let image = image {
                 ImagePreviewContent(
                     image: image,
+                    fileURL: item.url,
                     zoomScale: $imageZoomScale,
                     zoomAction: $imageZoomAction,
                     effectiveZoomPercent: $imageEffectiveZoomPercent,
@@ -7946,6 +7947,7 @@ private struct PreviewToolbarOverflowLayout: View {
                     } label: {
                         Image(systemName: "chevron.down")
                     }
+                    .menuIndicator(.hidden)
                     .buttonStyle(.borderless)
                     .help("更多操作")
                     .fixedSize()
@@ -8327,8 +8329,67 @@ private enum ImagePreviewTransformApplier {
     }
 }
 
+private enum ImagePreviewContextActions {
+    private static let previewBundleIdentifier = "com.apple.Preview"
+
+    @MainActor
+    static func openMarkup(for url: URL) {
+        if let previewURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: previewBundleIdentifier) {
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            configuration.promptsUserIfNeeded = false
+            NSWorkspace.shared.open([url], withApplicationAt: previewURL, configuration: configuration)
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
+    @MainActor
+    static func copyImage(from url: URL) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        if let image = NSImage(contentsOf: url) {
+            pasteboard.writeObjects([image])
+        } else {
+            pasteboard.writeObjects([url as NSURL])
+        }
+    }
+
+    @MainActor
+    static func copyPath(_ url: URL) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(url.path, forType: .string)
+    }
+
+    @MainActor
+    static func revealInFinder(_ url: URL) {
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    @MainActor
+    static func openWithDefaultApp(_ url: URL) {
+        NSWorkspace.shared.open(url)
+    }
+
+    @MainActor
+    static func setAsDesktopPicture(_ url: URL) {
+        guard let screen = NSScreen.main else { return }
+        do {
+            try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "无法设为桌面图片"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
+        }
+    }
+}
+
 private struct ImagePreviewContent: View {
     let image: NSImage
+    let fileURL: URL
     @Binding var zoomScale: CGFloat
     @Binding var zoomAction: ImageZoomAction?
     @Binding var effectiveZoomPercent: Int
@@ -8386,6 +8447,9 @@ private struct ImagePreviewContent: View {
             .frame(width: containerSize.width, height: containerSize.height)
             .clipped()
             .contentShape(Rectangle())
+            .contextMenu {
+                imagePreviewContextMenu()
+            }
             .onHover { isHovering in
                 if eyedropperActive && isHovering {
                     NSCursor.crosshair.push()
@@ -8436,6 +8500,55 @@ private struct ImagePreviewContent: View {
         }
         .onChange(of: resizeTargetSize) { _ in
             panOffset = .zero
+        }
+    }
+
+    @ViewBuilder
+    private func imagePreviewContextMenu() -> some View {
+        Button {
+            ImagePreviewContextActions.openMarkup(for: fileURL)
+        } label: {
+            Label("标记…", systemImage: "pencil.tip.crop.circle")
+        }
+
+        Divider()
+
+        Button {
+            ImagePreviewContextActions.copyImage(from: fileURL)
+        } label: {
+            Label("复制图片", systemImage: "doc.on.doc")
+        }
+
+        Button {
+            ImagePreviewContextActions.copyPath(fileURL)
+        } label: {
+            Label("复制路径", systemImage: "link")
+        }
+
+        Divider()
+
+        Button {
+            ImagePreviewContextActions.revealInFinder(fileURL)
+        } label: {
+            Label("在 Finder 中显示", systemImage: "folder")
+        }
+
+        Button {
+            ImagePreviewContextActions.openWithDefaultApp(fileURL)
+        } label: {
+            Label("用默认应用打开", systemImage: "arrow.up.forward.app")
+        }
+
+        Divider()
+
+        Button {
+            ImagePreviewContextActions.setAsDesktopPicture(fileURL)
+        } label: {
+            Label("设为桌面图片", systemImage: "photo.on.rectangle.angled")
+        }
+
+        ShareLink(item: fileURL, preview: SharePreview(fileURL.lastPathComponent, image: Image(nsImage: image))) {
+            Label("共享…", systemImage: "square.and.arrow.up")
         }
     }
 
