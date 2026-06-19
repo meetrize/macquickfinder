@@ -331,6 +331,7 @@ struct WindowKeyLayoutTracker: NSViewRepresentable {
                 queue: .main
             ) { [weak self] _ in
                 self?.registerAsKeyWindow()
+                WindowSnapCoordinator.shared.handleWindowDidBecomeKey(window)
             })
             observers.append(center.addObserver(
                 forName: NSWindow.didResignKeyNotification,
@@ -379,9 +380,9 @@ struct WindowKeyLayoutTracker: NSViewRepresentable {
         }
 
         func syncKeyWindowRegistration() {
-            if window?.isKeyWindow == true {
-                registerAsKeyWindow()
-            }
+            guard let window, window.isKeyWindow else { return }
+            registerAsKeyWindow()
+            WindowSnapCoordinator.shared.handleWindowDidBecomeKey(window)
         }
 
         private func registerAsKeyWindow() {

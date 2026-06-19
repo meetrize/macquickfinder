@@ -149,6 +149,8 @@ final class WindowSnapCoordinator {
     /// 文件列表内容区交互（拖文件、框选）嵌套计数
     private var contentInteractionDepth = 0
     private var contentInteractionObservers: [NSObjectProtocol] = []
+    /// 联动置前 partner 时避免 order 触发递归
+    private var isRaisingLinkedPartner = false
 
     private init() {
         installContentInteractionObservers()
@@ -260,6 +262,20 @@ final class WindowSnapCoordinator {
 
     func handleWindowDidDeminiaturize(_ window: NSWindow) {
         register(window: window)
+    }
+
+    /// 吸附窗口被激活到前台时，将 partner 一并置前（紧贴其下方，不抢焦点）
+    func handleWindowDidBecomeKey(_ window: NSWindow) {
+        guard isEnabled, !isRaisingLinkedPartner else { return }
+        guard isEligible(window), isRegistered(window) else { return }
+        guard let link = activeLink, link.contains(window),
+              let partner = link.otherWindow(than: window),
+              isEligible(partner), isRegistered(partner) else { return }
+
+        isRaisingLinkedPartner = true
+        defer { isRaisingLinkedPartner = false }
+
+        partner.order(.below, relativeTo: window.windowNumber)
     }
 
     // MARK: - Active Link Lifecycle
