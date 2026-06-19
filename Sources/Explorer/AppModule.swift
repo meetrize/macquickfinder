@@ -3736,7 +3736,7 @@ struct SidebarRailView: View {
                 }
                 
                 Divider()
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 4)
                 
                 VStack(spacing: 6) {
                     ForEach(devices) { device in
@@ -3753,7 +3753,7 @@ struct SidebarRailView: View {
                 }
                 
                 Divider()
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 4)
                 
                 SidebarRow(
                     title: "废纸篓",
@@ -4010,6 +4010,7 @@ struct SidebarRow: View {
                 }
             }
         }
+        .frame(height: showsTitle ? nil : FavoriteSidebarRailLayout.rowHeight)
         .onDrop(
             of: [.fileURL],
             delegate: FileDropDelegate(isTargeted: $isDropTargeted) { urls, copy in

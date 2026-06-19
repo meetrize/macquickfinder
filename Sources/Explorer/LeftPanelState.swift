@@ -25,7 +25,7 @@ enum LeftPanelVisibleMode: String, CaseIterable, Sendable {
 struct LeftPanelLayoutConstants: Sendable {
     var sidebarMinWidth: CGFloat = 200
     var sidebarMaxWidth: CGFloat = 420
-    var railWidth: CGFloat = 54
+    var railWidth: CGFloat = 44
     
     /// 进入隐藏状态阈值（从 sidebar/rail 继续向左拖到足够小才隐藏）。
     var hideThreshold: CGFloat = 28

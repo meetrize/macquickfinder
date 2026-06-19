@@ -17,8 +17,10 @@ enum FavoriteSidebarPasteboard {
 }
 
 enum FavoriteSidebarRailLayout {
-    /// 与 `LeftPanelLayoutConstants.railWidth`（54）减去左右 padding（8）对齐。
-    static let contentWidth: CGFloat = 46
+    /// 与 `LeftPanelLayoutConstants.railWidth`（44）减去 `SidebarRailView` 左右 padding（8）对齐。
+    static let contentWidth: CGFloat = 36
+    /// 与侧栏 `SidebarRow` 及收藏夹表格行高一致（body + vertical 4）。
+    static let rowHeight: CGFloat = 24
     /// 侧栏模式：收藏列表向左外扩，使选中背景更贴近面板左缘。
     static let sidebarContentLeadingBleed: CGFloat = 7
     /// 侧栏模式：收藏列表向右外扩。
@@ -32,9 +34,10 @@ enum FavoriteSidebarRailLayout {
 private enum FavoriteSidebarMetrics {
     static let railContentWidth = FavoriteSidebarRailLayout.contentWidth
     static let sidebarColumnWidth: CGFloat = 240
-    /// 与 `SidebarRow`（body + vertical 4）视觉行高对齐。
-    static let sidebarRowHeight: CGFloat = 24
-    static let railRowHeight: CGFloat = 28
+    /// 与 `SidebarRow`（body + vertical 4）视觉行高对齐；侧栏与工具栏共用。
+    static let rowHeight: CGFloat = FavoriteSidebarRailLayout.rowHeight
+    static let sidebarRowHeight: CGFloat = rowHeight
+    static let railRowHeight: CGFloat = rowHeight
     static let rowContentInset: CGFloat = 8
     static let selectionCornerRadius: CGFloat = 6
     /// 侧栏模式下图标左边距（与 `SidebarRow` 高亮内 `.padding(.horizontal, 8)` 对齐）。
