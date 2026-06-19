@@ -310,44 +310,63 @@ struct ExplorerApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
         .commands {
-            FileCommands()
-            CommandGroup(after: .sidebar) {
-                Button("切换左侧面板") {
-                    windowLayoutCommands?.toggleLeftPanel()
-                }
-                .keyboardShortcut(ExplorerKeyboardShortcuts.toggleLeftPanel)
+            explorerCommands
+        }
 
-                Button("切换右侧面板") {
-                    windowLayoutCommands?.toggleRightPanel()
-                }
-                .keyboardShortcut(ExplorerKeyboardShortcuts.toggleRightPanel)
-
-                Divider()
-                Button((windowLayoutCommands?.showPreview ?? true) ? "关闭预览" : "显示预览") {
-                    windowLayoutCommands?.togglePreview()
-                }
-                Button((windowLayoutCommands?.showSnippets ?? true) ? "关闭 Snippets" : "显示 Snippets") {
-                    windowLayoutCommands?.toggleSnippets()
-                }
-                .keyboardShortcut(ExplorerKeyboardShortcuts.toggleSnippets)
-                Button((windowLayoutCommands?.isOutputPanelVisible ?? false) ? "关闭输出面板" : "显示输出面板") {
-                    windowLayoutCommands?.toggleOutputPanel()
-                }
-                .keyboardShortcut(ExplorerKeyboardShortcuts.toggleOutputPanel)
-                Divider()
-                Button("导入 Snippets…") {
-                    NotificationCenter.default.post(name: .snippetsImportRequested, object: nil)
-                }
-                Button("导出全部 Snippets…") {
-                    NotificationCenter.default.post(name: .snippetsExportAllRequested, object: nil)
-                }
-            }
+        WindowGroup(id: ExplorerWindowScene.folder, for: String.self) { $requestedPath in
+            ContentView(initialPath: requestedPath)
+                .frame(minWidth: 267, minHeight: 200)
+        }
+        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: true))
+        .commands {
+            explorerCommands
         }
         
         Settings {
             SettingsView()
         }
     }
+
+    @CommandsBuilder
+    private var explorerCommands: some Commands {
+        FileCommands()
+        CommandGroup(after: .sidebar) {
+            Button("切换左侧面板") {
+                windowLayoutCommands?.toggleLeftPanel()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.toggleLeftPanel)
+
+            Button("切换右侧面板") {
+                windowLayoutCommands?.toggleRightPanel()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.toggleRightPanel)
+
+            Divider()
+            Button((windowLayoutCommands?.showPreview ?? true) ? "关闭预览" : "显示预览") {
+                windowLayoutCommands?.togglePreview()
+            }
+            Button((windowLayoutCommands?.showSnippets ?? true) ? "关闭 Snippets" : "显示 Snippets") {
+                windowLayoutCommands?.toggleSnippets()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.toggleSnippets)
+            Button((windowLayoutCommands?.isOutputPanelVisible ?? false) ? "关闭输出面板" : "显示输出面板") {
+                windowLayoutCommands?.toggleOutputPanel()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.toggleOutputPanel)
+            Divider()
+            Button("导入 Snippets…") {
+                NotificationCenter.default.post(name: .snippetsImportRequested, object: nil)
+            }
+            Button("导出全部 Snippets…") {
+                NotificationCenter.default.post(name: .snippetsExportAllRequested, object: nil)
+            }
+        }
+    }
+}
+
+private enum ExplorerWindowScene {
+    static let folder = "folder"
 }
 
 extension Notification.Name {
@@ -366,8 +385,13 @@ private final class ExternalFolderOpenCenter: ObservableObject {
 
     @Published private(set) var targetRequest: OpenRequest?
     private var pendingRequest: OpenRequest?
+    private var openFolderWindow: ((String) -> Void)?
 
     private init() {}
+
+    func setOpenFolderWindowHandler(_ handler: @escaping (String) -> Void) {
+        openFolderWindow = handler
+    }
 
     func requestOpen(urls: [URL]) {
         guard let resolvedRequest = resolveOpenRequest(from: urls) else { return }
@@ -379,6 +403,16 @@ private final class ExternalFolderOpenCenter: ObservableObject {
         let request = pendingRequest
         pendingRequest = nil
         return request
+    }
+
+    func requestOpenInNewWindow(directoryPath: String) {
+        let standardized = (directoryPath as NSString).standardizingPath
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: standardized, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            return
+        }
+        openFolderWindow?(standardized)
     }
 
     private func resolveOpenRequest(from urls: [URL]) -> OpenRequest? {
@@ -2374,10 +2408,13 @@ private struct PathBreadcrumbEllipsisMenu: View {
 }
 
 struct ContentView: View {
+    private let initialPath: String?
+
+    @Environment(\.openWindow) private var openWindow
     @StateObject private var layout = ExplorerWindowLayoutState()
     @AppStorage(AppSettings.blankDoubleClickActionKey)
     private var blankDoubleClickActionRaw = BlankDoubleClickAction.navigateToParent.rawValue
-    @State private var path = FileManager.default.homeDirectoryForCurrentUser.path
+    @State private var path: String
     @State private var items: [FileItem] = []
     @State private var selection: Set<FileItem.ID> = []
     @State private var sortOrder: SortOrder = .nameAscending
@@ -2405,6 +2442,11 @@ struct ContentView: View {
     @State private var liveLeftPanelDragWidth: CGFloat?
     @StateObject private var externalFolderOpenCenter = ExternalFolderOpenCenter.shared
     @State private var pendingExternalSelectionPath: String?
+    
+    init(initialPath: String? = nil) {
+        self.initialPath = initialPath
+        _path = State(initialValue: initialPath ?? FileManager.default.homeDirectoryForCurrentUser.path)
+    }
     
     private let leftPanelConstants = LeftPanelLayoutConstants()
     
@@ -2558,13 +2600,19 @@ struct ContentView: View {
             )
         )
         .onAppear {
+            externalFolderOpenCenter.setOpenFolderWindowHandler { path in
+                openWindow(id: ExplorerWindowScene.folder, value: path)
+            }
+
             if let mapped = fileListPreferences.sort.explorerSortOrder {
                 sortOrder = mapped
             }
             
             // 初始化时做一次自愈：持久化宽度可能越界。
             layout.healLeftPanelSidebarWidth()
-            if let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
+            if let initialPath {
+                path = initialPath
+            } else if let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
                 pendingExternalSelectionPath = launchRequest.selectionPath
                 path = launchRequest.directoryPath
             } else {
@@ -3223,6 +3271,18 @@ struct ContentView: View {
                     ? item.url.path
                     : item.url.deletingLastPathComponent().path
                 TerminalHelper.open(at: directoryPath)
+            },
+            openInNewWindow: { item in
+                let directoryPath: String?
+                if item.isParentDirectoryEntry {
+                    directoryPath = FileItem.parentDirectoryURL(from: path)?.path
+                } else if item.isDirectory, item.url.pathExtension.lowercased() != "app" {
+                    directoryPath = item.url.path
+                } else {
+                    directoryPath = nil
+                }
+                guard let directoryPath else { return }
+                externalFolderOpenCenter.requestOpenInNewWindow(directoryPath: directoryPath)
             }
         )
     }
@@ -3863,6 +3923,7 @@ struct FileContextActions {
     var putBack: ([FileItem]) -> Void = { _ in }
     var deleteImmediately: ([FileItem]) -> Void = { _ in }
     var openTerminal: (FileItem) -> Void = { _ in }
+    var openInNewWindow: (FileItem) -> Void = { _ in }
 }
 
 /// 将目录大小回填限制在表格内部，避免 overlay 发布时触发整表选中同步。

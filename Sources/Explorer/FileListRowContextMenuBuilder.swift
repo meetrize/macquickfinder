@@ -20,6 +20,7 @@ enum FileListRowContextMenuBuilder {
            let item = selectedItems.first,
            item.isParentDirectoryEntry {
             menu.addItem(menuItem(title: "打开") { actions.open(item) })
+            menu.addItem(menuItem(title: "在新窗口中打开") { actions.openInNewWindow(item) })
             SnippetsContextMenuBuilder.appendSnippetsMenu(
                 to: menu,
                 cwd: currentDirectoryPath,
@@ -66,6 +67,9 @@ enum FileListRowContextMenuBuilder {
         
         if fileSelection.count == 1, let item = fileSelection.first {
             menu.addItem(menuItem(title: "打开") { actions.open(item) })
+            if isNavigableFolder(item) {
+                menu.addItem(menuItem(title: "在新窗口中打开") { actions.openInNewWindow(item) })
+            }
             if !item.isDirectory {
                 menu.addItem(openWithMenuItem(primaryItem: item, selectedItems: fileSelection, actions: actions))
             }
@@ -106,6 +110,11 @@ enum FileListRowContextMenuBuilder {
         
         menu.addItem(menuItem(title: "属性") { actions.showInfo(fileSelection) })
         return menu
+    }
+
+    private static func isNavigableFolder(_ item: FileItem) -> Bool {
+        if item.isParentDirectoryEntry { return true }
+        return item.isDirectory && item.url.pathExtension.lowercased() != "app"
     }
 
     private static func openWithMenuItem(
