@@ -5248,6 +5248,8 @@ struct FilePreviewView: View {
                     performImageEdit {
                         imageResizeTargetSize = CGSize(width: width, height: height)
                     }
+                    imageZoomScale = 1.0
+                    imageZoomAction = .fit
                     showImageResizeSheet = false
                 }
             )
@@ -5440,7 +5442,7 @@ struct FilePreviewView: View {
             previewToolbarIconItem(
                 id: "image-resize",
                 title: "调整尺寸",
-                systemImage: "square.resize",
+                systemImage: "arrow.up.backward.and.arrow.down.forward",
                 isDisabled: imageSourcePixelSize.width <= 0 || imageSourcePixelSize.height <= 0,
                 action: { showImageResizeSheet = true }
             ),
@@ -6001,6 +6003,11 @@ struct FileContentView: View {
         return (ext == "html" || ext == "htm") && htmlMode == .preview
     }
 
+    private var imageResizePreviewIdentity: String {
+        guard let size = imageResizeTargetSize else { return "image-original-size" }
+        return "image-resize-\(Int(size.width.rounded()))x\(Int(size.height.rounded()))"
+    }
+
     var body: some View {
         ZStack {
             if isLoading {
@@ -6036,6 +6043,7 @@ struct FileContentView: View {
                     eyedropperActive: $imageEyedropperActive,
                     pickedWebColor: $imagePickedWebColor
                 )
+                .id(imageResizePreviewIdentity)
             } else if let pdfDoc = pdfDocument {
                 PDFPreview(
                     document: pdfDoc,
@@ -8395,6 +8403,10 @@ private struct ImagePreviewContent: View {
                 effectiveZoomPercent = max(1, min(percent, 1000))
             }
             .onChange(of: zoomScale) { _ in
+                let percent = Int((fitScale * zoomScale * 100).rounded())
+                effectiveZoomPercent = max(1, min(percent, 1000))
+            }
+            .onChange(of: resizeTargetSize) { _ in
                 let percent = Int((fitScale * zoomScale * 100).rounded())
                 effectiveZoomPercent = max(1, min(percent, 1000))
             }
