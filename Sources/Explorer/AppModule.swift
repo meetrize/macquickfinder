@@ -306,8 +306,10 @@ struct ExplorerApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .frame(minWidth: 267, minHeight: 200)
+            FullDiskAccessGate {
+                ContentView()
+            }
+            .frame(minWidth: 267, minHeight: 200)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
@@ -316,8 +318,10 @@ struct ExplorerApp: App {
         }
 
         WindowGroup(id: ExplorerWindowScene.folder, for: String.self) { $requestedPath in
-            ContentView(initialPath: requestedPath)
-                .frame(minWidth: 267, minHeight: 200)
+            FullDiskAccessGate {
+                ContentView(initialPath: requestedPath)
+            }
+            .frame(minWidth: 267, minHeight: 200)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
