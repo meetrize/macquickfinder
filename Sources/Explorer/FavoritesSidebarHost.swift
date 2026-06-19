@@ -73,7 +73,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     }
     
     func scheduleLayoutRefreshAfterModeChange() {
-        guard let tableView else { return }
+        guard tableView != nil else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self, let tableView = self.tableView else { return }
             tableView.layoutSubtreeIfNeeded()

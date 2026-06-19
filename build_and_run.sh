@@ -2,9 +2,22 @@
 
 # Exit on any error
 set -e
+set -o pipefail
+
+filter_known_spm_warnings() {
+    awk '
+        /could not determine XCTest paths/ { skip=1; next }
+        skip && (/^[[:space:]]+/ || /xcrun: error/ || /PlatformPath/) { next }
+        { skip=0; print }
+    '
+}
 
 # Build the project
-swift build -c release
+swift build -c release 2>&1 | filter_known_spm_warnings
+build_status=${PIPESTATUS[0]}
+if [ "$build_status" -ne 0 ]; then
+    exit "$build_status"
+fi
 
 # Create the app bundle structure
 APP_NAME="MeoFind.app"

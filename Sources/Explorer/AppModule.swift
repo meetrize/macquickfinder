@@ -654,6 +654,10 @@ private enum BarTextFieldFocusRegistry {
         pendingSelectAll = nil
     }
     
+    static func hasPendingSelectAll(_ id: BarTextFieldID) -> Bool {
+        pendingSelectAll == id
+    }
+    
     static func focus(_ id: BarTextFieldID) {
         let field: NSTextField?
         switch id {
@@ -665,6 +669,11 @@ private enum BarTextFieldFocusRegistry {
     }
     
     static func selectAll(_ id: BarTextFieldID) {
+        if id == .path, let field = pathField as? PathBarTextField {
+            field.prepareSelectAllOnFocus()
+            field.selectAllText()
+            return
+        }
         guard let field = field(for: id), let window = field.window else { return }
         if field.currentEditor() == nil {
             field.selectText(nil)
@@ -676,6 +685,27 @@ private enum BarTextFieldFocusRegistry {
             window.makeFirstResponder(field)
             field.selectText(nil)
             field.currentEditor()?.selectAll(nil)
+        }
+    }
+    
+    /// 聚焦路径/搜索框并立刻全选；若 field editor 尚未就绪则短轮询补齐。
+    static func focusAndSelectAll(_ id: BarTextFieldID) {
+        requestSelectAll(id)
+        guard let field = field(for: id), field.window != nil else {
+            focusWhenReady(id, selectAll: true)
+            return
+        }
+        focus(id)
+        if field.currentEditor() == nil {
+            field.selectText(nil)
+        }
+        selectAll(id)
+        guard hasActiveFieldEditor(field) else {
+            focusWhenReady(id, selectAll: true)
+            return
+        }
+        DispatchQueue.main.async {
+            selectAll(id)
         }
     }
     
@@ -713,7 +743,7 @@ private enum BarTextFieldFocusRegistry {
         
         if selectAll {
             requestSelectAll(id)
-            // 等 SwiftUI 完成文本框显隐切换后再全选，避免选中状态被后续渲染覆盖。
+            Self.selectAll(id)
             DispatchQueue.main.async {
                 Self.selectAll(id)
                 onComplete?(true)
@@ -1067,8 +1097,13 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: NSView, context: Context) {
+        let wasRetainHighlight = context.coordinator.retainHighlight
         context.coordinator.retainHighlight = retainHighlight
         context.coordinator.refreshEditingState()
+        if fieldID == .path, retainHighlight, !wasRetainHighlight {
+            BarTextFieldFocusRegistry.applyPendingSelectAll(for: .path)
+            BarTextFieldFocusRegistry.selectAll(.path)
+        }
     }
     
     final class Coordinator {
@@ -1271,6 +1306,194 @@ struct BarTextField: View {
 
 // MARK: - Path Bar
 
+/// 地址栏路径输入框：进入编辑时在 becomeFirstResponder / textDidBeginEditing 中可靠全选。
+final class PathBarTextField: NSTextField {
+    var selectAllOnFocus = false
+    var onCommit: (() -> Void)?
+    var onTextChange: ((String) -> Void)?
+    var onEditingBegan: (() -> Void)?
+    var onEditingEnded: (() -> Void)?
+    
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configure()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configure()
+    }
+    
+    private func configure() {
+        isEditable = true
+        isSelectable = true
+        isBordered = false
+        isBezeled = false
+        drawsBackground = false
+        focusRingType = .none
+        backgroundColor = .clear
+        usesSingleLineMode = true
+        lineBreakMode = .byTruncatingMiddle
+        cell?.wraps = false
+        cell?.isScrollable = true
+        font = .systemFont(ofSize: NSFont.systemFontSize)
+        delegate = self
+    }
+    
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard alphaValue > 0.01 else { return nil }
+        return super.hitTest(point)
+    }
+    
+    override func becomeFirstResponder() -> Bool {
+        let focused = super.becomeFirstResponder()
+        if focused {
+            onEditingBegan?()
+            applySelectAllIfNeeded()
+        }
+        return focused
+    }
+    
+    override func resignFirstResponder() -> Bool {
+        let resigned = super.resignFirstResponder()
+        if resigned {
+            onEditingEnded?()
+        }
+        return resigned
+    }
+    
+    func prepareSelectAllOnFocus() {
+        selectAllOnFocus = true
+    }
+    
+    func selectAllText() {
+        guard window != nil else { return }
+        if currentEditor() == nil {
+            if window?.firstResponder !== self {
+                window?.makeFirstResponder(self)
+            }
+            selectText(nil)
+        }
+        if let editor = currentEditor() {
+            window?.makeFirstResponder(editor)
+            editor.selectAll(nil)
+        }
+    }
+    
+    private func applySelectAllIfNeeded() {
+        guard selectAllOnFocus else { return }
+        selectAllText()
+        selectAllOnFocus = false
+    }
+}
+
+extension PathBarTextField: NSTextFieldDelegate {
+    func controlTextDidBeginEditing(_ obj: Notification) {
+        applySelectAllIfNeeded()
+    }
+    
+    func controlTextDidChange(_ obj: Notification) {
+        onTextChange?(stringValue)
+    }
+    
+    func controlTextDidEndEditing(_ obj: Notification) {
+        onEditingEnded?()
+    }
+    
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            onCommit?()
+            return true
+        }
+        return false
+    }
+}
+
+private struct PathBarTextFieldRepresentable: NSViewRepresentable {
+    @Binding var text: String
+    @Binding var activeField: BarTextFieldID?
+    var isVisible: Bool
+    var retainHighlight: Bool
+    var onSubmit: () -> Void
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, activeField: $activeField)
+    }
+    
+    func makeNSView(context: Context) -> PathBarTextField {
+        let field = PathBarTextField()
+        field.stringValue = text
+        field.onCommit = { [weak coordinator = context.coordinator] in
+            coordinator?.onSubmit()
+        }
+        field.onTextChange = { [weak coordinator = context.coordinator] newValue in
+            coordinator?.text.wrappedValue = newValue
+        }
+        field.onEditingBegan = { [weak coordinator = context.coordinator] in
+            coordinator?.activeField.wrappedValue = .path
+        }
+        field.onEditingEnded = { [weak coordinator = context.coordinator] in
+            coordinator?.handleEditingEnded()
+        }
+        BarTextFieldFocusRegistry.register(field, for: .path)
+        context.coordinator.field = field
+        return field
+    }
+    
+    func updateNSView(_ nsView: PathBarTextField, context: Context) {
+        context.coordinator.text = $text
+        context.coordinator.activeField = $activeField
+        context.coordinator.onSubmit = onSubmit
+        context.coordinator.retainHighlight = retainHighlight
+        
+        let wasVisible = context.coordinator.wasVisible
+        context.coordinator.wasVisible = isVisible
+        
+        if nsView.currentEditor() == nil, nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+        
+        nsView.alphaValue = isVisible ? 1 : 0
+        nsView.isEnabled = true
+        
+        guard isVisible else { return }
+        
+        let shouldSelectAll = BarTextFieldFocusRegistry.hasPendingSelectAll(.path)
+            || (!wasVisible && isVisible)
+        guard shouldSelectAll else { return }
+        
+        nsView.prepareSelectAllOnFocus()
+        nsView.selectAllText()
+        BarTextFieldFocusRegistry.clearPendingSelectAll()
+        DispatchQueue.main.async {
+            nsView.prepareSelectAllOnFocus()
+            nsView.window?.makeFirstResponder(nsView)
+            nsView.selectAllText()
+            BarTextFieldFocusRegistry.clearPendingSelectAll()
+        }
+    }
+    
+    final class Coordinator {
+        var text: Binding<String>
+        var activeField: Binding<BarTextFieldID?>
+        var onSubmit: () -> Void = {}
+        var retainHighlight = false
+        var wasVisible = false
+        weak var field: PathBarTextField?
+        
+        init(text: Binding<String>, activeField: Binding<BarTextFieldID?>) {
+            self.text = text
+            self.activeField = activeField
+        }
+        
+        func handleEditingEnded() {
+            guard !retainHighlight else { return }
+            guard activeField.wrappedValue == .path else { return }
+            activeField.wrappedValue = BarTextFieldFocusRegistry.currentEditingField()
+        }
+    }
+}
+
 private enum PathBarMode {
     case breadcrumb
     case text
@@ -1470,20 +1693,15 @@ private struct PathBarView: View {
     
     var body: some View {
         ZStack(alignment: .leading) {
-            TextField("Path", text: $editingText)
-                .textFieldStyle(.plain)
-                .opacity(mode == .text ? 1 : 0)
-                .allowsHitTesting(mode == .text)
-                .padding(.trailing, pendingNavigablePath == nil ? 0 : 22)
-                .frame(maxHeight: .infinity, alignment: .center)
-                .onSubmit(commitPath)
-                .background(
-                    BarTextFieldFocusObserver(
-                        fieldID: .path,
-                        activeField: $activeField,
-                        retainHighlight: mode == .text
-                    )
-                )
+            PathBarTextFieldRepresentable(
+                text: $editingText,
+                activeField: $activeField,
+                isVisible: mode == .text,
+                retainHighlight: mode == .text,
+                onSubmit: commitPath
+            )
+            .padding(.trailing, pendingNavigablePath == nil ? 0 : 22)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             
             if mode == .breadcrumb {
                 PathBreadcrumbView(
@@ -1582,17 +1800,8 @@ private struct PathBarView: View {
     }
     
     private func requestPathFieldFocus() {
-        BarTextFieldFocusRegistry.requestSelectAll(.path)
-        DispatchQueue.main.async {
-            BarTextFieldFocusRegistry.focusWhenReady(.path, selectAll: true) { succeeded in
-                guard succeeded else { return }
-                activeField = .path
-                // 再次全选：field editor 可能复用上次的插入点，需覆盖 SwiftUI 渲染后的选中状态。
-                DispatchQueue.main.async {
-                    BarTextFieldFocusRegistry.selectAll(.path)
-                }
-            }
-        }
+        BarTextFieldFocusRegistry.focusAndSelectAll(.path)
+        activeField = .path
     }
     
     private func enterTextMode() {
@@ -1601,7 +1810,7 @@ private struct PathBarView: View {
         activeField = .path
         isTextMode = true
         if mode == .text {
-            requestPathFieldFocus()
+            BarTextFieldFocusRegistry.focusAndSelectAll(.path)
         } else {
             mode = .text
         }
@@ -1609,8 +1818,7 @@ private struct PathBarView: View {
     
     private func handlePathBarTrailingClick() {
         if mode == .text {
-            BarTextFieldFocusRegistry.requestSelectAll(.path)
-            requestPathFieldFocus()
+            BarTextFieldFocusRegistry.focusAndSelectAll(.path)
         } else {
             enterTextMode()
         }
@@ -1860,6 +2068,11 @@ private struct PathBreadcrumbView: View {
             )
             
             ZStack(alignment: .leading) {
+                PathBarBlankClickArea(onClick: onRequestEdit)
+                    .frame(width: metrics.trailingClickWidth, height: fieldHeight)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                    .help("点击编辑完整路径")
+                
                 ScrollViewReader { scrollProxy in
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(alignment: .center, spacing: 0) {
@@ -1902,7 +2115,11 @@ private struct PathBreadcrumbView: View {
                         }
                         .frame(height: fieldHeight)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .frame(
+                        width: max(0, geometry.size.width - metrics.trailingClickWidth),
+                        height: fieldHeight,
+                        alignment: .leading
+                    )
                     .onChange(of: path) { _ in
                         if let lastID = segments.last?.id {
                             scrollProxy.scrollTo(lastID, anchor: .trailing)
@@ -1914,21 +2131,6 @@ private struct PathBreadcrumbView: View {
                         }
                     }
                 }
-                
-                HStack(spacing: 0) {
-                    Color.clear
-                        .frame(
-                            width: metrics.isOverflowing
-                                ? max(0, geometry.size.width - metrics.trailingClickWidth)
-                                : min(geometry.size.width, metrics.contentWidth + clickGap)
-                        )
-                        .allowsHitTesting(false)
-                    
-                    PathBarBlankClickArea(onClick: onRequestEdit)
-                        .frame(width: metrics.trailingClickWidth, height: fieldHeight)
-                        .help("点击编辑完整路径")
-                }
-                .frame(width: geometry.size.width, height: fieldHeight)
             }
         }
         .frame(height: fieldHeight)
@@ -4386,6 +4588,7 @@ enum FileDragDrop {
         return urls
     }
     
+    @MainActor
     static func loadFileURLs(from providers: [NSItemProvider]) async -> [URL] {
         var urls: [URL] = []
         var seen = Set<String>()
@@ -4400,6 +4603,7 @@ enum FileDragDrop {
         return urls
     }
     
+    @MainActor
     private static func loadFileURL(from provider: NSItemProvider) async -> URL? {
         await withCheckedContinuation { continuation in
             _ = provider.loadObject(ofClass: URL.self) { item, _ in
@@ -4443,7 +4647,8 @@ private struct FileDropDelegate: DropDelegate {
         }
         
         Task { @MainActor in
-            let urls = await FileDragDrop.loadFileURLs(from: info.itemProviders(for: [.fileURL]))
+            let providers = info.itemProviders(for: [.fileURL])
+            let urls = await FileDragDrop.loadFileURLs(from: providers)
             guard !urls.isEmpty else { return }
             onDrop(urls, copy)
         }
@@ -5279,28 +5484,56 @@ struct FileContentView: View {
             archiveTruncated = false
         }
 
+        @MainActor
         func finish(
-            image loadedImage: NSImage? = nil,
-            pdf loadedPDF: PDFDocument? = nil,
-            media loadedMediaPlayer: AVPlayer? = nil,
+            imageData: Data? = nil,
+            pdfData: Data? = nil,
+            mediaURL: URL? = nil,
             office loadedOfficeURL: URL? = nil,
             archive loadedArchiveEntries: [ArchiveEntryPreview]? = nil,
             archiveTruncated loadedArchiveTruncated: Bool = false,
             text content: String? = nil,
             error: String? = nil
-        ) async {
-            await MainActor.run {
-                guard !Task.isCancelled, item.id == itemID else { return }
-                image = loadedImage
-                pdfDocument = loadedPDF
-                mediaPlayer = loadedMediaPlayer
-                officeURL = loadedOfficeURL
-                archiveEntries = loadedArchiveEntries ?? []
-                archiveTruncated = loadedArchiveTruncated
-                if let content { textContent = content }
-                errorMessage = error
-                isLoading = false
+        ) {
+            guard !Task.isCancelled, item.id == itemID else { return }
+            if let imageData {
+                guard let decodedImage = NSImage(data: imageData) else {
+                    image = nil
+                    errorMessage = "Unable to decode image format"
+                    isLoading = false
+                    return
+                }
+                image = decodedImage
+            } else {
+                image = nil
             }
+            if let pdfData {
+                guard let decodedPDF = PDFDocument(data: pdfData) else {
+                    pdfDocument = nil
+                    errorMessage = "Unable to load PDF document"
+                    isLoading = false
+                    return
+                }
+                pdfDocument = decodedPDF
+            } else {
+                pdfDocument = nil
+            }
+            if let mediaURL {
+                mediaIsPlaying = false
+                mediaIsMuted = false
+                mediaControlAction = nil
+                let player = AVPlayer(url: mediaURL)
+                player.actionAtItemEnd = .pause
+                mediaPlayer = player
+            } else {
+                mediaPlayer = nil
+            }
+            officeURL = loadedOfficeURL
+            archiveEntries = loadedArchiveEntries ?? []
+            archiveTruncated = loadedArchiveTruncated
+            if let content { textContent = content }
+            errorMessage = error
+            isLoading = false
         }
 
         if ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"].contains(ext) {
@@ -5308,9 +5541,8 @@ struct FileContentView: View {
                 try Data(contentsOf: url, options: [.mappedIfSafe])
             }.value
             guard !Task.isCancelled else { return }
-            let nsImage = imageData.flatMap { NSImage(data: $0) }
-            if let loadedImage = nsImage {
-                await finish(image: loadedImage)
+            if let imageData {
+                await finish(imageData: imageData)
             } else {
                 await finish(error: "Unable to decode image format")
             }
@@ -5318,15 +5550,8 @@ struct FileContentView: View {
         }
 
         if ["mp4", "mov", "mp3", "wav"].contains(ext) {
-            await MainActor.run {
-                mediaIsPlaying = false
-                mediaIsMuted = false
-                mediaControlAction = nil
-            }
-            let player = AVPlayer(url: url)
-            player.actionAtItemEnd = .pause
             guard !Task.isCancelled else { return }
-            await finish(media: player)
+            await finish(mediaURL: url)
             return
         }
 
@@ -5341,9 +5566,8 @@ struct FileContentView: View {
                 try Data(contentsOf: url, options: [.mappedIfSafe])
             }.value
             guard !Task.isCancelled else { return }
-            let pdfDoc = pdfData.flatMap { PDFDocument(data: $0) }
-            if let loadedPDF = pdfDoc {
-                await finish(pdf: loadedPDF)
+            if let pdfData {
+                await finish(pdfData: pdfData)
             } else {
                 await finish(error: "Unable to load PDF document")
             }

@@ -493,14 +493,18 @@ final class WindowSnapCoordinator {
             object: nil,
             queue: .main
         ) { _ in
-            WindowSnapCoordinator.shared.noteContentPointerInteractionBegan()
+            Task { @MainActor in
+                WindowSnapCoordinator.shared.noteContentPointerInteractionBegan()
+            }
         })
         contentInteractionObservers.append(center.addObserver(
             forName: .mf_contentPointerInteractionDidEnd,
             object: nil,
             queue: .main
         ) { _ in
-            WindowSnapCoordinator.shared.noteContentPointerInteractionEnded()
+            Task { @MainActor in
+                WindowSnapCoordinator.shared.noteContentPointerInteractionEnded()
+            }
         })
     }
 
