@@ -28,23 +28,9 @@ struct RightPanelStackView: View {
     var body: some View {
         GeometryReader { geo in
             let totalHeight = geo.size.height
-            let showBoth = layout.showPreview && layout.showSnippets
-            let showResizeDivider = showBoth && !layout.isSnippetsContentCollapsed && !layout.isPreviewContentCollapsed
-            let storedPreviewHeight = clampedPreviewHeight(
-                totalHeight * CGFloat(layout.previewSnippetsSplitRatio),
-                totalHeight: totalHeight
-            )
-            let previewHeight = dragPreviewHeight ?? storedPreviewHeight
-            let expandedPreviewHeight: CGFloat = {
-                // Snippets 折叠后只占一个标题栏：预览应自动撑满剩余空间
-                if showBoth, layout.isSnippetsContentCollapsed, !layout.isPreviewContentCollapsed {
-                    return max(previewMinHeight, totalHeight - snippetsMinHeight)
-                }
-                return previewHeight
-            }()
-            let effectivePreviewHeight = layout.isPreviewContentCollapsed
-                ? PanelTopBarMetrics.totalHeight
-                : expandedPreviewHeight
+            let layoutInput = heightInput(totalHeight: totalHeight)
+            let showResizeDivider = RightPanelHeightCalculator.shouldShowResizeDivider(for: layoutInput)
+            let effectivePreviewHeight = RightPanelHeightCalculator.previewHeight(for: layoutInput)
 
             VStack(spacing: 0) {
                 if layout.showPreview {
@@ -96,17 +82,25 @@ struct RightPanelStackView: View {
                     .frame(maxHeight: .infinity)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .animation(nil, value: effectivePreviewHeight)
         }
     }
 
-    private func clampedPreviewHeight(_ height: CGFloat, totalHeight: CGFloat) -> CGFloat {
-        guard totalHeight > 0 else { return 80 }
-        let divider = layout.showPreview && layout.showSnippets && !layout.isSnippetsContentCollapsed && !layout.isPreviewContentCollapsed
-            ? VerticalResizeDividerMetrics.hitHeight
-            : 0
-        let maxTop = max(previewMinHeight, totalHeight - snippetsMinHeight - divider)
-        return min(max(height, previewMinHeight), maxTop)
+    private func heightInput(totalHeight: CGFloat) -> RightPanelHeightCalculator.Input {
+        RightPanelHeightCalculator.Input(
+            totalHeight: totalHeight,
+            showPreview: layout.showPreview,
+            showSnippets: layout.showSnippets,
+            isPreviewContentCollapsed: layout.isPreviewContentCollapsed,
+            isSnippetsContentCollapsed: layout.isSnippetsContentCollapsed,
+            previewSnippetsSplitRatio: layout.previewSnippetsSplitRatio,
+            dragPreviewHeight: dragPreviewHeight,
+            dividerHeight: VerticalResizeDividerMetrics.hitHeight,
+            previewMinHeight: previewMinHeight,
+            snippetsMinHeight: snippetsMinHeight,
+            collapsedTitleBarHeight: PanelTopBarMetrics.totalHeight
+        )
     }
 }
 
