@@ -5734,22 +5734,22 @@ struct FileContentView: View {
             }.value
             guard !Task.isCancelled else { return }
             if let imageData {
-                await finish(imageData: imageData)
+                finish(imageData: imageData)
             } else {
-                await finish(error: "Unable to decode image format")
+                finish(error: "Unable to decode image format")
             }
             return
         }
 
         if ["mp4", "mov", "mp3", "wav"].contains(ext) {
             guard !Task.isCancelled else { return }
-            await finish(mediaURL: url)
+            finish(mediaURL: url)
             return
         }
 
         if ["docx", "xlsx", "pptx"].contains(ext) {
             guard !Task.isCancelled else { return }
-            await finish(office: url)
+            finish(office: url)
             return
         }
 
@@ -5759,9 +5759,9 @@ struct FileContentView: View {
             }.value
             guard !Task.isCancelled else { return }
             if let pdfData {
-                await finish(pdfData: pdfData)
+                finish(pdfData: pdfData)
             } else {
-                await finish(error: "Unable to load PDF document")
+                finish(error: "Unable to load PDF document")
             }
             return
         }
@@ -5825,13 +5825,13 @@ struct FileContentView: View {
                     entries.append(.init(path: path, isDirectory: isDir, size: Int64(size)))
                 }
                 if entries.isEmpty {
-                    await finish(error: "无法读取 ZIP 目录")
+                    finish(error: "无法读取 ZIP 目录")
                 } else {
-                    await finish(archive: entries, archiveTruncated: entries.count >= maxEntries)
+                    finish(archive: entries, archiveTruncated: entries.count >= maxEntries)
                 }
             } catch {
                 if error is CancellationError { return }
-                await finish(error: error.localizedDescription)
+                finish(error: error.localizedDescription)
             }
             return
         } else if lowerName.hasSuffix(".tar") || lowerName.hasSuffix(".tar.gz") || lowerName.hasSuffix(".tgz") {
@@ -5852,13 +5852,13 @@ struct FileContentView: View {
                 }
 
                 if entries.isEmpty {
-                    await finish(error: "无法读取归档目录")
+                    finish(error: "无法读取归档目录")
                 } else {
-                    await finish(archive: entries, archiveTruncated: entries.count >= maxEntries)
+                    finish(archive: entries, archiveTruncated: entries.count >= maxEntries)
                 }
             } catch {
                 if error is CancellationError { return }
-                await finish(error: error.localizedDescription)
+                finish(error: error.localizedDescription)
             }
             return
         }
@@ -5875,16 +5875,16 @@ struct FileContentView: View {
                     try TextFilePreviewReader.readPreview(from: url)
                 }.value
                 guard !Task.isCancelled else { return }
-                await finish(text: content)
+                finish(text: content)
             } catch {
                 guard !Task.isCancelled else { return }
                 if error is CancellationError { return }
-                await finish(error: error.localizedDescription)
+                finish(error: error.localizedDescription)
             }
             return
         }
 
-        await finish()
+        finish()
     }
 }
 

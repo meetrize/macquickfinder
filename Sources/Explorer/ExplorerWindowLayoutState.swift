@@ -330,8 +330,10 @@ struct WindowKeyLayoutTracker: NSViewRepresentable {
                 object: window,
                 queue: .main
             ) { [weak self] _ in
-                self?.registerAsKeyWindow()
-                WindowSnapCoordinator.shared.handleWindowDidBecomeKey(window)
+                MainActor.assumeIsolated {
+                    self?.registerAsKeyWindow()
+                    WindowSnapCoordinator.shared.handleWindowDidBecomeKey(window)
+                }
             })
             observers.append(center.addObserver(
                 forName: NSWindow.didResignKeyNotification,
@@ -345,35 +347,45 @@ struct WindowKeyLayoutTracker: NSViewRepresentable {
                 object: window,
                 queue: .main
             ) { _ in
-                WindowSnapCoordinator.shared.handleWindowDidMove(window)
+                MainActor.assumeIsolated {
+                    WindowSnapCoordinator.shared.handleWindowDidMove(window)
+                }
             })
             observers.append(center.addObserver(
                 forName: NSWindow.didResizeNotification,
                 object: window,
                 queue: .main
             ) { _ in
-                WindowSnapCoordinator.shared.handleWindowDidResize(window)
+                MainActor.assumeIsolated {
+                    WindowSnapCoordinator.shared.handleWindowDidResize(window)
+                }
             })
             observers.append(center.addObserver(
                 forName: NSWindow.willCloseNotification,
                 object: window,
                 queue: .main
             ) { _ in
-                WindowSnapCoordinator.shared.handleWindowWillClose(window)
+                MainActor.assumeIsolated {
+                    WindowSnapCoordinator.shared.handleWindowWillClose(window)
+                }
             })
             observers.append(center.addObserver(
                 forName: NSWindow.didMiniaturizeNotification,
                 object: window,
                 queue: .main
             ) { _ in
-                WindowSnapCoordinator.shared.handleWindowDidMiniaturize(window)
+                MainActor.assumeIsolated {
+                    WindowSnapCoordinator.shared.handleWindowDidMiniaturize(window)
+                }
             })
             observers.append(center.addObserver(
                 forName: NSWindow.didDeminiaturizeNotification,
                 object: window,
                 queue: .main
             ) { _ in
-                WindowSnapCoordinator.shared.handleWindowDidDeminiaturize(window)
+                MainActor.assumeIsolated {
+                    WindowSnapCoordinator.shared.handleWindowDidDeminiaturize(window)
+                }
             })
 
             syncKeyWindowRegistration()
