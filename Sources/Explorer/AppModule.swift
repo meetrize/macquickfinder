@@ -303,6 +303,7 @@ private struct LucideIcon: View {
 struct ExplorerApp: App {
     @NSApplicationDelegateAdaptor(ExplorerAppDelegate.self) private var appDelegate
     @FocusedValue(\.windowLayoutCommands) private var windowLayoutCommands
+    @FocusedValue(\.previewDetachCommands) private var previewDetachCommands
     
     var body: some Scene {
         WindowGroup {
@@ -328,6 +329,17 @@ struct ExplorerApp: App {
         .commands {
             explorerCommands
         }
+
+        WindowGroup(id: ExplorerWindowScene.preview, for: PreviewWindowValue.self) { $value in
+            if let value {
+                DetachedPreviewWindowView(sessionID: value.sessionID)
+            } else {
+                EmptyView()
+            }
+        }
+        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: true))
+        .defaultSize(width: 640, height: 480)
         
         Settings {
             SettingsView()
@@ -367,12 +379,18 @@ struct ExplorerApp: App {
             Button("导出全部 Snippets…") {
                 NotificationCenter.default.post(name: .snippetsExportAllRequested, object: nil)
             }
+            Divider()
+            Button("在独立窗口中打开预览") {
+                previewDetachCommands?.detachPreview?()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.detachPreview)
+            .disabled(!(previewDetachCommands?.canDetach ?? false))
+            Button("收回预览到侧栏") {
+                previewDetachCommands?.dockPreview?()
+            }
+            .disabled(!(previewDetachCommands?.canDock ?? false))
         }
     }
-}
-
-private enum ExplorerWindowScene {
-    static let folder = "folder"
 }
 
 extension Notification.Name {
@@ -2588,6 +2606,7 @@ struct ContentView: View {
     @AppStorage(AppSettings.autoCalculateDirectorySizesKey) private var autoCalculateDirectorySizes = true
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
+    @State private var previewHostWindowID = UUID()
     @State private var hostWindow: NSWindow?
     @State private var isFileListRenaming = false
     @State private var isPathBarTextMode = false
@@ -2772,6 +2791,11 @@ struct ContentView: View {
         }
         .background(WindowKeyLayoutTracker(layout: layout).frame(width: 0, height: 0).accessibilityHidden(true))
         .background(HostWindowReader(window: $hostWindow).frame(width: 0, height: 0).accessibilityHidden(true))
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
+            guard let closingWindow = notification.object as? NSWindow,
+                  closingWindow == hostWindow else { return }
+            PreviewDetachCoordinator.shared.onHostWindowWillClose(hostWindowID: previewHostWindowID)
+        }
         .settingsWindowOpenBridge()
         .background(
             BarFieldOutsideClickHandler(
@@ -3031,6 +3055,7 @@ struct ContentView: View {
         
         RightPanelStackView(
             layout: layout,
+            hostWindowID: previewHostWindowID,
             selection: selection,
             items: items,
             cwd: path,
@@ -5020,6 +5045,7 @@ private final class ResizeDividerNSView: NSView {
 }
 
 struct FilePreviewView: View {
+    let hostWindowID: UUID
     @Binding var showPreview: Bool
     @ObservedObject var layout: ExplorerWindowLayoutState
     let selection: Set<FileItem.ID>
@@ -5031,108 +5057,72 @@ struct FilePreviewView: View {
     let onNavigate: (String) -> Void
     let onOpenItem: (FileItem) -> Void
     let onOpenTerminalAtPath: (String) -> Void
-    @State private var imageZoomScale: CGFloat = 1.0
-    @State private var imageZoomAction: ImageZoomAction? = nil
-    @State private var imageEffectiveZoomPercent: Int = 0
-    @State private var imageRotationQuarterTurns: Int = 0
-    @State private var imageFlipHorizontal: Bool = false
-    @State private var imageFlipVertical: Bool = false
-    @State private var imagePreviewAction: ImagePreviewAction? = nil
-    @State private var imageEyedropperActive: Bool = false
-    @State private var imagePickedWebColor: String? = nil
-    @State private var imageResizeTargetSize: CGSize? = nil
-    @State private var imageSourcePixelSize: CGSize = .zero
-    @State private var showImageResizeSheet: Bool = false
-    @State private var imageEditUndoStack: [ImageEditSnapshot] = []
-    @State private var imageEditUndoClearNonce: Int = 0
-    @State private var pdfCurrentPage: Int = 0
-    @State private var pdfPageCount: Int = 0
-    @State private var pdfScalePercent: Int = 0
-    @State private var pdfNavigateAction: PDFNavigationAction? = nil
-    @State private var pdfPageInput: String = ""
-    @State private var textWrapEnabled: Bool = true
-    @State private var textPreviewAction: TextPreviewAction? = nil
-    @State private var markdownMode: MarkdownDisplayMode = .preview
-    @State private var markdownPreviewScale: CGFloat = 1.0
-    @State private var markdownSourceFontSize: CGFloat = 13
-    @State private var htmlMode: HtmlDisplayMode = .preview
-    @State private var mediaControlAction: MediaControlAction? = nil
-    @State private var mediaIsPlaying: Bool = false
-    @State private var mediaIsMuted: Bool = false
-    @State private var officeReloadToken: Int = 0
-    @State private var officeNavigateAction: OfficeNavigationAction? = nil
-    @State private var archiveExpanded: Bool = true
-    @State private var archiveReloadToken: Int = 0
-    @State private var archiveCopyAction: ArchivePreviewAction? = nil
-    @State private var folderInlineChild: FileItem?
-    
+    @ObservedObject private var detachCoordinator = PreviewDetachCoordinator.shared
+
     private var selectedItems: [FileItem] {
         FileItem.resolveSelection(ids: selection, from: items)
     }
-    
+
     private var selectedItem: FileItem? {
         selectedItems.first
     }
 
-    private var previewContentItem: FileItem? {
-        folderInlineChild ?? selectedItem
-    }
-
-    private var isShowingFolderChildPreview: Bool {
-        folderInlineChild != nil
-    }
-
-    private var toolbarFileItem: FileItem? {
-        guard let item = previewContentItem, !item.isDirectory else { return nil }
-        return item
-    }
-
-    private var hasImageEdits: Bool {
-        imageRotationQuarterTurns != 0
-            || imageFlipHorizontal
-            || imageFlipVertical
-            || hasImageResizeEdit
-    }
-
-    private var hasImageResizeEdit: Bool {
-        guard let target = imageResizeTargetSize else { return false }
-        let oriented = imageEffectiveOrientedPixelSize
-        guard oriented.width > 0, oriented.height > 0 else { return false }
-        return Int(target.width.rounded()) != Int(oriented.width.rounded())
-            || Int(target.height.rounded()) != Int(oriented.height.rounded())
-    }
-
-    private var imageEffectiveOrientedPixelSize: CGSize {
-        let source = imageSourcePixelSize
-        guard source.width > 0, source.height > 0 else { return .zero }
-        let turns = ((imageRotationQuarterTurns % 4) + 4) % 4
-        if turns % 2 != 0 {
-            return CGSize(width: source.height, height: source.width)
+    var body: some View {
+        if let selectedItem {
+            if detachCoordinator.placement.showsPlaceholder(forSelectedFileID: selectedItem.id),
+               case .detached(let sessionID, _) = detachCoordinator.placement,
+               let session = PreviewSessionStore.shared.session(for: sessionID) {
+                PreviewPlaceholderView(
+                    fileName: session.previewContentItem?.name ?? selectedItem.name,
+                    onFocus: { detachCoordinator.focusDetachedWindow() },
+                    onDockBack: {
+                        Task {
+                            _ = await detachCoordinator.dockBack(
+                                sessionID: sessionID,
+                                currentSelectedFileID: selectedItem.id
+                            )
+                        }
+                    }
+                )
+                .focusedValue(\.previewDetachCommands, PreviewDetachCommands(
+                    canDetach: false,
+                    canDock: true,
+                    dockPreview: {
+                        Task {
+                            _ = await detachCoordinator.dockBack(
+                                sessionID: sessionID,
+                                currentSelectedFileID: selectedItem.id
+                            )
+                        }
+                    }
+                ))
+            } else {
+                FilePreviewSessionHost(
+                    hostWindowID: hostWindowID,
+                    selectedItem: selectedItem,
+                    showPreview: $showPreview,
+                    layout: layout,
+                    showHiddenFiles: showHiddenFiles,
+                    autoCalculateDirectorySizes: autoCalculateDirectorySizes,
+                    directorySizeOverlay: directorySizeOverlay,
+                    directoryItemCountOverlay: directoryItemCountOverlay,
+                    onNavigate: onNavigate,
+                    onOpenItem: onOpenItem,
+                    onOpenTerminalAtPath: onOpenTerminalAtPath,
+                    detachCoordinator: detachCoordinator
+                )
+                .id(selectedItem.id)
+            }
+        } else {
+            FilePreviewEmptyChrome(showPreview: $showPreview, layout: layout)
         }
-        return source
     }
+}
 
-    private var imageResizeDialogSize: (width: Int, height: Int) {
-        let oriented = imageEffectiveOrientedPixelSize
-        if let target = imageResizeTargetSize {
-            return (
-                max(1, Int(target.width.rounded())),
-                max(1, Int(target.height.rounded()))
-            )
-        }
-        return (
-            max(1, Int(oriented.width.rounded())),
-            max(1, Int(oriented.height.rounded()))
-        )
-    }
+private struct FilePreviewEmptyChrome: View {
+    @Binding var showPreview: Bool
+    @ObservedObject var layout: ExplorerWindowLayoutState
 
-    private var previewToolbarTitleMaxWidth: CGFloat {
-        if isShowingFolderChildPreview {
-            return 56
-        }
-        return 72
-    }
-    
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
@@ -5146,9 +5136,122 @@ struct FilePreviewView: View {
                 .contentShape(Rectangle())
                 .help(layout.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
 
-                if isShowingFolderChildPreview {
+                Text("预览")
+                    .font(.callout)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(minWidth: 0, maxWidth: 72, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(-1)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    showPreview = false
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .help("关闭预览")
+                .fixedSize()
+                .layoutPriority(2)
+            }
+            .frame(height: PanelTopBarMetrics.contentHeight)
+            .frame(maxWidth: .infinity)
+            .clipped()
+            .padding(.horizontal, 10)
+            .padding(.vertical, PanelTopBarMetrics.verticalPadding)
+
+            if !layout.isPreviewContentCollapsed {
+                Divider()
+                Text("Select a file to preview")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+private struct FilePreviewSessionHost: View {
+    let hostWindowID: UUID
+    let selectedItem: FileItem
+    @Binding var showPreview: Bool
+    @ObservedObject var layout: ExplorerWindowLayoutState
+    let showHiddenFiles: Bool
+    let autoCalculateDirectorySizes: Bool
+    @ObservedObject var directorySizeOverlay: DirectorySizeOverlay
+    @ObservedObject var directoryItemCountOverlay: DirectoryItemCountOverlay
+    let onNavigate: (String) -> Void
+    let onOpenItem: (FileItem) -> Void
+    let onOpenTerminalAtPath: (String) -> Void
+    @ObservedObject var detachCoordinator: PreviewDetachCoordinator
+
+    @Environment(\.openWindow) private var openWindow
+    @StateObject private var session: PreviewSession
+
+    init(
+        hostWindowID: UUID,
+        selectedItem: FileItem,
+        showPreview: Binding<Bool>,
+        layout: ExplorerWindowLayoutState,
+        showHiddenFiles: Bool,
+        autoCalculateDirectorySizes: Bool,
+        directorySizeOverlay: DirectorySizeOverlay,
+        directoryItemCountOverlay: DirectoryItemCountOverlay,
+        onNavigate: @escaping (String) -> Void,
+        onOpenItem: @escaping (FileItem) -> Void,
+        onOpenTerminalAtPath: @escaping (String) -> Void,
+        detachCoordinator: PreviewDetachCoordinator
+    ) {
+        self.hostWindowID = hostWindowID
+        self.selectedItem = selectedItem
+        _showPreview = showPreview
+        self.layout = layout
+        self.showHiddenFiles = showHiddenFiles
+        self.autoCalculateDirectorySizes = autoCalculateDirectorySizes
+        self.directorySizeOverlay = directorySizeOverlay
+        self.directoryItemCountOverlay = directoryItemCountOverlay
+        self.onNavigate = onNavigate
+        self.onOpenItem = onOpenItem
+        self.onOpenTerminalAtPath = onOpenTerminalAtPath
+        self.detachCoordinator = detachCoordinator
+        let session = PreviewSessionStore.shared.existingInlineSession(
+            hostWindowID: hostWindowID,
+            fileID: selectedItem.id
+        ) ?? PreviewSession(hostWindowID: hostWindowID, file: selectedItem)
+        _session = StateObject(wrappedValue: session)
+        PreviewSessionStore.shared.register(session)
+    }
+
+    private var canDetachPreview: Bool {
+        guard session.previewContentItem != nil else { return false }
+        if selectedItem.isDirectory, session.folderInlineChild == nil { return false }
+        return !session.location.isDetached
+    }
+
+    private var previewToolbarTitleMaxWidth: CGFloat {
+        if session.isShowingFolderChildPreview {
+            return 56
+        }
+        return 72
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Button {
+                    layout.isPreviewContentCollapsed.toggle()
+                } label: {
+                    Image(systemName: layout.isPreviewContentCollapsed ? "chevron.up" : "chevron.down")
+                }
+                .buttonStyle(.borderless)
+                .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
+                .contentShape(Rectangle())
+                .help(layout.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
+
+                if session.isShowingFolderChildPreview {
                     Button {
-                        folderInlineChild = nil
+                        session.folderInlineChild = nil
                     } label: {
                         Image(systemName: "arrow.uturn.backward")
                     }
@@ -5156,7 +5259,7 @@ struct FilePreviewView: View {
                     .help("返回文件夹")
                 }
 
-                Text(previewContentItem?.name ?? selectedItem?.name ?? "预览")
+                Text(session.previewContentItem?.name ?? selectedItem.name)
                     .font(.callout)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -5164,15 +5267,27 @@ struct FilePreviewView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(-1)
 
-                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem {
+                if !layout.isPreviewContentCollapsed, let item = session.toolbarFileItem {
                     PreviewToolbarOverflowLayout(
                         spacing: 4,
-                        items: previewToolbarItems(for: item)
+                        items: session.previewToolbarItems(for: item)
                     )
                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .trailing)
                     .layoutPriority(1)
                 } else {
                     Spacer(minLength: 0)
+                }
+
+                if canDetachPreview {
+                    Button {
+                        detachCoordinator.detach(session: session, openWindow: openWindow)
+                    } label: {
+                        Image(systemName: "macwindow.badge.plus")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("在独立窗口中打开")
+                    .fixedSize()
+                    .layoutPriority(2)
                 }
 
                 Button {
@@ -5193,896 +5308,126 @@ struct FilePreviewView: View {
             
             if !layout.isPreviewContentCollapsed {
                 Divider()
-                
-                if let selectedItem {
-                    if let folderInlineChild {
-                        FileContentView(
-                            item: folderInlineChild,
-                            imageZoomScale: $imageZoomScale,
-                            imageZoomAction: $imageZoomAction,
-                            imageEffectiveZoomPercent: $imageEffectiveZoomPercent,
-                            imageRotationQuarterTurns: $imageRotationQuarterTurns,
-                            imageFlipHorizontal: $imageFlipHorizontal,
-                            imageFlipVertical: $imageFlipVertical,
-                            imagePreviewAction: $imagePreviewAction,
-                            imageEyedropperActive: $imageEyedropperActive,
-                            imagePickedWebColor: $imagePickedWebColor,
-                            imageResizeTargetSize: $imageResizeTargetSize,
-                            imageSourcePixelSize: $imageSourcePixelSize,
-                            imageEditUndoClearNonce: $imageEditUndoClearNonce,
-                            textWrapEnabled: $textWrapEnabled,
-                            textPreviewAction: $textPreviewAction,
-                            mediaControlAction: $mediaControlAction,
-                            mediaIsPlaying: $mediaIsPlaying,
-                            mediaIsMuted: $mediaIsMuted,
-                            officeReloadToken: $officeReloadToken,
-                            officeNavigateAction: $officeNavigateAction,
-                            archiveExpanded: $archiveExpanded,
-                            archiveCopyAction: $archiveCopyAction,
-                            archiveReloadToken: $archiveReloadToken,
-                            pdfCurrentPage: $pdfCurrentPage,
-                            pdfPageCount: $pdfPageCount,
-                            pdfNavigateAction: $pdfNavigateAction,
-                            pdfScalePercent: $pdfScalePercent,
-                            markdownMode: $markdownMode,
-                            markdownPreviewScale: $markdownPreviewScale,
-                            markdownSourceFontSize: $markdownSourceFontSize,
-                            htmlMode: $htmlMode
-                        )
-                        .id(folderInlineChild.id)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    } else if selectedItem.isDirectory {
-                        FolderPreviewView(
-                            folder: selectedItem,
-                            showHiddenFiles: showHiddenFiles,
-                            autoCalculateDirectorySizes: autoCalculateDirectorySizes,
-                            sizeOverlay: directorySizeOverlay,
-                            countOverlay: directoryItemCountOverlay,
-                            showContentsList: true,
-                            onNavigate: onNavigate,
-                            onOpenFolder: { onOpenItem(selectedItem) },
-                            onOpenTerminal: { onOpenTerminalAtPath(selectedItem.id) },
-                            onPreviewChild: { folderInlineChild = $0 },
-                            onOpenChild: onOpenItem
-                        )
-                        .id(selectedItem.id)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    } else {
-                        FileContentView(
-                            item: selectedItem,
-                            imageZoomScale: $imageZoomScale,
-                            imageZoomAction: $imageZoomAction,
-                            imageEffectiveZoomPercent: $imageEffectiveZoomPercent,
-                            imageRotationQuarterTurns: $imageRotationQuarterTurns,
-                            imageFlipHorizontal: $imageFlipHorizontal,
-                            imageFlipVertical: $imageFlipVertical,
-                            imagePreviewAction: $imagePreviewAction,
-                            imageEyedropperActive: $imageEyedropperActive,
-                            imagePickedWebColor: $imagePickedWebColor,
-                            imageResizeTargetSize: $imageResizeTargetSize,
-                            imageSourcePixelSize: $imageSourcePixelSize,
-                            imageEditUndoClearNonce: $imageEditUndoClearNonce,
-                            textWrapEnabled: $textWrapEnabled,
-                            textPreviewAction: $textPreviewAction,
-                            mediaControlAction: $mediaControlAction,
-                            mediaIsPlaying: $mediaIsPlaying,
-                            mediaIsMuted: $mediaIsMuted,
-                            officeReloadToken: $officeReloadToken,
-                            officeNavigateAction: $officeNavigateAction,
-                            archiveExpanded: $archiveExpanded,
-                            archiveCopyAction: $archiveCopyAction,
-                            archiveReloadToken: $archiveReloadToken,
-                            pdfCurrentPage: $pdfCurrentPage,
-                            pdfPageCount: $pdfPageCount,
-                            pdfNavigateAction: $pdfNavigateAction,
-                            pdfScalePercent: $pdfScalePercent,
-                            markdownMode: $markdownMode,
-                            markdownPreviewScale: $markdownPreviewScale,
-                            markdownSourceFontSize: $markdownSourceFontSize,
-                            htmlMode: $htmlMode
-                        )
-                            .id(selectedItem.id)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    }
+
+                if let folderInlineChild = session.folderInlineChild {
+                    FileContentView(session: session)
+                    .id(folderInlineChild.id)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                } else if selectedItem.isDirectory {
+                    FolderPreviewView(
+                        folder: selectedItem,
+                        showHiddenFiles: showHiddenFiles,
+                        autoCalculateDirectorySizes: autoCalculateDirectorySizes,
+                        sizeOverlay: directorySizeOverlay,
+                        countOverlay: directoryItemCountOverlay,
+                        showContentsList: true,
+                        onNavigate: onNavigate,
+                        onOpenFolder: { onOpenItem(selectedItem) },
+                        onOpenTerminal: { onOpenTerminalAtPath(selectedItem.id) },
+                        onPreviewChild: { session.folderInlineChild = $0 },
+                        onOpenChild: onOpenItem
+                    )
+                    .id(selectedItem.id)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else {
-                    Text("Select a file to preview")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    FileContentView(session: session)
+                    .id(selectedItem.id)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onChange(of: selectedItem?.id) { _ in
-            folderInlineChild = nil
-            resetPreviewControls()
+        .onChange(of: session.folderInlineChild?.id) { _ in
+            session.resetControls()
         }
-        .onChange(of: folderInlineChild?.id) { _ in
-            resetPreviewControls()
-        }
-        .onChange(of: pdfCurrentPage) { newValue in
+        .onChange(of: session.pdfCurrentPage) { newValue in
             if newValue > 0 {
-                pdfPageInput = "\(newValue)"
+                session.pdfPageInput = "\(newValue)"
             } else {
-                pdfPageInput = ""
+                session.pdfPageInput = ""
             }
         }
-        .sheet(isPresented: $showImageResizeSheet) {
-            let dialogSize = imageResizeDialogSize
-            let oriented = imageEffectiveOrientedPixelSize
+        .sheet(isPresented: $session.showImageResizeSheet) {
+            let dialogSize = session.imageResizeDialogSize
+            let oriented = session.imageEffectiveOrientedPixelSize
             ImageResizeSheet(
                 initialWidth: dialogSize.width,
                 initialHeight: dialogSize.height,
                 aspectWidth: max(1, Int(oriented.width.rounded())),
                 aspectHeight: max(1, Int(oriented.height.rounded())),
-                onCancel: { showImageResizeSheet = false },
+                onCancel: { session.showImageResizeSheet = false },
                 onApply: { width, height in
-                    performImageEdit {
-                        imageResizeTargetSize = CGSize(width: width, height: height)
+                    session.performImageEdit {
+                        session.imageResizeTargetSize = CGSize(width: width, height: height)
                     }
-                    imageZoomScale = 1.0
-                    imageZoomAction = .fit
-                    showImageResizeSheet = false
+                    session.imageZoomScale = 1.0
+                    session.imageZoomAction = .fit
+                    session.showImageResizeSheet = false
                 }
             )
         }
-        .onChange(of: imageEditUndoClearNonce) { _ in
-            imageEditUndoStack.removeAll()
+        .onChange(of: session.imageEditUndoClearNonce) { _ in
+            session.clearImageEditUndoStack()
         }
-    }
-
-    private func pushImageEditUndoSnapshot() {
-        imageEditUndoStack.append(
-            ImageEditSnapshot(
-                rotationQuarterTurns: imageRotationQuarterTurns,
-                flipHorizontal: imageFlipHorizontal,
-                flipVertical: imageFlipVertical,
-                resizeTargetSize: imageResizeTargetSize,
-                zoomScale: imageZoomScale
-            )
-        )
-        if imageEditUndoStack.count > 100 {
-            imageEditUndoStack.removeFirst(imageEditUndoStack.count - 100)
-        }
-    }
-
-    private func performImageEdit(_ action: () -> Void) {
-        pushImageEditUndoSnapshot()
-        action()
-    }
-
-    private func undoLastImageEdit() {
-        guard let snapshot = imageEditUndoStack.popLast() else { return }
-        imageRotationQuarterTurns = snapshot.rotationQuarterTurns
-        imageFlipHorizontal = snapshot.flipHorizontal
-        imageFlipVertical = snapshot.flipVertical
-        imageResizeTargetSize = snapshot.resizeTargetSize
-        imageZoomScale = snapshot.zoomScale
-    }
-
-    private func previewToolbarIconItem(
-        id: String,
-        title: String,
-        systemImage: String,
-        isDisabled: Bool = false,
-        action: @escaping () -> Void
-    ) -> PreviewToolbarOverflowModel {
-        PreviewToolbarOverflowModel(
-            id: id,
-            menuTitle: title,
-            menuSystemImage: systemImage,
-            isDisabled: isDisabled,
-            estimatedWidth: 20,
-            menuAction: action,
-            content: AnyView(
-                Button(action: action) {
-                    Image(systemName: systemImage)
+        .focusedValue(\.previewDetachCommands, PreviewDetachCommands(
+            canDetach: canDetachPreview,
+            canDock: {
+                if case .detached(let sessionID, _) = detachCoordinator.placement {
+                    return sessionID == session.id
                 }
-                .buttonStyle(.borderless)
-                .disabled(isDisabled)
-                .help(title)
-            )
-        )
-    }
-
-    private func previewToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
-        if isImageFile(item) {
-            return previewImageToolbarItems(for: item)
-        }
-        if isPDFFile(item) {
-            return previewPDFToolbarItems()
-        }
-        if isTextFile(item) {
-            return previewTextToolbarItems(for: item)
-        }
-        if isMediaFile(item) {
-            return previewMediaToolbarItems()
-        }
-        if isOfficeFile(item) {
-            return previewOfficeToolbarItems(for: item)
-        }
-        if isArchiveFile(item) {
-            return previewArchiveToolbarItems()
-        }
-        return []
-    }
-
-    private func previewImageToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
-        var items: [PreviewToolbarOverflowModel] = [
-            PreviewToolbarOverflowModel(
-                id: "image-zoom",
-                menuTitle: "缩放",
-                menuSystemImage: "plus.magnifyingglass",
-                isDisabled: false,
-                estimatedWidth: 120,
-                menuAction: {},
-                content: AnyView(
-                    HStack(spacing: 2) {
-                        Button {
-                            imageZoomScale = max(imageZoomScale - 0.25, 0.1)
-                        } label: {
-                            Image(systemName: "minus.magnifyingglass")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("缩小")
-                        .disabled(imageZoomScale <= 0.1)
-
-                        Button {
-                            imageZoomScale = min(imageZoomScale + 0.25, 5.0)
-                        } label: {
-                            Image(systemName: "plus.magnifyingglass")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("放大")
-
-                        Button {
-                            imageZoomAction = .fit
-                        } label: {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("适配窗口")
-
-                        Button {
-                            imageZoomAction = .actualSize
-                        } label: {
-                            Image(systemName: "1.magnifyingglass")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("原始大小")
-
-                        Text(imageEffectiveZoomPercent > 0 ? "\(imageEffectiveZoomPercent)%" : "--")
-                            .font(.caption.monospacedDigit())
-                            .foregroundColor(.secondary)
-                            .frame(minWidth: 36, alignment: .center)
-                    }
-                )
-            ),
-            previewToolbarIconItem(
-                id: "image-rotate-left",
-                title: "逆时针旋转",
-                systemImage: "rotate.left",
-                action: {
-                    performImageEdit {
-                        imageRotationQuarterTurns = (imageRotationQuarterTurns + 3) % 4
-                    }
+                return false
+            }(),
+            detachPreview: {
+                detachCoordinator.detach(session: session, openWindow: openWindow)
+            },
+            dockPreview: {
+                Task {
+                    _ = await detachCoordinator.dockBack(
+                        sessionID: session.id,
+                        currentSelectedFileID: selectedItem.id
+                    )
                 }
-            ),
-            previewToolbarIconItem(
-                id: "image-rotate-right",
-                title: "顺时针旋转",
-                systemImage: "rotate.right",
-                action: {
-                    performImageEdit {
-                        imageRotationQuarterTurns = (imageRotationQuarterTurns + 1) % 4
-                    }
-                }
-            ),
-            previewToolbarIconItem(
-                id: "image-flip-horizontal",
-                title: "水平翻转",
-                systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right",
-                action: {
-                    performImageEdit {
-                        imageFlipHorizontal.toggle()
-                    }
-                }
-            ),
-            previewToolbarIconItem(
-                id: "image-flip-vertical",
-                title: "垂直翻转",
-                systemImage: "arrow.up.and.down.righttriangle.up.righttriangle.down",
-                action: {
-                    performImageEdit {
-                        imageFlipVertical.toggle()
-                    }
-                }
-            ),
-            previewToolbarIconItem(
-                id: "image-undo",
-                title: "撤销上一步",
-                systemImage: "arrow.uturn.backward",
-                isDisabled: imageEditUndoStack.isEmpty,
-                action: undoLastImageEdit
-            ),
-            previewToolbarIconItem(
-                id: "image-reset",
-                title: "重置视图",
-                systemImage: "arrow.counterclockwise",
-                action: resetImageViewTransform
-            ),
-            previewToolbarIconItem(
-                id: "image-resize",
-                title: "调整尺寸",
-                systemImage: "arrow.up.backward.and.arrow.down.forward",
-                isDisabled: imageSourcePixelSize.width <= 0 || imageSourcePixelSize.height <= 0,
-                action: { showImageResizeSheet = true }
-            ),
-            previewToolbarIconItem(
-                id: "image-save",
-                title: "保存编辑结果",
-                systemImage: "square.and.arrow.down",
-                isDisabled: !hasImageEdits,
-                action: { imagePreviewAction = .save }
-            ),
-            PreviewToolbarOverflowModel(
-                id: "image-eyedropper",
-                menuTitle: "取色棒",
-                menuSystemImage: "eyedropper",
-                isDisabled: false,
-                estimatedWidth: 20,
-                menuAction: { imageEyedropperActive.toggle() },
-                content: AnyView(
-                    Button {
-                        imageEyedropperActive.toggle()
-                    } label: {
-                        Image(systemName: "eyedropper")
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(
-                                imageEyedropperActive ? Color.accentColor : Color.primary,
-                                Color.primary
-                            )
-                    }
-                    .buttonStyle(.borderless)
-                    .help("取色棒（点击图像复制 Web 颜色）")
-                )
-            ),
-            previewToolbarIconItem(
-                id: "image-copy",
-                title: "复制图片",
-                systemImage: "doc.on.doc",
-                action: { copyImageToPasteboard(item) }
-            ),
-            previewToolbarIconItem(
-                id: "image-open",
-                title: "用默认应用打开",
-                systemImage: "arrow.up.forward.app",
-                action: { NSWorkspace.shared.open(item.url) }
-            ),
-        ]
-
-        if let hex = imagePickedWebColor {
-            items.insert(
-                PreviewToolbarOverflowModel(
-                    id: "image-color",
-                    menuTitle: "颜色 \(hex)",
-                    menuSystemImage: "eyedropper.half.filled",
-                    isDisabled: false,
-                    estimatedWidth: 72,
-                    menuAction: {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(hex, forType: .string)
-                    },
-                    content: AnyView(
-                        HStack(spacing: 4) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(colorFromWebHex(hex))
-                                .frame(width: 14, height: 14)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 2)
-                                        .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
-                                )
-                            Text(hex)
-                                .font(.caption.monospaced())
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        }
-                        .help("已复制到剪贴板")
-                    )
-                ),
-                at: items.count - 2
-            )
-        }
-
-        return items
-    }
-
-    private func previewPDFToolbarItems() -> [PreviewToolbarOverflowModel] {
-        [
-            previewToolbarIconItem(
-                id: "pdf-prev",
-                title: "上一页",
-                systemImage: "chevron.left",
-                isDisabled: pdfCurrentPage <= 1,
-                action: { pdfNavigateAction = .previous }
-            ),
-            previewToolbarIconItem(
-                id: "pdf-zoom-out",
-                title: "缩小",
-                systemImage: "minus.magnifyingglass",
-                isDisabled: pdfScalePercent > 0 && pdfScalePercent <= 25,
-                action: { pdfNavigateAction = .zoomOut }
-            ),
-            PreviewToolbarOverflowModel(
-                id: "pdf-page",
-                menuTitle: "页码",
-                menuSystemImage: "number",
-                isDisabled: false,
-                estimatedWidth: 82,
-                menuAction: {},
-                content: AnyView(
-                    HStack(spacing: 4) {
-                        TextField("", text: $pdfPageInput)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.caption)
-                            .frame(width: 44)
-                            .onSubmit {
-                                let trimmed = pdfPageInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard let page = Int(trimmed), pdfPageCount > 0 else {
-                                    pdfPageInput = pdfCurrentPage > 0 ? "\(pdfCurrentPage)" : ""
-                                    return
-                                }
-                                let clamped = min(max(page, 1), pdfPageCount)
-                                pdfNavigateAction = .goToPage(clamped)
-                            }
-
-                        Text("/\(pdfPageCount > 0 ? "\(pdfPageCount)" : "--")")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(minWidth: 74, alignment: .center)
-                )
-            ),
-            PreviewToolbarOverflowModel(
-                id: "pdf-scale",
-                menuTitle: "缩放比例",
-                menuSystemImage: "percent",
-                isDisabled: false,
-                estimatedWidth: 44,
-                menuAction: {},
-                content: AnyView(
-                    Text(pdfScalePercent > 0 ? "\(pdfScalePercent)%" : "--")
-                        .font(.caption.monospacedDigit())
-                        .foregroundColor(.secondary)
-                        .frame(minWidth: 44, alignment: .center)
-                )
-            ),
-            previewToolbarIconItem(
-                id: "pdf-zoom-in",
-                title: "放大",
-                systemImage: "plus.magnifyingglass",
-                isDisabled: pdfScalePercent >= 500,
-                action: { pdfNavigateAction = .zoomIn }
-            ),
-            previewToolbarIconItem(
-                id: "pdf-fit-width",
-                title: "适配宽度",
-                systemImage: "arrow.left.and.right.square",
-                action: { pdfNavigateAction = .fitWidth }
-            ),
-            previewToolbarIconItem(
-                id: "pdf-fit-page",
-                title: "整页适配",
-                systemImage: "arrow.up.left.and.arrow.down.right",
-                action: { pdfNavigateAction = .fitPage }
-            ),
-            previewToolbarIconItem(
-                id: "pdf-next",
-                title: "下一页",
-                systemImage: "chevron.right",
-                isDisabled: pdfPageCount == 0 || pdfCurrentPage >= pdfPageCount,
-                action: { pdfNavigateAction = .next }
-            ),
-        ]
-    }
-
-    private func previewTextToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
-        var items: [PreviewToolbarOverflowModel] = [
-            previewToolbarIconItem(
-                id: "text-wrap",
-                title: textWrapEnabled ? "关闭自动换行" : "开启自动换行",
-                systemImage: textWrapEnabled ? "text.justify.left" : "arrow.left.and.right.text.vertical",
-                action: { textWrapEnabled.toggle() }
-            ),
-        ]
-
-        if isMarkdownFile(item) {
-            items.append(
-                previewToolbarIconItem(
-                    id: "md-preview",
-                    title: "预览模式",
-                    systemImage: markdownMode == .preview ? "eye.fill" : "eye",
-                    action: { markdownMode = .preview }
-                )
-            )
-            items.append(
-                previewToolbarIconItem(
-                    id: "md-source",
-                    title: "源码模式",
-                    systemImage: markdownMode == .source ? "doc.plaintext.fill" : "doc.plaintext",
-                    action: { markdownMode = .source }
-                )
-            )
-
-            if markdownMode == .preview {
-                items.append(
-                    previewToolbarIconItem(
-                        id: "md-zoom-in",
-                        title: "放大（整体）",
-                        systemImage: "plus.magnifyingglass",
-                        action: { markdownPreviewScale = min(markdownPreviewScale + 0.1, 3.0) }
-                    )
-                )
-                items.append(
-                    previewToolbarIconItem(
-                        id: "md-zoom-out",
-                        title: "缩小（整体）",
-                        systemImage: "minus.magnifyingglass",
-                        isDisabled: markdownPreviewScale <= 0.5,
-                        action: { markdownPreviewScale = max(markdownPreviewScale - 0.1, 0.5) }
-                    )
-                )
-                items.append(
-                    PreviewToolbarOverflowModel(
-                        id: "md-scale",
-                        menuTitle: "缩放比例",
-                        menuSystemImage: "percent",
-                        isDisabled: false,
-                        estimatedWidth: 44,
-                        menuAction: {},
-                        content: AnyView(
-                            Text("\(Int((markdownPreviewScale * 100).rounded()))%")
-                                .font(.caption.monospacedDigit())
-                                .foregroundColor(.secondary)
-                                .frame(minWidth: 44, alignment: .center)
-                        )
-                    )
-                )
-            } else {
-                items.append(
-                    previewToolbarIconItem(
-                        id: "md-font-up",
-                        title: "放大字体",
-                        systemImage: "plus.magnifyingglass",
-                        action: { markdownSourceFontSize = min(markdownSourceFontSize + 1, 28) }
-                    )
-                )
-                items.append(
-                    previewToolbarIconItem(
-                        id: "md-font-down",
-                        title: "缩小字体",
-                        systemImage: "minus.magnifyingglass",
-                        isDisabled: markdownSourceFontSize <= 9,
-                        action: { markdownSourceFontSize = max(markdownSourceFontSize - 1, 9) }
-                    )
-                )
-                items.append(
-                    PreviewToolbarOverflowModel(
-                        id: "md-font-size",
-                        menuTitle: "字体大小",
-                        menuSystemImage: "textformat.size",
-                        isDisabled: false,
-                        estimatedWidth: 44,
-                        menuAction: {},
-                        content: AnyView(
-                            Text("\(Int(markdownSourceFontSize.rounded()))pt")
-                                .font(.caption.monospacedDigit())
-                                .foregroundColor(.secondary)
-                                .frame(minWidth: 44, alignment: .center)
-                        )
-                    )
-                )
             }
-        }
-
-        if isHtmlFile(item) {
-            items.append(
-                previewToolbarIconItem(
-                    id: "html-preview",
-                    title: "HTML 解析预览",
-                    systemImage: htmlMode == .preview ? "globe.americas.fill" : "globe.americas",
-                    action: { htmlMode = .preview }
-                )
-            )
-            items.append(
-                previewToolbarIconItem(
-                    id: "html-source",
-                    title: "源码模式",
-                    systemImage: htmlMode == .source ? "doc.plaintext.fill" : "doc.plaintext",
-                    action: { htmlMode = .source }
-                )
-            )
-        }
-
-        items.append(
-            previewToolbarIconItem(
-                id: "text-copy",
-                title: "复制全文",
-                systemImage: "doc.on.doc",
-                action: { textPreviewAction = .copyAll }
-            )
-        )
-        items.append(
-            previewToolbarIconItem(
-                id: "text-top",
-                title: "跳转顶部",
-                systemImage: "arrow.up.to.line",
-                action: { textPreviewAction = .scrollTop }
-            )
-        )
-        items.append(
-            previewToolbarIconItem(
-                id: "text-bottom",
-                title: "跳转底部",
-                systemImage: "arrow.down.to.line",
-                action: { textPreviewAction = .scrollBottom }
-            )
-        )
-
-        return items
-    }
-
-    private func previewMediaToolbarItems() -> [PreviewToolbarOverflowModel] {
-        [
-            previewToolbarIconItem(
-                id: "media-play",
-                title: mediaIsPlaying ? "暂停" : "播放",
-                systemImage: mediaIsPlaying ? "pause.fill" : "play.fill",
-                action: { mediaControlAction = .togglePlayPause }
-            ),
-            previewToolbarIconItem(
-                id: "media-mute",
-                title: mediaIsMuted ? "取消静音" : "静音",
-                systemImage: mediaIsMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                action: { mediaControlAction = .toggleMute }
-            ),
-        ]
-    }
-
-    private func previewOfficeToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
-        [
-            previewToolbarIconItem(
-                id: "office-prev",
-                title: "上一页（滚动）",
-                systemImage: "chevron.left",
-                action: { officeNavigateAction = .pageUp }
-            ),
-            previewToolbarIconItem(
-                id: "office-next",
-                title: "下一页（滚动）",
-                systemImage: "chevron.right",
-                action: { officeNavigateAction = .pageDown }
-            ),
-            previewToolbarIconItem(
-                id: "office-open",
-                title: "用默认应用打开",
-                systemImage: "arrow.up.forward.app",
-                action: { NSWorkspace.shared.open(item.url) }
-            ),
-            previewToolbarIconItem(
-                id: "office-reload",
-                title: "刷新预览",
-                systemImage: "arrow.clockwise",
-                action: { officeReloadToken += 1 }
-            ),
-        ]
-    }
-
-    private func previewArchiveToolbarItems() -> [PreviewToolbarOverflowModel] {
-        [
-            previewToolbarIconItem(
-                id: "archive-reload",
-                title: "刷新目录",
-                systemImage: "arrow.clockwise",
-                action: { archiveReloadToken += 1 }
-            ),
-            previewToolbarIconItem(
-                id: "archive-expand",
-                title: archiveExpanded ? "折叠到第一层" : "展开到全部层级",
-                systemImage: archiveExpanded ? "chevron.down" : "chevron.right",
-                action: { archiveExpanded.toggle() }
-            ),
-            previewToolbarIconItem(
-                id: "archive-copy",
-                title: "复制清单",
-                systemImage: "doc.on.doc",
-                action: { archiveCopyAction = .copyList }
-            ),
-        ]
-    }
-    
-    private func resetPreviewControls() {
-        imageZoomScale = 1.0
-        imageZoomAction = nil
-        imageEffectiveZoomPercent = 0
-        imageRotationQuarterTurns = 0
-        imageFlipHorizontal = false
-        imageFlipVertical = false
-        imagePreviewAction = nil
-        imageEyedropperActive = false
-        imagePickedWebColor = nil
-        imageResizeTargetSize = nil
-        imageSourcePixelSize = .zero
-        imageEditUndoStack.removeAll()
-        textWrapEnabled = true
-        textPreviewAction = nil
-        mediaControlAction = nil
-        mediaIsPlaying = false
-        mediaIsMuted = false
-        officeReloadToken = 0
-        officeNavigateAction = nil
-        archiveExpanded = true
-        archiveReloadToken = 0
-        archiveCopyAction = nil
-        pdfCurrentPage = 0
-        pdfPageCount = 0
-        pdfScalePercent = 0
-        pdfNavigateAction = nil
-        pdfPageInput = ""
-        markdownMode = .preview
-        markdownPreviewScale = 1.0
-        markdownSourceFontSize = 13
-        htmlMode = .preview
-    }
-    
-    private func resetImageViewTransform() {
-        performImageEdit {
-            imageZoomScale = 1.0
-            imageZoomAction = .fit
-            imageRotationQuarterTurns = 0
-            imageFlipHorizontal = false
-            imageFlipVertical = false
-            imageResizeTargetSize = nil
-        }
-    }
-
-    private func copyImageToPasteboard(_ item: FileItem) {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        if let image = NSImage(contentsOf: item.url) {
-            pasteboard.writeObjects([image])
-        } else {
-            pasteboard.writeObjects([item.url as NSURL])
-        }
-    }
-
-    private func colorFromWebHex(_ hex: String) -> Color {
-        var text = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.hasPrefix("#") {
-            text.removeFirst()
-        }
-        guard text.count == 6, let value = UInt32(text, radix: 16) else {
-            return .clear
-        }
-        let red = Double((value >> 16) & 0xFF) / 255
-        let green = Double((value >> 8) & 0xFF) / 255
-        let blue = Double(value & 0xFF) / 255
-        return Color(red: red, green: green, blue: blue)
-    }
-
-    private func isPDFFile(_ item: FileItem) -> Bool {
-        PreviewTypeClassifier.isPDFFile(item.url.pathExtension)
-    }
-
-    private func isTextFile(_ item: FileItem) -> Bool {
-        PreviewTypeClassifier.isTextFile(item.url.pathExtension)
-    }
-
-    private func isMarkdownFile(_ item: FileItem) -> Bool {
-        PreviewTypeClassifier.isMarkdownFile(item.url.pathExtension)
-    }
-
-    private func isHtmlFile(_ item: FileItem) -> Bool {
-        PreviewTypeClassifier.isHtmlFile(item.url.pathExtension)
-    }
-
-    private func isMediaFile(_ item: FileItem) -> Bool {
-        PreviewTypeClassifier.isMediaFile(item.url.pathExtension)
-    }
-
-    private func isOfficeFile(_ item: FileItem) -> Bool {
-        PreviewTypeClassifier.isOfficeFile(item.url.pathExtension)
-    }
-
-    private func isImageFile(_ item: FileItem) -> Bool {
-        PreviewTypeClassifier.isImageFile(item.url.pathExtension)
-    }
-
-    private func isArchiveFile(_ item: FileItem) -> Bool {
-        let lowerName = item.url.lastPathComponent.lowercased()
-        if lowerName.hasSuffix(".zip") { return true }
-        if lowerName.hasSuffix(".tar") { return true }
-        if lowerName.hasSuffix(".tar.gz") { return true }
-        if lowerName.hasSuffix(".tgz") { return true }
-        return false
-    }
-
-    private var pdfPageStatusText: String {
-        guard pdfPageCount > 0 else { return "--/--" }
-        return "\(max(pdfCurrentPage, 1))/\(pdfPageCount)"
+        ))
     }
 }
 
 struct FileContentView: View {
-    let item: FileItem
-    @Binding var imageZoomScale: CGFloat
-    @Binding var imageZoomAction: ImageZoomAction?
-    @Binding var imageEffectiveZoomPercent: Int
-    @Binding var imageRotationQuarterTurns: Int
-    @Binding var imageFlipHorizontal: Bool
-    @Binding var imageFlipVertical: Bool
-    @Binding var imagePreviewAction: ImagePreviewAction?
-    @Binding var imageEyedropperActive: Bool
-    @Binding var imagePickedWebColor: String?
-    @Binding var imageResizeTargetSize: CGSize?
-    @Binding var imageSourcePixelSize: CGSize
-    @Binding var imageEditUndoClearNonce: Int
-    @Binding var textWrapEnabled: Bool
-    @Binding var textPreviewAction: TextPreviewAction?
-    @Binding var mediaControlAction: MediaControlAction?
-    @Binding var mediaIsPlaying: Bool
-    @Binding var mediaIsMuted: Bool
-    @Binding var officeReloadToken: Int
-    @Binding var officeNavigateAction: OfficeNavigationAction?
-    @Binding var archiveExpanded: Bool
-    @Binding var archiveCopyAction: ArchivePreviewAction?
-    @Binding var archiveReloadToken: Int
-    @Binding var pdfCurrentPage: Int
-    @Binding var pdfPageCount: Int
-    @Binding var pdfNavigateAction: PDFNavigationAction?
-    @Binding var pdfScalePercent: Int
-    @Binding var markdownMode: MarkdownDisplayMode
-    @Binding var markdownPreviewScale: CGFloat
-    @Binding var markdownSourceFontSize: CGFloat
-    @Binding var htmlMode: HtmlDisplayMode
-
-    @State private var textContent: String = ""
-    @State private var image: NSImage? = nil
-    @State private var pdfDocument: PDFDocument? = nil
-    @State private var mediaPlayer: AVPlayer? = nil
-    @State private var officeURL: URL? = nil
-    @State private var archiveEntries: [ArchiveEntryPreview] = []
-    @State private var archiveTruncated: Bool = false
-    @State private var isLoading = true
-    @State private var errorMessage: String? = nil
-    @State private var imageSaveErrorMessage: String? = nil
+    @ObservedObject var session: PreviewSession
     @ObservedObject private var customPreviewStore = CustomPreviewRuleStore.shared
+
+    private var item: FileItem {
+        session.previewContentItem ?? session.file
+    }
 
     private var fileExtension: String {
         item.url.pathExtension.lowercased()
     }
 
-    private var isImagePreview: Bool {
-        image != nil && !isLoading && errorMessage == nil
-    }
-
     private var isHtmlPreviewMode: Bool {
-        PreviewTypeClassifier.isHtmlFile(fileExtension) && htmlMode == .preview
+        PreviewTypeClassifier.isHtmlFile(fileExtension) && session.htmlMode == .preview
     }
 
     private var usesMarkdownPreview: Bool {
-        PreviewTypeClassifier.isMarkdownFile(fileExtension) && markdownMode == .preview
+        PreviewTypeClassifier.isMarkdownFile(fileExtension) && session.markdownMode == .preview
     }
 
     private var imageResizePreviewIdentity: String {
-        guard let size = imageResizeTargetSize else { return "image-original-size" }
+        guard let size = session.imageResizeTargetSize else { return "image-original-size" }
         return "image-resize-\(Int(size.width.rounded()))x\(Int(size.height.rounded()))"
+    }
+
+    private var loadTaskID: String {
+        let contentID = session.previewContentItem?.id ?? session.file.id
+        return "\(contentID)-\(session.archiveReloadToken)-\(customPreviewStore.revision)"
     }
 
     var body: some View {
         ZStack {
-            if isLoading {
+            if session.isLoading {
                 ProgressView("Loading preview...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMsg = errorMessage {
+            } else if let errorMsg = session.errorMessage {
                 VStack {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
@@ -6099,81 +5444,79 @@ struct FileContentView: View {
                         .padding()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let image = image {
+            } else if let image = session.image {
                 ImagePreviewContent(
                     image: image,
                     fileURL: item.url,
-                    zoomScale: $imageZoomScale,
-                    zoomAction: $imageZoomAction,
-                    effectiveZoomPercent: $imageEffectiveZoomPercent,
-                    rotationQuarterTurns: $imageRotationQuarterTurns,
-                    flipHorizontal: $imageFlipHorizontal,
-                    flipVertical: $imageFlipVertical,
-                    resizeTargetSize: $imageResizeTargetSize,
-                    eyedropperActive: $imageEyedropperActive,
-                    pickedWebColor: $imagePickedWebColor
+                    zoomScale: $session.imageZoomScale,
+                    zoomAction: $session.imageZoomAction,
+                    effectiveZoomPercent: $session.imageEffectiveZoomPercent,
+                    rotationQuarterTurns: $session.imageRotationQuarterTurns,
+                    flipHorizontal: $session.imageFlipHorizontal,
+                    flipVertical: $session.imageFlipVertical,
+                    resizeTargetSize: $session.imageResizeTargetSize,
+                    eyedropperActive: $session.imageEyedropperActive,
+                    pickedWebColor: $session.imagePickedWebColor
                 )
                 .id(imageResizePreviewIdentity)
-            } else if let pdfDoc = pdfDocument {
+            } else if let pdfDoc = session.pdfDocument {
                 PDFPreview(
                     document: pdfDoc,
-                    navigationAction: $pdfNavigateAction
+                    navigationAction: $session.pdfNavigateAction
                 ) { currentPage, pageCount, scalePercent in
-                    pdfCurrentPage = currentPage
-                    pdfPageCount = pageCount
-                    pdfScalePercent = scalePercent
+                    session.pdfCurrentPage = currentPage
+                    session.pdfPageCount = pageCount
+                    session.pdfScalePercent = scalePercent
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let player = mediaPlayer {
+            } else if let player = session.mediaPlayer {
                 MediaPreview(
                     player: player,
-                    controlAction: $mediaControlAction
+                    controlAction: $session.mediaControlAction
                 ) { isPlaying, isMuted in
-                    mediaIsPlaying = isPlaying
-                    mediaIsMuted = isMuted
+                    session.mediaIsPlaying = isPlaying
+                    session.mediaIsMuted = isMuted
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let officeURL = officeURL {
+            } else if let officeURL = session.officeURL {
                 QuickLookPreview(
                     url: officeURL,
-                    reloadToken: officeReloadToken,
-                    navigationAction: $officeNavigateAction
+                    reloadToken: session.officeReloadToken,
+                    navigationAction: $session.officeNavigateAction
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    // QuickLook（尤其是 PPTX）内部滚动条有时会被内容“顶住/遮住”，
-                    // 给右侧/底部留一点空隙，避免滚动条被覆盖。
                     .padding(.trailing, 10)
                     .padding(.bottom, 6)
-            } else if !archiveEntries.isEmpty {
+            } else if !session.archiveEntries.isEmpty {
                 ArchiveListPreview(
-                    entries: archiveEntries,
-                    truncated: archiveTruncated,
-                    expanded: archiveExpanded,
-                    copyAction: $archiveCopyAction
+                    entries: session.archiveEntries,
+                    truncated: session.archiveTruncated,
+                    expanded: session.archiveExpanded,
+                    copyAction: $session.archiveCopyAction
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             } else if isHtmlPreviewMode {
                 HTMLFilePreview(fileURL: item.url)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if !textContent.isEmpty {
+            } else if !session.textContent.isEmpty {
                 if usesMarkdownPreview {
                     MarkdownFilePreview(
-                        markdown: textContent,
-                        wrapLines: textWrapEnabled,
-                        zoomScale: $markdownPreviewScale
+                        markdown: session.textContent,
+                        wrapLines: session.textWrapEnabled,
+                        zoomScale: $session.markdownPreviewScale
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     TextFilePreview(
-                        text: textContent,
+                        text: session.textContent,
                         fileExtension: fileExtension,
-                        wrapLines: textWrapEnabled,
-                        fontSize: PreviewTypeClassifier.isMarkdownFile(fileExtension) ? markdownSourceFontSize : NSFont.systemFontSize,
-                        action: $textPreviewAction
+                        wrapLines: session.textWrapEnabled,
+                        fontSize: PreviewTypeClassifier.isMarkdownFile(fileExtension) ? session.markdownSourceFontSize : NSFont.systemFontSize,
+                        action: $session.textPreviewAction
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            } else if !isLoading, errorMessage == nil {
+            } else if !session.isLoading, session.errorMessage == nil {
                 CustomPreviewUnavailableView(
                     fileExtension: fileExtension,
                     onAddRule: { mode in
@@ -6190,527 +5533,35 @@ struct FileContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        // QuickLook 自己带滚动与边距，外层 padding 反而容易造成滚动条被遮挡。
-        .padding((isImagePreview || officeURL != nil) ? 0 : 12)
-        .task(id: "\(item.id)-\(archiveReloadToken)-\(customPreviewStore.revision)") {
-            imageZoomScale = 1.0
-            imageZoomAction = nil
-            imageEffectiveZoomPercent = 0
-            imageRotationQuarterTurns = 0
-            imageFlipHorizontal = false
-            imageFlipVertical = false
-            imagePreviewAction = nil
-            imageEyedropperActive = false
-            imagePickedWebColor = nil
-            imageResizeTargetSize = nil
-            imageSaveErrorMessage = nil
-            textPreviewAction = nil
-            mediaControlAction = nil
-            mediaIsPlaying = false
-            mediaIsMuted = false
-            officeReloadToken = 0
-            archiveCopyAction = nil
-            pdfCurrentPage = 0
-            pdfPageCount = 0
-            pdfScalePercent = 0
-            pdfNavigateAction = nil
-            await loadContent()
+        .padding((session.isImagePreview || session.officeURL != nil) ? 0 : 12)
+        .task(id: loadTaskID) {
+            session.beginLoadTask(customPreviewRevision: Int(customPreviewStore.revision))
         }
-        .onChange(of: htmlMode) { newMode in
-            guard isHtmlFile(item) else { return }
-            if newMode == .source, textContent.isEmpty {
-                Task { await loadTextContentIfNeeded() }
+        .onChange(of: session.htmlMode) { newMode in
+            guard PreviewTypeClassifier.isHtmlFile(item.url.pathExtension) else { return }
+            if newMode == .source, session.textContent.isEmpty {
+                Task { await session.loadTextContentIfNeeded() }
             }
         }
-        .onChange(of: imagePreviewAction) { action in
+        .onChange(of: session.imagePreviewAction) { action in
             guard let action else { return }
             switch action {
             case .save:
-                Task { await saveEditedImage() }
+                Task { await session.saveEditedImage() }
             }
-            DispatchQueue.main.async { imagePreviewAction = nil }
+            DispatchQueue.main.async { session.imagePreviewAction = nil }
         }
         .alert("保存失败", isPresented: Binding(
-            get: { imageSaveErrorMessage != nil },
-            set: { if !$0 { imageSaveErrorMessage = nil } }
+            get: { session.imageSaveErrorMessage != nil },
+            set: { if !$0 { session.imageSaveErrorMessage = nil } }
         )) {
             Button("好", role: .cancel) {}
         } message: {
-            Text(imageSaveErrorMessage ?? "")
-        }
-    }
-
-    private func isHtmlFile(_ item: FileItem) -> Bool {
-        PreviewTypeClassifier.isHtmlFile(item.url.pathExtension)
-    }
-
-    private func saveEditedImage() async {
-        guard let sourceImage = image else { return }
-        let orientedSize = ImagePreviewTransformApplier.orientedPixelSize(
-            of: sourceImage,
-            rotationQuarterTurns: imageRotationQuarterTurns
-        )
-        let hasTransformEdits = imageRotationQuarterTurns != 0 || imageFlipHorizontal || imageFlipVertical
-        let hasResizeEdit: Bool = {
-            guard let target = imageResizeTargetSize else { return false }
-            return Int(target.width.rounded()) != Int(orientedSize.width.rounded())
-                || Int(target.height.rounded()) != Int(orientedSize.height.rounded())
-        }()
-        guard hasTransformEdits || hasResizeEdit else { return }
-
-        let confirmed = await MainActor.run { () -> Bool in
-            let alert = NSAlert()
-            alert.messageText = "保存编辑结果"
-            alert.informativeText = "将覆盖原文件「\(item.name)」。旋转、翻转与尺寸调整会一并写入。GIF 动图保存后可能变为静态图。"
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "保存")
-            alert.addButton(withTitle: "取消")
-            return alert.runModal() == .alertFirstButtonReturn
-        }
-        guard confirmed else { return }
-
-        let rotation = imageRotationQuarterTurns
-        let flipH = imageFlipHorizontal
-        let flipV = imageFlipVertical
-        let resizeTarget = imageResizeTargetSize
-        let url = item.url
-        let itemID = item.id
-
-        let saveResult: Result<Void, Error> = await Task.detached(priority: .userInitiated) {
-            guard var transformed = ImagePreviewTransformApplier.apply(
-                to: sourceImage,
-                rotationQuarterTurns: rotation,
-                flipHorizontal: flipH,
-                flipVertical: flipV
-            ) else {
-                return .failure(ImagePreviewSaveError.unableToEncode)
-            }
-
-            if let resizeTarget {
-                let oriented = ImagePreviewTransformApplier.orientedPixelSize(
-                    of: sourceImage,
-                    rotationQuarterTurns: rotation
-                )
-                let targetWidth = Int(resizeTarget.width.rounded())
-                let targetHeight = Int(resizeTarget.height.rounded())
-                let orientedWidth = Int(oriented.width.rounded())
-                let orientedHeight = Int(oriented.height.rounded())
-                if targetWidth != orientedWidth || targetHeight != orientedHeight {
-                    guard let resized = ImagePreviewTransformApplier.resize(
-                        transformed,
-                        to: CGSize(width: targetWidth, height: targetHeight)
-                    ) else {
-                        return .failure(ImagePreviewSaveError.unableToEncode)
-                    }
-                    transformed = resized
-                }
-            }
-
-            do {
-                try ImagePreviewTransformApplier.write(transformed, to: url)
-                return .success(())
-            } catch {
-                return .failure(error)
-            }
-        }.value
-
-        await MainActor.run {
-            guard item.id == itemID else { return }
-            switch saveResult {
-            case .success:
-                imageRotationQuarterTurns = 0
-                imageFlipHorizontal = false
-                imageFlipVertical = false
-                imageResizeTargetSize = nil
-                imageZoomScale = 1.0
-                imageZoomAction = .fit
-                imageSaveErrorMessage = nil
-                imageEditUndoClearNonce += 1
-                Task { await loadContent() }
-            case .failure(let error):
-                imageSaveErrorMessage = error.localizedDescription
-            }
-        }
-    }
-
-    private func loadTextContentIfNeeded() async {
-        let url = item.url
-        let itemID = item.id
-
-        await MainActor.run {
-            isLoading = true
-            errorMessage = nil
-        }
-
-        do {
-            let content = try await Task.detached(priority: .userInitiated) {
-                try TextFilePreviewReader.readPreview(from: url)
-            }.value
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard item.id == itemID else { return }
-                textContent = content
-                isLoading = false
-            }
-        } catch {
-            guard !Task.isCancelled else { return }
-            if error is CancellationError { return }
-            await MainActor.run {
-                guard item.id == itemID else { return }
-                errorMessage = error.localizedDescription
-                isLoading = false
-            }
-        }
-    }
-
-    private func loadContent() async {
-        let url = item.url
-        let ext = url.pathExtension.lowercased()
-        let itemID = item.id
-
-        await MainActor.run {
-            isLoading = true
-            errorMessage = nil
-            textContent = ""
-            image = nil
-            pdfDocument = nil
-            mediaPlayer = nil
-            officeURL = nil
-            archiveEntries = []
-            archiveTruncated = false
-        }
-
-        @MainActor
-        func finish(
-            imageData: Data? = nil,
-            pdfData: Data? = nil,
-            mediaURL: URL? = nil,
-            office loadedOfficeURL: URL? = nil,
-            archive loadedArchiveEntries: [ArchiveEntryPreview]? = nil,
-            archiveTruncated loadedArchiveTruncated: Bool = false,
-            text content: String? = nil,
-            error: String? = nil
-        ) {
-            guard !Task.isCancelled, item.id == itemID else { return }
-            if let imageData {
-                guard let decodedImage = NSImage(data: imageData) else {
-                    image = nil
-                    imageSourcePixelSize = .zero
-                    errorMessage = "Unable to decode image format"
-                    isLoading = false
-                    return
-                }
-                image = decodedImage
-                imageSourcePixelSize = ImagePreviewTransformApplier.pixelSize(of: decodedImage)
-            } else {
-                image = nil
-                imageSourcePixelSize = .zero
-            }
-            if let pdfData {
-                guard let decodedPDF = PDFDocument(data: pdfData) else {
-                    pdfDocument = nil
-                    errorMessage = "Unable to load PDF document"
-                    isLoading = false
-                    return
-                }
-                pdfDocument = decodedPDF
-            } else {
-                pdfDocument = nil
-            }
-            if let mediaURL {
-                mediaIsPlaying = false
-                mediaIsMuted = false
-                mediaControlAction = nil
-                let player = AVPlayer(url: mediaURL)
-                player.actionAtItemEnd = .pause
-                mediaPlayer = player
-            } else {
-                mediaPlayer = nil
-            }
-            officeURL = loadedOfficeURL
-            archiveEntries = loadedArchiveEntries ?? []
-            archiveTruncated = loadedArchiveTruncated
-            if let content { textContent = content }
-            errorMessage = error
-            isLoading = false
-        }
-
-        if let overrideRule = customPreviewStore.overridingRule(for: ext) {
-            await loadCustomPreview(mode: overrideRule.mode, url: url, ext: ext, itemID: itemID, finish: finish)
-            return
-        }
-
-        if BuiltinPreviewExtensions.image.contains(ext) {
-            let imageData = try? await Task.detached(priority: .userInitiated) {
-                try Data(contentsOf: url, options: [.mappedIfSafe])
-            }.value
-            guard !Task.isCancelled else { return }
-            if let imageData {
-                finish(imageData: imageData)
-            } else {
-                finish(error: "Unable to decode image format")
-            }
-            return
-        }
-
-        if BuiltinPreviewExtensions.media.contains(ext) {
-            guard !Task.isCancelled else { return }
-            finish(mediaURL: url)
-            return
-        }
-
-        if BuiltinPreviewExtensions.office.contains(ext) {
-            guard !Task.isCancelled else { return }
-            finish(office: url)
-            return
-        }
-
-        if BuiltinPreviewExtensions.pdf.contains(ext) {
-            let pdfData = try? await Task.detached(priority: .userInitiated) {
-                try Data(contentsOf: url, options: [.mappedIfSafe])
-            }.value
-            guard !Task.isCancelled else { return }
-            if let pdfData {
-                finish(pdfData: pdfData)
-            } else {
-                finish(error: "Unable to load PDF document")
-            }
-            return
-        }
-
-        // archive listing
-        let lowerName = url.lastPathComponent.lowercased()
-        let maxEntries = 1_000
-        let timeoutSeconds = 8
-
-        func shellEscape(_ s: String) -> String {
-            "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
-        }
-
-        func runShellCapture(_ command: String) async throws -> String {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/sh")
-            process.arguments = ["-c", command]
-            let pipe = Pipe()
-            process.standardOutput = pipe
-            process.standardError = pipe
-            try process.run()
-
-            let start = Date()
-            while process.isRunning {
-                if Task.isCancelled {
-                    process.terminate()
-                    throw CancellationError()
-                }
-                if Date().timeIntervalSince(start) > Double(timeoutSeconds) {
-                    process.terminate()
-                    throw NSError(domain: "ArchivePreview", code: 1, userInfo: [
-                        NSLocalizedDescriptionKey: "目录读取超时"
-                    ])
-                }
-                try await Task.sleep(nanoseconds: 100_000_000)
-            }
-
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            return String(data: data, encoding: .utf8) ?? ""
-        }
-
-        if lowerName.hasSuffix(".zip") {
-            do {
-                let escaped = shellEscape(url.path)
-                let command =
-                    "/usr/bin/unzip -l " + escaped +
-                    " | /usr/bin/head -n " + "\(maxEntries * 2 + 60)"
-                let output = try await runShellCapture(command)
-
-                var entries: [ArchiveEntryPreview] = []
-                for rawLine in output.split(whereSeparator: \.isNewline) {
-                    if entries.count >= maxEntries { break }
-                    let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let tokens = line.split(whereSeparator: { $0.isWhitespace })
-                    guard tokens.count >= 4 else { continue }
-                    guard let size = Int(tokens[0]) else { continue }
-                    let nameTokens = tokens.dropFirst(3)
-                    let path = nameTokens.joined(separator: " ")
-                    guard !path.isEmpty else { continue }
-                    let isDir = path.hasSuffix("/")
-                    entries.append(.init(path: path, isDirectory: isDir, size: Int64(size)))
-                }
-                if entries.isEmpty {
-                    finish(error: "无法读取 ZIP 目录")
-                } else {
-                    finish(archive: entries, archiveTruncated: entries.count >= maxEntries)
-                }
-            } catch {
-                if error is CancellationError { return }
-                finish(error: error.localizedDescription)
-            }
-            return
-        } else if lowerName.hasSuffix(".tar") || lowerName.hasSuffix(".tar.gz") || lowerName.hasSuffix(".tgz") {
-            do {
-                let escaped = shellEscape(url.path)
-                let command =
-                    "/usr/bin/tar -tf " + escaped +
-                    " 2>&1 | /usr/bin/head -n " + "\(maxEntries + 80)"
-                let output = try await runShellCapture(command)
-
-                var entries: [ArchiveEntryPreview] = []
-                for rawLine in output.split(whereSeparator: \.isNewline) {
-                    if entries.count >= maxEntries { break }
-                    let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if line.isEmpty { continue }
-                    if line.hasPrefix("tar:") { continue }
-                    entries.append(.init(path: line, isDirectory: line.hasSuffix("/"), size: nil))
-                }
-
-                if entries.isEmpty {
-                    finish(error: "无法读取归档目录")
-                } else {
-                    finish(archive: entries, archiveTruncated: entries.count >= maxEntries)
-                }
-            } catch {
-                if error is CancellationError { return }
-                finish(error: error.localizedDescription)
-            }
-            return
-        }
-
-        let textExtensions = BuiltinPreviewExtensions.text
-
-        if textExtensions.contains(ext) {
-            if isHtmlFile(item), htmlMode == .preview {
-                await MainActor.run { finish() }
-                Task.detached(priority: .utility) { [url, itemID] in
-                    let content = try? TextFilePreviewReader.readPreview(from: url)
-                    await MainActor.run {
-                        guard item.id == itemID else { return }
-                        if let content {
-                            textContent = content
-                        }
-                    }
-                }
-                return
-            }
-
-            do {
-                let content = try await Task.detached(priority: .userInitiated) {
-                    try TextFilePreviewReader.readPreview(from: url)
-                }.value
-                guard !Task.isCancelled else { return }
-                finish(text: content)
-            } catch {
-                guard !Task.isCancelled else { return }
-                if error is CancellationError { return }
-                finish(error: error.localizedDescription)
-            }
-            return
-        }
-
-        if let customMode = customPreviewStore.activeMode(for: ext) {
-            await loadCustomPreview(mode: customMode, url: url, ext: ext, itemID: itemID, finish: finish)
-            return
-        }
-
-        finish()
-    }
-
-    private func loadCustomPreview(
-        mode: CustomPreviewMode,
-        url: URL,
-        ext: String,
-        itemID: String,
-        finish: @MainActor (
-            _ imageData: Data?,
-            _ pdfData: Data?,
-            _ mediaURL: URL?,
-            _ office: URL?,
-            _ archive: [ArchiveEntryPreview]?,
-            _ archiveTruncated: Bool,
-            _ text: String?,
-            _ error: String?
-        ) -> Void
-    ) async {
-        switch mode {
-        case .quickLook:
-            guard !Task.isCancelled else { return }
-            finish(nil, nil, nil, url, nil, false, nil, nil)
-        case .media:
-            guard !Task.isCancelled else { return }
-            finish(nil, nil, url, nil, nil, false, nil, nil)
-        case .image:
-            let imageData = try? await Task.detached(priority: .userInitiated) {
-                try Data(contentsOf: url, options: [.mappedIfSafe])
-            }.value
-            guard !Task.isCancelled else { return }
-            if let imageData {
-                finish(imageData, nil, nil, nil, nil, false, nil, nil)
-            } else {
-                finish(nil, nil, nil, nil, nil, false, nil, "Unable to decode image format")
-            }
-        case .pdf:
-            let pdfData = try? await Task.detached(priority: .userInitiated) {
-                try Data(contentsOf: url, options: [.mappedIfSafe])
-            }.value
-            guard !Task.isCancelled else { return }
-            if let pdfData {
-                finish(nil, pdfData, nil, nil, nil, false, nil, nil)
-            } else {
-                finish(nil, nil, nil, nil, nil, false, nil, "Unable to load PDF document")
-            }
-        case .html where htmlMode == .preview:
-            await MainActor.run { finish(nil, nil, nil, nil, nil, false, nil, nil) }
-            Task.detached(priority: .utility) { [url, itemID] in
-                let content = try? TextFilePreviewReader.readPreview(from: url)
-                await MainActor.run {
-                    guard item.id == itemID else { return }
-                    if let content {
-                        textContent = content
-                    }
-                }
-            }
-        case .text, .markdown, .html:
-            do {
-                let content = try await Task.detached(priority: .userInitiated) {
-                    try TextFilePreviewReader.readPreview(from: url)
-                }.value
-                guard !Task.isCancelled else { return }
-                finish(nil, nil, nil, nil, nil, false, content, nil)
-            } catch {
-                guard !Task.isCancelled else { return }
-                if error is CancellationError { return }
-                finish(nil, nil, nil, nil, nil, false, nil, error.localizedDescription)
-            }
+            Text(session.imageSaveErrorMessage ?? "")
         }
     }
 }
 
-private enum TextFilePreviewReader {
-    static let maxCharacters = 20_000
-    
-    static func readPreview(from url: URL) throws -> String {
-        let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        
-        let maxBytes = min(max(fileSize, 0), maxCharacters * 4 + 16)
-        var data = handle.readData(ofLength: maxBytes)
-        while !data.isEmpty, String(data: data, encoding: .utf8) == nil {
-            data.removeLast()
-        }
-        
-        guard var content = String(data: data, encoding: .utf8) else {
-            throw CocoaError(.fileReadInapplicableStringEncoding)
-        }
-        
-        if content.count > maxCharacters {
-            content = String(content.prefix(maxCharacters)) + "\n\n[Content truncated...]"
-        } else if fileSize > data.count {
-            content += "\n\n[Content truncated...]"
-        }
-        
-        return content
-    }
-}
 
 enum ImageZoomAction: Equatable {
     case fit
@@ -7719,14 +6570,6 @@ private enum TextSyntaxHighlighter {
     private static let vueStringRegex = try! NSRegularExpression(pattern: #""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`"#)
 }
 
-private struct ArchiveEntryPreview: Identifiable, Equatable {
-    let path: String
-    let isDirectory: Bool
-    let size: Int64?
-
-    var id: String { path }
-}
-
 private struct ArchiveListPreview: View {
     let entries: [ArchiveEntryPreview]
     let truncated: Bool
@@ -7995,127 +6838,7 @@ enum OfficeNavigationAction: Equatable {
     case bottom
 }
 
-private struct ImageEditSnapshot: Equatable {
-    var rotationQuarterTurns: Int
-    var flipHorizontal: Bool
-    var flipVertical: Bool
-    var resizeTargetSize: CGSize?
-    var zoomScale: CGFloat
-}
-
-private struct PreviewToolbarOverflowModel: Identifiable {
-    let id: String
-    let menuTitle: String
-    let menuSystemImage: String
-    var isDisabled: Bool
-    let estimatedWidth: CGFloat
-    let menuAction: () -> Void
-    let content: AnyView
-}
-
-private struct PreviewToolbarItemWidthPreference: PreferenceKey {
-    static var defaultValue: [String: CGFloat] = [:]
-
-    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
-        value.merge(nextValue(), uniquingKeysWith: { max($0, $1) })
-    }
-}
-
-private struct PreviewToolbarOverflowLayout: View {
-    let spacing: CGFloat
-    let items: [PreviewToolbarOverflowModel]
-
-    @State private var measuredWidths: [String: CGFloat] = [:]
-
-    private func itemWidth(_ item: PreviewToolbarOverflowModel) -> CGFloat {
-        if let measured = measuredWidths[item.id], measured > 0 {
-            return measured
-        }
-        return item.estimatedWidth
-    }
-
-    private func fittingCount(for availableWidth: CGFloat) -> Int {
-        guard !items.isEmpty else { return 0 }
-
-        let menuReserve: CGFloat = 24
-
-        func countFit(budget: CGFloat) -> Int {
-            guard budget > 0 else { return 0 }
-            var used: CGFloat = 0
-            var count = 0
-            for item in items {
-                let addition = (count == 0 ? 0 : spacing) + itemWidth(item)
-                if used + addition <= budget + 0.5 {
-                    used += addition
-                    count += 1
-                } else {
-                    break
-                }
-            }
-            return count
-        }
-
-        let fitAll = countFit(budget: availableWidth)
-        if fitAll >= items.count {
-            return items.count
-        }
-
-        let fitWithMenu = countFit(budget: max(0, availableWidth - menuReserve - spacing))
-        if fitWithMenu > 0 {
-            return fitWithMenu
-        }
-
-        return 0
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            let availableWidth = max(0, proxy.size.width)
-            let visibleCount = fittingCount(for: availableWidth)
-            let hasOverflow = visibleCount < items.count
-
-            HStack(spacing: spacing) {
-                ForEach(Array(items.prefix(visibleCount))) { item in
-                    item.content
-                        .fixedSize()
-                        .background(
-                            GeometryReader { itemProxy in
-                                Color.clear.preference(
-                                    key: PreviewToolbarItemWidthPreference.self,
-                                    value: [item.id: itemProxy.size.width]
-                                )
-                            }
-                        )
-                }
-
-                if hasOverflow {
-                    Menu {
-                        ForEach(Array(items.dropFirst(visibleCount))) { item in
-                            Button(action: item.menuAction) {
-                                Label(item.menuTitle, systemImage: item.menuSystemImage)
-                            }
-                            .disabled(item.isDisabled)
-                        }
-                    } label: {
-                        Image(systemName: "chevron.down")
-                    }
-                    .menuIndicator(.hidden)
-                    .buttonStyle(.borderless)
-                    .help("更多操作")
-                    .fixedSize()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .clipped()
-        }
-        .frame(minWidth: 0, maxWidth: .infinity)
-        .frame(height: PanelTopBarMetrics.contentHeight)
-        .clipped()
-        .onPreferenceChange(PreviewToolbarItemWidthPreference.self) { measuredWidths = $0 }
-    }
-}
-
-private struct ImageResizeSheet: View {
+struct ImageResizeSheet: View {
     let aspectWidth: Int
     let aspectHeight: Int
     let onCancel: () -> Void
@@ -8277,7 +7000,7 @@ private struct ImageResizeSheet: View {
     }
 }
 
-private enum ImagePreviewSaveError: LocalizedError {
+enum ImagePreviewSaveError: LocalizedError {
     case unableToEncode
     case unableToWrite
 
@@ -8291,7 +7014,7 @@ private enum ImagePreviewSaveError: LocalizedError {
     }
 }
 
-private enum ImagePreviewTransformApplier {
+enum ImagePreviewTransformApplier {
     static func pixelSize(of image: NSImage) -> CGSize {
         if let rep = image.representations.first, rep.pixelsWide > 0, rep.pixelsHigh > 0 {
             return CGSize(width: rep.pixelsWide, height: rep.pixelsHigh)

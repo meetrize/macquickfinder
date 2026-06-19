@@ -3,6 +3,7 @@ import SwiftUI
 struct RightPanelStackView: View {
     @ObservedObject var layout: ExplorerWindowLayoutState
 
+    let hostWindowID: UUID
     let selection: Set<FileItem.ID>
     let items: [FileItem]
     let cwd: String
@@ -35,6 +36,7 @@ struct RightPanelStackView: View {
             VStack(spacing: 0) {
                 if layout.showPreview {
                     FilePreviewView(
+                        hostWindowID: hostWindowID,
                         showPreview: $layout.showPreview,
                         layout: layout,
                         selection: selection,
