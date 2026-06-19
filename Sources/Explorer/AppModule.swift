@@ -6,6 +6,7 @@ import PDFKit
 import AVKit
 import QuickLookUI
 import UniformTypeIdentifiers
+import ImageIO
 import WebKit
 import FileList
 
@@ -4963,6 +4964,17 @@ struct FilePreviewView: View {
     @State private var imageZoomScale: CGFloat = 1.0
     @State private var imageZoomAction: ImageZoomAction? = nil
     @State private var imageEffectiveZoomPercent: Int = 0
+    @State private var imageRotationQuarterTurns: Int = 0
+    @State private var imageFlipHorizontal: Bool = false
+    @State private var imageFlipVertical: Bool = false
+    @State private var imagePreviewAction: ImagePreviewAction? = nil
+    @State private var imageEyedropperActive: Bool = false
+    @State private var imagePickedWebColor: String? = nil
+    @State private var imageResizeTargetSize: CGSize? = nil
+    @State private var imageSourcePixelSize: CGSize = .zero
+    @State private var showImageResizeSheet: Bool = false
+    @State private var imageEditUndoStack: [ImageEditSnapshot] = []
+    @State private var imageEditUndoClearNonce: Int = 0
     @State private var pdfCurrentPage: Int = 0
     @State private var pdfPageCount: Int = 0
     @State private var pdfScalePercent: Int = 0
@@ -5004,6 +5016,52 @@ struct FilePreviewView: View {
         guard let item = previewContentItem, !item.isDirectory else { return nil }
         return item
     }
+
+    private var hasImageEdits: Bool {
+        imageRotationQuarterTurns != 0
+            || imageFlipHorizontal
+            || imageFlipVertical
+            || hasImageResizeEdit
+    }
+
+    private var hasImageResizeEdit: Bool {
+        guard let target = imageResizeTargetSize else { return false }
+        let oriented = imageEffectiveOrientedPixelSize
+        guard oriented.width > 0, oriented.height > 0 else { return false }
+        return Int(target.width.rounded()) != Int(oriented.width.rounded())
+            || Int(target.height.rounded()) != Int(oriented.height.rounded())
+    }
+
+    private var imageEffectiveOrientedPixelSize: CGSize {
+        let source = imageSourcePixelSize
+        guard source.width > 0, source.height > 0 else { return .zero }
+        let turns = ((imageRotationQuarterTurns % 4) + 4) % 4
+        if turns % 2 != 0 {
+            return CGSize(width: source.height, height: source.width)
+        }
+        return source
+    }
+
+    private var imageResizeDialogSize: (width: Int, height: Int) {
+        let oriented = imageEffectiveOrientedPixelSize
+        if let target = imageResizeTargetSize {
+            return (
+                max(1, Int(target.width.rounded())),
+                max(1, Int(target.height.rounded()))
+            )
+        }
+        return (
+            max(1, Int(oriented.width.rounded())),
+            max(1, Int(oriented.height.rounded()))
+        )
+    }
+
+    private var previewToolbarTitleMaxWidth: CGFloat {
+        if isShowingFolderChildPreview {
+            return 56
+        }
+        return 72
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -5032,323 +5090,21 @@ struct FilePreviewView: View {
                     .font(.callout)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                
-                Spacer(minLength: 0)
-                
-                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isImageFile(item) {
-                    Button {
-                        imageZoomScale = min(imageZoomScale + 0.25, 5.0)
-                    } label: {
-                        Image(systemName: "plus.magnifyingglass")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("放大")
-                    
-                    Button {
-                        imageZoomScale = max(imageZoomScale - 0.25, 0.1)
-                    } label: {
-                        Image(systemName: "minus.magnifyingglass")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("缩小")
-                    .disabled(imageZoomScale <= 0.1)
+                    .frame(minWidth: 0, maxWidth: previewToolbarTitleMaxWidth, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(-1)
 
-                    Button {
-                        imageZoomAction = .fit
-                    } label: {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("适配窗口")
-
-                    Button {
-                        imageZoomAction = .actualSize
-                    } label: {
-                        Image(systemName: "1.magnifyingglass")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("原始大小")
-
-                    Text(imageEffectiveZoomPercent > 0 ? "\(imageEffectiveZoomPercent)%" : "--")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .frame(minWidth: 62, alignment: .center)
+                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem {
+                    PreviewToolbarOverflowLayout(
+                        spacing: 4,
+                        items: previewToolbarItems(for: item)
+                    )
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .trailing)
+                    .layoutPriority(1)
+                } else {
+                    Spacer(minLength: 0)
                 }
 
-                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isPDFFile(item) {
-                    Button {
-                        pdfNavigateAction = .previous
-                    } label: {
-                        Image(systemName: "chevron.left")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("上一页")
-                    .disabled(pdfCurrentPage <= 1)
-
-                    Button {
-                        pdfNavigateAction = .zoomOut
-                    } label: {
-                        Image(systemName: "minus.magnifyingglass")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("缩小")
-                    .disabled(pdfScalePercent > 0 && pdfScalePercent <= 25)
-
-                    HStack(spacing: 4) {
-                        TextField("", text: $pdfPageInput)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.caption)
-                            .frame(width: 44)
-                            .onSubmit {
-                                let trimmed = pdfPageInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard let page = Int(trimmed), pdfPageCount > 0 else {
-                                    pdfPageInput = pdfCurrentPage > 0 ? "\(pdfCurrentPage)" : ""
-                                    return
-                                }
-                                let clamped = min(max(page, 1), pdfPageCount)
-                                pdfNavigateAction = .goToPage(clamped)
-                            }
-
-                        Text("/\(pdfPageCount > 0 ? "\(pdfPageCount)" : "--")")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(minWidth: 74, alignment: .center)
-
-                    Text(pdfScalePercent > 0 ? "\(pdfScalePercent)%" : "--")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .frame(minWidth: 56, alignment: .center)
-
-                    Button {
-                        pdfNavigateAction = .zoomIn
-                    } label: {
-                        Image(systemName: "plus.magnifyingglass")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("放大")
-                    .disabled(pdfScalePercent >= 500)
-
-                    Button {
-                        pdfNavigateAction = .fitWidth
-                    } label: {
-                        Image(systemName: "arrow.left.and.right.square")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("适配宽度")
-
-                    Button {
-                        pdfNavigateAction = .fitPage
-                    } label: {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("整页适配")
-
-                    Button {
-                        pdfNavigateAction = .next
-                    } label: {
-                        Image(systemName: "chevron.right")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("下一页")
-                    .disabled(pdfPageCount == 0 || pdfCurrentPage >= pdfPageCount)
-                }
-
-                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isTextFile(item) {
-                    Button {
-                        textWrapEnabled.toggle()
-                    } label: {
-                        Image(systemName: textWrapEnabled ? "text.justify.left" : "arrow.left.and.right.text.vertical")
-                    }
-                    .buttonStyle(.borderless)
-                    .help(textWrapEnabled ? "关闭自动换行" : "开启自动换行")
-
-                    if isMarkdownFile(item) {
-                        Button {
-                            markdownMode = .preview
-                        } label: {
-                            Image(systemName: markdownMode == .preview ? "eye.fill" : "eye")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("预览模式")
-
-                        Button {
-                            markdownMode = .source
-                        } label: {
-                            Image(systemName: markdownMode == .source ? "doc.plaintext.fill" : "doc.plaintext")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("源码模式")
-
-                        if markdownMode == .preview {
-                            Button {
-                                markdownPreviewScale = min(markdownPreviewScale + 0.1, 3.0)
-                            } label: {
-                                Image(systemName: "plus.magnifyingglass")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("放大（整体）")
-
-                            Button {
-                                markdownPreviewScale = max(markdownPreviewScale - 0.1, 0.5)
-                            } label: {
-                                Image(systemName: "minus.magnifyingglass")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("缩小（整体）")
-                            .disabled(markdownPreviewScale <= 0.5)
-
-                            Text("\(Int((markdownPreviewScale * 100).rounded()))%")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(minWidth: 56, alignment: .center)
-                        } else {
-                            Button {
-                                markdownSourceFontSize = min(markdownSourceFontSize + 1, 28)
-                            } label: {
-                                Image(systemName: "plus.magnifyingglass")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("放大字体")
-
-                            Button {
-                                markdownSourceFontSize = max(markdownSourceFontSize - 1, 9)
-                            } label: {
-                                Image(systemName: "minus.magnifyingglass")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("缩小字体")
-                            .disabled(markdownSourceFontSize <= 9)
-
-                            Text("\(Int(markdownSourceFontSize.rounded()))pt")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(minWidth: 56, alignment: .center)
-                        }
-                    }
-
-                    if isHtmlFile(item) {
-                        Button {
-                            htmlMode = .preview
-                        } label: {
-                            Image(systemName: htmlMode == .preview ? "globe.americas.fill" : "globe.americas")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("HTML 解析预览")
-
-                        Button {
-                            htmlMode = .source
-                        } label: {
-                            Image(systemName: htmlMode == .source ? "doc.plaintext.fill" : "doc.plaintext")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("源码模式")
-                    }
-
-                    Button {
-                        textPreviewAction = .copyAll
-                    } label: {
-                        Image(systemName: "doc.on.doc")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("复制全文")
-
-                    Button {
-                        textPreviewAction = .scrollTop
-                    } label: {
-                        Image(systemName: "arrow.up.to.line")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("跳转顶部")
-
-                    Button {
-                        textPreviewAction = .scrollBottom
-                    } label: {
-                        Image(systemName: "arrow.down.to.line")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("跳转底部")
-                }
-
-                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isMediaFile(item) {
-                    Button {
-                        mediaControlAction = .togglePlayPause
-                    } label: {
-                        Image(systemName: mediaIsPlaying ? "pause.fill" : "play.fill")
-                    }
-                    .buttonStyle(.borderless)
-                    .help(mediaIsPlaying ? "暂停" : "播放")
-
-                    Button {
-                        mediaControlAction = .toggleMute
-                    } label: {
-                        Image(systemName: mediaIsMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    }
-                    .buttonStyle(.borderless)
-                    .help(mediaIsMuted ? "取消静音" : "静音")
-                }
-
-                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isOfficeFile(item) {
-                    Button {
-                        officeNavigateAction = .pageUp
-                    } label: {
-                        Image(systemName: "chevron.left")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("上一页（滚动）")
-
-                    Button {
-                        officeNavigateAction = .pageDown
-                    } label: {
-                        Image(systemName: "chevron.right")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("下一页（滚动）")
-
-                    Button {
-                        NSWorkspace.shared.open(item.url)
-                    } label: {
-                        Image(systemName: "arrow.up.forward.app")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("用默认应用打开")
-
-                    Button {
-                        officeReloadToken += 1
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("刷新预览")
-                }
-
-                if !layout.isPreviewContentCollapsed, let item = toolbarFileItem, isArchiveFile(item) {
-                    Button {
-                        archiveReloadToken += 1
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("刷新目录")
-
-                    Button {
-                        archiveExpanded.toggle()
-                    } label: {
-                        Image(systemName: archiveExpanded ? "chevron.down" : "chevron.right")
-                    }
-                    .buttonStyle(.borderless)
-                    .help(archiveExpanded ? "折叠到第一层" : "展开到全部层级")
-
-                    Button {
-                        archiveCopyAction = .copyList
-                    } label: {
-                        Image(systemName: "doc.on.doc")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("复制清单")
-                }
-                
                 Button {
                     showPreview = false
                 } label: {
@@ -5356,9 +5112,12 @@ struct FilePreviewView: View {
                 }
                 .buttonStyle(.borderless)
                 .help("关闭预览")
+                .fixedSize()
+                .layoutPriority(2)
             }
             .frame(height: PanelTopBarMetrics.contentHeight)
             .frame(maxWidth: .infinity)
+            .clipped()
             .padding(.horizontal, 10)
             .padding(.vertical, PanelTopBarMetrics.verticalPadding)
             
@@ -5372,6 +5131,15 @@ struct FilePreviewView: View {
                             imageZoomScale: $imageZoomScale,
                             imageZoomAction: $imageZoomAction,
                             imageEffectiveZoomPercent: $imageEffectiveZoomPercent,
+                            imageRotationQuarterTurns: $imageRotationQuarterTurns,
+                            imageFlipHorizontal: $imageFlipHorizontal,
+                            imageFlipVertical: $imageFlipVertical,
+                            imagePreviewAction: $imagePreviewAction,
+                            imageEyedropperActive: $imageEyedropperActive,
+                            imagePickedWebColor: $imagePickedWebColor,
+                            imageResizeTargetSize: $imageResizeTargetSize,
+                            imageSourcePixelSize: $imageSourcePixelSize,
+                            imageEditUndoClearNonce: $imageEditUndoClearNonce,
                             textWrapEnabled: $textWrapEnabled,
                             textPreviewAction: $textPreviewAction,
                             mediaControlAction: $mediaControlAction,
@@ -5415,6 +5183,15 @@ struct FilePreviewView: View {
                             imageZoomScale: $imageZoomScale,
                             imageZoomAction: $imageZoomAction,
                             imageEffectiveZoomPercent: $imageEffectiveZoomPercent,
+                            imageRotationQuarterTurns: $imageRotationQuarterTurns,
+                            imageFlipHorizontal: $imageFlipHorizontal,
+                            imageFlipVertical: $imageFlipVertical,
+                            imagePreviewAction: $imagePreviewAction,
+                            imageEyedropperActive: $imageEyedropperActive,
+                            imagePickedWebColor: $imagePickedWebColor,
+                            imageResizeTargetSize: $imageResizeTargetSize,
+                            imageSourcePixelSize: $imageSourcePixelSize,
+                            imageEditUndoClearNonce: $imageEditUndoClearNonce,
                             textWrapEnabled: $textWrapEnabled,
                             textPreviewAction: $textPreviewAction,
                             mediaControlAction: $mediaControlAction,
@@ -5458,12 +5235,611 @@ struct FilePreviewView: View {
                 pdfPageInput = ""
             }
         }
+        .sheet(isPresented: $showImageResizeSheet) {
+            let dialogSize = imageResizeDialogSize
+            let oriented = imageEffectiveOrientedPixelSize
+            ImageResizeSheet(
+                initialWidth: dialogSize.width,
+                initialHeight: dialogSize.height,
+                aspectWidth: max(1, Int(oriented.width.rounded())),
+                aspectHeight: max(1, Int(oriented.height.rounded())),
+                onCancel: { showImageResizeSheet = false },
+                onApply: { width, height in
+                    performImageEdit {
+                        imageResizeTargetSize = CGSize(width: width, height: height)
+                    }
+                    showImageResizeSheet = false
+                }
+            )
+        }
+        .onChange(of: imageEditUndoClearNonce) { _ in
+            imageEditUndoStack.removeAll()
+        }
+    }
+
+    private func pushImageEditUndoSnapshot() {
+        imageEditUndoStack.append(
+            ImageEditSnapshot(
+                rotationQuarterTurns: imageRotationQuarterTurns,
+                flipHorizontal: imageFlipHorizontal,
+                flipVertical: imageFlipVertical,
+                resizeTargetSize: imageResizeTargetSize,
+                zoomScale: imageZoomScale
+            )
+        )
+        if imageEditUndoStack.count > 100 {
+            imageEditUndoStack.removeFirst(imageEditUndoStack.count - 100)
+        }
+    }
+
+    private func performImageEdit(_ action: () -> Void) {
+        pushImageEditUndoSnapshot()
+        action()
+    }
+
+    private func undoLastImageEdit() {
+        guard let snapshot = imageEditUndoStack.popLast() else { return }
+        imageRotationQuarterTurns = snapshot.rotationQuarterTurns
+        imageFlipHorizontal = snapshot.flipHorizontal
+        imageFlipVertical = snapshot.flipVertical
+        imageResizeTargetSize = snapshot.resizeTargetSize
+        imageZoomScale = snapshot.zoomScale
+    }
+
+    private func previewToolbarIconItem(
+        id: String,
+        title: String,
+        systemImage: String,
+        isDisabled: Bool = false,
+        action: @escaping () -> Void
+    ) -> PreviewToolbarOverflowModel {
+        PreviewToolbarOverflowModel(
+            id: id,
+            menuTitle: title,
+            menuSystemImage: systemImage,
+            isDisabled: isDisabled,
+            estimatedWidth: 20,
+            menuAction: action,
+            content: AnyView(
+                Button(action: action) {
+                    Image(systemName: systemImage)
+                }
+                .buttonStyle(.borderless)
+                .disabled(isDisabled)
+                .help(title)
+            )
+        )
+    }
+
+    private func previewToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
+        if isImageFile(item) {
+            return previewImageToolbarItems(for: item)
+        }
+        if isPDFFile(item) {
+            return previewPDFToolbarItems()
+        }
+        if isTextFile(item) {
+            return previewTextToolbarItems(for: item)
+        }
+        if isMediaFile(item) {
+            return previewMediaToolbarItems()
+        }
+        if isOfficeFile(item) {
+            return previewOfficeToolbarItems(for: item)
+        }
+        if isArchiveFile(item) {
+            return previewArchiveToolbarItems()
+        }
+        return []
+    }
+
+    private func previewImageToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
+        var items: [PreviewToolbarOverflowModel] = [
+            PreviewToolbarOverflowModel(
+                id: "image-zoom",
+                menuTitle: "缩放",
+                menuSystemImage: "plus.magnifyingglass",
+                isDisabled: false,
+                estimatedWidth: 120,
+                menuAction: {},
+                content: AnyView(
+                    HStack(spacing: 2) {
+                        Button {
+                            imageZoomScale = max(imageZoomScale - 0.25, 0.1)
+                        } label: {
+                            Image(systemName: "minus.magnifyingglass")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("缩小")
+                        .disabled(imageZoomScale <= 0.1)
+
+                        Button {
+                            imageZoomScale = min(imageZoomScale + 0.25, 5.0)
+                        } label: {
+                            Image(systemName: "plus.magnifyingglass")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("放大")
+
+                        Button {
+                            imageZoomAction = .fit
+                        } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("适配窗口")
+
+                        Button {
+                            imageZoomAction = .actualSize
+                        } label: {
+                            Image(systemName: "1.magnifyingglass")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("原始大小")
+
+                        Text(imageEffectiveZoomPercent > 0 ? "\(imageEffectiveZoomPercent)%" : "--")
+                            .font(.caption.monospacedDigit())
+                            .foregroundColor(.secondary)
+                            .frame(minWidth: 36, alignment: .center)
+                    }
+                )
+            ),
+            previewToolbarIconItem(
+                id: "image-rotate-left",
+                title: "逆时针旋转",
+                systemImage: "rotate.left",
+                action: {
+                    performImageEdit {
+                        imageRotationQuarterTurns = (imageRotationQuarterTurns + 3) % 4
+                    }
+                }
+            ),
+            previewToolbarIconItem(
+                id: "image-rotate-right",
+                title: "顺时针旋转",
+                systemImage: "rotate.right",
+                action: {
+                    performImageEdit {
+                        imageRotationQuarterTurns = (imageRotationQuarterTurns + 1) % 4
+                    }
+                }
+            ),
+            previewToolbarIconItem(
+                id: "image-flip-horizontal",
+                title: "水平翻转",
+                systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right",
+                action: {
+                    performImageEdit {
+                        imageFlipHorizontal.toggle()
+                    }
+                }
+            ),
+            previewToolbarIconItem(
+                id: "image-flip-vertical",
+                title: "垂直翻转",
+                systemImage: "arrow.up.and.down.righttriangle.up.righttriangle.down",
+                action: {
+                    performImageEdit {
+                        imageFlipVertical.toggle()
+                    }
+                }
+            ),
+            previewToolbarIconItem(
+                id: "image-undo",
+                title: "撤销上一步",
+                systemImage: "arrow.uturn.backward",
+                isDisabled: imageEditUndoStack.isEmpty,
+                action: undoLastImageEdit
+            ),
+            previewToolbarIconItem(
+                id: "image-reset",
+                title: "重置视图",
+                systemImage: "arrow.counterclockwise",
+                action: resetImageViewTransform
+            ),
+            previewToolbarIconItem(
+                id: "image-resize",
+                title: "调整尺寸",
+                systemImage: "square.resize",
+                isDisabled: imageSourcePixelSize.width <= 0 || imageSourcePixelSize.height <= 0,
+                action: { showImageResizeSheet = true }
+            ),
+            previewToolbarIconItem(
+                id: "image-save",
+                title: "保存编辑结果",
+                systemImage: "square.and.arrow.down",
+                isDisabled: !hasImageEdits,
+                action: { imagePreviewAction = .save }
+            ),
+            PreviewToolbarOverflowModel(
+                id: "image-eyedropper",
+                menuTitle: "取色棒",
+                menuSystemImage: "eyedropper",
+                isDisabled: false,
+                estimatedWidth: 20,
+                menuAction: { imageEyedropperActive.toggle() },
+                content: AnyView(
+                    Button {
+                        imageEyedropperActive.toggle()
+                    } label: {
+                        Image(systemName: "eyedropper")
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(
+                                imageEyedropperActive ? Color.accentColor : Color.primary,
+                                Color.primary
+                            )
+                    }
+                    .buttonStyle(.borderless)
+                    .help("取色棒（点击图像复制 Web 颜色）")
+                )
+            ),
+            previewToolbarIconItem(
+                id: "image-copy",
+                title: "复制图片",
+                systemImage: "doc.on.doc",
+                action: { copyImageToPasteboard(item) }
+            ),
+            previewToolbarIconItem(
+                id: "image-open",
+                title: "用默认应用打开",
+                systemImage: "arrow.up.forward.app",
+                action: { NSWorkspace.shared.open(item.url) }
+            ),
+        ]
+
+        if let hex = imagePickedWebColor {
+            items.insert(
+                PreviewToolbarOverflowModel(
+                    id: "image-color",
+                    menuTitle: "颜色 \(hex)",
+                    menuSystemImage: "eyedropper.half.filled",
+                    isDisabled: false,
+                    estimatedWidth: 72,
+                    menuAction: {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(hex, forType: .string)
+                    },
+                    content: AnyView(
+                        HStack(spacing: 4) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(colorFromWebHex(hex))
+                                .frame(width: 14, height: 14)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
+                                )
+                            Text(hex)
+                                .font(.caption.monospaced())
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                        .help("已复制到剪贴板")
+                    )
+                ),
+                at: items.count - 2
+            )
+        }
+
+        return items
+    }
+
+    private func previewPDFToolbarItems() -> [PreviewToolbarOverflowModel] {
+        [
+            previewToolbarIconItem(
+                id: "pdf-prev",
+                title: "上一页",
+                systemImage: "chevron.left",
+                isDisabled: pdfCurrentPage <= 1,
+                action: { pdfNavigateAction = .previous }
+            ),
+            previewToolbarIconItem(
+                id: "pdf-zoom-out",
+                title: "缩小",
+                systemImage: "minus.magnifyingglass",
+                isDisabled: pdfScalePercent > 0 && pdfScalePercent <= 25,
+                action: { pdfNavigateAction = .zoomOut }
+            ),
+            PreviewToolbarOverflowModel(
+                id: "pdf-page",
+                menuTitle: "页码",
+                menuSystemImage: "number",
+                isDisabled: false,
+                estimatedWidth: 82,
+                menuAction: {},
+                content: AnyView(
+                    HStack(spacing: 4) {
+                        TextField("", text: $pdfPageInput)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.caption)
+                            .frame(width: 44)
+                            .onSubmit {
+                                let trimmed = pdfPageInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard let page = Int(trimmed), pdfPageCount > 0 else {
+                                    pdfPageInput = pdfCurrentPage > 0 ? "\(pdfCurrentPage)" : ""
+                                    return
+                                }
+                                let clamped = min(max(page, 1), pdfPageCount)
+                                pdfNavigateAction = .goToPage(clamped)
+                            }
+
+                        Text("/\(pdfPageCount > 0 ? "\(pdfPageCount)" : "--")")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(minWidth: 74, alignment: .center)
+                )
+            ),
+            PreviewToolbarOverflowModel(
+                id: "pdf-scale",
+                menuTitle: "缩放比例",
+                menuSystemImage: "percent",
+                isDisabled: false,
+                estimatedWidth: 44,
+                menuAction: {},
+                content: AnyView(
+                    Text(pdfScalePercent > 0 ? "\(pdfScalePercent)%" : "--")
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.secondary)
+                        .frame(minWidth: 44, alignment: .center)
+                )
+            ),
+            previewToolbarIconItem(
+                id: "pdf-zoom-in",
+                title: "放大",
+                systemImage: "plus.magnifyingglass",
+                isDisabled: pdfScalePercent >= 500,
+                action: { pdfNavigateAction = .zoomIn }
+            ),
+            previewToolbarIconItem(
+                id: "pdf-fit-width",
+                title: "适配宽度",
+                systemImage: "arrow.left.and.right.square",
+                action: { pdfNavigateAction = .fitWidth }
+            ),
+            previewToolbarIconItem(
+                id: "pdf-fit-page",
+                title: "整页适配",
+                systemImage: "arrow.up.left.and.arrow.down.right",
+                action: { pdfNavigateAction = .fitPage }
+            ),
+            previewToolbarIconItem(
+                id: "pdf-next",
+                title: "下一页",
+                systemImage: "chevron.right",
+                isDisabled: pdfPageCount == 0 || pdfCurrentPage >= pdfPageCount,
+                action: { pdfNavigateAction = .next }
+            ),
+        ]
+    }
+
+    private func previewTextToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
+        var items: [PreviewToolbarOverflowModel] = [
+            previewToolbarIconItem(
+                id: "text-wrap",
+                title: textWrapEnabled ? "关闭自动换行" : "开启自动换行",
+                systemImage: textWrapEnabled ? "text.justify.left" : "arrow.left.and.right.text.vertical",
+                action: { textWrapEnabled.toggle() }
+            ),
+        ]
+
+        if isMarkdownFile(item) {
+            items.append(
+                previewToolbarIconItem(
+                    id: "md-preview",
+                    title: "预览模式",
+                    systemImage: markdownMode == .preview ? "eye.fill" : "eye",
+                    action: { markdownMode = .preview }
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "md-source",
+                    title: "源码模式",
+                    systemImage: markdownMode == .source ? "doc.plaintext.fill" : "doc.plaintext",
+                    action: { markdownMode = .source }
+                )
+            )
+
+            if markdownMode == .preview {
+                items.append(
+                    previewToolbarIconItem(
+                        id: "md-zoom-in",
+                        title: "放大（整体）",
+                        systemImage: "plus.magnifyingglass",
+                        action: { markdownPreviewScale = min(markdownPreviewScale + 0.1, 3.0) }
+                    )
+                )
+                items.append(
+                    previewToolbarIconItem(
+                        id: "md-zoom-out",
+                        title: "缩小（整体）",
+                        systemImage: "minus.magnifyingglass",
+                        isDisabled: markdownPreviewScale <= 0.5,
+                        action: { markdownPreviewScale = max(markdownPreviewScale - 0.1, 0.5) }
+                    )
+                )
+                items.append(
+                    PreviewToolbarOverflowModel(
+                        id: "md-scale",
+                        menuTitle: "缩放比例",
+                        menuSystemImage: "percent",
+                        isDisabled: false,
+                        estimatedWidth: 44,
+                        menuAction: {},
+                        content: AnyView(
+                            Text("\(Int((markdownPreviewScale * 100).rounded()))%")
+                                .font(.caption.monospacedDigit())
+                                .foregroundColor(.secondary)
+                                .frame(minWidth: 44, alignment: .center)
+                        )
+                    )
+                )
+            } else {
+                items.append(
+                    previewToolbarIconItem(
+                        id: "md-font-up",
+                        title: "放大字体",
+                        systemImage: "plus.magnifyingglass",
+                        action: { markdownSourceFontSize = min(markdownSourceFontSize + 1, 28) }
+                    )
+                )
+                items.append(
+                    previewToolbarIconItem(
+                        id: "md-font-down",
+                        title: "缩小字体",
+                        systemImage: "minus.magnifyingglass",
+                        isDisabled: markdownSourceFontSize <= 9,
+                        action: { markdownSourceFontSize = max(markdownSourceFontSize - 1, 9) }
+                    )
+                )
+                items.append(
+                    PreviewToolbarOverflowModel(
+                        id: "md-font-size",
+                        menuTitle: "字体大小",
+                        menuSystemImage: "textformat.size",
+                        isDisabled: false,
+                        estimatedWidth: 44,
+                        menuAction: {},
+                        content: AnyView(
+                            Text("\(Int(markdownSourceFontSize.rounded()))pt")
+                                .font(.caption.monospacedDigit())
+                                .foregroundColor(.secondary)
+                                .frame(minWidth: 44, alignment: .center)
+                        )
+                    )
+                )
+            }
+        }
+
+        if isHtmlFile(item) {
+            items.append(
+                previewToolbarIconItem(
+                    id: "html-preview",
+                    title: "HTML 解析预览",
+                    systemImage: htmlMode == .preview ? "globe.americas.fill" : "globe.americas",
+                    action: { htmlMode = .preview }
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "html-source",
+                    title: "源码模式",
+                    systemImage: htmlMode == .source ? "doc.plaintext.fill" : "doc.plaintext",
+                    action: { htmlMode = .source }
+                )
+            )
+        }
+
+        items.append(
+            previewToolbarIconItem(
+                id: "text-copy",
+                title: "复制全文",
+                systemImage: "doc.on.doc",
+                action: { textPreviewAction = .copyAll }
+            )
+        )
+        items.append(
+            previewToolbarIconItem(
+                id: "text-top",
+                title: "跳转顶部",
+                systemImage: "arrow.up.to.line",
+                action: { textPreviewAction = .scrollTop }
+            )
+        )
+        items.append(
+            previewToolbarIconItem(
+                id: "text-bottom",
+                title: "跳转底部",
+                systemImage: "arrow.down.to.line",
+                action: { textPreviewAction = .scrollBottom }
+            )
+        )
+
+        return items
+    }
+
+    private func previewMediaToolbarItems() -> [PreviewToolbarOverflowModel] {
+        [
+            previewToolbarIconItem(
+                id: "media-play",
+                title: mediaIsPlaying ? "暂停" : "播放",
+                systemImage: mediaIsPlaying ? "pause.fill" : "play.fill",
+                action: { mediaControlAction = .togglePlayPause }
+            ),
+            previewToolbarIconItem(
+                id: "media-mute",
+                title: mediaIsMuted ? "取消静音" : "静音",
+                systemImage: mediaIsMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                action: { mediaControlAction = .toggleMute }
+            ),
+        ]
+    }
+
+    private func previewOfficeToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
+        [
+            previewToolbarIconItem(
+                id: "office-prev",
+                title: "上一页（滚动）",
+                systemImage: "chevron.left",
+                action: { officeNavigateAction = .pageUp }
+            ),
+            previewToolbarIconItem(
+                id: "office-next",
+                title: "下一页（滚动）",
+                systemImage: "chevron.right",
+                action: { officeNavigateAction = .pageDown }
+            ),
+            previewToolbarIconItem(
+                id: "office-open",
+                title: "用默认应用打开",
+                systemImage: "arrow.up.forward.app",
+                action: { NSWorkspace.shared.open(item.url) }
+            ),
+            previewToolbarIconItem(
+                id: "office-reload",
+                title: "刷新预览",
+                systemImage: "arrow.clockwise",
+                action: { officeReloadToken += 1 }
+            ),
+        ]
+    }
+
+    private func previewArchiveToolbarItems() -> [PreviewToolbarOverflowModel] {
+        [
+            previewToolbarIconItem(
+                id: "archive-reload",
+                title: "刷新目录",
+                systemImage: "arrow.clockwise",
+                action: { archiveReloadToken += 1 }
+            ),
+            previewToolbarIconItem(
+                id: "archive-expand",
+                title: archiveExpanded ? "折叠到第一层" : "展开到全部层级",
+                systemImage: archiveExpanded ? "chevron.down" : "chevron.right",
+                action: { archiveExpanded.toggle() }
+            ),
+            previewToolbarIconItem(
+                id: "archive-copy",
+                title: "复制清单",
+                systemImage: "doc.on.doc",
+                action: { archiveCopyAction = .copyList }
+            ),
+        ]
     }
     
     private func resetPreviewControls() {
         imageZoomScale = 1.0
         imageZoomAction = nil
         imageEffectiveZoomPercent = 0
+        imageRotationQuarterTurns = 0
+        imageFlipHorizontal = false
+        imageFlipVertical = false
+        imagePreviewAction = nil
+        imageEyedropperActive = false
+        imagePickedWebColor = nil
+        imageResizeTargetSize = nil
+        imageSourcePixelSize = .zero
+        imageEditUndoStack.removeAll()
         textWrapEnabled = true
         textPreviewAction = nil
         mediaControlAction = nil
@@ -5488,6 +5864,41 @@ struct FilePreviewView: View {
     private func isImageFile(_ item: FileItem) -> Bool {
         let ext = item.url.pathExtension.lowercased()
         return ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"].contains(ext)
+    }
+
+    private func resetImageViewTransform() {
+        performImageEdit {
+            imageZoomScale = 1.0
+            imageZoomAction = .fit
+            imageRotationQuarterTurns = 0
+            imageFlipHorizontal = false
+            imageFlipVertical = false
+            imageResizeTargetSize = nil
+        }
+    }
+
+    private func copyImageToPasteboard(_ item: FileItem) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        if let image = NSImage(contentsOf: item.url) {
+            pasteboard.writeObjects([image])
+        } else {
+            pasteboard.writeObjects([item.url as NSURL])
+        }
+    }
+
+    private func colorFromWebHex(_ hex: String) -> Color {
+        var text = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.hasPrefix("#") {
+            text.removeFirst()
+        }
+        guard text.count == 6, let value = UInt32(text, radix: 16) else {
+            return .clear
+        }
+        let red = Double((value >> 16) & 0xFF) / 255
+        let green = Double((value >> 8) & 0xFF) / 255
+        let blue = Double(value & 0xFF) / 255
+        return Color(red: red, green: green, blue: blue)
     }
 
     private func isPDFFile(_ item: FileItem) -> Bool {
@@ -5542,6 +5953,15 @@ struct FileContentView: View {
     @Binding var imageZoomScale: CGFloat
     @Binding var imageZoomAction: ImageZoomAction?
     @Binding var imageEffectiveZoomPercent: Int
+    @Binding var imageRotationQuarterTurns: Int
+    @Binding var imageFlipHorizontal: Bool
+    @Binding var imageFlipVertical: Bool
+    @Binding var imagePreviewAction: ImagePreviewAction?
+    @Binding var imageEyedropperActive: Bool
+    @Binding var imagePickedWebColor: String?
+    @Binding var imageResizeTargetSize: CGSize?
+    @Binding var imageSourcePixelSize: CGSize
+    @Binding var imageEditUndoClearNonce: Int
     @Binding var textWrapEnabled: Bool
     @Binding var textPreviewAction: TextPreviewAction?
     @Binding var mediaControlAction: MediaControlAction?
@@ -5570,6 +5990,7 @@ struct FileContentView: View {
     @State private var archiveTruncated: Bool = false
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
+    @State private var imageSaveErrorMessage: String? = nil
 
     private var isImagePreview: Bool {
         image != nil && !isLoading && errorMessage == nil
@@ -5607,7 +6028,13 @@ struct FileContentView: View {
                     image: image,
                     zoomScale: $imageZoomScale,
                     zoomAction: $imageZoomAction,
-                    effectiveZoomPercent: $imageEffectiveZoomPercent
+                    effectiveZoomPercent: $imageEffectiveZoomPercent,
+                    rotationQuarterTurns: $imageRotationQuarterTurns,
+                    flipHorizontal: $imageFlipHorizontal,
+                    flipVertical: $imageFlipVertical,
+                    resizeTargetSize: $imageResizeTargetSize,
+                    eyedropperActive: $imageEyedropperActive,
+                    pickedWebColor: $imagePickedWebColor
                 )
             } else if let pdfDoc = pdfDocument {
                 PDFPreview(
@@ -5682,6 +6109,14 @@ struct FileContentView: View {
             imageZoomScale = 1.0
             imageZoomAction = nil
             imageEffectiveZoomPercent = 0
+            imageRotationQuarterTurns = 0
+            imageFlipHorizontal = false
+            imageFlipVertical = false
+            imagePreviewAction = nil
+            imageEyedropperActive = false
+            imagePickedWebColor = nil
+            imageResizeTargetSize = nil
+            imageSaveErrorMessage = nil
             textPreviewAction = nil
             mediaControlAction = nil
             mediaIsPlaying = false
@@ -5700,11 +6135,116 @@ struct FileContentView: View {
                 Task { await loadTextContentIfNeeded() }
             }
         }
+        .onChange(of: imagePreviewAction) { action in
+            guard let action else { return }
+            switch action {
+            case .save:
+                Task { await saveEditedImage() }
+            }
+            DispatchQueue.main.async { imagePreviewAction = nil }
+        }
+        .alert("保存失败", isPresented: Binding(
+            get: { imageSaveErrorMessage != nil },
+            set: { if !$0 { imageSaveErrorMessage = nil } }
+        )) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(imageSaveErrorMessage ?? "")
+        }
     }
 
     private func isHtmlFile(_ item: FileItem) -> Bool {
         let ext = item.url.pathExtension.lowercased()
         return ext == "html" || ext == "htm"
+    }
+
+    private func saveEditedImage() async {
+        guard let sourceImage = image else { return }
+        let orientedSize = ImagePreviewTransformApplier.orientedPixelSize(
+            of: sourceImage,
+            rotationQuarterTurns: imageRotationQuarterTurns
+        )
+        let hasTransformEdits = imageRotationQuarterTurns != 0 || imageFlipHorizontal || imageFlipVertical
+        let hasResizeEdit: Bool = {
+            guard let target = imageResizeTargetSize else { return false }
+            return Int(target.width.rounded()) != Int(orientedSize.width.rounded())
+                || Int(target.height.rounded()) != Int(orientedSize.height.rounded())
+        }()
+        guard hasTransformEdits || hasResizeEdit else { return }
+
+        let confirmed = await MainActor.run { () -> Bool in
+            let alert = NSAlert()
+            alert.messageText = "保存编辑结果"
+            alert.informativeText = "将覆盖原文件「\(item.name)」。旋转、翻转与尺寸调整会一并写入。GIF 动图保存后可能变为静态图。"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "保存")
+            alert.addButton(withTitle: "取消")
+            return alert.runModal() == .alertFirstButtonReturn
+        }
+        guard confirmed else { return }
+
+        let rotation = imageRotationQuarterTurns
+        let flipH = imageFlipHorizontal
+        let flipV = imageFlipVertical
+        let resizeTarget = imageResizeTargetSize
+        let url = item.url
+        let itemID = item.id
+
+        let saveResult: Result<Void, Error> = await Task.detached(priority: .userInitiated) {
+            guard var transformed = ImagePreviewTransformApplier.apply(
+                to: sourceImage,
+                rotationQuarterTurns: rotation,
+                flipHorizontal: flipH,
+                flipVertical: flipV
+            ) else {
+                return .failure(ImagePreviewSaveError.unableToEncode)
+            }
+
+            if let resizeTarget {
+                let oriented = ImagePreviewTransformApplier.orientedPixelSize(
+                    of: sourceImage,
+                    rotationQuarterTurns: rotation
+                )
+                let targetWidth = Int(resizeTarget.width.rounded())
+                let targetHeight = Int(resizeTarget.height.rounded())
+                let orientedWidth = Int(oriented.width.rounded())
+                let orientedHeight = Int(oriented.height.rounded())
+                if targetWidth != orientedWidth || targetHeight != orientedHeight {
+                    guard let resized = ImagePreviewTransformApplier.resize(
+                        transformed,
+                        to: CGSize(width: targetWidth, height: targetHeight)
+                    ) else {
+                        return .failure(ImagePreviewSaveError.unableToEncode)
+                    }
+                    transformed = resized
+                }
+            }
+
+            do {
+                try ImagePreviewTransformApplier.write(transformed, to: url)
+                return .success(())
+            } catch {
+                return .failure(error)
+            }
+        }.value
+
+        await MainActor.run {
+            guard item.id == itemID else { return }
+            switch saveResult {
+            case .success:
+                imageRotationQuarterTurns = 0
+                imageFlipHorizontal = false
+                imageFlipVertical = false
+                imageResizeTargetSize = nil
+                imageZoomScale = 1.0
+                imageZoomAction = .fit
+                imageSaveErrorMessage = nil
+                imageEditUndoClearNonce += 1
+                Task { await loadContent() }
+            case .failure(let error):
+                imageSaveErrorMessage = error.localizedDescription
+            }
+        }
     }
 
     private func loadTextContentIfNeeded() async {
@@ -5769,13 +6309,16 @@ struct FileContentView: View {
             if let imageData {
                 guard let decodedImage = NSImage(data: imageData) else {
                     image = nil
+                    imageSourcePixelSize = .zero
                     errorMessage = "Unable to decode image format"
                     isLoading = false
                     return
                 }
                 image = decodedImage
+                imageSourcePixelSize = ImagePreviewTransformApplier.pixelSize(of: decodedImage)
             } else {
                 image = nil
+                imageSourcePixelSize = .zero
             }
             if let pdfData {
                 guard let decodedPDF = PDFDocument(data: pdfData) else {
@@ -6011,6 +6554,10 @@ private enum TextFilePreviewReader {
 enum ImageZoomAction: Equatable {
     case fit
     case actualSize
+}
+
+enum ImagePreviewAction: Equatable {
+    case save
 }
 
 enum TextPreviewAction: Equatable {
@@ -7287,11 +7834,502 @@ enum OfficeNavigationAction: Equatable {
     case bottom
 }
 
+private struct ImageEditSnapshot: Equatable {
+    var rotationQuarterTurns: Int
+    var flipHorizontal: Bool
+    var flipVertical: Bool
+    var resizeTargetSize: CGSize?
+    var zoomScale: CGFloat
+}
+
+private struct PreviewToolbarOverflowModel: Identifiable {
+    let id: String
+    let menuTitle: String
+    let menuSystemImage: String
+    var isDisabled: Bool
+    let estimatedWidth: CGFloat
+    let menuAction: () -> Void
+    let content: AnyView
+}
+
+private struct PreviewToolbarItemWidthPreference: PreferenceKey {
+    static var defaultValue: [String: CGFloat] = [:]
+
+    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
+        value.merge(nextValue(), uniquingKeysWith: { max($0, $1) })
+    }
+}
+
+private struct PreviewToolbarOverflowLayout: View {
+    let spacing: CGFloat
+    let items: [PreviewToolbarOverflowModel]
+
+    @State private var measuredWidths: [String: CGFloat] = [:]
+
+    private func itemWidth(_ item: PreviewToolbarOverflowModel) -> CGFloat {
+        if let measured = measuredWidths[item.id], measured > 0 {
+            return measured
+        }
+        return item.estimatedWidth
+    }
+
+    private func fittingCount(for availableWidth: CGFloat) -> Int {
+        guard !items.isEmpty else { return 0 }
+
+        let menuReserve: CGFloat = 24
+
+        func countFit(budget: CGFloat) -> Int {
+            guard budget > 0 else { return 0 }
+            var used: CGFloat = 0
+            var count = 0
+            for item in items {
+                let addition = (count == 0 ? 0 : spacing) + itemWidth(item)
+                if used + addition <= budget + 0.5 {
+                    used += addition
+                    count += 1
+                } else {
+                    break
+                }
+            }
+            return count
+        }
+
+        let fitAll = countFit(budget: availableWidth)
+        if fitAll >= items.count {
+            return items.count
+        }
+
+        let fitWithMenu = countFit(budget: max(0, availableWidth - menuReserve - spacing))
+        if fitWithMenu > 0 {
+            return fitWithMenu
+        }
+
+        return 0
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let availableWidth = max(0, proxy.size.width)
+            let visibleCount = fittingCount(for: availableWidth)
+            let hasOverflow = visibleCount < items.count
+
+            HStack(spacing: spacing) {
+                ForEach(Array(items.prefix(visibleCount))) { item in
+                    item.content
+                        .fixedSize()
+                        .background(
+                            GeometryReader { itemProxy in
+                                Color.clear.preference(
+                                    key: PreviewToolbarItemWidthPreference.self,
+                                    value: [item.id: itemProxy.size.width]
+                                )
+                            }
+                        )
+                }
+
+                if hasOverflow {
+                    Menu {
+                        ForEach(Array(items.dropFirst(visibleCount))) { item in
+                            Button(action: item.menuAction) {
+                                Label(item.menuTitle, systemImage: item.menuSystemImage)
+                            }
+                            .disabled(item.isDisabled)
+                        }
+                    } label: {
+                        Image(systemName: "chevron.down")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("更多操作")
+                    .fixedSize()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .clipped()
+        }
+        .frame(minWidth: 0, maxWidth: .infinity)
+        .frame(height: PanelTopBarMetrics.contentHeight)
+        .clipped()
+        .onPreferenceChange(PreviewToolbarItemWidthPreference.self) { measuredWidths = $0 }
+    }
+}
+
+private struct ImageResizeSheet: View {
+    let aspectWidth: Int
+    let aspectHeight: Int
+    let onCancel: () -> Void
+    let onApply: (Int, Int) -> Void
+
+    @State private var widthText: String
+    @State private var heightText: String
+    @State private var maintainAspectRatio = true
+    @State private var isSyncingFields = false
+
+    init(
+        initialWidth: Int,
+        initialHeight: Int,
+        aspectWidth: Int,
+        aspectHeight: Int,
+        onCancel: @escaping () -> Void,
+        onApply: @escaping (Int, Int) -> Void
+    ) {
+        let safeWidth = max(1, initialWidth)
+        let safeHeight = max(1, initialHeight)
+        self.aspectWidth = max(1, aspectWidth)
+        self.aspectHeight = max(1, aspectHeight)
+        self.onCancel = onCancel
+        self.onApply = onApply
+        _widthText = State(initialValue: "\(safeWidth)")
+        _heightText = State(initialValue: "\(safeHeight)")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("调整图片尺寸")
+                .font(.headline)
+
+            Text("按像素设置输出尺寸。确认后需点击「保存编辑结果」写入文件。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Toggle("保持宽高比", isOn: $maintainAspectRatio)
+                .toggleStyle(.checkbox)
+                .onChange(of: maintainAspectRatio) { isLocked in
+                    guard isLocked else { return }
+                    syncHeightFromWidth()
+                }
+
+            HStack(spacing: 12) {
+                dimensionField(title: "宽度", text: widthBinding)
+                Text("×")
+                    .foregroundStyle(.secondary)
+                dimensionField(title: "高度", text: heightBinding)
+            }
+
+            if let message = validationMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            HStack {
+                Spacer()
+                Button("取消", action: onCancel)
+                    .keyboardShortcut(.cancelAction)
+                Button("确定") {
+                    guard let size = parsedSize else { return }
+                    onApply(size.width, size.height)
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(parsedSize == nil)
+            }
+        }
+        .padding(20)
+        .frame(width: 360)
+    }
+
+    private var widthBinding: Binding<String> {
+        Binding(
+            get: { widthText },
+            set: { newValue in
+                widthText = sanitizedDigits(from: newValue)
+                if maintainAspectRatio {
+                    syncHeightFromWidth()
+                }
+            }
+        )
+    }
+
+    private var heightBinding: Binding<String> {
+        Binding(
+            get: { heightText },
+            set: { newValue in
+                heightText = sanitizedDigits(from: newValue)
+                if maintainAspectRatio {
+                    syncWidthFromHeight()
+                }
+            }
+        )
+    }
+
+    private var parsedSize: (width: Int, height: Int)? {
+        guard let width = Int(widthText), let height = Int(heightText) else { return nil }
+        guard width > 0, height > 0, width <= 65_535, height <= 65_535 else { return nil }
+        return (width, height)
+    }
+
+    private var validationMessage: String? {
+        if widthText.isEmpty || heightText.isEmpty {
+            return "请输入宽度和高度"
+        }
+        guard let width = Int(widthText), let height = Int(heightText) else {
+            return "请输入有效的像素数值"
+        }
+        if width <= 0 || height <= 0 {
+            return "宽度和高度必须大于 0"
+        }
+        if width > 65_535 || height > 65_535 {
+            return "单边像素不能超过 65535"
+        }
+        return nil
+    }
+
+    @ViewBuilder
+    private func dimensionField(title: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                TextField("", text: text)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 96)
+                    .multilineTextAlignment(.trailing)
+                Text("px")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func sanitizedDigits(from value: String) -> String {
+        String(value.filter(\.isNumber))
+    }
+
+    private func syncHeightFromWidth() {
+        guard !isSyncingFields else { return }
+        guard let width = Int(widthText), width > 0, aspectWidth > 0 else { return }
+        isSyncingFields = true
+        let height = max(1, Int((Double(width) * Double(aspectHeight) / Double(aspectWidth)).rounded()))
+        heightText = "\(height)"
+        isSyncingFields = false
+    }
+
+    private func syncWidthFromHeight() {
+        guard !isSyncingFields else { return }
+        guard let height = Int(heightText), height > 0, aspectHeight > 0 else { return }
+        isSyncingFields = true
+        let width = max(1, Int((Double(height) * Double(aspectWidth) / Double(aspectHeight)).rounded()))
+        widthText = "\(width)"
+        isSyncingFields = false
+    }
+}
+
+private enum ImagePreviewSaveError: LocalizedError {
+    case unableToEncode
+    case unableToWrite
+
+    var errorDescription: String? {
+        switch self {
+        case .unableToEncode:
+            return "无法编码图片"
+        case .unableToWrite:
+            return "无法写入文件"
+        }
+    }
+}
+
+private enum ImagePreviewTransformApplier {
+    static func pixelSize(of image: NSImage) -> CGSize {
+        if let rep = image.representations.first, rep.pixelsWide > 0, rep.pixelsHigh > 0 {
+            return CGSize(width: rep.pixelsWide, height: rep.pixelsHigh)
+        }
+        if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            return CGSize(width: cgImage.width, height: cgImage.height)
+        }
+        return image.size
+    }
+
+    static func orientedPixelSize(of image: NSImage, rotationQuarterTurns: Int) -> CGSize {
+        let source = pixelSize(of: image)
+        let turns = ((rotationQuarterTurns % 4) + 4) % 4
+        if turns % 2 != 0 {
+            return CGSize(width: source.height, height: source.width)
+        }
+        return source
+    }
+
+    static func apply(
+        to image: NSImage,
+        rotationQuarterTurns: Int,
+        flipHorizontal: Bool,
+        flipVertical: Bool
+    ) -> NSImage? {
+        let turns = ((rotationQuarterTurns % 4) + 4) % 4
+        guard turns != 0 || flipHorizontal || flipVertical else {
+            return image.copy() as? NSImage ?? image
+        }
+
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        let isSideways = turns % 2 != 0
+        let outWidth = isSideways ? height : width
+        let outHeight = isSideways ? width : height
+        let colorSpace = cgImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
+
+        guard let context = CGContext(
+            data: nil,
+            width: outWidth,
+            height: outHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return nil
+        }
+
+        context.translateBy(x: CGFloat(outWidth) / 2, y: CGFloat(outHeight) / 2)
+        context.rotate(by: CGFloat(turns) * .pi / 2)
+        context.scaleBy(x: flipHorizontal ? -1 : 1, y: flipVertical ? -1 : 1)
+        context.draw(
+            cgImage,
+            in: CGRect(
+                x: -CGFloat(width) / 2,
+                y: -CGFloat(height) / 2,
+                width: CGFloat(width),
+                height: CGFloat(height)
+            )
+        )
+
+        guard let output = context.makeImage() else { return nil }
+        return NSImage(cgImage: output, size: NSSize(width: outWidth, height: outHeight))
+    }
+
+    static func resize(_ image: NSImage, to targetSize: CGSize) -> NSImage? {
+        let width = Int(targetSize.width.rounded())
+        let height = Int(targetSize.height.rounded())
+        guard width > 0, height > 0,
+              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        let colorSpace = cgImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return nil
+        }
+
+        context.interpolationQuality = .high
+        context.draw(
+            cgImage,
+            in: CGRect(x: 0, y: 0, width: width, height: height)
+        )
+
+        guard let output = context.makeImage() else { return nil }
+        return NSImage(cgImage: output, size: NSSize(width: width, height: height))
+    }
+
+    static func write(_ image: NSImage, to url: URL) throws {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            throw ImagePreviewSaveError.unableToEncode
+        }
+
+        let ext = url.pathExtension.lowercased()
+
+        if ext == "heic" || ext == "heif" {
+            guard let destination = CGImageDestinationCreateWithURL(
+                url as CFURL,
+                UTType.heic.identifier as CFString,
+                1,
+                nil
+            ) else {
+                throw ImagePreviewSaveError.unableToEncode
+            }
+            CGImageDestinationAddImage(destination, cgImage, nil)
+            guard CGImageDestinationFinalize(destination) else {
+                throw ImagePreviewSaveError.unableToWrite
+            }
+            return
+        }
+
+        if ext == "webp",
+           let destination = CGImageDestinationCreateWithURL(
+               url as CFURL,
+               UTType.webP.identifier as CFString,
+               1,
+               nil
+           ) {
+            CGImageDestinationAddImage(destination, cgImage, nil)
+            if CGImageDestinationFinalize(destination) {
+                return
+            }
+        }
+
+        guard let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else {
+            throw ImagePreviewSaveError.unableToEncode
+        }
+
+        let fileType: NSBitmapImageRep.FileType
+        var properties: [NSBitmapImageRep.PropertyKey: Any] = [:]
+        switch ext {
+        case "jpg", "jpeg":
+            fileType = .jpeg
+            properties[.compressionFactor] = 0.92
+        case "png":
+            fileType = .png
+        case "gif":
+            fileType = .gif
+        case "tiff", "tif":
+            fileType = .tiff
+        case "bmp":
+            fileType = .bmp
+        default:
+            fileType = .png
+        }
+
+        guard let data = rep.representation(using: fileType, properties: properties) else {
+            throw ImagePreviewSaveError.unableToEncode
+        }
+        try data.write(to: url, options: .atomic)
+    }
+
+    static func sampleWebColor(from image: NSImage, normalizedPoint: CGPoint) -> String? {
+        guard normalizedPoint.x >= 0, normalizedPoint.x <= 1,
+              normalizedPoint.y >= 0, normalizedPoint.y <= 1,
+              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        let x = min(max(Int(normalizedPoint.x * CGFloat(width)), 0), max(width - 1, 0))
+        let y = min(max(Int((1 - normalizedPoint.y) * CGFloat(height)), 0), max(height - 1, 0))
+
+        let rep = NSBitmapImageRep(cgImage: cgImage)
+        rep.size = NSSize(width: width, height: height)
+        guard let color = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { return nil }
+
+        let red = Int(round(color.redComponent * 255))
+        let green = Int(round(color.greenComponent * 255))
+        let blue = Int(round(color.blueComponent * 255))
+        return String(format: "#%02X%02X%02X", red, green, blue)
+    }
+}
+
 private struct ImagePreviewContent: View {
     let image: NSImage
     @Binding var zoomScale: CGFloat
     @Binding var zoomAction: ImageZoomAction?
     @Binding var effectiveZoomPercent: Int
+    @Binding var rotationQuarterTurns: Int
+    @Binding var flipHorizontal: Bool
+    @Binding var flipVertical: Bool
+    @Binding var resizeTargetSize: CGSize?
+    @Binding var eyedropperActive: Bool
+    @Binding var pickedWebColor: String?
     
     @State private var panOffset: CGSize = .zero
     @GestureState private var dragTranslation: CGSize = .zero
@@ -7299,14 +8337,25 @@ private struct ImagePreviewContent: View {
     var body: some View {
         GeometryReader { geometry in
             let containerSize = geometry.size
-            let imageSize = resolvedImageSize(image)
+            let rawImageSize = resolvedImageSize(image)
+            let isRotatedSideways = rotationQuarterTurns % 2 != 0
+            let orientedSize = isRotatedSideways
+                ? CGSize(width: rawImageSize.height, height: rawImageSize.width)
+                : rawImageSize
+            let layoutImageSize = resizeTargetSize ?? orientedSize
+            let resizeScaleX = layoutImageSize.width / max(orientedSize.width, 1)
+            let resizeScaleY = layoutImageSize.height / max(orientedSize.height, 1)
             let fitScale = min(
-                containerSize.width / max(imageSize.width, 1),
-                containerSize.height / max(imageSize.height, 1)
+                containerSize.width / max(layoutImageSize.width, 1),
+                containerSize.height / max(layoutImageSize.height, 1)
             )
-            let displaySize = CGSize(
-                width: imageSize.width * fitScale * zoomScale,
-                height: imageSize.height * fitScale * zoomScale
+            let imageDisplaySize = CGSize(
+                width: rawImageSize.width * fitScale * zoomScale * resizeScaleX,
+                height: rawImageSize.height * fitScale * zoomScale * resizeScaleY
+            )
+            let layoutDisplaySize = CGSize(
+                width: layoutImageSize.width * fitScale * zoomScale,
+                height: layoutImageSize.height * fitScale * zoomScale
             )
             let currentOffset = clampedPanOffset(
                 proposed: CGSize(
@@ -7314,35 +8363,33 @@ private struct ImagePreviewContent: View {
                     height: panOffset.height + dragTranslation.height
                 ),
                 containerSize: containerSize,
-                displaySize: displaySize
+                displaySize: layoutDisplaySize
             )
             
             ZStack {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
-                    .frame(width: displaySize.width, height: displaySize.height)
+                    .scaleEffect(x: flipHorizontal ? -1 : 1, y: flipVertical ? -1 : 1)
+                    .rotationEffect(.degrees(Double(rotationQuarterTurns) * 90))
+                    .frame(width: imageDisplaySize.width, height: imageDisplaySize.height)
                     .offset(x: currentOffset.width, y: currentOffset.height)
             }
             .frame(width: containerSize.width, height: containerSize.height)
             .clipped()
             .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .updating($dragTranslation) { value, state, _ in
-                        state = value.translation
-                    }
-                    .onEnded { value in
-                        panOffset = clampedPanOffset(
-                            proposed: CGSize(
-                                width: panOffset.width + value.translation.width,
-                                height: panOffset.height + value.translation.height
-                            ),
-                            containerSize: containerSize,
-                            displaySize: displaySize
-                        )
-                    }
-            )
+            .onHover { isHovering in
+                if eyedropperActive && isHovering {
+                    NSCursor.crosshair.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .gesture(imageInteractionGesture(
+                containerSize: containerSize,
+                imageDisplaySize: imageDisplaySize,
+                layoutDisplaySize: layoutDisplaySize
+            ))
             .onAppear {
                 let percent = Int((fitScale * zoomScale * 100).rounded())
                 effectiveZoomPercent = max(1, min(percent, 1000))
@@ -7366,6 +8413,108 @@ private struct ImagePreviewContent: View {
         .onChange(of: zoomScale) { _ in
             panOffset = .zero
         }
+        .onChange(of: rotationQuarterTurns) { _ in
+            panOffset = .zero
+        }
+        .onChange(of: flipHorizontal) { _ in
+            panOffset = .zero
+        }
+        .onChange(of: flipVertical) { _ in
+            panOffset = .zero
+        }
+        .onChange(of: resizeTargetSize) { _ in
+            panOffset = .zero
+        }
+    }
+
+    private func imageInteractionGesture(
+        containerSize: CGSize,
+        imageDisplaySize: CGSize,
+        layoutDisplaySize: CGSize
+    ) -> some Gesture {
+        if eyedropperActive {
+            return AnyGesture(
+                DragGesture(minimumDistance: 0)
+                    .onEnded { value in
+                        pickWebColor(
+                            at: value.location,
+                            containerSize: containerSize,
+                            imageDisplaySize: imageDisplaySize
+                        )
+                    }
+            )
+        }
+
+        return AnyGesture(
+            DragGesture(minimumDistance: 0)
+                .updating($dragTranslation) { value, state, _ in
+                    state = value.translation
+                }
+                .onEnded { value in
+                    panOffset = clampedPanOffset(
+                        proposed: CGSize(
+                            width: panOffset.width + value.translation.width,
+                            height: panOffset.height + value.translation.height
+                        ),
+                        containerSize: containerSize,
+                        displaySize: layoutDisplaySize
+                    )
+                }
+        )
+    }
+
+    private func pickWebColor(
+        at location: CGPoint,
+        containerSize: CGSize,
+        imageDisplaySize: CGSize
+    ) {
+        guard let normalizedPoint = normalizedImagePoint(
+            at: location,
+            containerSize: containerSize,
+            imageDisplaySize: imageDisplaySize
+        ), let hex = ImagePreviewTransformApplier.sampleWebColor(
+            from: image,
+            normalizedPoint: normalizedPoint
+        ) else {
+            return
+        }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(hex, forType: .string)
+        pickedWebColor = hex
+    }
+
+    private func normalizedImagePoint(
+        at location: CGPoint,
+        containerSize: CGSize,
+        imageDisplaySize: CGSize
+    ) -> CGPoint? {
+        guard imageDisplaySize.width > 0, imageDisplaySize.height > 0 else { return nil }
+
+        let centerX = containerSize.width / 2 + panOffset.width
+        let centerY = containerSize.height / 2 + panOffset.height
+        var point = CGPoint(x: location.x - centerX, y: location.y - centerY)
+
+        let turns = ((rotationQuarterTurns % 4) + 4) % 4
+        if turns != 0 {
+            let radians = -Double(turns) * .pi / 2
+            let cosValue = cos(radians)
+            let sinValue = sin(radians)
+            let rotatedX = point.x * cosValue - point.y * sinValue
+            let rotatedY = point.x * sinValue + point.y * cosValue
+            point = CGPoint(x: rotatedX, y: rotatedY)
+        }
+
+        if flipHorizontal { point.x *= -1 }
+        if flipVertical { point.y *= -1 }
+
+        let normalizedX = point.x / imageDisplaySize.width + 0.5
+        let normalizedY = point.y / imageDisplaySize.height + 0.5
+        guard normalizedX >= 0, normalizedX <= 1, normalizedY >= 0, normalizedY <= 1 else {
+            return nil
+        }
+        return CGPoint(x: normalizedX, y: normalizedY)
     }
     
     private func clampedPanOffset(
