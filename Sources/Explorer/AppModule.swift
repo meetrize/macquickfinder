@@ -199,13 +199,8 @@ struct FileCommands: Commands {
 }
 
 extension ToolbarContent {
-    @ToolbarContentBuilder
     func hideSharedBackgroundIfAvailable() -> some ToolbarContent {
-        if #available(macOS 26.0, *) {
-            sharedBackgroundVisibility(.hidden)
-        } else {
-            self
-        }
+        self
     }
 }
 
@@ -635,12 +630,27 @@ private enum BarTextFieldFocusRegistry {
     private static weak var searchField: NSTextField?
     private static weak var pathBarRoot: NSView?
     private static weak var pathNavigateButton: NSView?
+    private static var pendingSelectAll: BarTextFieldID?
     
     static func register(_ field: NSTextField, for id: BarTextFieldID) {
         switch id {
         case .path: pathField = field
         case .search: searchField = field
         }
+    }
+    
+    static func requestSelectAll(_ id: BarTextFieldID) {
+        pendingSelectAll = id
+    }
+    
+    static func applyPendingSelectAll(for id: BarTextFieldID) {
+        guard pendingSelectAll == id else { return }
+        pendingSelectAll = nil
+        selectAll(id)
+    }
+    
+    static func clearPendingSelectAll() {
+        pendingSelectAll = nil
     }
     
     static func focus(_ id: BarTextFieldID) {
@@ -685,16 +695,12 @@ private enum BarTextFieldFocusRegistry {
             return
         }
         
-        if selectAll {
-            Self.selectAll(id)
-        } else {
-            focus(id)
-            if field.currentEditor() == nil {
-                field.selectText(nil)
-            }
-            if let editor = field.currentEditor() {
-                field.window?.makeFirstResponder(editor)
-            }
+        focus(id)
+        if field.currentEditor() == nil {
+            field.selectText(nil)
+        }
+        if let editor = field.currentEditor() {
+            field.window?.makeFirstResponder(editor)
         }
         
         guard hasActiveFieldEditor(field) else {
@@ -703,7 +709,17 @@ private enum BarTextFieldFocusRegistry {
             }
             return
         }
-        onComplete?(true)
+        
+        if selectAll {
+            requestSelectAll(id)
+            // 等 SwiftUI 完成文本框显隐切换后再全选，避免选中状态被后续渲染覆盖。
+            DispatchQueue.main.async {
+                Self.selectAll(id)
+                onComplete?(true)
+            }
+        } else {
+            onComplete?(true)
+        }
     }
     
     static func resign(_ id: BarTextFieldID) {
@@ -836,6 +852,12 @@ private struct BarFieldOutsideClickHandler: NSViewRepresentable {
             guard editingField != nil || shouldDismissPathText else { return }
             
             if BarTextFieldFocusRegistry.isClickInsideNavigateButton(event: event) {
+                return
+            }
+            
+            if isPathBarTextMode,
+               BarTextFieldFocusRegistry.isClickInsidePathBar(event: event)
+                || BarTextFieldFocusRegistry.isClickInside(.path, event: event) {
                 return
             }
             
@@ -1076,7 +1098,9 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
                     object: field,
                     queue: .main
                 ) { [weak self] _ in
-                    self?.activateField()
+                    guard let self else { return }
+                    self.activateField()
+                    BarTextFieldFocusRegistry.applyPendingSelectAll(for: self.fieldID)
                 }
             )
             observers.append(
@@ -1308,9 +1332,10 @@ private enum PathSubdirectoryCache {
             }
         }
         guard !parentPaths.isEmpty else { return }
-        
+        let pathsToPreload = parentPaths
+
         Task.detached(priority: .utility) {
-            for parentPath in parentPaths {
+            for parentPath in pathsToPreload {
                 _ = load(parentPath: parentPath, showHiddenFiles: showHiddenFiles)
             }
         }
@@ -1498,6 +1523,7 @@ private struct PathBarView: View {
         }
         .onChange(of: isTextMode) { active in
             guard !active, mode == .text else { return }
+            BarTextFieldFocusRegistry.clearPendingSelectAll()
             editingText = displayPath
             committedViaSubmit = false
             mode = .breadcrumb
@@ -1530,6 +1556,7 @@ private struct PathBarView: View {
     }
     
     private func requestPathFieldFocus() {
+        BarTextFieldFocusRegistry.requestSelectAll(.path)
         DispatchQueue.main.async {
             BarTextFieldFocusRegistry.focusWhenReady(.path, selectAll: true) { succeeded in
                 guard succeeded else { return }
@@ -1539,6 +1566,7 @@ private struct PathBarView: View {
     }
     
     private func enterTextMode() {
+        BarTextFieldFocusRegistry.requestSelectAll(.path)
         editingText = displayPath
         activeField = .path
         isTextMode = true
@@ -1551,6 +1579,7 @@ private struct PathBarView: View {
     
     private func commitPath() {
         committedViaSubmit = true
+        BarTextFieldFocusRegistry.clearPendingSelectAll()
         let newValue = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !newValue.isEmpty {
             if newValue == TrashLoader.displayName {
@@ -1567,6 +1596,7 @@ private struct PathBarView: View {
 
     private func navigateToPendingPath(_ targetPath: String) {
         committedViaSubmit = true
+        BarTextFieldFocusRegistry.clearPendingSelectAll()
         path = targetPath
         editingText = targetPath
         isTextMode = false
@@ -1750,6 +1780,7 @@ private struct PathBarBlankClickArea: NSViewRepresentable {
         weak var coordinator: Coordinator?
         
         override func mouseDown(with event: NSEvent) {
+            BarTextFieldFocusRegistry.requestSelectAll(.path)
             coordinator?.onClick()
         }
         
