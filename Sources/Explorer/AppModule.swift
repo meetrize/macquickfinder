@@ -3548,7 +3548,6 @@ private struct FavoritesSidebarRows: View {
             maxWidth: showsTitle ? .infinity : FavoriteSidebarRailLayout.contentWidth,
             alignment: showsTitle ? .leading : .center
         )
-        .clipped()
         .fixedSize(horizontal: !showsTitle, vertical: true)
     }
 }

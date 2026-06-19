@@ -28,6 +28,8 @@ private enum FavoriteSidebarMetrics {
     static let sidebarRowHeight: CGFloat = 24
     static let railRowHeight: CGFloat = 28
     static let rowContentInset: CGFloat = 8
+    /// 与 `SidebarRailView` 水平 padding 一致（用于拖放指示线等）。
+    static let railSelectionHorizontalInset: CGFloat = 4
     /// 侧栏模式下图标左边距（比 `SidebarRow` 视觉基准左移 3pt 以与 Devices 对齐）。
     static let sidebarIconLeadingInset: CGFloat = 3
 }
@@ -437,6 +439,9 @@ private final class FavoriteSidebarCellView: NSTableCellView {
     private var iconLeadingConstraint: NSLayoutConstraint?
     private var iconRailCenterConstraint: NSLayoutConstraint?
     private var titleLeadingConstraint: NSLayoutConstraint?
+    private var backgroundLeadingConstraint: NSLayoutConstraint?
+    private var backgroundTrailingConstraint: NSLayoutConstraint?
+    private var backgroundWidthConstraint: NSLayoutConstraint?
     private var showsTitleLayout = true
     
     override init(frame frameRect: NSRect) {
@@ -450,6 +455,7 @@ private final class FavoriteSidebarCellView: NSTableCellView {
     }
     
     private func setup() {
+        clipsToBounds = false
         background.boxType = .custom
         background.cornerRadius = 6
         background.borderWidth = 0
@@ -478,9 +484,13 @@ private final class FavoriteSidebarCellView: NSTableCellView {
         )
         titleLeadingConstraint = titleField.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 8)
         
+        backgroundLeadingConstraint = background.leadingAnchor.constraint(equalTo: leadingAnchor)
+        backgroundTrailingConstraint = background.trailingAnchor.constraint(equalTo: trailingAnchor)
+        backgroundWidthConstraint = background.widthAnchor.constraint(
+            equalToConstant: FavoriteSidebarMetrics.railContentWidth
+        )
+        
         NSLayoutConstraint.activate([
-            background.leadingAnchor.constraint(equalTo: leadingAnchor),
-            background.trailingAnchor.constraint(equalTo: trailingAnchor),
             background.topAnchor.constraint(equalTo: topAnchor),
             background.bottomAnchor.constraint(equalTo: bottomAnchor),
             
@@ -509,6 +519,16 @@ private final class FavoriteSidebarCellView: NSTableCellView {
         titleLeadingConstraint?.isActive = showsTitle
         showsTitleLayout = showsTitle
         
+        if showsTitle {
+            backgroundLeadingConstraint?.isActive = true
+            backgroundTrailingConstraint?.isActive = true
+            backgroundWidthConstraint?.isActive = false
+        } else {
+            backgroundLeadingConstraint?.isActive = true
+            backgroundTrailingConstraint?.isActive = false
+            backgroundWidthConstraint?.isActive = true
+        }
+        
         background.fillColor = isSelected
             ? NSColor.unemphasizedSelectedContentBackgroundColor
             : .clear
@@ -517,8 +537,9 @@ private final class FavoriteSidebarCellView: NSTableCellView {
     override func layout() {
         super.layout()
         guard !showsTitleLayout else { return }
-        // 模式切换瞬间 cell 可能比窄栏更宽；按固定轨道宽度居中，不依赖 cell.bounds.width。
-        iconRailCenterConstraint?.constant = FavoriteSidebarMetrics.railContentWidth / 2
+        let trackWidth = min(bounds.width, FavoriteSidebarMetrics.railContentWidth)
+        iconRailCenterConstraint?.constant = max(trackWidth / 2, 8)
+        backgroundWidthConstraint?.constant = trackWidth
     }
 }
 
@@ -533,8 +554,22 @@ private final class FavoriteSidebarRowView: NSTableRowView {
     private var tooltipText: String?
     private var trackingArea: NSTrackingArea?
     
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        clipsToBounds = false
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        clipsToBounds = false
+    }
+    
     override func drawSelection(in dirtyRect: NSRect) {
         // 选中样式由 cell 自己绘制。
+    }
+    
+    override func drawBackground(in dirtyRect: NSRect) {
+        super.drawBackground(in: dirtyRect)
     }
     
     func updateTooltip(_ text: String?) {
@@ -691,6 +726,7 @@ final class FavoritesTableView: NSTableView {
         columnAutoresizingStyle = showsTitle
             ? .uniformColumnAutoresizingStyle
             : .noColumnAutoresizing
+        clipsToBounds = showsTitle
         
         guard let column = tableColumns.first else { return }
         if showsTitle {
@@ -719,7 +755,7 @@ final class FavoritesTableView: NSTableView {
         allowsMultipleSelection = false
         usesAlternatingRowBackgroundColors = false
         intercellSpacing = .zero
-        clipsToBounds = true
+        clipsToBounds = showsTitle
         
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("FavoriteColumn"))
         addTableColumn(column)
