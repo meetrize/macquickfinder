@@ -398,8 +398,9 @@ WindowGroup(id: ExplorerWindowScene.preview, for: PreviewWindowValue.self) { $va
 | **P2** | 弹出 / 收回 / 占位条 | MVP 可交付 |
 | **P3** | 菜单快捷键 + 边界场景 | 主窗口关闭、确认对话框 |
 | **P4** | 文件夹预览弹出 + 多窗口 | 可选增强 |
+| **P5–P7** | 独立窗口浏览条（Preview Browser Strip） | 见 [preview-browser-strip-design.md](./preview-browser-strip-design.md) |
 
-详细 Issue 拆分见 [preview-detached-window-phase1-plan.md](./preview-detached-window-phase1-plan.md)。
+详细 Issue 拆分见 [preview-detached-window-phase1-plan.md](./preview-detached-window-phase1-plan.md)（PD-01 ~ PD-14）、[preview-browser-strip-plan.md](./preview-browser-strip-plan.md)（PD-15 起）。
 
 ---
 
@@ -422,6 +423,8 @@ WindowGroup(id: ExplorerWindowScene.preview, for: PreviewWindowValue.self) { $va
 |------|------|
 | 单元 | `PreviewPlacementState` 状态转换 |
 | 单元 | detach 后 store 中 session location 正确 |
+| 单元 | `PreviewBrowserContext` 排序/过滤/边界 index（见 [preview-browser-strip-plan.md](./preview-browser-strip-plan.md) PD-15、PD-24） |
+| 单元 | 同类型过滤与 adjacent prefetch  eligibility（PD-22、PD-23） |
 | UI 手动 | 弹出 PDF 后页码保留 |
 | UI 手动 | 弹出后选其他文件，侧栏新预览正常 |
 | UI 手动 | 收回侧栏后缩放/旋转保留 |

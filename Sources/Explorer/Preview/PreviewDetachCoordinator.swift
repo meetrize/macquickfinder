@@ -12,7 +12,14 @@ final class PreviewDetachCoordinator: ObservableObject {
 
     private init() {}
 
-    func detach(session: PreviewSession, openWindow: OpenWindowAction) {
+    func detach(
+        session: PreviewSession,
+        directoryPath: String,
+        directoryItems: [FileItem],
+        sortOrder: SortOrder,
+        showHiddenFiles: Bool,
+        openWindow: OpenWindowAction
+    ) {
         if case .detached(let existingID, let fileID) = placement,
            existingID == session.id || fileID == session.previewContentItem?.id {
             focusDetachedWindow()
@@ -27,6 +34,16 @@ final class PreviewDetachCoordinator: ObservableObject {
 
         PreviewSessionStore.shared.register(session)
         session.location = .detached(windowNumber: nil)
+        if let currentID = session.previewContentItem?.id,
+           let context = PreviewBrowserContext.makeSnapshot(
+               directoryPath: directoryPath,
+               items: directoryItems,
+               sortOrder: sortOrder,
+               showHiddenFiles: showHiddenFiles,
+               currentFileID: currentID
+           ) {
+            session.attachBrowserContext(context)
+        }
         if let fileID = session.previewContentItem?.id {
             placement = .detached(sessionID: session.id, fileID: fileID)
         }
@@ -53,6 +70,7 @@ final class PreviewDetachCoordinator: ObservableObject {
             guard confirmed else { return false }
         }
 
+        session.clearBrowserContext()
         session.location = .inline
         placement = .inline
         isDockingBackSessionID = sessionID

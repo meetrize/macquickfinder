@@ -23,4 +23,5 @@ enum ExplorerAppSettings {
     static let previewContentCollapsedKey = "snippets.previewContentCollapsed"
     static let windowSnapEnabledKey = "windowSnapEnabled"
     static let customPreviewRulesKey = "preview.customRules"
+    static let previewBrowserSameTypeOnlyKey = "previewBrowser.sameTypeOnly"
 }

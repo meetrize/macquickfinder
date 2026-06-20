@@ -31,6 +31,23 @@ struct DetachedPreviewWindowView: View {
 private struct DetachedPreviewWindowContent: View {
     @ObservedObject var session: PreviewSession
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(ExplorerAppSettings.previewBrowserSameTypeOnlyKey)
+    private var previewBrowserSameTypeOnly = false
+
+    private var browseCommands: PreviewBrowseCommands {
+        guard let context = session.browseContext, context.canBrowse else {
+            return PreviewBrowseCommands()
+        }
+        return PreviewBrowseCommands(
+            canBrowsePrevious: context.currentIndex > 0,
+            canBrowseNext: context.currentIndex + 1 < context.count,
+            browsePrevious: { session.browsePrevious(); session.scheduleBrowseContentPrefetch() },
+            browseNext: { session.browseNext(); session.scheduleBrowseContentPrefetch() },
+            canToggleStrip: true,
+            isStripExpanded: session.isBrowserStripExpanded,
+            toggleStrip: { session.isBrowserStripExpanded.toggle() }
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,7 +62,7 @@ private struct DetachedPreviewWindowContent: View {
                     .help("返回文件夹")
                 }
 
-                Text(session.previewContentItem?.name ?? session.file.name)
+                Text(session.browseTarget.name)
                     .font(.callout)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -91,8 +108,19 @@ private struct DetachedPreviewWindowContent: View {
             Divider()
 
             FileContentView(session: session)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if let context = session.browseContext, context.canBrowse, session.isBrowserStripExpanded {
+                Divider()
+                PreviewBrowserStripView(context: context, session: session)
+            }
+
+            if let context = session.browseContext, context.canBrowse {
+                Divider()
+                PreviewBrowserNavBar(context: context, session: session)
+            }
         }
-        .navigationTitle(session.previewContentItem?.name ?? session.file.name)
+        .navigationTitle(session.browseTarget.name)
         .onChange(of: session.pdfCurrentPage) { newValue in
             if newValue > 0 {
                 session.pdfPageInput = "\(newValue)"
@@ -122,7 +150,18 @@ private struct DetachedPreviewWindowContent: View {
         .onChange(of: session.imageEditUndoClearNonce) { _ in
             session.clearImageEditUndoStack()
         }
+        .focusedValue(\.previewBrowseCommands, browseCommands)
+        .background(PreviewBrowserKeyboardMonitor(session: session))
         .background(DetachedPreviewWindowTracker(sessionID: session.id))
+        .onAppear {
+            session.browseContext?.setSameTypeOnly(previewBrowserSameTypeOnly)
+        }
+        .onChange(of: previewBrowserSameTypeOnly) { newValue in
+            session.browseContext?.setSameTypeOnly(newValue)
+        }
+        .onChange(of: session.browseContext?.currentIndex) { _ in
+            session.scheduleBrowseContentPrefetch()
+        }
     }
 }
 

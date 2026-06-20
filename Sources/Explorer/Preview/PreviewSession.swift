@@ -1,5 +1,6 @@
 import AppKit
 import AVFoundation
+import Combine
 import CoreGraphics
 import Foundation
 import PDFKit
@@ -65,6 +66,11 @@ final class PreviewSession: ObservableObject, Identifiable {
     @Published var archiveReloadToken = 0
     @Published var archiveCopyAction: ArchivePreviewAction?
 
+    /// 独立窗口内目录浏览上下文；弹出时附加，收回时清除。
+    @Published var browseContext: PreviewBrowserContext?
+    /// 独立窗口底部胶片条是否展开（默认收起）。
+    @Published var isBrowserStripExpanded = false
+
     // MARK: - Loaded content
 
     @Published var loadPhase: PreviewLoadPhase = .idle
@@ -78,6 +84,8 @@ final class PreviewSession: ObservableObject, Identifiable {
     @Published var imageSaveErrorMessage: String?
 
     var loadTask: Task<Void, Never>?
+    private var browseContextCancellable: AnyCancellable?
+    let browseContentPrefetcher = PreviewBrowserContentPrefetcher()
 
     var isLoading: Bool {
         if case .loading = loadPhase { return true }
@@ -109,12 +117,21 @@ final class PreviewSession: ObservableObject, Identifiable {
         folderInlineChild ?? file
     }
 
+    /// 当前应加载/展示的文件：浏览模式下为 context 当前项，否则为侧栏预览项。
+    var browseTarget: FileItem {
+        if let browseContext {
+            return browseContext.currentItem
+        }
+        return previewContentItem ?? file
+    }
+
     var isShowingFolderChildPreview: Bool {
         folderInlineChild != nil
     }
 
     var toolbarFileItem: FileItem? {
-        guard let item = previewContentItem, !item.isDirectory else { return nil }
+        let item = browseTarget
+        guard !item.isDirectory else { return nil }
         return item
     }
 
@@ -242,7 +259,52 @@ final class PreviewSession: ObservableObject, Identifiable {
         mediaPlayer?.pause()
     }
 
+    func attachBrowserContext(_ context: PreviewBrowserContext) {
+        browseContextCancellable?.cancel()
+        browseContext = context
+        browseContextCancellable = context.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+        scheduleBrowseContentPrefetch()
+    }
+
+    func clearBrowserContext() {
+        browseContextCancellable?.cancel()
+        browseContextCancellable = nil
+        browseContext = nil
+        isBrowserStripExpanded = false
+        browseContentPrefetcher.cancel()
+    }
+
+    func scheduleBrowseContentPrefetch() {
+        guard let browseContext else { return }
+        browseContentPrefetcher.schedulePrefetch(
+            items: browseContext.orderedItems,
+            centerIndex: browseContext.currentIndex
+        )
+    }
+
+    @discardableResult
+    func switchBrowseTarget(to item: FileItem) -> Bool {
+        guard let browseContext else { return false }
+        guard let index = browseContext.orderedItems.firstIndex(where: { $0.id == item.id }) else { return false }
+        guard browseContext.currentIndex != index else { return false }
+        browseContext.select(index: index)
+        return true
+    }
+
+    @discardableResult
+    func browsePrevious() -> Bool {
+        browseContext?.selectPrevious() ?? false
+    }
+
+    @discardableResult
+    func browseNext() -> Bool {
+        browseContext?.selectNext() ?? false
+    }
+
     deinit {
+        browseContextCancellable?.cancel()
         loadTask?.cancel()
     }
 }

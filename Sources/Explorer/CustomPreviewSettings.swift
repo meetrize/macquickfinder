@@ -17,6 +17,8 @@ struct PreviewSettingsTab: View {
     @ObservedObject private var store = CustomPreviewRuleStore.shared
     @Binding var prefillExtension: String?
     @Binding var showEditor: Bool
+    @AppStorage(ExplorerAppSettings.previewBrowserSameTypeOnlyKey)
+    private var previewBrowserSameTypeOnly = false
 
     @State private var editingRule: CustomPreviewRule?
     @State private var showBuiltInCatalog = false
@@ -24,6 +26,14 @@ struct PreviewSettingsTab: View {
 
     var body: some View {
         Form {
+            Section {
+                Toggle("独立窗口浏览条仅显示同扩展名", isOn: $previewBrowserSameTypeOnly)
+            } header: {
+                Text("独立窗口浏览")
+            } footer: {
+                Text("开启后，弹出预览窗口时胶片条与 ← → 导航仅在同类型文件间切换。")
+            }
+
             Section {
                 if store.rules.isEmpty {
                     Text("尚未添加自定义规则。选中无法预览的文件时，可直接在预览面板一键添加。")

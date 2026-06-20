@@ -7,6 +7,7 @@ struct RightPanelStackView: View {
     let selection: Set<FileItem.ID>
     let items: [FileItem]
     let cwd: String
+    let sortOrder: SortOrder
     let showHiddenFiles: Bool
     let autoCalculateDirectorySizes: Bool
     let directorySizeOverlay: DirectorySizeOverlay
@@ -41,6 +42,8 @@ struct RightPanelStackView: View {
                         layout: layout,
                         selection: selection,
                         items: items,
+                        directoryPath: cwd,
+                        sortOrder: sortOrder,
                         showHiddenFiles: showHiddenFiles,
                         autoCalculateDirectorySizes: autoCalculateDirectorySizes,
                         directorySizeOverlay: directorySizeOverlay,

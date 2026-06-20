@@ -35,8 +35,8 @@ private final class QLConcurrencyGate {
 }
 
 /// 缩略图生成：Quick Look 为主，系统图标为占位与回退。
-final class ThumbnailGenerator {
-    enum Delivery {
+public final class ThumbnailGenerator {
+    public enum Delivery {
         case thumbnail(NSImage)
         case icon(NSImage)
     }
@@ -52,6 +52,8 @@ final class ThumbnailGenerator {
     private static var genericPlaceholders: [String: NSImage] = [:]
     private let iconCacheLock = NSLock()
     private var workspaceIconCache: [String: NSImage] = [:]
+
+    public init() {}
     
     func cacheKey(for row: FileListRow, cellSize: CGFloat) -> ThumbnailCache.Key {
         ThumbnailCache.Key(
@@ -65,6 +67,14 @@ final class ThumbnailGenerator {
         if row.isParentDirectoryEntry { return nil }
         return cache.entry(for: cacheKey(for: row, cellSize: cellSize))
     }
+
+    /// 供预览浏览条等外部模块使用的缓存查找。
+    public func cachedThumbnailImage(for row: FileListRow, cellSize: CGFloat) -> NSImage? {
+        guard let entry = cachedImage(for: row, cellSize: cellSize) else { return nil }
+        return entry.isThumbnail
+            ? entry.image
+            : FileListThumbnailMetrics.scaledIcon(entry.image, cellSize: cellSize)
+    }
     
     /// 仅查内存 LRU。
     func memoryCachedImage(for row: FileListRow, cellSize: CGFloat) -> ThumbnailCache.Entry? {
@@ -73,7 +83,7 @@ final class ThumbnailGenerator {
     }
     
     /// 即时占位图：通用文件夹/文件图标，不访问具体路径。
-    func instantPlaceholder(for row: FileListRow, cellSize: CGFloat, screenScale: CGFloat) -> NSImage {
+    public func instantPlaceholder(for row: FileListRow, cellSize: CGFloat, screenScale: CGFloat) -> NSImage {
         if row.isParentDirectoryEntry {
             return FileListThumbnailMetrics.parentDirectoryIcon(cellSize: cellSize, scale: screenScale)
         }
@@ -91,7 +101,7 @@ final class ThumbnailGenerator {
     }
     
     /// 取消进行中的请求并等待 QL 槽位全部归还，避免析构时信号量仍被占用。
-    func shutdown() {
+    public func shutdown() {
         shutdownLock.lock()
         guard !didShutdown else {
             shutdownLock.unlock()
@@ -104,7 +114,7 @@ final class ThumbnailGenerator {
         qlGate.waitUntilIdle()
     }
     
-    func cancelInFlightRequests() {
+    public func cancelInFlightRequests() {
         activeGeneration &+= 1
     }
     
@@ -114,7 +124,7 @@ final class ThumbnailGenerator {
         cache.purgeAll()
     }
     
-    func load(
+    public func load(
         for row: FileListRow,
         cellSize: CGFloat,
         screenScale: CGFloat,

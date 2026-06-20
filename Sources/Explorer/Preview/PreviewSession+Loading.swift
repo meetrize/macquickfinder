@@ -51,7 +51,7 @@ extension PreviewSession {
     }
 
     func loadTextContentIfNeeded() async {
-        guard let item = previewContentItem else { return }
+        let item = browseTarget
         let url = item.url
         let itemID = item.id
 
@@ -62,19 +62,19 @@ extension PreviewSession {
                 try TextFilePreviewReader.readPreview(from: url)
             }.value
             guard !Task.isCancelled else { return }
-            guard previewContentItem?.id == itemID else { return }
+            guard browseTarget.id == itemID else { return }
             textContent = content
             loadPhase = .loaded
         } catch {
             guard !Task.isCancelled else { return }
             if error is CancellationError { return }
-            guard previewContentItem?.id == itemID else { return }
+            guard browseTarget.id == itemID else { return }
             loadPhase = .failed(error.localizedDescription)
         }
     }
 
     func saveEditedImage() async {
-        guard let item = previewContentItem else { return }
+        let item = browseTarget
         guard let sourceImage = image else { return }
         let orientedSize = ImagePreviewTransformApplier.orientedPixelSize(
             of: sourceImage,
@@ -144,7 +144,7 @@ extension PreviewSession {
             }
         }.value
 
-        guard previewContentItem?.id == itemID else { return }
+        guard browseTarget.id == itemID else { return }
         switch saveResult {
         case .success:
             imageRotationQuarterTurns = 0
@@ -162,10 +162,7 @@ extension PreviewSession {
     }
 
     private func loadContent(customPreviewRevision: Int) async {
-        guard let item = previewContentItem else {
-            loadPhase = .idle
-            return
-        }
+        let item = browseTarget
 
         let url = item.url
         let ext = url.pathExtension.lowercased()
@@ -184,7 +181,7 @@ extension PreviewSession {
             text content: String? = nil,
             error: String? = nil
         ) {
-            guard !Task.isCancelled, previewContentItem?.id == itemID else { return }
+            guard !Task.isCancelled, browseTarget.id == itemID else { return }
             if let imageData {
                 guard let decodedImage = NSImage(data: imageData) else {
                     image = nil
@@ -235,6 +232,12 @@ extension PreviewSession {
         }
 
         if BuiltinPreviewExtensions.image.contains(ext) {
+            if let prefetched = browseContentPrefetcher.consume(for: itemID) {
+                guard !Task.isCancelled else { return }
+                finish(imageData: prefetched)
+                scheduleBrowseContentPrefetch()
+                return
+            }
             let imageData = try? await Task.detached(priority: .userInitiated) {
                 try Data(contentsOf: url, options: [.mappedIfSafe])
             }.value
@@ -244,6 +247,7 @@ extension PreviewSession {
             } else {
                 finish(error: "Unable to decode image format")
             }
+            scheduleBrowseContentPrefetch()
             return
         }
 
@@ -260,6 +264,12 @@ extension PreviewSession {
         }
 
         if BuiltinPreviewExtensions.pdf.contains(ext) {
+            if let prefetched = browseContentPrefetcher.consume(for: itemID) {
+                guard !Task.isCancelled else { return }
+                finish(pdfData: prefetched)
+                scheduleBrowseContentPrefetch()
+                return
+            }
             let pdfData = try? await Task.detached(priority: .userInitiated) {
                 try Data(contentsOf: url, options: [.mappedIfSafe])
             }.value
@@ -269,6 +279,7 @@ extension PreviewSession {
             } else {
                 finish(error: "Unable to load PDF document")
             }
+            scheduleBrowseContentPrefetch()
             return
         }
 
@@ -376,7 +387,7 @@ extension PreviewSession {
                 Task.detached(priority: .utility) { [url, itemID] in
                     let content = try? TextFilePreviewReader.readPreview(from: url)
                     await MainActor.run {
-                        guard self.previewContentItem?.id == itemID else { return }
+                        guard self.browseTarget.id == itemID else { return }
                         if let content {
                             self.textContent = content
                         }
@@ -455,7 +466,7 @@ extension PreviewSession {
             Task.detached(priority: .utility) { [url, itemID] in
                 let content = try? TextFilePreviewReader.readPreview(from: url)
                 await MainActor.run {
-                    guard self.previewContentItem?.id == itemID else { return }
+                    guard self.browseTarget.id == itemID else { return }
                     if let content {
                         self.textContent = content
                     }

@@ -304,6 +304,7 @@ struct ExplorerApp: App {
     @NSApplicationDelegateAdaptor(ExplorerAppDelegate.self) private var appDelegate
     @FocusedValue(\.windowLayoutCommands) private var windowLayoutCommands
     @FocusedValue(\.previewDetachCommands) private var previewDetachCommands
+    @FocusedValue(\.previewBrowseCommands) private var previewBrowseCommands
     
     var body: some Scene {
         WindowGroup {
@@ -389,6 +390,20 @@ struct ExplorerApp: App {
                 previewDetachCommands?.dockPreview?()
             }
             .disabled(!(previewDetachCommands?.canDock ?? false))
+            Divider()
+            Button("上一个预览") {
+                previewBrowseCommands?.browsePrevious?()
+            }
+            .disabled(!(previewBrowseCommands?.canBrowsePrevious ?? false))
+            Button("下一个预览") {
+                previewBrowseCommands?.browseNext?()
+            }
+            .disabled(!(previewBrowseCommands?.canBrowseNext ?? false))
+            Button(previewBrowseCommands?.isStripExpanded == true ? "收起胶片条" : "展开胶片条") {
+                previewBrowseCommands?.toggleStrip?()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.togglePreviewBrowserStrip)
+            .disabled(!(previewBrowseCommands?.canToggleStrip ?? false))
         }
     }
 }
@@ -3059,6 +3074,7 @@ struct ContentView: View {
             selection: selection,
             items: items,
             cwd: path,
+            sortOrder: sortOrder,
             showHiddenFiles: showHiddenFiles,
             autoCalculateDirectorySizes: shouldAutoCalculateDirectorySizes(for: path),
             directorySizeOverlay: directorySizeOverlay,
@@ -5050,6 +5066,8 @@ struct FilePreviewView: View {
     @ObservedObject var layout: ExplorerWindowLayoutState
     let selection: Set<FileItem.ID>
     let items: [FileItem]
+    let directoryPath: String
+    let sortOrder: SortOrder
     let showHiddenFiles: Bool
     let autoCalculateDirectorySizes: Bool
     @ObservedObject var directorySizeOverlay: DirectorySizeOverlay
@@ -5102,6 +5120,9 @@ struct FilePreviewView: View {
                     selectedItem: selectedItem,
                     showPreview: $showPreview,
                     layout: layout,
+                    directoryPath: directoryPath,
+                    directoryItems: items,
+                    sortOrder: sortOrder,
                     showHiddenFiles: showHiddenFiles,
                     autoCalculateDirectorySizes: autoCalculateDirectorySizes,
                     directorySizeOverlay: directorySizeOverlay,
@@ -5177,6 +5198,9 @@ private struct FilePreviewSessionHost: View {
     let selectedItem: FileItem
     @Binding var showPreview: Bool
     @ObservedObject var layout: ExplorerWindowLayoutState
+    let directoryPath: String
+    let directoryItems: [FileItem]
+    let sortOrder: SortOrder
     let showHiddenFiles: Bool
     let autoCalculateDirectorySizes: Bool
     @ObservedObject var directorySizeOverlay: DirectorySizeOverlay
@@ -5194,6 +5218,9 @@ private struct FilePreviewSessionHost: View {
         selectedItem: FileItem,
         showPreview: Binding<Bool>,
         layout: ExplorerWindowLayoutState,
+        directoryPath: String,
+        directoryItems: [FileItem],
+        sortOrder: SortOrder,
         showHiddenFiles: Bool,
         autoCalculateDirectorySizes: Bool,
         directorySizeOverlay: DirectorySizeOverlay,
@@ -5207,6 +5234,9 @@ private struct FilePreviewSessionHost: View {
         self.selectedItem = selectedItem
         _showPreview = showPreview
         self.layout = layout
+        self.directoryPath = directoryPath
+        self.directoryItems = directoryItems
+        self.sortOrder = sortOrder
         self.showHiddenFiles = showHiddenFiles
         self.autoCalculateDirectorySizes = autoCalculateDirectorySizes
         self.directorySizeOverlay = directorySizeOverlay
@@ -5280,7 +5310,14 @@ private struct FilePreviewSessionHost: View {
 
                 if canDetachPreview {
                     Button {
-                        detachCoordinator.detach(session: session, openWindow: openWindow)
+                        detachCoordinator.detach(
+                            session: session,
+                            directoryPath: directoryPath,
+                            directoryItems: directoryItems,
+                            sortOrder: sortOrder,
+                            showHiddenFiles: showHiddenFiles,
+                            openWindow: openWindow
+                        )
                     } label: {
                         Image(systemName: "macwindow.badge.plus")
                     }
@@ -5378,7 +5415,14 @@ private struct FilePreviewSessionHost: View {
                 return false
             }(),
             detachPreview: {
-                detachCoordinator.detach(session: session, openWindow: openWindow)
+                detachCoordinator.detach(
+                    session: session,
+                    directoryPath: directoryPath,
+                    directoryItems: directoryItems,
+                    sortOrder: sortOrder,
+                    showHiddenFiles: showHiddenFiles,
+                    openWindow: openWindow
+                )
             },
             dockPreview: {
                 Task {
@@ -5395,9 +5439,11 @@ private struct FilePreviewSessionHost: View {
 struct FileContentView: View {
     @ObservedObject var session: PreviewSession
     @ObservedObject private var customPreviewStore = CustomPreviewRuleStore.shared
+    @State private var lastAppliedLoadTaskID: String?
+    @State private var contentOpacity: Double = 1
 
     private var item: FileItem {
-        session.previewContentItem ?? session.file
+        session.browseTarget
     }
 
     private var fileExtension: String {
@@ -5418,7 +5464,7 @@ struct FileContentView: View {
     }
 
     private var loadTaskID: String {
-        let contentID = session.previewContentItem?.id ?? session.file.id
+        let contentID = session.browseTarget.id
         return "\(contentID)-\(session.archiveReloadToken)-\(customPreviewStore.revision)"
     }
 
@@ -5532,10 +5578,18 @@ struct FileContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .opacity(contentOpacity)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding((session.isImagePreview || session.officeURL != nil) ? 0 : 12)
         .task(id: loadTaskID) {
-            session.beginLoadTask(customPreviewRevision: Int(customPreviewStore.revision))
+            await applyLoadTaskIfNeeded()
+        }
+        .onChange(of: session.browseTarget.id) { _ in
+            guard session.browseContext != nil else { return }
+            contentOpacity = 0.35
+            withAnimation(.easeInOut(duration: PreviewBrowserStripMetrics.contentCrossfadeDuration)) {
+                contentOpacity = 1
+            }
         }
         .onChange(of: session.htmlMode) { newMode in
             guard PreviewTypeClassifier.isHtmlFile(item.url.pathExtension) else { return }
@@ -5559,6 +5613,32 @@ struct FileContentView: View {
         } message: {
             Text(session.imageSaveErrorMessage ?? "")
         }
+    }
+
+    @MainActor
+    private func applyLoadTaskIfNeeded() async {
+        if lastAppliedLoadTaskID == loadTaskID {
+            return
+        }
+
+        if lastAppliedLoadTaskID == nil,
+           session.loadPhase == .loaded,
+           !session.isLoading {
+            lastAppliedLoadTaskID = loadTaskID
+            return
+        }
+
+        if session.browseContext != nil, lastAppliedLoadTaskID != nil {
+            try? await Task.sleep(nanoseconds: PreviewBrowserStripMetrics.switchDebounceMilliseconds * 1_000_000)
+            guard !Task.isCancelled else { return }
+        }
+
+        guard lastAppliedLoadTaskID != loadTaskID else { return }
+
+        lastAppliedLoadTaskID = loadTaskID
+        session.cancelLoad()
+        session.resetControls()
+        session.beginLoadTask(customPreviewRevision: Int(customPreviewStore.revision))
     }
 }
 
