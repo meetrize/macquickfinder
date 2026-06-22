@@ -327,9 +327,6 @@ struct ExplorerApp: App {
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
-        .commands {
-            explorerCommands
-        }
 
         WindowGroup(id: ExplorerWindowScene.preview, for: PreviewWindowValue.self) { $value in
             if let value {
