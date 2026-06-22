@@ -5526,7 +5526,9 @@ struct FileContentView: View {
                     url: officeURL,
                     reloadToken: session.officeReloadToken,
                     navigationAction: $session.officeNavigateAction
-                )
+                ) { scalePercent in
+                    session.officeScalePercent = scalePercent
+                }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.trailing, 10)
                     .padding(.bottom, 6)
@@ -6774,8 +6776,11 @@ private struct QuickLookPreview: NSViewRepresentable {
     let url: URL
     let reloadToken: Int
     @Binding var navigationAction: OfficeNavigationAction?
+    var onScaleChanged: (_ scalePercent: Int) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onScaleChanged: onScaleChanged)
+    }
 
     func makeNSView(context: Context) -> NSView {
         guard let view = QLPreviewView(frame: .zero, style: .normal) else {
@@ -6789,12 +6794,14 @@ private struct QuickLookPreview: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         guard let qlView = nsView as? QLPreviewView else { return }
+        context.coordinator.onScaleChanged = onScaleChanged
         context.coordinator.attach(qlView)
 
         if context.coordinator.lastReloadToken != reloadToken {
             qlView.previewItem = nil
             qlView.previewItem = url as NSURL
             context.coordinator.lastReloadToken = reloadToken
+            context.coordinator.resetZoom()
             DispatchQueue.main.async { context.coordinator.attach(qlView) }
             return
         }
@@ -6802,6 +6809,7 @@ private struct QuickLookPreview: NSViewRepresentable {
         let currentURL = qlView.previewItem?.previewItemURL
         if currentURL?.path != url.path {
             qlView.previewItem = url as NSURL
+            context.coordinator.resetZoom()
             DispatchQueue.main.async { context.coordinator.attach(qlView) }
         }
 
@@ -6814,25 +6822,52 @@ private struct QuickLookPreview: NSViewRepresentable {
     }
 
     final class Coordinator {
+        private static let minZoom: CGFloat = 0.25
+        private static let maxZoom: CGFloat = 5.0
+        private static let zoomStep: CGFloat = 1.2
+
         var lastReloadToken: Int = 0
+        var onScaleChanged: (_ scalePercent: Int) -> Void
         private weak var qlView: QLPreviewView?
         private weak var scrollView: NSScrollView?
+        private var manualZoomScale: CGFloat = 1.0
+        private var unscaledDocumentSize: NSSize = .zero
+
+        init(onScaleChanged: @escaping (_ scalePercent: Int) -> Void) {
+            self.onScaleChanged = onScaleChanged
+        }
 
         func attach(_ view: QLPreviewView) {
             qlView = view
-            scrollView = Self.findScrollView(in: view)
+            scrollView = Self.findPrimaryScrollView(in: view)
+            configureScrollViewForZoom()
             hideIndicators(in: view)
+            emitScale()
             // QuickLook 的子视图有时异步构建，延迟再隐藏一次，避免无效滚动条回弹显示。
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak view] in
                 guard let self, let view else { return }
-                self.scrollView = Self.findScrollView(in: view)
+                self.scrollView = Self.findPrimaryScrollView(in: view)
+                self.configureScrollViewForZoom()
                 self.hideIndicators(in: view)
+                self.emitScale()
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak view] in
                 guard let self, let view else { return }
-                self.scrollView = Self.findScrollView(in: view)
+                self.scrollView = Self.findPrimaryScrollView(in: view)
+                self.configureScrollViewForZoom()
                 self.hideIndicators(in: view)
+                self.emitScale()
             }
+        }
+
+        func resetZoom() {
+            manualZoomScale = 1.0
+            unscaledDocumentSize = .zero
+            if let scrollView {
+                scrollView.magnification = 1.0
+            }
+            applyManualZoomTransform()
+            emitScale()
         }
 
         func perform(_ action: OfficeNavigationAction) {
@@ -6843,21 +6878,129 @@ private struct QuickLookPreview: NSViewRepresentable {
                 if NSApp.sendAction(#selector(NSResponder.pageUp(_:)), to: nil, from: qlView) {
                     return
                 }
+                fallbackScroll(action)
             case .pageDown:
                 if NSApp.sendAction(#selector(NSResponder.pageDown(_:)), to: nil, from: qlView) {
                     return
                 }
+                fallbackScroll(action)
             case .top:
                 if NSApp.sendAction(#selector(NSResponder.scrollToBeginningOfDocument(_:)), to: nil, from: qlView) {
                     return
                 }
+                fallbackScroll(action)
             case .bottom:
                 if NSApp.sendAction(#selector(NSResponder.scrollToEndOfDocument(_:)), to: nil, from: qlView) {
                     return
                 }
+                fallbackScroll(action)
+            case .zoomIn:
+                applyMagnification(currentMagnification() * Self.zoomStep)
+            case .zoomOut:
+                applyMagnification(currentMagnification() / Self.zoomStep)
+            case .actualSize:
+                applyMagnification(1.0)
+            case .fitWidth:
+                applyFitWidth()
+            case .fitPage:
+                applyFitPage()
             }
-            // 兜底：若响应链没有处理，再尝试直接滚动内部 scrollView。
-            fallbackScroll(action)
+        }
+
+        private func configureScrollViewForZoom() {
+            guard let scrollView else { return }
+            scrollView.allowsMagnification = true
+            scrollView.minMagnification = Self.minZoom
+            scrollView.maxMagnification = Self.maxZoom
+            if scrollView.magnification < Self.minZoom || scrollView.magnification > Self.maxZoom {
+                scrollView.magnification = manualZoomScale
+            }
+            captureUnscaledDocumentSizeIfNeeded()
+        }
+
+        private func captureUnscaledDocumentSizeIfNeeded() {
+            guard let scrollView, let docView = scrollView.documentView else { return }
+            let bounds = docView.bounds.size
+            guard bounds.width > 1, bounds.height > 1 else { return }
+            if unscaledDocumentSize == .zero || manualZoomScale == 1.0 {
+                let mag = max(scrollView.magnification, 0.0001)
+                unscaledDocumentSize = NSSize(
+                    width: bounds.width / mag,
+                    height: bounds.height / mag
+                )
+            }
+        }
+
+        private func currentMagnification() -> CGFloat {
+            if let scrollView, scrollView.allowsMagnification {
+                return scrollView.magnification
+            }
+            return manualZoomScale
+        }
+
+        private func applyMagnification(_ value: CGFloat) {
+            let clamped = max(Self.minZoom, min(value, Self.maxZoom))
+            manualZoomScale = clamped
+            if let scrollView, scrollView.allowsMagnification {
+                scrollView.magnification = clamped
+            } else {
+                applyManualZoomTransform()
+            }
+            emitScale()
+        }
+
+        private func applyManualZoomTransform() {
+            guard let scrollView, let docView = scrollView.documentView else { return }
+            captureUnscaledDocumentSizeIfNeeded()
+            guard unscaledDocumentSize.width > 0, unscaledDocumentSize.height > 0 else { return }
+
+            docView.wantsLayer = true
+            docView.layer?.setAffineTransform(
+                CGAffineTransform(scaleX: manualZoomScale, y: manualZoomScale)
+            )
+            let scaledSize = NSSize(
+                width: unscaledDocumentSize.width * manualZoomScale,
+                height: unscaledDocumentSize.height * manualZoomScale
+            )
+            docView.setFrameSize(scaledSize)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        }
+
+        private func applyFitWidth(retryCount: Int = 0) {
+            guard let scrollView else { return }
+            captureUnscaledDocumentSizeIfNeeded()
+            let docWidth = unscaledDocumentSize.width
+            let visibleWidth = scrollView.contentView.bounds.width
+            guard docWidth > 1, visibleWidth > 1 else {
+                guard retryCount < 3 else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                    self?.applyFitWidth(retryCount: retryCount + 1)
+                }
+                return
+            }
+            applyMagnification(visibleWidth / docWidth)
+        }
+
+        private func applyFitPage(retryCount: Int = 0) {
+            guard let scrollView else { return }
+            captureUnscaledDocumentSizeIfNeeded()
+            let docSize = unscaledDocumentSize
+            let visibleSize = scrollView.contentView.bounds.size
+            guard docSize.width > 1, docSize.height > 1,
+                  visibleSize.width > 1, visibleSize.height > 1 else {
+                guard retryCount < 3 else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                    self?.applyFitPage(retryCount: retryCount + 1)
+                }
+                return
+            }
+            let target = min(visibleSize.width / docSize.width, visibleSize.height / docSize.height)
+            applyMagnification(target)
+        }
+
+        private func emitScale() {
+            let percent = Int((currentMagnification() * 100).rounded())
+            onScaleChanged(max(25, min(percent, 500)))
         }
 
         private func fallbackScroll(_ action: OfficeNavigationAction) {
@@ -6877,17 +7020,33 @@ private struct QuickLookPreview: NSViewRepresentable {
                 newOrigin.y = 0
             case .bottom:
                 newOrigin.y = max(docBounds.height - visible.height, 0)
+            case .zoomIn, .zoomOut, .actualSize, .fitWidth, .fitPage:
+                return
             }
             clip.animator().setBoundsOrigin(newOrigin)
             scrollView.reflectScrolledClipView(clip)
         }
 
-        private static func findScrollView(in view: NSView) -> NSScrollView? {
-            if let scroll = view as? NSScrollView { return scroll }
-            for sub in view.subviews {
-                if let found = findScrollView(in: sub) { return found }
+        private static func findPrimaryScrollView(in view: NSView) -> NSScrollView? {
+            var best: NSScrollView?
+            var bestArea: CGFloat = 0
+
+            func visit(_ node: NSView) {
+                if let scroll = node as? NSScrollView,
+                   let docView = scroll.documentView {
+                    let area = docView.bounds.width * docView.bounds.height
+                    if area > bestArea {
+                        bestArea = area
+                        best = scroll
+                    }
+                }
+                for sub in node.subviews {
+                    visit(sub)
+                }
             }
-            return nil
+
+            visit(view)
+            return best
         }
 
         private func hideIndicators(in view: NSView) {
@@ -6913,6 +7072,11 @@ enum OfficeNavigationAction: Equatable {
     case pageDown
     case top
     case bottom
+    case zoomIn
+    case zoomOut
+    case actualSize
+    case fitWidth
+    case fitPage
 }
 
 struct ImageResizeSheet: View {

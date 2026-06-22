@@ -58,6 +58,7 @@ final class PreviewSession: ObservableObject, Identifiable {
     // MARK: - Office toolbar state
 
     @Published var officeReloadToken = 0
+    @Published var officeScalePercent = 0
     @Published var officeNavigateAction: OfficeNavigationAction?
 
     // MARK: - Archive toolbar state
@@ -194,6 +195,7 @@ final class PreviewSession: ObservableObject, Identifiable {
         mediaIsPlaying = false
         mediaIsMuted = false
         officeReloadToken = 0
+        officeScalePercent = 0
         officeNavigateAction = nil
         archiveExpanded = true
         archiveReloadToken = 0

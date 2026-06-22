@@ -41,6 +41,7 @@ final class PreviewSessionTests: XCTestCase {
         session.markdownMode = .source
         session.mediaIsPlaying = true
         session.archiveExpanded = false
+        session.officeScalePercent = 150
         session.imageEditUndoStack = [
             ImageEditSnapshot(
                 rotationQuarterTurns: 0,
@@ -59,7 +60,34 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertEqual(session.markdownMode, .preview)
         XCTAssertFalse(session.mediaIsPlaying)
         XCTAssertTrue(session.archiveExpanded)
+        XCTAssertEqual(session.officeScalePercent, 0)
         XCTAssertTrue(session.imageEditUndoStack.isEmpty)
+    }
+
+    func testOfficeToolbarIncludesZoomControls() {
+        let session = PreviewSession(
+            hostWindowID: UUID(),
+            file: FileItem(
+                id: "doc",
+                url: URL(fileURLWithPath: "/tmp/sample.docx"),
+                name: "sample.docx",
+                isDirectory: false,
+                modificationDate: .distantPast,
+                size: 1024,
+                isHidden: false,
+                fileType: "docx",
+                sizeDisplay: "1 KB",
+                dateDisplay: ""
+            )
+        )
+        let items = session.previewToolbarItems(for: session.file)
+        let ids = Set(items.map(\.id))
+        XCTAssertTrue(ids.contains("office-zoom-out"))
+        XCTAssertTrue(ids.contains("office-scale"))
+        XCTAssertTrue(ids.contains("office-zoom-in"))
+        XCTAssertTrue(ids.contains("office-actual-size"))
+        XCTAssertTrue(ids.contains("office-fit-width"))
+        XCTAssertTrue(ids.contains("office-fit-page"))
     }
 
     func testImageEditUndoRoundTrip() {

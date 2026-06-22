@@ -413,6 +413,52 @@ extension PreviewSession {
                 action: { [self] in officeNavigateAction = .pageUp }
             ),
             previewToolbarIconItem(
+                id: "office-zoom-out",
+                title: "缩小",
+                systemImage: "minus.magnifyingglass",
+                isDisabled: officeScalePercent > 0 && officeScalePercent <= 25,
+                action: { [self] in officeNavigateAction = .zoomOut }
+            ),
+            PreviewToolbarOverflowModel(
+                id: "office-scale",
+                menuTitle: "缩放比例",
+                menuSystemImage: "percent",
+                isDisabled: false,
+                estimatedWidth: 44,
+                menuAction: {},
+                content: AnyView(
+                    Text(officeScalePercent > 0 ? "\(officeScalePercent)%" : "--")
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.secondary)
+                        .frame(minWidth: 44, alignment: .center)
+                )
+            ),
+            previewToolbarIconItem(
+                id: "office-zoom-in",
+                title: "放大",
+                systemImage: "plus.magnifyingglass",
+                isDisabled: officeScalePercent >= 500,
+                action: { [self] in officeNavigateAction = .zoomIn }
+            ),
+            previewToolbarIconItem(
+                id: "office-actual-size",
+                title: "100% 还原",
+                systemImage: "1.magnifyingglass",
+                action: { [self] in officeNavigateAction = .actualSize }
+            ),
+            previewToolbarIconItem(
+                id: "office-fit-width",
+                title: "适配宽度",
+                systemImage: "arrow.left.and.right.square",
+                action: { [self] in officeNavigateAction = .fitWidth }
+            ),
+            previewToolbarIconItem(
+                id: "office-fit-page",
+                title: "整页适配",
+                systemImage: "arrow.up.left.and.arrow.down.right",
+                action: { [self] in officeNavigateAction = .fitPage }
+            ),
+            previewToolbarIconItem(
                 id: "office-next",
                 title: "下一页（滚动）",
                 systemImage: "chevron.right",
