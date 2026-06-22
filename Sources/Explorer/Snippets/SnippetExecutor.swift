@@ -14,17 +14,28 @@ final class SnippetExecutor: ObservableObject {
 
     private init() {}
 
-    func execute(_ snippet: Snippet, context: SnippetExecutionContext) {
+    func execute(
+        _ snippet: Snippet,
+        context: SnippetExecutionContext,
+        inSystemTerminal: Bool? = nil
+    ) {
+        let useSystemTerminal = inSystemTerminal ?? snippet.useSystemTerminal
         if settings.confirmDestructiveSnippets, isDestructive(snippet.content) {
             pendingDestructiveSnippet = snippet
             pendingContext = context
+            pendingUseSystemTerminal = useSystemTerminal
             return
         }
-        performExecute(snippet, context: context)
+        performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal)
     }
 
     /// 从 AppKit 右键菜单执行；危险命令用 NSAlert 确认，不依赖 Snippets 面板是否可见。
-    func executeFromMenu(_ snippet: Snippet, context: SnippetExecutionContext) {
+    func executeFromMenu(
+        _ snippet: Snippet,
+        context: SnippetExecutionContext,
+        inSystemTerminal: Bool? = nil
+    ) {
+        let useSystemTerminal = inSystemTerminal ?? snippet.useSystemTerminal
         if settings.confirmDestructiveSnippets, isDestructive(snippet.content) {
             let alert = NSAlert()
             alert.messageText = "危险命令确认"
@@ -34,24 +45,32 @@ final class SnippetExecutor: ObservableObject {
             alert.addButton(withTitle: "仍要执行")
             guard alert.runModal() == .alertSecondButtonReturn else { return }
         }
-        performExecute(snippet, context: context)
+        performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal)
     }
 
     func confirmDestructiveExecution() {
         guard let snippet = pendingDestructiveSnippet, let context = pendingContext else { return }
+        let useSystemTerminal = pendingUseSystemTerminal
         pendingDestructiveSnippet = nil
         pendingContext = nil
-        performExecute(snippet, context: context)
+        pendingUseSystemTerminal = false
+        performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal)
     }
 
     func cancelDestructiveExecution() {
         pendingDestructiveSnippet = nil
         pendingContext = nil
+        pendingUseSystemTerminal = false
     }
 
     private var pendingContext: SnippetExecutionContext?
+    private var pendingUseSystemTerminal = false
 
-    private func performExecute(_ snippet: Snippet, context: SnippetExecutionContext) {
+    private func performExecute(
+        _ snippet: Snippet,
+        context: SnippetExecutionContext,
+        useSystemTerminal: Bool
+    ) {
         let expanded: String
         do {
             expanded = try SnippetExpander.expand(
@@ -60,19 +79,22 @@ final class SnippetExecutor: ObservableObject {
                 scriptType: snippet.scriptType
             )
         } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            expansionErrorMessage = message
-            let jobID = jobStore.createJob(
-                snippetName: snippet.name,
-                displayCommand: snippet.content,
-                source: .snippet(id: snippet.id, name: snippet.name),
-                expandedContent: snippet.content
-            )
-            jobStore.markFailed(jobID: jobID, message: message + "\n")
-            if settings.autoShowOutputPanelOnShellRun {
-                if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
-                    ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
-                }
+            reportExpansionError(error, snippet: snippet)
+            return
+        }
+
+        let cwd = resolveWorkingDirectory(snippet: snippet, context: context)
+
+        if useSystemTerminal {
+            do {
+                try SystemTerminalRunner.run(
+                    snippet: snippet,
+                    expandedContent: expanded,
+                    workingDirectory: cwd
+                )
+                store.recordExecution(id: snippet.id)
+            } catch {
+                reportExpansionError(error, snippet: snippet, expandedContent: expanded)
             }
             return
         }
@@ -87,8 +109,6 @@ final class SnippetExecutor: ObservableObject {
         case .appleScript:
             displayCommand = expanded
         }
-
-        let cwd = resolveWorkingDirectory(snippet: snippet, context: context)
 
         let jobID = jobStore.createJob(
             snippetName: snippet.name,
@@ -117,6 +137,27 @@ final class SnippetExecutor: ObservableObject {
         }
 
         store.recordExecution(id: snippet.id)
+    }
+
+    private func reportExpansionError(
+        _ error: Error,
+        snippet: Snippet,
+        expandedContent: String? = nil
+    ) {
+        let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        expansionErrorMessage = message
+        let jobID = jobStore.createJob(
+            snippetName: snippet.name,
+            displayCommand: snippet.content,
+            source: .snippet(id: snippet.id, name: snippet.name),
+            expandedContent: expandedContent ?? snippet.content
+        )
+        jobStore.markFailed(jobID: jobID, message: message + "\n")
+        if settings.autoShowOutputPanelOnShellRun {
+            if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
+                ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
+            }
+        }
     }
 
     private func resolveWorkingDirectory(snippet: Snippet, context: SnippetExecutionContext) -> String? {

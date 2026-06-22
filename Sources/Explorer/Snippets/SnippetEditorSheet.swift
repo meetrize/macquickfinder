@@ -12,6 +12,7 @@ struct SnippetEditorSheet: View {
     @State private var content: String
     @State private var interpreter: String
     @State private var useCustomInterpreter: Bool
+    @State private var useSystemTerminal: Bool
 
     let snippet: Snippet?
     let onSave: (Snippet) -> Void
@@ -41,6 +42,7 @@ struct SnippetEditorSheet: View {
         _content = State(initialValue: s.content)
         _interpreter = State(initialValue: s.interpreter ?? SnippetDefaults.shellInterpreter)
         _useCustomInterpreter = State(initialValue: s.interpreter != nil && s.interpreter != SnippetDefaults.shellInterpreter && s.interpreter != SnippetDefaults.bashInterpreter)
+        _useSystemTerminal = State(initialValue: s.useSystemTerminal)
 
         switch s.scope {
         case .fileExtensions(let exts):
@@ -81,12 +83,24 @@ struct SnippetEditorSheet: View {
                     Text(type.displayName).tag(type)
                 }
             }
+            .onChange(of: scriptType) { newType in
+                if newType != .shell && newType != .python3 {
+                    useSystemTerminal = false
+                }
+            }
 
             if scriptType == .shell {
                 Picker("解释器", selection: $interpreter) {
                     Text("zsh").tag(SnippetDefaults.shellInterpreter)
                     Text("bash").tag(SnippetDefaults.bashInterpreter)
                 }
+            }
+
+            if scriptType == .shell || scriptType == .python3 {
+                Toggle("使用系统终端", isOn: $useSystemTerminal)
+                Text("在 Terminal 等应用中运行，输出不显示在应用内面板")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Text("内容")
@@ -138,6 +152,7 @@ struct SnippetEditorSheet: View {
         s.scope = scope
         s.content = content
         s.interpreter = scriptType == .shell ? interpreter : nil
+        s.useSystemTerminal = (scriptType == .shell || scriptType == .python3) && useSystemTerminal
         s.updatedAt = Date()
         onSave(s)
         dismiss()

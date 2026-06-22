@@ -141,6 +141,8 @@ struct Snippet: Codable, Identifiable, Equatable, Hashable {
     var isBuiltin: Bool
     var workingDirectory: SnippetWorkingDirectory?
     var interpreter: String?
+    /// 为 true 时默认在系统终端（Terminal 等）中执行，而非应用内输出面板。
+    var useSystemTerminal: Bool
 
     init(
         id: UUID = UUID(),
@@ -156,7 +158,8 @@ struct Snippet: Codable, Identifiable, Equatable, Hashable {
         updatedAt: Date = Date(),
         isBuiltin: Bool = false,
         workingDirectory: SnippetWorkingDirectory? = nil,
-        interpreter: String? = nil
+        interpreter: String? = nil,
+        useSystemTerminal: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -172,6 +175,51 @@ struct Snippet: Codable, Identifiable, Equatable, Hashable {
         self.isBuiltin = isBuiltin
         self.workingDirectory = workingDirectory
         self.interpreter = interpreter
+        self.useSystemTerminal = useSystemTerminal
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, scriptType, scope, content, variableHints, sortOrder
+        case lastExecutedAt, executionCount, createdAt, updatedAt, isBuiltin
+        case workingDirectory, interpreter, useSystemTerminal
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        scriptType = try c.decode(SnippetScriptType.self, forKey: .scriptType)
+        scope = try c.decode(SnippetScope.self, forKey: .scope)
+        content = try c.decode(String.self, forKey: .content)
+        variableHints = try c.decodeIfPresent([SnippetVariableHint].self, forKey: .variableHints) ?? []
+        sortOrder = try c.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
+        lastExecutedAt = try c.decodeIfPresent(Date.self, forKey: .lastExecutedAt)
+        executionCount = try c.decodeIfPresent(Int.self, forKey: .executionCount) ?? 0
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+        isBuiltin = try c.decodeIfPresent(Bool.self, forKey: .isBuiltin) ?? false
+        workingDirectory = try c.decodeIfPresent(SnippetWorkingDirectory.self, forKey: .workingDirectory)
+        interpreter = try c.decodeIfPresent(String.self, forKey: .interpreter)
+        useSystemTerminal = try c.decodeIfPresent(Bool.self, forKey: .useSystemTerminal) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encode(scriptType, forKey: .scriptType)
+        try c.encode(scope, forKey: .scope)
+        try c.encode(content, forKey: .content)
+        try c.encode(variableHints, forKey: .variableHints)
+        try c.encode(sortOrder, forKey: .sortOrder)
+        try c.encodeIfPresent(lastExecutedAt, forKey: .lastExecutedAt)
+        try c.encode(executionCount, forKey: .executionCount)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encode(isBuiltin, forKey: .isBuiltin)
+        try c.encodeIfPresent(workingDirectory, forKey: .workingDirectory)
+        try c.encodeIfPresent(interpreter, forKey: .interpreter)
+        try c.encode(useSystemTerminal, forKey: .useSystemTerminal)
     }
 }
 

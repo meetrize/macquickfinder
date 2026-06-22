@@ -170,6 +170,9 @@ struct SnippetsPanelView: View {
                         .contextMenu {
                             Button("编辑") { editorSnippet = snippet }
                             Button("执行") { execute(snippet) }
+                            if !snippet.useSystemTerminal, snippet.scriptType == .shell || snippet.scriptType == .python3 {
+                                Button("在终端中执行") { execute(snippet, inSystemTerminal: true) }
+                            }
                             Button("导出…") { exportSingle(snippet) }
                             Divider()
                             Button("删除", role: .destructive) { store.delete(id: snippet.id) }
@@ -239,8 +242,8 @@ struct SnippetsPanelView: View {
         SnippetExecutionContext(cwd: cwd, selectedItems: selectedItems)
     }
 
-    private func execute(_ snippet: Snippet) {
-        executor.execute(snippet, context: executionContext())
+    private func execute(_ snippet: Snippet, inSystemTerminal: Bool? = nil) {
+        executor.execute(snippet, context: executionContext(), inSystemTerminal: inSystemTerminal)
     }
 
     private func exportAll() {
