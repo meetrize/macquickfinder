@@ -23,8 +23,8 @@ extension PreviewSession {
         mediaIsPlaying = false
         mediaIsMuted = false
         officeReloadToken = 0
-        officeScalePercent = 0
-        officeNavigateAction = nil
+        officeZoomScale = 1.0
+        officePanMode = false
         archiveCopyAction = nil
         pdfCurrentPage = 0
         pdfPageCount = 0

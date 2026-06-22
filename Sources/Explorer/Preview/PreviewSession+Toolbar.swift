@@ -407,17 +407,13 @@ extension PreviewSession {
     func previewOfficeToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
         [
             previewToolbarIconItem(
-                id: "office-prev",
-                title: "上一页（滚动）",
-                systemImage: "chevron.left",
-                action: { [self] in officeNavigateAction = .pageUp }
-            ),
-            previewToolbarIconItem(
                 id: "office-zoom-out",
                 title: "缩小",
                 systemImage: "minus.magnifyingglass",
-                isDisabled: officeScalePercent > 0 && officeScalePercent <= 25,
-                action: { [self] in officeNavigateAction = .zoomOut }
+                isDisabled: officeZoomScale <= 0.25,
+                action: { [self] in
+                    officeZoomScale = max(officeZoomScale / 1.2, 0.25)
+                }
             ),
             PreviewToolbarOverflowModel(
                 id: "office-scale",
@@ -427,7 +423,7 @@ extension PreviewSession {
                 estimatedWidth: 44,
                 menuAction: {},
                 content: AnyView(
-                    Text(officeScalePercent > 0 ? "\(officeScalePercent)%" : "--")
+                    Text("\(Int((officeZoomScale * 100).rounded()))%")
                         .font(.caption.monospacedDigit())
                         .foregroundColor(.secondary)
                         .frame(minWidth: 44, alignment: .center)
@@ -437,44 +433,23 @@ extension PreviewSession {
                 id: "office-zoom-in",
                 title: "放大",
                 systemImage: "plus.magnifyingglass",
-                isDisabled: officeScalePercent >= 500,
-                action: { [self] in officeNavigateAction = .zoomIn }
+                isDisabled: officeZoomScale >= 5.0,
+                action: { [self] in
+                    officeZoomScale = min(officeZoomScale * 1.2, 5.0)
+                }
             ),
             previewToolbarIconItem(
-                id: "office-actual-size",
-                title: "100% 还原",
-                systemImage: "1.magnifyingglass",
-                action: { [self] in officeNavigateAction = .actualSize }
+                id: "office-reset",
+                title: "还原",
+                systemImage: "arrow.counterclockwise",
+                isDisabled: abs(officeZoomScale - 1.0) < 0.001,
+                action: { [self] in officeZoomScale = 1.0 }
             ),
             previewToolbarIconItem(
-                id: "office-fit-width",
-                title: "适配宽度",
-                systemImage: "arrow.left.and.right.square",
-                action: { [self] in officeNavigateAction = .fitWidth }
-            ),
-            previewToolbarIconItem(
-                id: "office-fit-page",
-                title: "整页适配",
-                systemImage: "arrow.up.left.and.arrow.down.right",
-                action: { [self] in officeNavigateAction = .fitPage }
-            ),
-            previewToolbarIconItem(
-                id: "office-next",
-                title: "下一页（滚动）",
-                systemImage: "chevron.right",
-                action: { [self] in officeNavigateAction = .pageDown }
-            ),
-            previewToolbarIconItem(
-                id: "office-open",
-                title: "用默认应用打开",
-                systemImage: "arrow.up.forward.app",
-                action: { NSWorkspace.shared.open(item.url) }
-            ),
-            previewToolbarIconItem(
-                id: "office-reload",
-                title: "刷新预览",
-                systemImage: "arrow.clockwise",
-                action: { [self] in officeReloadToken += 1 }
+                id: "office-pan",
+                title: officePanMode ? "关闭拖拽平移" : "拖拽平移",
+                systemImage: officePanMode ? "hand.raised.fill" : "hand.raised",
+                action: { [self] in officePanMode.toggle() }
             ),
         ]
     }

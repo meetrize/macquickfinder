@@ -41,7 +41,7 @@ final class PreviewSessionTests: XCTestCase {
         session.markdownMode = .source
         session.mediaIsPlaying = true
         session.archiveExpanded = false
-        session.officeScalePercent = 150
+        session.officeZoomScale = 1.5
         session.imageEditUndoStack = [
             ImageEditSnapshot(
                 rotationQuarterTurns: 0,
@@ -60,7 +60,7 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertEqual(session.markdownMode, .preview)
         XCTAssertFalse(session.mediaIsPlaying)
         XCTAssertTrue(session.archiveExpanded)
-        XCTAssertEqual(session.officeScalePercent, 0)
+        XCTAssertEqual(session.officeZoomScale, 1.0)
         XCTAssertTrue(session.imageEditUndoStack.isEmpty)
     }
 
@@ -85,9 +85,10 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertTrue(ids.contains("office-zoom-out"))
         XCTAssertTrue(ids.contains("office-scale"))
         XCTAssertTrue(ids.contains("office-zoom-in"))
-        XCTAssertTrue(ids.contains("office-actual-size"))
-        XCTAssertTrue(ids.contains("office-fit-width"))
-        XCTAssertTrue(ids.contains("office-fit-page"))
+        XCTAssertTrue(ids.contains("office-reset"))
+        XCTAssertTrue(ids.contains("office-pan"))
+        XCTAssertFalse(ids.contains("office-prev"))
+        XCTAssertFalse(ids.contains("office-next"))
     }
 
     func testImageEditUndoRoundTrip() {
