@@ -81,10 +81,10 @@ public enum FileListColumnID: String, CaseIterable, Codable, Identifiable, Hasha
     
     public var maxWidth: CGFloat {
         switch self {
-        case .name: return 480
-        case .type: return 160
-        case .size: return 140
-        case .dateModified: return 260
+        case .name: return 960
+        case .type: return 320
+        case .size: return 280
+        case .dateModified: return 520
         }
     }
 }
