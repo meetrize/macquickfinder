@@ -2,11 +2,47 @@ import AppKit
 import SwiftUI
 
 enum FullDiskAccessPermission {
-    /// 受 TCC 保护的路径；可读即表示已获得完全磁盘访问权限。
-    private static let probePath = "/Library/Application Support/com.apple.TCC/TCC.db"
+    /// TCC 保护的用户目录/文件；须实际读取内容，`isReadableFile` 不会触发 TCC 校验。
+    private static let protectedDirectoryProbes = [
+        "Library/Mail",
+        "Library/Messages",
+        "Library/Calendars",
+    ]
+    private static let protectedFileProbes = [
+        "Library/Safari/Bookmarks.plist",
+    ]
 
     static func hasAccess() -> Bool {
-        FileManager.default.isReadableFile(atPath: probePath)
+        for relative in protectedDirectoryProbes where canListProtectedDirectory(relative) {
+            return true
+        }
+        for relative in protectedFileProbes where canReadProtectedFile(relative) {
+            return true
+        }
+        return false
+    }
+
+    private static func homePath(_ relative: String) -> String {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(relative)
+            .path
+    }
+
+    private static func canListProtectedDirectory(_ relative: String) -> Bool {
+        let path = homePath(relative)
+        guard FileManager.default.fileExists(atPath: path) else { return false }
+        do {
+            _ = try FileManager.default.contentsOfDirectory(atPath: path)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private static func canReadProtectedFile(_ relative: String) -> Bool {
+        let path = homePath(relative)
+        guard FileManager.default.fileExists(atPath: path) else { return false }
+        return FileManager.default.contents(atPath: path) != nil
     }
 
     @MainActor
@@ -24,14 +60,16 @@ enum FullDiskAccessPermission {
 
     @MainActor
     static func restartApplication() {
-        let bundleURL = Bundle.main.bundleURL
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: bundleURL, configuration: configuration) { _, _ in
-            DispatchQueue.main.async {
-                NSApp.terminate(nil)
-            }
-        }
+        let bundlePath = Bundle.main.bundleURL.path
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", "sleep 0.25; open \(shellSingleQuoted(bundlePath))"]
+        try? process.run()
+        NSApp.terminate(nil)
+    }
+
+    private static func shellSingleQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     static var appDisplayName: String {
@@ -88,7 +126,11 @@ final class FullDiskAccessPromptController: ObservableObject {
 
     func handleAppDidBecomeActive() {
         guard isPresented || !didCheckOnLaunch else { return }
+        let hadAccess = hasAccess
         refreshAccessState()
+        if isPresented && !hadAccess && hasAccess {
+            isPresented = false
+        }
     }
 }
 
