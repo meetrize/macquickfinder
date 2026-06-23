@@ -56,7 +56,6 @@ public final class FileListThumbnailController: NSObject {
     var skipNextItemMouseUp = false
     var usedSystemItemMouseDown = false
     let dragThreshold: CGFloat = 4
-    static let renameSecondClickMaxInterval: TimeInterval = 1
     
     var onCellSizeChange: ((CGFloat) -> Void)?
     public var onOpenRow: ((FileListRow) -> Void)?

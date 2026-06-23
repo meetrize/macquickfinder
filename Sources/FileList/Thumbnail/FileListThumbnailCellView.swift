@@ -129,6 +129,12 @@ final class FileListThumbnailCellView: NSView {
         collectionView.rightMouseDown(with: event)
     }
     
+    func isPointInFileNameLabel(_ pointInWindow: NSPoint) -> Bool {
+        let pointInCell = convert(pointInWindow, from: nil)
+        let pointInLabel = nameLabel.convert(pointInCell, from: self)
+        return nameLabel.bounds.contains(pointInLabel)
+    }
+    
     func isPointInFileNameOverlay(_ pointInWindow: NSPoint) -> Bool {
         let pointInCell = convert(pointInWindow, from: nil)
         return bottomOverlay.frame.contains(pointInCell)

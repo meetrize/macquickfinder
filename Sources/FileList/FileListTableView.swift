@@ -69,7 +69,12 @@ final class FileListTableView: NSTableView {
     
     override func mouseUp(with event: NSEvent) {
         interactionController?.handleBlankMouseUp()
+        let point = convert(event.locationInWindow, from: nil)
+        let row = row(at: point)
         super.mouseUp(with: event)
+        if row >= 0 {
+            interactionController?.armRenameEligibleAfterClickIfNeeded(event, row: row, pointInTable: point)
+        }
         interactionController?.finishPointerInteractionIfNeeded()
     }
     

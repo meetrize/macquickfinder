@@ -29,12 +29,11 @@ public final class FileListTableController: NSObject {
     var dropHighlightRow: Int?
     var renamingRowID: String?
     var pendingRenameRow = -1
-    /// 行最近一次变为选中时的时间戳；用于限制「二次点击文件名」重命名窗口。
+    /// 行最近一次变为选中时的时间戳；用于区分「二次点击改名」与双击打开。
     var rowRenameEligibleSince: [String: Date] = [:]
     var lastKnownSelectionIDs: Set<String> = []
+    var wasAlreadySelectedAtMouseDown = false
     let dragThreshold: CGFloat = 4
-    /// 选中后须在此时间内再次点击文件名才进入重命名（秒）。
-    static let renameSecondClickMaxInterval: TimeInterval = 1
     
     public var onOpenRow: ((FileListRow) -> Void)?
     public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
@@ -1115,6 +1114,20 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         return disclosure.frame.insetBy(dx: -4, dy: -2).contains(pointInCell)
     }
     
+    func isRenameNameClickPoint(_ point: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
+        guard row >= 0, row < displayRows.count else { return false }
+        let column = tableView.column(at: point)
+        guard column >= 0, column < tableView.tableColumns.count else { return false }
+        guard FileListColumnID.from(column: tableView.tableColumns[column]) == .name else { return false }
+        guard let nameCell = tableView.view(atColumn: column, row: row, makeIfNecessary: false) as? NSTableCellView,
+              let label = nameLabel(in: nameCell)
+        else { return false }
+        
+        let pointInLabel = label.convert(point, from: tableView)
+        guard label.bounds.contains(pointInLabel) else { return false }
+        return label.visibleTextRect().contains(pointInLabel)
+    }
+    
     func isFileDragStartPoint(_ point: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
         guard row >= 0, row < displayRows.count else { return false }
         let column = tableView.column(at: point)
@@ -1132,13 +1145,7 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
             }
         }
         
-        guard let label = nameLabel(in: nameCell) else { return false }
-        let pointInLabel = label.convert(pointInCell, from: nameCell)
-        guard label.bounds.contains(pointInLabel) else { return false }
-        
-        // 仅图标与文字本体区域触发文件拖拽；名称列右侧空白应交给框选逻辑。
-        let textRect = label.visibleTextRect()
-        return textRect.contains(pointInLabel)
+        return isRenameNameClickPoint(point, row: row, in: tableView)
     }
     
     private func applyNameLabel(

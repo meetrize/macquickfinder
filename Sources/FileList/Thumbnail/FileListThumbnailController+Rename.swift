@@ -94,19 +94,19 @@ extension FileListThumbnailController {
         }
     }
     
-    func shouldBeginRenameOnMouseUp(indexPath: IndexPath) -> Bool {
+    func shouldBeginRenameOnMouseUp(indexPath: IndexPath, pointInCollection: NSPoint) -> Bool {
         guard !isRenaming else { return false }
         guard indexPath.item >= 0, indexPath.item < displayRows.count else { return false }
-        guard mouseDownCanStartFileDrag else { return false }
         guard isSoleSelectedIndexPath(indexPath) else { return false }
+        guard isRenameNameClickPoint(pointInCollection, indexPath: indexPath) else { return false }
         
         let row = displayRows[indexPath.item]
         guard !row.isParentDirectoryEntry else { return false }
         guard interaction.canRename(row) else { return false }
-        return isWithinRenameSecondClickWindow(itemID: row.id)
+        return isRenameSecondClickEligible(itemID: row.id)
     }
     
-    func armRenameEligibleAfterClickIfNeeded(_ event: NSEvent, indexPath: IndexPath) {
+    func armRenameEligibleAfterClickIfNeeded(_ event: NSEvent, indexPath: IndexPath, pointInCollection: NSPoint) {
         guard renamingRowID == nil, pendingRenameIndexPath == nil else { return }
         guard wasAlreadySelectedAtMouseDown else { return }
         guard event.clickCount == 1 else { return }
@@ -114,10 +114,20 @@ extension FileListThumbnailController {
         guard !flags.contains(.command), !flags.contains(.shift) else { return }
         guard isSoleSelectedIndexPath(indexPath) else { return }
         guard indexPath.item >= 0, indexPath.item < displayRows.count else { return }
+        guard isRenameNameClickPoint(pointInCollection, indexPath: indexPath) else { return }
         
         let row = displayRows[indexPath.item]
         guard !row.isParentDirectoryEntry, interaction.canRename(row) else { return }
         rowRenameEligibleSince[row.id] = Date()
+    }
+    
+    func isRenameNameClickPoint(_ point: NSPoint, indexPath: IndexPath) -> Bool {
+        guard let collectionView else { return false }
+        guard let item = collectionView.item(at: indexPath) as? FileListThumbnailItem,
+              let cell = item.view as? FileListThumbnailCellView
+        else { return false }
+        let pointInWindow = collectionView.convert(point, to: nil)
+        return cell.isPointInFileNameLabel(pointInWindow)
     }
     
     func isSoleSelectedIndexPath(_ indexPath: IndexPath) -> Bool {
@@ -146,11 +156,9 @@ extension FileListThumbnailController {
         lastKnownSelectionIDs = currentIDs
     }
     
-    private func isWithinRenameSecondClickWindow(itemID: String) -> Bool {
+    private func isRenameSecondClickEligible(itemID: String) -> Bool {
         guard let selectedAt = rowRenameEligibleSince[itemID] else { return false }
-        let elapsed = Date().timeIntervalSince(selectedAt)
-        return elapsed > NSEvent.doubleClickInterval
-            && elapsed <= Self.renameSecondClickMaxInterval
+        return Date().timeIntervalSince(selectedAt) > NSEvent.doubleClickInterval
     }
     
     func cancelRenameIfNeededForDataUpdate() {

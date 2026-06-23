@@ -72,17 +72,33 @@ extension FileListTableController {
         }
     }
     
-    func shouldBeginRenameOnMouseUp(row: Int) -> Bool {
+    func shouldBeginRenameOnMouseUp(row: Int, pointInTable: NSPoint) -> Bool {
         guard !isRenaming else { return false }
         guard row >= 0, row < displayRows.count else { return false }
-        guard mouseDownCanStartFileDrag else { return false }
         guard let tableView else { return false }
         guard tableView.selectedRowIndexes == IndexSet(integer: row) else { return false }
+        guard isRenameNameClickPoint(pointInTable, row: row, in: tableView) else { return false }
         
         let item = displayRows[row]
         guard !item.isParentDirectoryEntry else { return false }
         guard interaction.canRename(item) else { return false }
-        return isWithinRenameSecondClickWindow(itemID: item.id)
+        return isRenameSecondClickEligible(itemID: item.id)
+    }
+    
+    func armRenameEligibleAfterClickIfNeeded(_ event: NSEvent, row: Int, pointInTable: NSPoint) {
+        guard renamingRowID == nil, pendingRenameRow < 0 else { return }
+        guard wasAlreadySelectedAtMouseDown else { return }
+        guard event.clickCount == 1 else { return }
+        let flags = event.modifierFlags
+        guard !flags.contains(.command), !flags.contains(.shift) else { return }
+        guard let tableView else { return }
+        guard row >= 0, row < displayRows.count else { return }
+        guard tableView.selectedRowIndexes == IndexSet(integer: row) else { return }
+        guard isRenameNameClickPoint(pointInTable, row: row, in: tableView) else { return }
+        
+        let item = displayRows[row]
+        guard !item.isParentDirectoryEntry, interaction.canRename(item) else { return }
+        rowRenameEligibleSince[item.id] = Date()
     }
     
     func recordRenameSelectionTimestamps() {
@@ -103,12 +119,10 @@ extension FileListTableController {
         lastKnownSelectionIDs = currentIDs
     }
     
-    func isWithinRenameSecondClickWindow(itemID: String) -> Bool {
+    /// 与 Finder / 资源管理器一致：须距上次选中（或同名点击）超过系统双击间隔，才视为「慢速二次点击改名」。
+    func isRenameSecondClickEligible(itemID: String) -> Bool {
         guard let selectedAt = rowRenameEligibleSince[itemID] else { return false }
-        let elapsed = Date().timeIntervalSince(selectedAt)
-        // 过短易与双击打开冲突；过长则不应再进入内联重命名。
-        return elapsed > NSEvent.doubleClickInterval
-            && elapsed <= Self.renameSecondClickMaxInterval
+        return Date().timeIntervalSince(selectedAt) > NSEvent.doubleClickInterval
     }
     
     func renameField(in cell: NSTableCellView) -> FileListInlineRenameField? {

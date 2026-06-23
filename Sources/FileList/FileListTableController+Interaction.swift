@@ -12,6 +12,11 @@ extension FileListTableController {
     
     func willHandleMouseDown(_ event: NSEvent, row: Int, pointInTable: NSPoint) {
         mouseDownHandledByDisclosureToggle = false
+        wasAlreadySelectedAtMouseDown = row >= 0 && row < displayRows.count && {
+            guard let tableView else { return false }
+            if tableView.selectedRowIndexes.contains(row) { return true }
+            return effectiveSelectionIDs() == [displayRows[row].id]
+        }()
         if let tableView, row >= 0, row < displayRows.count,
            isDisclosureTogglePoint(pointInTable, row: row, in: tableView) {
             interaction.onToggleExpand(displayRows[row])
@@ -68,7 +73,7 @@ extension FileListTableController {
             tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             syncSelectionFromTable()
             pendingRenameRow = -1
-        } else if shouldBeginRenameOnMouseUp(row: row) {
+        } else if shouldBeginRenameOnMouseUp(row: row, pointInTable: tableView.convert(event.locationInWindow, from: nil)) {
             pendingRenameRow = row
         } else {
             pendingRenameRow = -1

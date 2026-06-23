@@ -41,7 +41,7 @@ extension FileListThumbnailController {
         if !collectionView.selectionIndexPaths.contains(indexPath) {
             collectionView.selectionIndexPaths = [indexPath]
             syncSelectionFromCollection()
-        } else if shouldBeginRenameOnMouseUp(indexPath: indexPath) {
+        } else if shouldBeginRenameOnMouseUp(indexPath: indexPath, pointInCollection: collectionView.convert(event.locationInWindow, from: nil)) {
             pendingRenameIndexPath = indexPath
         }
     }

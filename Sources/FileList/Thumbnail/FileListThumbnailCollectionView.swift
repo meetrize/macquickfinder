@@ -162,7 +162,8 @@ final class FileListThumbnailCollectionView: NSCollectionView {
         }
         
         if let indexPath {
-            interactionController?.armRenameEligibleAfterClickIfNeeded(event, indexPath: indexPath)
+            let point = convert(event.locationInWindow, from: nil)
+            interactionController?.armRenameEligibleAfterClickIfNeeded(event, indexPath: indexPath, pointInCollection: point)
         }
         interactionController?.finishPointerInteractionIfNeeded()
     }
