@@ -350,30 +350,9 @@ extension PreviewSession {
 
         if lowerName.hasSuffix(".zip") {
             do {
-                let escaped = shellEscape(url.path)
-                let command =
-                    "/usr/bin/unzip -l " + escaped +
-                    " | /usr/bin/head -n " + "\(maxEntries * 2 + 60)"
-                let output = try await runShellCapture(command)
-
-                var entries: [ArchiveEntryPreview] = []
-                for rawLine in output.split(whereSeparator: \.isNewline) {
-                    if entries.count >= maxEntries { break }
-                    let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let tokens = line.split(whereSeparator: { $0.isWhitespace })
-                    guard tokens.count >= 4 else { continue }
-                    guard let size = Int(tokens[0]) else { continue }
-                    let nameTokens = tokens.dropFirst(3)
-                    let path = nameTokens.joined(separator: " ")
-                    guard !path.isEmpty else { continue }
-                    let isDir = path.hasSuffix("/")
-                    entries.append(.init(path: path, isDirectory: isDir, size: Int64(size)))
-                }
-                if entries.isEmpty {
-                    finish(error: "无法读取 ZIP 目录")
-                } else {
-                    finish(archive: entries, archiveTruncated: entries.count >= maxEntries)
-                }
+                let result = try await ArchivePreviewLoader.listZipEntries(at: url, maxEntries: maxEntries, timeoutSeconds: timeoutSeconds)
+                guard !Task.isCancelled else { return }
+                finish(archive: result.entries, archiveTruncated: result.truncated)
             } catch {
                 if error is CancellationError { return }
                 finish(error: error.localizedDescription)
