@@ -3599,18 +3599,26 @@ private enum FavoriteSidebarDrop {
         onItemsChanged: @escaping () -> Void
     ) {
         var filesToMove: [URL] = []
-        var nextInsertIndex = insertBefore ?? favoritesStore.items.count
         
-        for url in urls {
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
-            if isDirectory.boolValue && !FileListApplicationBundle.isBundle(path: url.path) {
-                let previousCount = favoritesStore.items.count
-                favoritesStore.addDirectory(at: url.path, insertBefore: nextInsertIndex)
-                if favoritesStore.items.count > previousCount {
-                    nextInsertIndex += 1
+        if let insertBefore {
+            var nextInsertIndex = insertBefore
+            for url in urls {
+                var isDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
+                if isDirectory.boolValue && !FileListApplicationBundle.isBundle(path: url.path) {
+                    let previousCount = favoritesStore.items.count
+                    favoritesStore.addDirectory(at: url.path, insertBefore: nextInsertIndex)
+                    if favoritesStore.items.count > previousCount {
+                        nextInsertIndex += 1
+                    }
+                } else {
+                    filesToMove.append(url)
                 }
-            } else {
+            }
+        } else {
+            for url in urls {
+                var isDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
                 filesToMove.append(url)
             }
         }

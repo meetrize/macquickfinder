@@ -55,6 +55,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     private var lastShowsTitle = true
     private var pendingDropRow = -1
     private var pendingInsertBeforeIndex = -1
+    private var dropHighlightRow: Int?
     private var reorderDragRow = -1
     
     init(parent: FavoritesSidebarHost) {
@@ -114,6 +115,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
             
             if let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? FavoriteSidebarRowView {
                 rowView.isFavoriteSelected = selected
+                rowView.isDropTargetRow = row == dropHighlightRow
                 rowView.showsRailLayout = !parent.showsTitle
                 rowView.updateTooltip(parent.showsTitle ? nil : item.name)
                 rowView.needsDisplay = true
@@ -157,6 +159,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         rowView.showsRailLayout = !parent.showsTitle
         if let item = item(at: row) {
             rowView.isFavoriteSelected = parent.isSelected(item.path)
+            rowView.isDropTargetRow = row == dropHighlightRow
             rowView.updateTooltip(parent.showsTitle ? nil : item.name)
         }
         return rowView
@@ -291,9 +294,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         if !urls.isEmpty {
             let destinationPath = destinationPathForPendingDrop()
             let copy = FileDragDrop.shouldCopyFromDraggingInfo(info)
-            let insertBefore = addableFavoriteDirectoryURLs(from: urls).isEmpty
-                ? nil
-                : pendingInsertBeforeIndex
+            let insertBefore = pendingInsertBeforeIndex >= 0 ? pendingInsertBeforeIndex : nil
             parent.onDropURLs(urls, destinationPath, copy, insertBefore)
             clearDropIndicator()
             return true
@@ -332,6 +333,13 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         let location = tableView.convert(info.draggingLocation, from: nil)
         let row = tableView.row(at: location)
         
+        if row >= 0,
+           isDropOntoRowCenter(location, row: row, in: tableView),
+           canDropOntoRow(row, urls: urls) {
+            applyRowDropIndicator(row: row, in: tableView)
+            return FileDragDrop.dragOperation(for: info)
+        }
+        
         let addableDirectories = addableFavoriteDirectoryURLs(from: urls)
         if !addableDirectories.isEmpty {
             let insertBefore = insertBeforeIndex(for: location, in: tableView)
@@ -340,16 +348,57 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         }
         
         clearDropIndicator()
-        if row >= 0 {
-            pendingDropRow = row
-        } else if tableView.numberOfRows > 0 {
-            pendingDropRow = tableView.numberOfRows - 1
-        } else {
-            pendingDropRow = -1
+        return []
+    }
+    
+    private func isDropOntoRowCenter(_ location: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
+        let rowRect = tableView.rect(ofRow: row)
+        guard rowRect.contains(location) else { return false }
+        let edgeBand = min(rowRect.height * 0.25, 4)
+        let relativeY = location.y - rowRect.minY
+        return relativeY >= edgeBand && relativeY <= rowRect.height - edgeBand
+    }
+    
+    private func canDropOntoRow(_ row: Int, urls: [URL]) -> Bool {
+        guard let item = item(at: row) else { return false }
+        let destinationPath = (item.path as NSString).standardizingPath
+        for url in urls {
+            let sourcePath = (url.path as NSString).standardizingPath
+            if FavoritesStore.pathsRepresentSameLocation(sourcePath, destinationPath) {
+                return false
+            }
+            if sourcePath.hasPrefix(destinationPath + "/") {
+                return false
+            }
         }
+        return true
+    }
+    
+    private func applyRowDropIndicator(row: Int, in tableView: FavoritesTableView) {
+        pendingDropRow = row
         pendingInsertBeforeIndex = -1
+        tableView.hideDropInsertionLine()
+        tableView.setDropRow(row, dropOperation: .on)
+        setDropHighlight(row: row)
+    }
+    
+    private func setDropHighlight(row: Int?) {
+        guard dropHighlightRow != row else { return }
+        let previous = dropHighlightRow
+        dropHighlightRow = row
         
-        return FileDragDrop.dragOperation(for: info)
+        if let previous, let tableView {
+            (tableView.rowView(atRow: previous, makeIfNecessary: false) as? FavoriteSidebarRowView)?
+                .isDropTargetRow = false
+        }
+        if let row, let tableView {
+            (tableView.rowView(atRow: row, makeIfNecessary: true) as? FavoriteSidebarRowView)?
+                .isDropTargetRow = true
+        }
+    }
+    
+    private func clearDropHighlight() {
+        setDropHighlight(row: nil)
     }
     
     private func addableFavoriteDirectoryURLs(from urls: [URL]) -> [URL] {
@@ -382,6 +431,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         let clamped = min(max(insertBefore, 0), tableView.numberOfRows)
         pendingInsertBeforeIndex = clamped
         pendingDropRow = clamped > 0 ? clamped - 1 : 0
+        clearDropHighlight()
         tableView.setDropRow(clamped, dropOperation: .above)
         tableView.showDropInsertionLine(beforeRow: clamped)
     }
@@ -426,6 +476,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     private func clearDropIndicator() {
         pendingDropRow = -1
         pendingInsertBeforeIndex = -1
+        clearDropHighlight()
         tableView?.setDropRow(-1, dropOperation: .on)
         tableView?.hideDropInsertionLine()
     }
@@ -519,6 +570,12 @@ private final class FavoriteSidebarRowView: NSTableRowView {
     weak var controller: FavoritesSidebarController?
     var rowIndex = -1
     var isFavoriteSelected = false
+    var isDropTargetRow = false {
+        didSet {
+            guard oldValue != isDropTargetRow else { return }
+            needsDisplay = true
+        }
+    }
     var showsRailLayout = false
     
     private var mouseDownLocation: NSPoint = .zero
@@ -557,7 +614,7 @@ private final class FavoriteSidebarRowView: NSTableRowView {
     }
     
     override func drawBackground(in dirtyRect: NSRect) {
-        guard isFavoriteSelected, let rect = selectionHighlightRect() else { return }
+        guard let rect = selectionHighlightRect() else { return }
         
         let radius = min(
             FavoriteSidebarMetrics.selectionCornerRadius,
@@ -567,8 +624,16 @@ private final class FavoriteSidebarRowView: NSTableRowView {
         guard radius > 0 else { return }
         
         let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
-        NSColor.unemphasizedSelectedContentBackgroundColor.setFill()
-        path.fill()
+        
+        if isFavoriteSelected {
+            NSColor.unemphasizedSelectedContentBackgroundColor.setFill()
+            path.fill()
+        }
+        
+        if isDropTargetRow {
+            NSColor.controlAccentColor.withAlphaComponent(0.18).setFill()
+            path.fill()
+        }
     }
     
     func updateTooltip(_ text: String?) {
