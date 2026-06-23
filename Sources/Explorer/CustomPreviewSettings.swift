@@ -19,6 +19,8 @@ struct PreviewSettingsTab: View {
     @Binding var showEditor: Bool
     @AppStorage(ExplorerAppSettings.previewBrowserSameTypeOnlyKey)
     private var previewBrowserSameTypeOnly = false
+    @AppStorage(ExplorerAppSettings.codePreviewShowLineNumbersKey)
+    private var codePreviewShowLineNumbers = false
 
     @State private var editingRule: CustomPreviewRule?
     @State private var showBuiltInCatalog = false
@@ -32,6 +34,14 @@ struct PreviewSettingsTab: View {
                 Text("独立窗口浏览")
             } footer: {
                 Text("开启后，弹出预览窗口时胶片条与 ← → 导航仅在同类型文件间切换。")
+            }
+
+            Section {
+                Toggle("代码预览显示行号", isOn: $codePreviewShowLineNumbers)
+            } header: {
+                Text("代码预览")
+            } footer: {
+                Text("开启后，在右侧预览面板查看代码文件时，于代码左侧显示行号。")
             }
 
             Section {
@@ -320,6 +330,5 @@ struct CustomPreviewUnavailableView: View {
                 .buttonStyle(.link)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
     }
 }

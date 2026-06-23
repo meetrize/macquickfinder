@@ -23,7 +23,8 @@ struct OfficeRichTextPreview: NSViewRepresentable {
         textView.drawsBackground = false
         textView.isRichText = true
         textView.usesAdaptiveColorMappingForDarkAppearance = true
-        textView.textContainerInset = NSSize(width: 12, height: 12)
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.textContainerInset = .zero
         configureLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
         textView.textStorage?.setAttributedString(attributedText)
 

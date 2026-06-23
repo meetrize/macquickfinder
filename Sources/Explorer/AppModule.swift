@@ -5173,7 +5173,7 @@ private struct FilePreviewSessionHost: View {
                 if let folderInlineChild = session.folderInlineChild {
                     FileContentView(session: session)
                     .id(folderInlineChild.id)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if selectedItem.isDirectory {
                     FolderPreviewView(
                         folder: selectedItem,
@@ -5189,11 +5189,11 @@ private struct FilePreviewSessionHost: View {
                         onOpenChild: onOpenItem
                     )
                     .id(selectedItem.id)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     FileContentView(session: session)
                     .id(selectedItem.id)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }
@@ -5263,6 +5263,8 @@ private struct FilePreviewSessionHost: View {
 struct FileContentView: View {
     @ObservedObject var session: PreviewSession
     @ObservedObject private var customPreviewStore = CustomPreviewRuleStore.shared
+    @AppStorage(ExplorerAppSettings.codePreviewShowLineNumbersKey)
+    private var codePreviewShowLineNumbers = false
     @State private var lastAppliedLoadTaskID: String?
     @State private var contentOpacity: Double = 1
 
@@ -5280,6 +5282,10 @@ struct FileContentView: View {
 
     private var usesMarkdownPreview: Bool {
         PreviewTypeClassifier.isMarkdownFile(fileExtension) && session.markdownMode == .preview
+    }
+
+    private var showsCodeLineNumbers: Bool {
+        codePreviewShowLineNumbers && PreviewTypeClassifier.isCodeFile(fileExtension)
     }
 
     private var imageResizePreviewIdentity: String {
@@ -5399,6 +5405,7 @@ struct FileContentView: View {
                         fileExtension: fileExtension,
                         wrapLines: session.textWrapEnabled,
                         fontSize: PreviewTypeClassifier.isMarkdownFile(fileExtension) ? session.markdownSourceFontSize : NSFont.systemFontSize,
+                        showLineNumbers: showsCodeLineNumbers,
                         action: $session.textPreviewAction,
                         searchQuery: $session.textPreviewSearchQuery,
                         searchNextToken: $session.textPreviewSearchNextToken,
@@ -5423,8 +5430,7 @@ struct FileContentView: View {
             }
         }
         .opacity(contentOpacity)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .padding((session.isImagePreview || session.officeURL != nil || session.officeRichText != nil) ? 0 : 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: loadTaskID) {
             await applyLoadTaskIfNeeded()
         }
@@ -5596,7 +5602,8 @@ private struct MarkdownFilePreview: NSViewRepresentable {
         textView.isRichText = true
         textView.usesAdaptiveColorMappingForDarkAppearance = true
         textView.textContainer?.widthTracksTextView = wrapLines
-        textView.textContainerInset = NSSize(width: 10, height: 10)
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.textContainerInset = .zero
         textView.autoresizingMask = wrapLines ? [.width] : []
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = !wrapLines
@@ -6088,6 +6095,7 @@ private struct TextFilePreview: NSViewRepresentable {
     let fileExtension: String
     let wrapLines: Bool
     let fontSize: CGFloat
+    let showLineNumbers: Bool
     @Binding var action: TextPreviewAction?
     @Binding var searchQuery: String
     @Binding var searchNextToken: UInt
@@ -6104,6 +6112,8 @@ private struct TextFilePreview: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
+        scrollView.backgroundColor = .clear
+        scrollView.contentView.drawsBackground = false
         
         let textView = NSTextView()
         textView.isEditable = false
@@ -6112,7 +6122,8 @@ private struct TextFilePreview: NSViewRepresentable {
         textView.isRichText = true
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.textContainer?.widthTracksTextView = wrapLines
-        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.textContainerInset = .zero
         textView.autoresizingMask = wrapLines ? [.width] : []
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = !wrapLines
@@ -6133,6 +6144,14 @@ private struct TextFilePreview: NSViewRepresentable {
         scrollView.documentView = textView
         context.coordinator.textView = textView
         context.coordinator.lastWrapLines = wrapLines
+        context.coordinator.lastShowLineNumbers = showLineNumbers
+        Self.configureLineNumbers(
+            scrollView: scrollView,
+            textView: textView,
+            text: text,
+            show: showLineNumbers,
+            coordinator: context.coordinator
+        )
         context.coordinator.applyHighlight(
             text: text,
             fileExtension: fileExtension,
@@ -6144,11 +6163,17 @@ private struct TextFilePreview: NSViewRepresentable {
     }
     
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        scrollView.drawsBackground = false
+        scrollView.backgroundColor = .clear
+        scrollView.contentView.drawsBackground = false
+
         guard let textView = context.coordinator.textView else { return }
         if textView.string != text {
             textView.textStorage?.setAttributedString(TextSyntaxHighlighter.makePlainText(text: text, fontSize: fontSize))
             textView.scrollToBeginningOfDocument(nil)
             context.coordinator.searchCurrentIndex = 0
+            context.coordinator.lineNumberRuler?.updateRuleThickness(for: text)
+            context.coordinator.lineNumberRuler?.needsDisplay = true
         }
         if textView.font?.pointSize != fontSize {
             textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
@@ -6184,6 +6209,17 @@ private struct TextFilePreview: NSViewRepresentable {
             if let textContainer = textView.textContainer {
                 textView.layoutManager?.ensureLayout(for: textContainer)
             }
+        }
+
+        if context.coordinator.lastShowLineNumbers != showLineNumbers {
+            context.coordinator.lastShowLineNumbers = showLineNumbers
+            Self.configureLineNumbers(
+                scrollView: scrollView,
+                textView: textView,
+                text: text,
+                show: showLineNumbers,
+                coordinator: context.coordinator
+            )
         }
 
         if let action {
@@ -6226,7 +6262,9 @@ private struct TextFilePreview: NSViewRepresentable {
     final class Coordinator {
         @Binding var searchMatchCount: Int
         weak var textView: NSTextView?
+        weak var lineNumberRuler: CodePreviewLineNumberRulerView?
         var lastWrapLines: Bool = true
+        var lastShowLineNumbers: Bool = false
         var lastSearchQuery: String = ""
         var lastSearchNextToken: UInt = 0
         var searchCurrentIndex: Int = 0
@@ -6265,6 +6303,7 @@ private struct TextFilePreview: NSViewRepresentable {
             )
             textView.textStorage?.setAttributedString(displayed)
             TextFilePreview.applyWrapStyle(to: textView, wrapLines: wrapLines)
+            lineNumberRuler?.needsDisplay = true
 
             if scrollToCurrent, searchCurrentIndex < searchMatchRanges.count {
                 Self.scrollToRange(searchMatchRanges[searchCurrentIndex], in: textView)
@@ -6303,6 +6342,8 @@ private struct TextFilePreview: NSViewRepresentable {
                         scrollToCurrent: !self.lastSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             && self.searchCurrentIndex == 0
                     )
+                    self.lineNumberRuler?.updateRuleThickness(for: text)
+                    self.lineNumberRuler?.needsDisplay = true
                 }
             }
             renderWorkItem = workItem
@@ -6348,6 +6389,34 @@ private struct TextFilePreview: NSViewRepresentable {
 
         private static func scrollToRange(_ range: NSRange, in textView: NSTextView) {
             textView.scrollRangeToVisible(range)
+        }
+    }
+
+    private static func configureLineNumbers(
+        scrollView: NSScrollView,
+        textView: NSTextView,
+        text: String,
+        show: Bool,
+        coordinator: Coordinator
+    ) {
+        scrollView.hasVerticalRuler = show
+        scrollView.rulersVisible = show
+        scrollView.drawsBackground = false
+        scrollView.backgroundColor = .clear
+        scrollView.contentView.drawsBackground = false
+        if show {
+            let ruler = coordinator.lineNumberRuler ?? CodePreviewLineNumberRulerView(
+                scrollView: scrollView,
+                textView: textView
+            )
+            ruler.textView = textView
+            ruler.updateRuleThickness(for: text)
+            scrollView.verticalRulerView = ruler
+            coordinator.lineNumberRuler = ruler
+            ruler.needsDisplay = true
+        } else {
+            scrollView.verticalRulerView = nil
+            coordinator.lineNumberRuler = nil
         }
     }
 
@@ -6672,8 +6741,6 @@ private struct ArchiveListPreview: View {
                         .padding(.top, 6)
                 }
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 10)
         }
         .onChange(of: copyAction) { action in
             guard let action else { return }

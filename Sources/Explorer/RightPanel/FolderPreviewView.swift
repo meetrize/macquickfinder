@@ -21,8 +21,6 @@ struct FolderPreviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             folderSummary
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
 
             if showContentsList {
                 Divider()
@@ -138,19 +136,16 @@ struct FolderPreviewView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(12)
         } else if let error = loadResult?.errorMessage {
             Text(error)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(12)
         } else if let result = loadResult, result.children.isEmpty {
             Text("文件夹为空")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(12)
         } else if let result = loadResult {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
@@ -164,9 +159,6 @@ struct FolderPreviewView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
 
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 2) {
@@ -178,8 +170,6 @@ struct FolderPreviewView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 10)
                 }
             }
         }

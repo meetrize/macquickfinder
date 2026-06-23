@@ -25,4 +25,5 @@ enum ExplorerAppSettings {
     static let windowSnapEnabledKey = "windowSnapEnabled"
     static let customPreviewRulesKey = "preview.customRules"
     static let previewBrowserSameTypeOnlyKey = "previewBrowser.sameTypeOnly"
+    static let codePreviewShowLineNumbersKey = "preview.codeShowLineNumbers"
 }
