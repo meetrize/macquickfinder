@@ -71,92 +71,6 @@ extension FocusedValues {
     }
 }
 
-private enum TextEditingCommands {
-    static func send(_ selector: Selector) {
-        NSApp.sendAction(selector, to: nil, from: nil)
-    }
-    
-    @ViewBuilder
-    static func pasteboardButtons() -> some View {
-        Button("全选") {
-            send(#selector(NSText.selectAll(_:)))
-        }
-        .keyboardShortcut("a", modifiers: .command)
-        
-        Button("剪切") {
-            send(#selector(NSText.cut(_:)))
-        }
-        .keyboardShortcut("x", modifiers: .command)
-        
-        Button("复制") {
-            send(#selector(NSText.copy(_:)))
-        }
-        .keyboardShortcut("c", modifiers: .command)
-        
-        Button("粘贴") {
-            send(#selector(NSText.paste(_:)))
-        }
-        .keyboardShortcut("v", modifiers: .command)
-    }
-}
-
-/// 地址栏、搜索栏共用的极简输入框样式：浅背景 + 1px 细边框，无阴影。
-private struct TextEditingKeyMonitor: NSViewRepresentable {
-    let isBarFieldEditing: Bool
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-    
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        context.coordinator.install(on: view)
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.isBarFieldEditing = isBarFieldEditing
-    }
-    
-    final class Coordinator {
-        var isBarFieldEditing = false
-        private var monitor: Any?
-        
-        func install(on view: NSView) {
-            guard monitor == nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self else { return event }
-                return self.handleKeyDown(event)
-            }
-        }
-        
-        private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
-            guard isBarFieldEditing else { return event }
-            guard event.modifierFlags.contains(.command) else { return event }
-            guard let key = event.charactersIgnoringModifiers?.lowercased() else { return event }
-            
-            let selector: Selector?
-            switch key {
-            case "a": selector = #selector(NSText.selectAll(_:))
-            case "c": selector = #selector(NSText.copy(_:))
-            case "v": selector = #selector(NSText.paste(_:))
-            case "x": selector = #selector(NSText.cut(_:))
-            default: selector = nil
-            }
-            
-            guard let selector else { return event }
-            TextEditingCommands.send(selector)
-            return nil
-        }
-        
-        deinit {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-            }
-        }
-    }
-}
-
 struct FileCommands: Commands {
     @FocusedValue(\.fileCommandHandlers) private var handlers
     @FocusedValue(\.textFieldEditing) private var textFieldEditing
@@ -2951,7 +2865,7 @@ struct ContentView: View {
                 toggleOutputPanel: { layout.isOutputPanelVisible.toggle() }
             )
         )
-        .background(TextEditingKeyMonitor(isBarFieldEditing: isTextFieldEditing))
+        .background(TextEditingKeyMonitor(isActive: isTextFieldEditing))
         .background(BarTextFieldFocusSync(activeField: $activeBarField))
         .navigationTitle(currentDirectoryTitle)
         .modifier(InlineToolbarTitleModifier())
