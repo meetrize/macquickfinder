@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import FileList
 
 private enum OutputPanelFocusField: Hashable {
     case command
@@ -136,7 +137,7 @@ struct OutputPanelView: View {
                 Image(systemName: layout.isOutputPanelContentCollapsed ? "chevron.up" : "chevron.down")
             }
             .buttonStyle(.borderless)
-            .help(layout.isOutputPanelContentCollapsed ? "展开输出面板" : "折叠输出面板")
+            .instantHoverTooltip(layout.isOutputPanelContentCollapsed ? "展开输出面板" : "折叠输出面板")
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
 
@@ -147,7 +148,7 @@ struct OutputPanelView: View {
                     .font(.caption)
             }
             .buttonStyle(.borderless)
-            .help("关闭输出面板")
+            .instantHoverTooltip("关闭输出面板")
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
         }

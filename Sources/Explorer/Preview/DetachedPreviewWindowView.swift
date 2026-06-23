@@ -1,4 +1,5 @@
 import AppKit
+import FileList
 import SwiftUI
 
 struct DetachedPreviewWindowView: View {
@@ -59,7 +60,7 @@ private struct DetachedPreviewWindowContent: View {
                         Image(systemName: "arrow.uturn.backward")
                     }
                     .buttonStyle(.borderless)
-                    .help("返回文件夹")
+                    .instantHoverTooltip("返回文件夹")
                 }
 
                 Text(session.browseTarget.name)
@@ -90,7 +91,7 @@ private struct DetachedPreviewWindowContent: View {
                     Image(systemName: "sidebar.right")
                 }
                 .buttonStyle(.borderless)
-                .help("收回侧栏")
+                .instantHoverTooltip("收回侧栏")
 
                 Button {
                     PreviewDetachCoordinator.shared.onDetachedWindowWillClose(sessionID: session.id)
@@ -99,7 +100,7 @@ private struct DetachedPreviewWindowContent: View {
                     Image(systemName: "xmark")
                 }
                 .buttonStyle(.borderless)
-                .help("关闭窗口")
+                .instantHoverTooltip("关闭窗口")
             }
             .frame(height: PanelTopBarMetrics.contentHeight)
             .padding(.horizontal, 10)

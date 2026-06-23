@@ -1,3 +1,4 @@
+import FileList
 import SwiftUI
 
 struct PreviewToolbarOverflowModel: Identifiable {
@@ -98,7 +99,7 @@ struct PreviewToolbarOverflowLayout: View {
                     }
                     .menuIndicator(.hidden)
                     .buttonStyle(.borderless)
-                    .help("更多操作")
+                    .instantHoverTooltip("更多操作")
                     .fixedSize()
                 }
             }

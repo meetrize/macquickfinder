@@ -1,4 +1,5 @@
 import AppKit
+import FileList
 import SwiftUI
 
 struct PreviewBrowserStripCell: View {
@@ -62,6 +63,6 @@ struct PreviewBrowserStripCell: View {
             ),
             value: isSelected
         )
-        .help(item.name)
+        .instantHoverTooltip(item.name)
     }
 }

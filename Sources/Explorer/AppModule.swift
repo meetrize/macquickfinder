@@ -1453,7 +1453,7 @@ struct BarTextField: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("清除")
+                .instantHoverTooltip("清除")
             }
         }
         .padding(.horizontal, shape == .capsule ? 10 : 8)
@@ -1920,7 +1920,7 @@ private struct PathBarView: View {
             if mode == .text {
                 PathBarBlankClickArea(onClick: handlePathBarTrailingClick)
                     .frame(width: pathBarTrailingClickWidth, height: fieldHeight)
-                    .help("点击全选路径")
+                    .instantHoverTooltip("点击全选路径")
             }
         }
         .overlay(alignment: .trailing) {
@@ -2122,7 +2122,6 @@ private struct PathBarNavigateButton: NSViewRepresentable {
         button.bezelStyle = .inline
         button.imagePosition = .imageOnly
         button.contentTintColor = .controlAccentColor
-        button.toolTip = "进入新路径"
         button.setButtonType(.momentaryChange)
         context.coordinator.targetPath = targetPath
         return button
@@ -2135,6 +2134,37 @@ private struct PathBarNavigateButton: NSViewRepresentable {
     }
     
     final class NavigateButton: NSButton {
+        private var tooltipTrackingArea: NSTrackingArea?
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let tooltipTrackingArea {
+                removeTrackingArea(tooltipTrackingArea)
+            }
+            let area = NSTrackingArea(
+                rect: bounds,
+                options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(area)
+            tooltipTrackingArea = area
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            guard event.trackingArea === tooltipTrackingArea else { return }
+            RailTooltipPresenter.show(text: "进入新路径", anchor: self)
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            guard event.trackingArea === tooltipTrackingArea else { return }
+            RailTooltipPresenter.hide()
+        }
+
+        deinit {
+            RailTooltipPresenter.hide()
+        }
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             registerWithFocusRegistry()
@@ -2293,7 +2323,7 @@ private struct PathBreadcrumbView: View {
                 PathBarBlankClickArea(onClick: onRequestEdit)
                     .frame(width: metrics.trailingClickWidth, height: fieldHeight)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                    .help("点击编辑完整路径")
+                    .instantHoverTooltip("点击编辑完整路径")
                 
                 ScrollViewReader { scrollProxy in
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -2487,7 +2517,7 @@ private struct PathRootSlashButton: View {
             .frame(width: 14, height: 28)
             .contentShape(Rectangle())
             .onTapGesture(perform: onNavigate)
-            .help("/")
+            .instantHoverTooltip("/")
     }
 }
 
@@ -2512,7 +2542,7 @@ private struct PathSegmentButton: View {
         }
         .buttonStyle(.plain)
         .frame(height: 28)
-        .help(segment.path)
+        .instantHoverTooltip(segment.path)
     }
 }
 
@@ -2539,7 +2569,7 @@ private struct PathSeparatorMenu: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("显示子目录")
+        .instantHoverTooltip("显示子目录")
     }
 }
 
@@ -2591,7 +2621,7 @@ private struct PathBreadcrumbEllipsisMenu: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("显示上级路径")
+        .instantHoverTooltip("显示上级路径")
     }
 }
 
@@ -2931,7 +2961,7 @@ struct ContentView: View {
                     Image(systemName: leftPanelMode == .hidden ? "sidebar.left" : "sidebar.left")
                 }
                 .buttonStyle(.borderless)
-                .help(leftPanelMode == .hidden ? "显示左侧面板" : "隐藏左侧面板")
+                .instantHoverTooltip(leftPanelMode == .hidden ? "显示左侧面板" : "隐藏左侧面板")
             }
             .hideSharedBackgroundIfAvailable()
             
@@ -2940,7 +2970,7 @@ struct ContentView: View {
                     LucideIcon.folderPlus
                 }
                 .buttonStyle(.borderless)
-                .help("新建文件夹")
+                .instantHoverTooltip("新建文件夹")
             }
             .hideSharedBackgroundIfAvailable()
 
@@ -2963,7 +2993,7 @@ struct ContentView: View {
                     ForEach(FileListViewMode.allCases, id: \.rawValue) { mode in
                         Image(systemName: mode.systemImageName)
                             .tag(mode.rawValue)
-                            .help(mode == .list ? "列表视图" : "缩略图视图")
+                            .instantHoverTooltip(mode == .list ? "列表视图" : "缩略图视图")
                     }
                 }
                 .pickerStyle(.segmented)
@@ -2991,7 +3021,7 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 30, alignment: .trailing)
                     }
-                    .help("缩略图大小")
+                    .instantHoverTooltip("缩略图大小")
                 }
                 .hideSharedBackgroundIfAvailable()
             }
@@ -3023,7 +3053,7 @@ struct ContentView: View {
                     Image(systemName: "gearshape")
                 }
                 .menuStyle(.borderlessButton)
-                .help("浏览设置")
+                .instantHoverTooltip("浏览设置")
             }
             .hideSharedBackgroundIfAvailable()
             
@@ -3713,7 +3743,7 @@ struct SidebarView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .foregroundStyle(.secondary)
-                                        .help("推出 \(device.name)")
+                                        .instantHoverTooltip("推出 \(device.name)")
                                     }
                                 }
                             )
@@ -4597,7 +4627,7 @@ struct FileListView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("关闭快速搜索")
+            .instantHoverTooltip("关闭快速搜索")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -5035,7 +5065,7 @@ private struct FilePreviewEmptyChrome: View {
                 .buttonStyle(.borderless)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .help(layout.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
+                .instantHoverTooltip(layout.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
 
                 Text("预览")
                     .font(.callout)
@@ -5053,7 +5083,7 @@ private struct FilePreviewEmptyChrome: View {
                     Image(systemName: "xmark")
                 }
                 .buttonStyle(.borderless)
-                .help("关闭预览")
+                .instantHoverTooltip("关闭预览")
                 .fixedSize()
                 .layoutPriority(2)
             }
@@ -5157,7 +5187,7 @@ private struct FilePreviewSessionHost: View {
                 .buttonStyle(.borderless)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .help(layout.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
+                .instantHoverTooltip(layout.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
 
                 if session.isShowingFolderChildPreview {
                     Button {
@@ -5166,7 +5196,7 @@ private struct FilePreviewSessionHost: View {
                         Image(systemName: "arrow.uturn.backward")
                     }
                     .buttonStyle(.borderless)
-                    .help("返回文件夹")
+                    .instantHoverTooltip("返回文件夹")
                 }
 
                 Text(session.previewContentItem?.name ?? selectedItem.name)
@@ -5202,7 +5232,7 @@ private struct FilePreviewSessionHost: View {
                         Image(systemName: "macwindow.badge.plus")
                     }
                     .buttonStyle(.borderless)
-                    .help("在独立窗口中打开")
+                    .instantHoverTooltip("在独立窗口中打开")
                     .fixedSize()
                     .layoutPriority(2)
                 }
@@ -5213,7 +5243,7 @@ private struct FilePreviewSessionHost: View {
                     Image(systemName: "xmark")
                 }
                 .buttonStyle(.borderless)
-                .help("关闭预览")
+                .instantHoverTooltip("关闭预览")
                 .fixedSize()
                 .layoutPriority(2)
             }

@@ -34,7 +34,6 @@ public final class FileListThumbnailController: NSObject {
     private var pendingDirectoryItemCountRefresh = false
     private var lastReportedVisibleDirectoryPaths: [String] = []
     private var visiblePathsNotifyWorkItem: DispatchWorkItem?
-    private var previousToolTipDelay: TimeInterval?
     
     // Interaction state
     var mouseDownIndexPath: IndexPath?
@@ -69,7 +68,6 @@ public final class FileListThumbnailController: NSObject {
     
     deinit {
         thumbnailGenerator.shutdown()
-        restoreToolTipDelayIfNeeded()
         tearDownObservers()
     }
     
@@ -111,22 +109,8 @@ public final class FileListThumbnailController: NSObject {
         self.scrollView = scrollView
         self.collectionView = collectionView
         hasInstalledCollectionView = true
-        applyInstantToolTipDelay()
         installObservers()
         return scrollView
-    }
-    
-    private func applyInstantToolTipDelay() {
-        if previousToolTipDelay == nil {
-            previousToolTipDelay = FileListThumbnailToolTip.initialDelay
-        }
-        FileListThumbnailToolTip.initialDelay = 0
-    }
-    
-    private func restoreToolTipDelayIfNeeded() {
-        guard let previousToolTipDelay else { return }
-        FileListThumbnailToolTip.initialDelay = previousToolTipDelay
-        self.previousToolTipDelay = nil
     }
     
     public func update(

@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import FileList
 import UniformTypeIdentifiers
 
 struct SnippetsPanelView: View {
@@ -107,7 +108,7 @@ struct SnippetsPanelView: View {
             .buttonStyle(.borderless)
             .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
             .contentShape(Rectangle())
-            .help(layout.isSnippetsContentCollapsed ? "展开 Snippets" : "折叠 Snippets")
+            .instantHoverTooltip(layout.isSnippetsContentCollapsed ? "展开 Snippets" : "折叠 Snippets")
 
             Text("Snippets")
                 .font(.callout)
@@ -121,7 +122,7 @@ struct SnippetsPanelView: View {
                 .buttonStyle(.borderless)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .help("新建")
+                .instantHoverTooltip("新建")
 
                 Menu {
                     Button("导入…") { importSnippets() }
@@ -133,7 +134,7 @@ struct SnippetsPanelView: View {
                 .menuIndicator(.hidden)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .help("导入 / 导出")
+                .instantHoverTooltip("导入 / 导出")
 
                 Button { showSnippets = false } label: {
                     Image(systemName: "xmark")
@@ -141,7 +142,7 @@ struct SnippetsPanelView: View {
                 .buttonStyle(.borderless)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .help("关闭 Snippets")
+                .instantHoverTooltip("关闭 Snippets")
             }
         }
         .frame(height: PanelTopBarMetrics.contentHeight)

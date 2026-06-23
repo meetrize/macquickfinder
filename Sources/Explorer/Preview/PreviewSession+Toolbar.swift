@@ -1,4 +1,5 @@
 import AppKit
+import FileList
 import SwiftUI
 
 extension PreviewSession {
@@ -45,7 +46,7 @@ extension PreviewSession {
                 }
                 .buttonStyle(.borderless)
                 .disabled(isDisabled)
-                .help(title)
+                .instantHoverTooltip(title)
             )
         )
     }
@@ -117,7 +118,7 @@ extension PreviewSession {
             previewToolbarIconItem(
                 id: "image-resize",
                 title: "调整尺寸",
-                systemImage: "arrow.up.backward.and.arrow.down.forward",
+                systemImage: "aspectratio",
                 isDisabled: imageSourcePixelSize.width <= 0 || imageSourcePixelSize.height <= 0,
                 action: { [self] in showImageResizeSheet = true }
             ),
@@ -209,6 +210,7 @@ extension PreviewSession {
                         .font(.caption.monospacedDigit())
                         .foregroundColor(.secondary)
                         .frame(minWidth: 44, alignment: .center)
+                        .instantHoverTooltip("缩放比例")
                 )
             ),
             previewToolbarIconItem(
@@ -300,6 +302,7 @@ extension PreviewSession {
                                 .font(.caption.monospacedDigit())
                                 .foregroundColor(.secondary)
                                 .frame(minWidth: 44, alignment: .center)
+                                .instantHoverTooltip("缩放比例")
                         )
                     )
                 )
@@ -334,6 +337,7 @@ extension PreviewSession {
                                 .font(.caption.monospacedDigit())
                                 .foregroundColor(.secondary)
                                 .frame(minWidth: 44, alignment: .center)
+                                .instantHoverTooltip("字体大小")
                         )
                     )
                 )
@@ -446,6 +450,7 @@ extension PreviewSession {
                         .font(.caption.monospacedDigit())
                         .foregroundColor(.secondary)
                         .frame(minWidth: 44, alignment: .center)
+                        .instantHoverTooltip("缩放比例")
                 )
             ),
             previewToolbarIconItem(
@@ -477,6 +482,7 @@ extension PreviewSession {
                             .font(.caption.monospacedDigit())
                             .foregroundColor(.secondary)
                             .frame(minWidth: 56, alignment: .center)
+                            .instantHoverTooltip("页码")
                     )
                 )
             )
@@ -516,6 +522,7 @@ extension PreviewSession {
                         .font(.caption.monospacedDigit())
                         .foregroundColor(.secondary)
                         .frame(minWidth: 44, alignment: .center)
+                        .instantHoverTooltip("缩放比例")
                 )
             ),
             previewToolbarIconItem(
@@ -596,7 +603,7 @@ private struct PreviewImageZoomToolbarControls: View {
                 Image(systemName: "minus.magnifyingglass")
             }
             .buttonStyle(.borderless)
-            .help("缩小")
+            .instantHoverTooltip("缩小")
             .disabled(session.imageZoomScale <= 0.1)
 
             Button {
@@ -605,7 +612,7 @@ private struct PreviewImageZoomToolbarControls: View {
                 Image(systemName: "plus.magnifyingglass")
             }
             .buttonStyle(.borderless)
-            .help("放大")
+            .instantHoverTooltip("放大")
 
             Button {
                 session.imageZoomAction = .fit
@@ -613,7 +620,7 @@ private struct PreviewImageZoomToolbarControls: View {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
             }
             .buttonStyle(.borderless)
-            .help("适配窗口")
+            .instantHoverTooltip("适配窗口")
 
             Button {
                 session.imageZoomAction = .actualSize
@@ -621,12 +628,13 @@ private struct PreviewImageZoomToolbarControls: View {
                 Image(systemName: "1.magnifyingglass")
             }
             .buttonStyle(.borderless)
-            .help("原始大小")
+            .instantHoverTooltip("原始大小")
 
             Text(session.imageEffectiveZoomPercent > 0 ? "\(session.imageEffectiveZoomPercent)%" : "--")
                 .font(.caption.monospacedDigit())
                 .foregroundColor(.secondary)
                 .frame(minWidth: 36, alignment: .center)
+                .instantHoverTooltip("缩放比例")
         }
     }
 }
@@ -646,7 +654,7 @@ private struct PreviewImageEyedropperToolbarButton: View {
                 )
         }
         .buttonStyle(.borderless)
-        .help("取色棒（点击图像复制 Web 颜色）")
+        .instantHoverTooltip("取色棒（点击图像复制 Web 颜色）")
     }
 }
 
@@ -668,7 +676,7 @@ private struct PreviewImageColorSwatch: View {
                 .foregroundColor(.secondary)
                 .lineLimit(1)
         }
-        .help("已复制到剪贴板")
+        .instantHoverTooltip("已复制到剪贴板")
     }
 }
 
@@ -696,5 +704,6 @@ private struct PreviewPDFPageInputField: View {
                 .foregroundColor(.secondary)
         }
         .frame(minWidth: 74, alignment: .center)
+        .instantHoverTooltip("跳转到页码")
     }
 }

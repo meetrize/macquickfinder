@@ -1,14 +1,14 @@
 import AppKit
 import SwiftUI
 
-enum RailTooltipPresenter {
+public enum RailTooltipPresenter {
     private static let panel = RailTooltipPanel()
 
-    static func show(text: String, anchor: NSView) {
+    public static func show(text: String, anchor: NSView) {
         panel.present(text: text, anchor: anchor)
     }
 
-    static func hide() {
+    public static func hide() {
         panel.dismiss()
     }
 }
@@ -21,6 +21,7 @@ private final class RailTooltipPanel: NSPanel {
     private let verticalPadding: CGFloat = 5
     private let maxLabelWidth: CGFloat = 360
     private let maxLabelHeight: CGFloat = 280
+    private let backgroundOpacity: CGFloat = 0.9
 
     fileprivate init() {
         textLabel = NSTextField(wrappingLabelWithString: "")
@@ -52,16 +53,23 @@ private final class RailTooltipPanel: NSPanel {
         chromeView.blendingMode = .behindWindow
         chromeView.state = .active
         chromeView.wantsLayer = true
+        chromeView.alphaValue = backgroundOpacity
         chromeView.layer?.cornerRadius = 6
-        chromeView.layer?.borderWidth = 1
-        chromeView.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.35).cgColor
 
         chromeView.addSubview(textLabel)
         contentView = chromeView
     }
 
+    private func applyChromeStyle() {
+        chromeView.alphaValue = backgroundOpacity
+        chromeView.layer?.borderWidth = 0
+        chromeView.layer?.borderColor = nil
+    }
+
     func present(text: String, anchor: NSView) {
         guard let window = anchor.window else { return }
+
+        applyChromeStyle()
 
         textLabel.preferredMaxLayoutWidth = maxLabelWidth
         textLabel.stringValue = text
@@ -104,23 +112,27 @@ private final class RailTooltipPanel: NSPanel {
     }
 }
 
-struct HoverTooltipAnchor: NSViewRepresentable {
+public struct HoverTooltipAnchor: NSViewRepresentable {
     let text: String
 
-    func makeNSView(context: Context) -> HoverTooltipAnchorView {
+    public init(text: String) {
+        self.text = text
+    }
+
+    public func makeNSView(context: Context) -> HoverTooltipAnchorView {
         HoverTooltipAnchorView()
     }
 
-    func updateNSView(_ nsView: HoverTooltipAnchorView, context: Context) {
+    public func updateNSView(_ nsView: HoverTooltipAnchorView, context: Context) {
         nsView.tooltipText = text
     }
 }
 
-final class HoverTooltipAnchorView: NSView {
+public final class HoverTooltipAnchorView: NSView {
     var tooltipText = ""
     private var trackingArea: NSTrackingArea?
 
-    override func updateTrackingAreas() {
+    public override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let trackingArea {
             removeTrackingArea(trackingArea)
@@ -135,17 +147,31 @@ final class HoverTooltipAnchorView: NSView {
         trackingArea = area
     }
 
-    override func mouseEntered(with event: NSEvent) {
+    public override func mouseEntered(with event: NSEvent) {
         let trimmed = tooltipText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         RailTooltipPresenter.show(text: tooltipText, anchor: self)
     }
 
-    override func mouseExited(with event: NSEvent) {
+    public override func mouseExited(with event: NSEvent) {
         RailTooltipPresenter.hide()
     }
 
     deinit {
         RailTooltipPresenter.hide()
+    }
+}
+
+extension View {
+    @ViewBuilder
+    public func instantHoverTooltip(_ text: String) -> some View {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            self
+        } else {
+            background {
+                HoverTooltipAnchor(text: trimmed)
+            }
+        }
     }
 }

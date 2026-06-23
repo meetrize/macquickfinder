@@ -113,7 +113,12 @@ final class FileListThumbnailCellView: NSView {
         guard event.trackingArea === tooltipTrackingArea,
               let tip = toolTip, !tip.isEmpty
         else { return }
-        FileListThumbnailToolTip.show(tip, for: self)
+        RailTooltipPresenter.show(text: tip, anchor: self)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        guard event.trackingArea === tooltipTrackingArea else { return }
+        RailTooltipPresenter.hide()
     }
     
     override func rightMouseDown(with event: NSEvent) {

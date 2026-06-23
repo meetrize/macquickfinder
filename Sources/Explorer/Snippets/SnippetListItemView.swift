@@ -1,3 +1,4 @@
+import FileList
 import SwiftUI
 
 struct SnippetListItemView: View {
@@ -34,7 +35,7 @@ struct SnippetListItemView: View {
                     .font(.caption)
             }
             .buttonStyle(.borderless)
-            .help("执行")
+            .instantHoverTooltip("执行")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)

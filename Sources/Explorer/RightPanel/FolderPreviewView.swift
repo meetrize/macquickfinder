@@ -306,7 +306,7 @@ private struct FolderPreviewChildRow: View {
         )
         .onTapGesture(perform: onPreview)
         .simultaneousGesture(TapGesture(count: 2).onEnded { onOpen() })
-        .help(item.isDirectory ? "双击进入" : "单击预览 · 双击打开")
+        .instantHoverTooltip(item.isDirectory ? "双击进入" : "单击预览 · 双击打开")
     }
 
     private var iconName: String {
