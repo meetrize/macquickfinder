@@ -74,13 +74,17 @@ extension FocusedValues {
 struct FileCommands: Commands {
     @FocusedValue(\.fileCommandHandlers) private var handlers
     @FocusedValue(\.textFieldEditing) private var textFieldEditing
+    @FocusedValue(\.previewTextSelectionActive) private var previewTextSelectionActive
     
     private var isTextFieldEditing: Bool { textFieldEditing == true }
+    private var isPreviewTextSelectionActive: Bool { previewTextSelectionActive == true }
     
     var body: some Commands {
         CommandGroup(replacing: .pasteboard) {
             if isTextFieldEditing {
                 TextEditingCommands.pasteboardButtons()
+            } else if isPreviewTextSelectionActive {
+                TextEditingCommands.previewSelectionButtons()
             } else {
                 Button("剪切") {
                     handlers?.cut?()
@@ -5267,6 +5271,7 @@ struct FileContentView: View {
     private var codePreviewShowLineNumbers = false
     @State private var lastAppliedLoadTaskID: String?
     @State private var contentOpacity: Double = 1
+    @State private var previewTextSelectionActive = false
 
     private var item: FileItem {
         session.browseTarget
@@ -5406,6 +5411,7 @@ struct FileContentView: View {
                         wrapLines: session.textWrapEnabled,
                         fontSize: PreviewTypeClassifier.isMarkdownFile(fileExtension) ? session.markdownSourceFontSize : NSFont.systemFontSize,
                         showLineNumbers: showsCodeLineNumbers,
+                        previewTextSelectionActive: $previewTextSelectionActive,
                         action: $session.textPreviewAction,
                         searchQuery: $session.textPreviewSearchQuery,
                         searchNextToken: $session.textPreviewSearchNextToken,
@@ -5431,10 +5437,12 @@ struct FileContentView: View {
         }
         .opacity(contentOpacity)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .focusedValue(\.previewTextSelectionActive, previewTextSelectionActive)
         .task(id: loadTaskID) {
             await applyLoadTaskIfNeeded()
         }
         .onChange(of: session.browseTarget.id) { _ in
+            previewTextSelectionActive = false
             guard session.browseContext != nil else { return }
             contentOpacity = 0.35
             withAnimation(.easeInOut(duration: PreviewBrowserStripMetrics.contentCrossfadeDuration)) {
@@ -6096,6 +6104,7 @@ private struct TextFilePreview: NSViewRepresentable {
     let wrapLines: Bool
     let fontSize: CGFloat
     let showLineNumbers: Bool
+    @Binding var previewTextSelectionActive: Bool
     @Binding var action: TextPreviewAction?
     @Binding var searchQuery: String
     @Binding var searchNextToken: UInt
@@ -6115,7 +6124,7 @@ private struct TextFilePreview: NSViewRepresentable {
         scrollView.backgroundColor = .clear
         scrollView.contentView.drawsBackground = false
         
-        let textView = NSTextView()
+        let textView = PreviewCodeTextView()
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
@@ -6143,6 +6152,11 @@ private struct TextFilePreview: NSViewRepresentable {
         
         scrollView.documentView = textView
         context.coordinator.textView = textView
+        context.coordinator.previewTextSelectionActive = $previewTextSelectionActive
+        textView.onInteractionStateChanged = { [weak coordinator = context.coordinator] in
+            coordinator?.updatePreviewTextSelectionActive()
+        }
+        context.coordinator.installSelectionTracking(for: textView)
         context.coordinator.lastWrapLines = wrapLines
         context.coordinator.lastShowLineNumbers = showLineNumbers
         Self.configureLineNumbers(
@@ -6268,6 +6282,7 @@ private struct TextFilePreview: NSViewRepresentable {
     
     final class Coordinator {
         @Binding var searchMatchCount: Int
+        var previewTextSelectionActive: Binding<Bool>?
         weak var textView: NSTextView?
         weak var lineNumberRuler: CodePreviewLineNumberRulerView?
         var lastWrapLines: Bool = true
@@ -6281,6 +6296,8 @@ private struct TextFilePreview: NSViewRepresentable {
         private var cachedSyntaxHighlight: NSAttributedString?
         private var renderWorkItem: DispatchWorkItem?
         private var generation: UInt64 = 0
+        private var selectionObserver: NSObjectProtocol?
+        private var firstResponderObserver: NSObjectProtocol?
 
         init(searchMatchCount: Binding<Int>) {
             _searchMatchCount = searchMatchCount
@@ -6288,6 +6305,49 @@ private struct TextFilePreview: NSViewRepresentable {
 
         deinit {
             renderWorkItem?.cancel()
+            if let selectionObserver {
+                NotificationCenter.default.removeObserver(selectionObserver)
+            }
+            if let firstResponderObserver {
+                NotificationCenter.default.removeObserver(firstResponderObserver)
+            }
+        }
+
+        func installSelectionTracking(for textView: NSTextView) {
+            if let selectionObserver {
+                NotificationCenter.default.removeObserver(selectionObserver)
+            }
+            if let firstResponderObserver {
+                NotificationCenter.default.removeObserver(firstResponderObserver)
+            }
+
+            selectionObserver = NotificationCenter.default.addObserver(
+                forName: NSTextView.didChangeSelectionNotification,
+                object: textView,
+                queue: .main
+            ) { [weak self] _ in
+                self?.updatePreviewTextSelectionActive()
+            }
+
+            firstResponderObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.updatePreviewTextSelectionActive()
+            }
+
+            updatePreviewTextSelectionActive()
+        }
+
+        func updatePreviewTextSelectionActive() {
+            guard let textView else {
+                previewTextSelectionActive?.wrappedValue = false
+                return
+            }
+            let isFocused = textView.window?.firstResponder === textView
+            let hasSelection = textView.selectedRange().length > 0
+            previewTextSelectionActive?.wrappedValue = isFocused && hasSelection
         }
 
         func applySearchHighlightsInPlace(textView: NSTextView, scrollToCurrent: Bool) {

@@ -1,9 +1,33 @@
 import SwiftUI
 import AppKit
 
+extension FocusedValues {
+    var previewTextSelectionActive: Bool? {
+        get { self[PreviewTextSelectionActiveKey.self] }
+        set { self[PreviewTextSelectionActiveKey.self] = newValue }
+    }
+}
+
+struct PreviewTextSelectionActiveKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
 enum TextEditingCommands {
     static func send(_ selector: Selector) {
         NSApp.sendAction(selector, to: nil, from: nil)
+    }
+
+    @ViewBuilder
+    static func previewSelectionButtons() -> some View {
+        Button("全选") {
+            send(#selector(NSText.selectAll(_:)))
+        }
+        .keyboardShortcut("a", modifiers: .command)
+
+        Button("复制") {
+            send(#selector(NSText.copy(_:)))
+        }
+        .keyboardShortcut("c", modifiers: .command)
     }
 
     @ViewBuilder
