@@ -46,6 +46,9 @@ enum CustomPreviewMode: String, Codable, CaseIterable, Identifiable {
 }
 
 struct CustomPreviewRule: Codable, Identifiable, Equatable {
+    /// 存储与索引用的无扩展名占位 key（`pathExtension` 为空时映射为此值）。
+    static let extensionlessKey = "__noext__"
+
     var id: UUID
     var extensions: [String]
     var mode: CustomPreviewMode
@@ -71,9 +74,25 @@ struct CustomPreviewRule: Codable, Identifiable, Equatable {
         extensions.map { Self.normalizeExtension($0) }.filter { !$0.isEmpty }
     }
 
+    static func storageKey(forPathExtension ext: String) -> String {
+        ext.isEmpty ? extensionlessKey : ext.lowercased()
+    }
+
+    static func displayLabel(forExtension ext: String) -> String {
+        ext == extensionlessKey ? "（无扩展名）" : ".\(ext)"
+    }
+
+    static func isExtensionlessToken(_ raw: String) -> Bool {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if text.isEmpty { return true }
+        if text == "（无扩展名）" || text == "(无扩展名)" { return true }
+        return text == extensionlessKey
+    }
+
     static func normalizeExtension(_ raw: String) -> String {
         var text = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         while text.hasPrefix(".") { text.removeFirst() }
+        if isExtensionlessToken(text) { return extensionlessKey }
         return text
     }
 
@@ -191,7 +210,8 @@ final class CustomPreviewRuleStore: ObservableObject {
     }
 
     func activeMode(for ext: String) -> CustomPreviewMode? {
-        guard let rule = extensionIndex[ext.lowercased()], rule.enabled else { return nil }
+        let key = CustomPreviewRule.storageKey(forPathExtension: ext)
+        guard let rule = extensionIndex[key], rule.enabled else { return nil }
         if rule.overridesBuiltIn { return rule.mode }
         if !BuiltinPreviewExtensions.matchesBuiltIn(ext)
             && !BuiltinPreviewExtensions.matchesArchive(fileName: "file.\(ext)") {
@@ -201,14 +221,15 @@ final class CustomPreviewRuleStore: ObservableObject {
     }
 
     func overridingRule(for ext: String) -> CustomPreviewRule? {
-        guard let rule = extensionIndex[ext.lowercased()], rule.enabled, rule.overridesBuiltIn else {
+        let key = CustomPreviewRule.storageKey(forPathExtension: ext)
+        guard let rule = extensionIndex[key], rule.enabled, rule.overridesBuiltIn else {
             return nil
         }
         return rule
     }
 
     func rule(forExtension ext: String) -> CustomPreviewRule? {
-        extensionIndex[ext.lowercased()]
+        extensionIndex[CustomPreviewRule.storageKey(forPathExtension: ext)]
     }
 
     func upsertRule(forExtension ext: String, mode: CustomPreviewMode, overridesBuiltIn: Bool = false) {

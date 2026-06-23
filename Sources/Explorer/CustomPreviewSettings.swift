@@ -171,7 +171,7 @@ private struct CustomPreviewRuleRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(rule.normalizedExtensions.map { ".\($0)" }.joined(separator: ", "))
+                Text(rule.normalizedExtensions.map { CustomPreviewRule.displayLabel(forExtension: $0) }.joined(separator: ", "))
                     .font(.body)
                 HStack(spacing: 6) {
                     Text(rule.mode.displayName)
@@ -257,12 +257,14 @@ struct CustomPreviewRuleEditorSheet: View {
 
     private func populateFields() {
         if let rule {
-            extensionsInput = rule.normalizedExtensions.joined(separator: ", ")
+            extensionsInput = rule.normalizedExtensions.map { ext in
+                ext == CustomPreviewRule.extensionlessKey ? "（无扩展名）" : ext
+            }.joined(separator: ", ")
             mode = rule.mode
             overridesBuiltIn = rule.overridesBuiltIn
             enabled = rule.enabled
-        } else if let prefillExtension, !prefillExtension.isEmpty {
-            extensionsInput = prefillExtension
+        } else if let prefillExtension {
+            extensionsInput = prefillExtension.isEmpty ? "（无扩展名）" : prefillExtension
         }
     }
 

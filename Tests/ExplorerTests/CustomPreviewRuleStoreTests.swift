@@ -78,4 +78,18 @@ final class CustomPreviewRuleStoreTests: XCTestCase {
         XCTAssertTrue(PreviewTypeClassifier.isTextFile("proto"))
         XCTAssertFalse(PreviewTypeClassifier.isTextFile("bin"))
     }
+
+    func testUpsertRuleSupportsExtensionlessFiles() {
+        let store = CustomPreviewRuleStore.shared
+        store.upsertRule(forExtension: "", mode: .text)
+
+        XCTAssertEqual(store.activeMode(for: ""), .text)
+        XCTAssertEqual(store.rule(forExtension: "")?.mode, .text)
+        XCTAssertTrue(PreviewTypeClassifier.isTextFile(""))
+    }
+
+    func testExtensionlessTokenParsesFromSettingsInput() {
+        let parsed = CustomPreviewRule.parseExtensions(from: "（无扩展名）, proto")
+        XCTAssertEqual(parsed, [CustomPreviewRule.extensionlessKey, "proto"])
+    }
 }
