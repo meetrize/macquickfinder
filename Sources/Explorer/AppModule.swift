@@ -6489,7 +6489,7 @@ private struct TextFilePreview: NSViewRepresentable {
         }
     }
 
-    private static let lineNumberGutterGap: CGFloat = 2
+    private static let lineNumberGutterGap: CGFloat = 4
 
     private static func applyCodeContentInset(to textView: NSTextView, showLineNumbers: Bool) {
         textView.textContainerInset = NSSize(
