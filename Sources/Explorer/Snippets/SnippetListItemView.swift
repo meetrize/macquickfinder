@@ -40,6 +40,9 @@ struct SnippetListItemView: View {
         .padding(.vertical, 6)
         .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
         .cornerRadius(6)
+        .background {
+            HoverTooltipAnchor(text: snippet.content)
+        }
         .contentShape(Rectangle())
         .onHover { hovering in
             if hovering {

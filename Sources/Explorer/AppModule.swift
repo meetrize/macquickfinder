@@ -3934,136 +3934,6 @@ struct SidebarRailView: View {
     }
 }
 
-enum RailTooltipPresenter {
-    private static let panel = RailTooltipPanel()
-    
-    static func show(text: String, anchor: NSView) {
-        panel.present(text: text, anchor: anchor)
-    }
-    
-    static func hide() {
-        panel.dismiss()
-    }
-}
-
-private final class RailTooltipPanel: NSPanel {
-    private let chromeView = NSVisualEffectView()
-    private let textLabel = NSTextField(labelWithString: "")
-    
-    private let horizontalPadding: CGFloat = 8
-    private let verticalPadding: CGFloat = 5
-    
-    fileprivate init() {
-        super.init(
-            contentRect: .zero,
-            styleMask: [.nonactivatingPanel, .borderless],
-            backing: .buffered,
-            defer: false
-        )
-        isFloatingPanel = true
-        level = .popUpMenu
-        backgroundColor = .clear
-        hasShadow = true
-        ignoresMouseEvents = true
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        
-        textLabel.isEditable = false
-        textLabel.isSelectable = false
-        textLabel.isBezeled = false
-        textLabel.drawsBackground = false
-        textLabel.textColor = .labelColor
-        textLabel.font = .systemFont(ofSize: 11)
-        
-        chromeView.material = .popover
-        chromeView.blendingMode = .behindWindow
-        chromeView.state = .active
-        chromeView.wantsLayer = true
-        chromeView.layer?.cornerRadius = 6
-        chromeView.layer?.borderWidth = 1
-        chromeView.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.35).cgColor
-        
-        chromeView.addSubview(textLabel)
-        contentView = chromeView
-    }
-    
-    func present(text: String, anchor: NSView) {
-        guard let window = anchor.window else { return }
-        
-        textLabel.stringValue = text
-        textLabel.sizeToFit()
-        
-        let labelSize = textLabel.fittingSize
-        let width = labelSize.width + horizontalPadding * 2
-        let height = labelSize.height + verticalPadding * 2
-        
-        chromeView.setFrameSize(NSSize(width: width, height: height))
-        textLabel.frame = NSRect(
-            x: horizontalPadding,
-            y: verticalPadding,
-            width: labelSize.width,
-            height: labelSize.height
-        )
-        
-        let anchorRect = anchor.convert(anchor.bounds, to: nil)
-        let screenRect = window.convertToScreen(anchorRect)
-        let origin = NSPoint(
-            x: screenRect.maxX + 6,
-            y: screenRect.midY - height / 2
-        )
-        setFrame(NSRect(origin: origin, size: NSSize(width: width, height: height)), display: true)
-        orderFront(nil)
-    }
-    
-    func dismiss() {
-        orderOut(nil)
-    }
-}
-
-private struct RailHoverTooltipAnchor: NSViewRepresentable {
-    let text: String
-    
-    func makeNSView(context: Context) -> RailHoverTooltipAnchorView {
-        RailHoverTooltipAnchorView()
-    }
-    
-    func updateNSView(_ nsView: RailHoverTooltipAnchorView, context: Context) {
-        nsView.tooltipText = text
-    }
-}
-
-private final class RailHoverTooltipAnchorView: NSView {
-    var tooltipText = ""
-    private var trackingArea: NSTrackingArea?
-    
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let trackingArea {
-            removeTrackingArea(trackingArea)
-        }
-        let area = NSTrackingArea(
-            rect: bounds,
-            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        )
-        addTrackingArea(area)
-        trackingArea = area
-    }
-    
-    override func mouseEntered(with event: NSEvent) {
-        guard !tooltipText.isEmpty else { return }
-        RailTooltipPresenter.show(text: tooltipText, anchor: self)
-    }
-    
-    override func mouseExited(with event: NSEvent) {
-        RailTooltipPresenter.hide()
-    }
-    
-    deinit {
-        RailTooltipPresenter.hide()
-    }
-}
-
 struct SidebarRow: View {
     let title: String
     let icon: String
@@ -4112,7 +3982,7 @@ struct SidebarRow: View {
             .buttonStyle(.plain)
             .background {
                 if !showsTitle {
-                    RailHoverTooltipAnchor(text: title)
+                    HoverTooltipAnchor(text: title)
                 }
             }
         }
