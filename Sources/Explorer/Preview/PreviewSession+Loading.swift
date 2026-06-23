@@ -264,11 +264,17 @@ extension PreviewSession {
 
         if ext == "docx" {
             guard !Task.isCancelled else { return }
-            let richText = try? await Task.detached(priority: .userInitiated) {
-                try OfficeDocumentPreviewLoader.loadDOCX(from: url)
+            let sourceURL = url
+            let rtfData = try? await Task.detached(priority: .userInitiated) {
+                try OfficeDocumentPreviewLoader.loadDOCXRTFData(from: sourceURL)
             }.value
             guard !Task.isCancelled else { return }
-            if let richText {
+            if let rtfData,
+               let richText = NSAttributedString(
+                   rtf: rtfData,
+                   documentAttributes: nil
+               ),
+               richText.length > 0 {
                 finish(officeRichText: richText)
             } else {
                 finish(office: url)

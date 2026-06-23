@@ -11,6 +11,19 @@ enum OfficeDocumentPreviewLoader {
         }
     }
 
+    /// 后台线程加载 docx 并导出 RTF `Data`，便于跨并发边界传递。
+    static func loadDOCXRTFData(from url: URL) throws -> Data {
+        let attributed = try loadDOCX(from: url)
+        let data = try attributed.data(
+            from: NSRange(location: 0, length: attributed.length),
+            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
+        )
+        guard !data.isEmpty else {
+            throw LoaderError.emptyDocument
+        }
+        return data
+    }
+
     private static func loadOfficeOpenXML(from url: URL) throws -> NSAttributedString {
         let data = try Data(contentsOf: url, options: [.mappedIfSafe])
         var documentAttributes: NSDictionary?
