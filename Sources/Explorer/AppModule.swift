@@ -5418,7 +5418,7 @@ struct FileContentView: View {
                     zoomScale: session.officeZoomScale,
                     panMode: session.officePanMode
                 )
-                .padding(.bottom, 6)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if !session.archiveEntries.isEmpty {
                 ArchiveListPreview(
                     entries: session.archiveEntries,
@@ -6669,6 +6669,10 @@ private struct QuickLookPreview: NSViewRepresentable {
 
     func makeNSView(context: Context) -> OfficePreviewHostView {
         let host = OfficePreviewHostView()
+        host.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        host.setContentHuggingPriority(.defaultLow, for: .vertical)
+        host.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        host.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         guard let qlView = QLPreviewView(frame: .zero, style: .normal) else {
             return host
         }
@@ -6717,6 +6721,12 @@ private struct QuickLookPreview: NSViewRepresentable {
             host.setPanMode(panMode)
             context.coordinator.lastAppliedPanMode = panMode
         }
+
+        let bounds = host.bounds.size
+        if context.coordinator.lastHostBounds != bounds {
+            context.coordinator.lastHostBounds = bounds
+            host.handleHostResize()
+        }
     }
 
     private func makePreviewView() -> QLPreviewView? {
@@ -6730,6 +6740,7 @@ private struct QuickLookPreview: NSViewRepresentable {
         var lastReloadToken: Int = 0
         var lastAppliedZoomScale: CGFloat = 1.0
         var lastAppliedPanMode = false
+        var lastHostBounds: NSSize = .zero
     }
 }
 

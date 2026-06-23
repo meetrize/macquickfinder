@@ -1,63 +1,34 @@
 import AppKit
 import Quartz
+import WebKit
 
-private final class FlippedDocumentView: NSView {
-    override var isFlipped: Bool { true }
-}
-
-/// Office 预览宿主：100% 走 QL 内部滚轮；缩放时外层 magnification 放大整页内容，外层滚轮浏览。
+/// Office Quick Look 宿主：xlsx/pptx 走 QLWeb2View（WebKit），预览区始终铺满可用空间；缩放只作用于 Web 内容，不放大滚动条。
 final class OfficePreviewHostView: NSView {
-    private let scrollView = NSScrollView()
-    private let contentContainer = FlippedDocumentView()
     private let panCaptureView = PanCaptureView()
     private(set) var qlPreviewView: QLPreviewView?
+    private weak var zoomWebView: WKWebView?
     private weak var qlInternalScrollView: NSScrollView?
-    private var baseContentSize: NSSize = .zero
-    private var currentZoomScale: CGFloat = 1.0
-    private var layoutGeneration = 0
-    private var panModeEnabled = false
-    private var scrollEventMonitor: Any?
-    private var scrollMode: ScrollMode = .outer
-    private var lastAppliedHostBounds: NSSize = .zero
+    private weak var qlInternalDocumentView: NSView?
 
-    private enum ScrollMode {
-        case outer
-        case qlInternal
-    }
+    private var currentZoomScale: CGFloat = 1.0
+    private var panModeEnabled = false
+    private var layoutGeneration = 0
+    private var baseDocumentSize: NSSize = .zero
+    private var usesWebContent = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.hasVerticalScroller = false
-        scrollView.hasHorizontalScroller = false
-        scrollView.autohidesScrollers = true
-        scrollView.borderType = .noBorder
-        scrollView.drawsBackground = false
-        scrollView.allowsMagnification = true
-        scrollView.minMagnification = 0.25
-        scrollView.maxMagnification = 5.0
-        scrollView.magnification = 1.0
-        scrollView.documentView = contentContainer
-
         panCaptureView.translatesAutoresizingMaskIntoConstraints = false
         panCaptureView.isHidden = true
         panCaptureView.onPan = { [weak self] delta in
             self?.panBy(delta: delta)
         }
-
-        addSubview(scrollView)
         addSubview(panCaptureView)
-
         NSLayoutConstraint.activate([
-            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.topAnchor.constraint(equalTo: topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
-
-            panCaptureView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            panCaptureView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            panCaptureView.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            panCaptureView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            panCaptureView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            panCaptureView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            panCaptureView.topAnchor.constraint(equalTo: topAnchor),
+            panCaptureView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
     }
 
@@ -66,89 +37,46 @@ final class OfficePreviewHostView: NSView {
         nil
     }
 
-    deinit {
-        removeScrollMonitor()
-    }
-
     override func layout() {
         super.layout()
-        guard qlPreviewView != nil, bounds.width > 1, bounds.height > 1 else { return }
-        let hostBounds = bounds.size
-        let boundsChanged = abs(hostBounds.width - lastAppliedHostBounds.width) > 1
-            || abs(hostBounds.height - lastAppliedHostBounds.height) > 1
-        guard baseContentSize == .zero || boundsChanged else { return }
-        lastAppliedHostBounds = hostBounds
-        let fraction = scrollFraction()
-        _ = refreshDocumentMetrics()
-        applyZoomLayout(preserveScrollFraction: fraction)
+        layoutPreviewToBounds()
     }
 
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        removeScrollMonitor()
-        guard window != nil else { return }
-        scrollEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-            guard let self, let window = self.window, event.window === window else { return event }
-            let point = self.convert(event.locationInWindow, from: nil)
-            guard self.bounds.contains(point) else { return event }
-            guard self.scrollMode == .outer else { return event }
-            guard self.outerMaxScrollY > 0 || self.outerMaxScrollX > 0 else { return event }
-            self.handleOuterScrollWheel(event)
-            return nil
-        }
-    }
-
-    override func removeFromSuperview() {
-        removeScrollMonitor()
-        super.removeFromSuperview()
-    }
-
-    private func removeScrollMonitor() {
-        if let scrollEventMonitor {
-            NSEvent.removeMonitor(scrollEventMonitor)
-            self.scrollEventMonitor = nil
-        }
-    }
-
-    private func handleOuterScrollWheel(_ event: NSEvent) {
-        let deltaY = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY * 8
-        guard deltaY != 0 else { return }
-        var origin = scrollView.contentView.bounds.origin
-        if event.modifierFlags.contains(.shift) {
-            origin.x -= deltaY
-        } else {
-            origin.y += deltaY
-        }
-        setOuterScrollOrigin(origin)
+    override func resizeSubviews(withOldSize oldSize: NSSize) {
+        super.resizeSubviews(withOldSize: oldSize)
+        layoutPreviewToBounds()
     }
 
     func embed(_ qlView: QLPreviewView) {
-        if qlPreviewView === qlView { return }
+        if qlPreviewView === qlView {
+            layoutPreviewToBounds()
+            return
+        }
         qlPreviewView?.removeFromSuperview()
         qlPreviewView = qlView
-        baseContentSize = .zero
+        zoomWebView = nil
         qlInternalScrollView = nil
-        scrollMode = .outer
-        qlView.translatesAutoresizingMaskIntoConstraints = true
-        qlView.autoresizingMask = []
-        qlView.frame = contentContainer.bounds
-        contentContainer.addSubview(qlView)
-        lastAppliedHostBounds = .zero
-        applyZoomLayout(preserveScrollFraction: 0)
-        scheduleLayoutRefresh()
+        qlInternalDocumentView = nil
+        baseDocumentSize = .zero
+        usesWebContent = false
+
+        qlView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(qlView, positioned: .below, relativeTo: panCaptureView)
+        NSLayoutConstraint.activate([
+            qlView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            qlView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            qlView.topAnchor.constraint(equalTo: topAnchor),
+            qlView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+        layoutPreviewToBounds()
+        scheduleContentDiscovery()
     }
 
     func setZoomScale(_ scale: CGFloat) {
         let clamped = max(0.25, min(scale, 5.0))
-        let scaleChanged = abs(clamped - currentZoomScale) > 0.001
-        let needsInitialLayout = baseContentSize == .zero
-            || contentContainer.frame.width < 1
-            || contentContainer.frame.height < 1
-        guard scaleChanged || needsInitialLayout else { return }
-        let priorFraction = scrollFraction()
+        guard abs(clamped - currentZoomScale) > 0.001 else { return }
         currentZoomScale = clamped
-        _ = refreshDocumentMetrics()
-        applyZoomLayout(preserveScrollFraction: priorFraction)
+        applyZoom()
     }
 
     func setPanMode(_ enabled: Bool) {
@@ -160,222 +88,181 @@ final class OfficePreviewHostView: NSView {
 
     func resetZoomState() {
         currentZoomScale = 1.0
-        baseContentSize = .zero
+        zoomWebView = nil
         qlInternalScrollView = nil
-        scrollMode = .outer
-        lastAppliedHostBounds = .zero
-        qlPreviewView?.layer?.setAffineTransform(.identity)
-        scrollView.magnification = 1.0
-        scrollView.contentView.setBoundsOrigin(.zero)
-        applyZoomLayout(preserveScrollFraction: 0)
+        qlInternalDocumentView = nil
+        baseDocumentSize = .zero
+        usesWebContent = false
+        applyZoom()
+        scheduleContentDiscovery()
     }
 
-    private func scheduleLayoutRefresh() {
+    func handleHostResize() {
+        layoutPreviewToBounds()
+        if !usesWebContent {
+            refreshLegacyDocumentMetrics()
+            applyZoom()
+        }
+    }
+
+    private func layoutPreviewToBounds() {
+        guard bounds.width > 1, bounds.height > 1 else { return }
+        qlPreviewView?.needsLayout = true
+        qlPreviewView?.layoutSubtreeIfNeeded()
+    }
+
+    private func scheduleContentDiscovery() {
         layoutGeneration += 1
         let generation = layoutGeneration
-        for delay in [0.1, 0.35, 0.75, 1.2] {
+        for delay in [0.05, 0.15, 0.35, 0.75, 1.2] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.layoutGeneration == generation else { return }
-                let fraction = self.scrollFraction()
-                _ = self.refreshDocumentMetrics()
-                self.applyZoomLayout(preserveScrollFraction: fraction)
+                self.discoverPreviewContent()
+                self.applyZoom()
             }
         }
     }
 
-    @discardableResult
-    private func refreshDocumentMetrics() -> Bool {
-        guard let qlView = qlPreviewView else { return false }
+    private func discoverPreviewContent() {
+        guard let qlView = qlPreviewView else { return }
+
+        if let webView = findWKWebView(in: qlView) {
+            usesWebContent = true
+            zoomWebView = webView
+            qlInternalScrollView = nil
+            qlInternalDocumentView = nil
+            baseDocumentSize = .zero
+            hideInternalScrollIndicators(in: qlView)
+            return
+        }
+
+        usesWebContent = false
+        zoomWebView = nil
+        refreshLegacyDocumentMetrics()
+    }
+
+    private func refreshLegacyDocumentMetrics() {
+        guard let qlView = qlPreviewView else { return }
         hideInternalScrollIndicators(in: qlView)
 
         let internalScroll = findPrimaryInternalScrollView(in: qlView)
         qlInternalScrollView = internalScroll
+        qlInternalDocumentView = internalScroll?.documentView
 
-        let measuredSize: NSSize?
-        if let docView = internalScroll?.documentView {
-            let docFrame = docView.frame.size
-            if docFrame.width > 1, docFrame.height > 1 {
-                measuredSize = docFrame
-            } else {
-                measuredSize = nil
-            }
-        } else {
-            measuredSize = nil
-        }
-
-        let fallback = qlView.bounds.size
-        let candidate = measuredSize ?? (fallback.width > 1 && fallback.height > 1 ? fallback : nil)
-        guard let candidate else { return false }
-
-        let width = max(candidate.width, scrollView.contentView.bounds.width, 1)
-        let height = max(candidate.height, 1)
-        let newSize = NSSize(width: width, height: height)
-
-        let sizeChanged = baseContentSize == .zero
-            || abs(baseContentSize.width - newSize.width) > 1
-            || abs(baseContentSize.height - newSize.height) > 1
-        baseContentSize = newSize
-        return sizeChanged
-    }
-
-    private func applyZoomLayout(preserveScrollFraction: CGFloat) {
-        guard let qlView = qlPreviewView else { return }
-
-        let viewport = scrollView.contentView.bounds.size
-        guard baseContentSize.width > 1, baseContentSize.height > 1 else {
-            let width = max(viewport.width, bounds.width, 1)
-            let height = max(viewport.height, bounds.height, 1)
-            contentContainer.setFrameSize(NSSize(width: width, height: height))
-            qlView.layer?.setAffineTransform(.identity)
-            qlView.frame = NSRect(x: 0, y: 0, width: width, height: height)
-            applyOuterMagnification(viewport: viewport)
-            updateScrollMode()
+        guard let docView = internalScroll?.documentView else {
+            baseDocumentSize = .zero
             return
         }
 
-        let priorOuterOrigin = scrollView.contentView.bounds.origin
-        let priorInternalOrigin = qlInternalScrollView?.contentView.bounds.origin ?? .zero
-        let priorVisible = scrollView.documentVisibleRect
-
-        contentContainer.setFrameSize(baseContentSize)
-        qlView.layer?.setAffineTransform(.identity)
-        qlView.frame = NSRect(origin: .zero, size: baseContentSize)
-
-        scrollView.allowsMagnification = true
-        scrollView.minMagnification = 0.25
-        scrollView.maxMagnification = 5.0
-        applyOuterMagnification(viewport: viewport, priorVisible: priorVisible)
-
-        if isDocumentZoomActive {
-            scrollMode = .outer
-            lockInternalScroll()
-        } else {
-            updateScrollMode()
+        let frame = docView.frame.size
+        guard frame.width > 1, frame.height > 1 else {
+            baseDocumentSize = .zero
+            return
         }
-
-        switch scrollMode {
-        case .outer:
-            if outerMaxScrollY > 0 || outerMaxScrollX > 0 {
-                var origin = priorOuterOrigin
-                if preserveScrollFraction > 0, outerMaxScrollY > 0 {
-                    origin.y = preserveScrollFraction * outerMaxScrollY
-                }
-                setOuterScrollOrigin(origin)
-            }
-        case .qlInternal:
-            let maxY = internalMaxScrollY
-            if maxY > 0 {
-                var origin = priorInternalOrigin
-                if preserveScrollFraction > 0 {
-                    origin.y = preserveScrollFraction * maxY
-                }
-                setInternalScrollOrigin(origin)
-            }
-        }
-
-        scrollView.reflectScrolledClipView(scrollView.contentView)
+        baseDocumentSize = frame
     }
 
-    private func applyOuterMagnification(viewport: NSSize, priorVisible: NSRect = .zero) {
-        let target = isDocumentZoomActive ? currentZoomScale : 1.0
-        guard abs(scrollView.magnification - target) > 0.001 else { return }
-
-        let centerInClip: NSPoint
-        if priorVisible.width > 0, priorVisible.height > 0 {
-            let center = NSPoint(x: priorVisible.midX, y: priorVisible.midY)
-            centerInClip = scrollView.contentView.convert(center, from: contentContainer)
-        } else {
-            centerInClip = NSPoint(x: viewport.width * 0.5, y: viewport.height * 0.5)
-        }
-        scrollView.setMagnification(target, centeredAt: centerInClip)
-    }
-
-    private var isDocumentZoomActive: Bool {
-        abs(currentZoomScale - 1.0) > 0.001
-    }
-
-    private func updateScrollMode() {
-        if isDocumentZoomActive {
-            scrollMode = .outer
+    private func applyZoom() {
+        if usesWebContent, let webView = zoomWebView ?? qlPreviewView.flatMap({ findWKWebView(in: $0) }) {
+            zoomWebView = webView
+            webView.pageZoom = currentZoomScale
             return
         }
 
-        if outerMaxScrollY > 1 || outerMaxScrollX > 1 {
-            scrollMode = .outer
+        if let qlWeb = qlPreviewView.flatMap({ findQLWeb2View(in: $0) }) {
+            usesWebContent = true
+            qlWeb.setValue(currentZoomScale, forKey: "pageZoom")
             return
         }
 
-        scrollMode = internalMaxScrollY > 1 ? .qlInternal : .outer
+        applyLegacyDocumentZoom()
     }
 
-    private var outerMaxScrollY: CGFloat {
-        let magnification = max(scrollView.magnification, 0.0001)
-        let docHeight = baseContentSize.height > 1 ? baseContentSize.height : contentContainer.frame.height
-        return max(docHeight * magnification - scrollView.contentView.bounds.height, 0)
-    }
+    private func applyLegacyDocumentZoom() {
+        guard let docView = qlInternalDocumentView ?? qlInternalScrollView?.documentView else { return }
+        qlInternalDocumentView = docView
 
-    private var outerMaxScrollX: CGFloat {
-        let magnification = max(scrollView.magnification, 0.0001)
-        let docWidth = baseContentSize.width > 1 ? baseContentSize.width : contentContainer.frame.width
-        return max(docWidth * magnification - scrollView.contentView.bounds.width, 0)
-    }
+        if baseDocumentSize == .zero {
+            let size = docView.frame.size
+            if size.width > 1, size.height > 1 {
+                baseDocumentSize = size
+            }
+        }
 
-    private var internalMaxScrollY: CGFloat {
-        guard let internalScroll = qlInternalScrollView,
-              let docView = internalScroll.documentView else { return 0 }
-        return max(docView.frame.height - internalScroll.contentView.bounds.height, 0)
-    }
+        let base = baseDocumentSize
+        guard base.width > 1, base.height > 1 else { return }
 
-    private func scrollFraction() -> CGFloat {
-        switch scrollMode {
-        case .outer:
-            guard outerMaxScrollY > 0 else { return 0 }
-            return scrollView.contentView.bounds.origin.y / outerMaxScrollY
-        case .qlInternal:
-            guard let internalScroll = qlInternalScrollView, internalMaxScrollY > 0 else { return 0 }
-            return internalScroll.contentView.bounds.origin.y / internalMaxScrollY
+        docView.layer?.setAffineTransform(.identity)
+        if abs(currentZoomScale - 1.0) > 0.001 {
+            docView.layer?.setAffineTransform(
+                CGAffineTransform(scaleX: currentZoomScale, y: currentZoomScale)
+            )
+        }
+
+        docView.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: base.width * currentZoomScale,
+            height: base.height * currentZoomScale
+        )
+        if let scroll = qlInternalScrollView {
+            scroll.reflectScrolledClipView(scroll.contentView)
         }
     }
 
     private func panBy(delta: NSPoint) {
-        switch scrollMode {
-        case .outer:
-            var origin = scrollView.contentView.bounds.origin
-            origin.x -= delta.x
-            origin.y -= delta.y
-            setOuterScrollOrigin(origin)
-        case .qlInternal:
-            guard let internalScroll = qlInternalScrollView else { return }
-            var origin = internalScroll.contentView.bounds.origin
-            origin.y -= delta.y
-            setInternalScrollOrigin(origin)
+        if usesWebContent {
+            guard let scroll = findWebScrollView() else { return }
+            var origin = scroll.contentView.bounds.origin
+            origin.x = clamp(origin.x - delta.x, min: 0, max: maxScrollX(for: scroll))
+            origin.y = clamp(origin.y - delta.y, min: 0, max: maxScrollY(for: scroll))
+            scroll.contentView.setBoundsOrigin(origin)
+            scroll.reflectScrolledClipView(scroll.contentView)
+            return
         }
+
+        guard let scroll = qlInternalScrollView else { return }
+        var origin = scroll.contentView.bounds.origin
+        origin.x = clamp(origin.x - delta.x, min: 0, max: maxScrollX(for: scroll))
+        origin.y = clamp(origin.y - delta.y, min: 0, max: maxScrollY(for: scroll))
+        scroll.contentView.setBoundsOrigin(origin)
+        scroll.reflectScrolledClipView(scroll.contentView)
     }
 
-    private func setOuterScrollOrigin(_ proposed: NSPoint) {
-        let origin = NSPoint(
-            x: min(max(proposed.x, 0), outerMaxScrollX),
-            y: min(max(proposed.y, 0), outerMaxScrollY)
-        )
-        scrollView.contentView.setBoundsOrigin(origin)
-        scrollView.reflectScrolledClipView(scrollView.contentView)
+    private func maxScrollX(for scroll: NSScrollView) -> CGFloat {
+        guard let docView = scroll.documentView else { return 0 }
+        return max(docView.frame.width - scroll.contentView.bounds.width, 0)
     }
 
-    private func setInternalScrollOrigin(_ proposed: NSPoint) {
-        guard let internalScroll = qlInternalScrollView else { return }
-        let origin = NSPoint(
-            x: internalScroll.contentView.bounds.origin.x,
-            y: min(max(proposed.y, 0), internalMaxScrollY)
-        )
-        internalScroll.contentView.setBoundsOrigin(origin)
-        internalScroll.reflectScrolledClipView(internalScroll.contentView)
+    private func maxScrollY(for scroll: NSScrollView) -> CGFloat {
+        guard let docView = scroll.documentView else { return 0 }
+        return max(docView.frame.height - scroll.contentView.bounds.height, 0)
     }
 
-    private func lockInternalScroll() {
-        guard let internalScroll = qlInternalScrollView else { return }
-        let clip = internalScroll.contentView
-        clip.setBoundsOrigin(.zero)
-        internalScroll.reflectScrolledClipView(clip)
+    private func clamp(_ value: CGFloat, min: CGFloat, max: CGFloat) -> CGFloat {
+        Swift.min(Swift.max(value, min), max)
+    }
+
+    private func findWKWebView(in root: NSView) -> WKWebView? {
+        if let web = root as? WKWebView { return web }
+        for sub in root.subviews {
+            if let found = findWKWebView(in: sub) { return found }
+        }
+        return nil
+    }
+
+    private func findQLWeb2View(in root: NSView) -> NSView? {
+        let name = String(describing: type(of: root))
+        if name == "QLWeb2View" { return root }
+        for sub in root.subviews {
+            if let found = findQLWeb2View(in: sub) { return found }
+        }
+        return nil
+    }
+
+    private func findWebScrollView() -> NSScrollView? {
+        guard let webView = zoomWebView ?? qlPreviewView.flatMap({ findWKWebView(in: $0) }) else { return nil }
+        return findPrimaryInternalScrollView(in: webView)
     }
 
     private func findPrimaryInternalScrollView(in root: NSView) -> NSScrollView? {
@@ -383,8 +270,7 @@ final class OfficePreviewHostView: NSView {
         var bestArea: CGFloat = 0
 
         func visit(_ node: NSView) {
-            if let scroll = node as? NSScrollView, scroll !== scrollView,
-               let docView = scroll.documentView {
+            if let scroll = node as? NSScrollView, let docView = scroll.documentView {
                 let area = docView.frame.width * docView.frame.height
                 if area > bestArea {
                     bestArea = area
@@ -409,15 +295,11 @@ final class OfficePreviewHostView: NSView {
     }
 
     private func hideInternalScrollIndicators(in view: NSView) {
-        if let scroll = view as? NSScrollView, scroll !== scrollView {
-            scroll.hasVerticalScroller = false
-            scroll.hasHorizontalScroller = false
+        if let scroll = view as? NSScrollView {
+            scroll.hasVerticalScroller = true
+            scroll.hasHorizontalScroller = true
             scroll.autohidesScrollers = true
             scroll.scrollerStyle = .overlay
-        }
-        if let scroller = view as? NSScroller {
-            scroller.isHidden = true
-            scroller.alphaValue = 0
         }
         for sub in view.subviews {
             hideInternalScrollIndicators(in: sub)
