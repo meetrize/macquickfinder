@@ -42,6 +42,8 @@ final class PreviewSessionTests: XCTestCase {
         session.mediaIsPlaying = true
         session.archiveExpanded = false
         session.officeZoomScale = 1.5
+        session.officeCurrentPage = 2
+        session.officePageCount = 5
         session.imageEditUndoStack = [
             ImageEditSnapshot(
                 rotationQuarterTurns: 0,
@@ -61,6 +63,8 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertFalse(session.mediaIsPlaying)
         XCTAssertTrue(session.archiveExpanded)
         XCTAssertEqual(session.officeZoomScale, 1.0)
+        XCTAssertEqual(session.officeCurrentPage, 0)
+        XCTAssertEqual(session.officePageCount, 0)
         XCTAssertTrue(session.imageEditUndoStack.isEmpty)
     }
 
@@ -86,10 +90,37 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertTrue(ids.contains("office-scale"))
         XCTAssertTrue(ids.contains("office-zoom-in"))
         XCTAssertTrue(ids.contains("office-reset"))
-        XCTAssertTrue(ids.contains("office-pan"))
+        XCTAssertFalse(ids.contains("office-pan"))
         XCTAssertFalse(ids.contains("office-prev"))
         XCTAssertFalse(ids.contains("office-next"))
     }
+
+    func testQuickLookOfficeToolbarIncludesPageControlsWhenMultiplePages() {
+        let session = PreviewSession(
+            hostWindowID: UUID(),
+            file: FileItem(
+                id: "deck",
+                url: URL(fileURLWithPath: "/tmp/sample.pptx"),
+                name: "sample.pptx",
+                isDirectory: false,
+                modificationDate: .distantPast,
+                size: 1024,
+                isHidden: false,
+                fileType: "pptx",
+                sizeDisplay: "1 KB",
+                dateDisplay: ""
+            )
+        )
+        session.officeURL = URL(fileURLWithPath: "/tmp/sample.pptx")
+        session.officePageCount = 3
+        session.officeCurrentPage = 2
+
+        let items = session.previewToolbarItems(for: session.file)
+        let ids = Set(items.map(\.id))
+        XCTAssertTrue(ids.contains("office-prev"))
+        XCTAssertTrue(ids.contains("office-next"))
+        XCTAssertTrue(ids.contains("office-page"))
+        XCTAssertTrue(ids.contains("office-zoom-in"))
 
     func testImageEditUndoRoundTrip() {
         let session = PreviewSession(hostWindowID: UUID(), file: makeFileItem())

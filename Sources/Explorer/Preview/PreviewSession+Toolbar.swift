@@ -405,8 +405,96 @@ extension PreviewSession {
     }
 
     func previewOfficeToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
+        if officeURL != nil {
+            return previewQuickLookOfficeToolbarItems(for: item)
+        }
+        return previewOfficeRichTextToolbarItems()
+    }
+
+    private func previewQuickLookOfficeToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
         let ext = item.url.pathExtension.lowercased()
-        var items: [PreviewToolbarOverflowModel] = [
+        let showsPageControls = ext == "pptx" || officePageCount > 1
+        var items: [PreviewToolbarOverflowModel] = []
+        if showsPageControls {
+            items.append(
+                previewToolbarIconItem(
+                    id: "office-prev",
+                    title: "上一页",
+                    systemImage: "chevron.left",
+                    isDisabled: officePageCount > 0 && officeCurrentPage <= 1,
+                    action: { [self] in sendOfficeNavigate(.previousPage) }
+                )
+            )
+        }
+        items.append(contentsOf: [
+            previewToolbarIconItem(
+                id: "office-zoom-out",
+                title: "缩小",
+                systemImage: "minus.magnifyingglass",
+                isDisabled: officeZoomScale <= 0.25,
+                action: { [self] in sendOfficeNavigate(.zoomOut) }
+            ),
+            PreviewToolbarOverflowModel(
+                id: "office-scale",
+                menuTitle: "缩放比例",
+                menuSystemImage: "percent",
+                isDisabled: false,
+                estimatedWidth: 44,
+                menuAction: {},
+                content: AnyView(
+                    Text("\(Int((officeZoomScale * 100).rounded()))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.secondary)
+                        .frame(minWidth: 44, alignment: .center)
+                )
+            ),
+            previewToolbarIconItem(
+                id: "office-zoom-in",
+                title: "放大",
+                systemImage: "plus.magnifyingglass",
+                isDisabled: officeZoomScale >= 5.0,
+                action: { [self] in sendOfficeNavigate(.zoomIn) }
+            ),
+            previewToolbarIconItem(
+                id: "office-reset",
+                title: "还原",
+                systemImage: "arrow.counterclockwise",
+                isDisabled: abs(officeZoomScale - 1.0) < 0.001,
+                action: { [self] in sendOfficeNavigate(.resetZoom) }
+            ),
+        ])
+        if showsPageControls {
+            items.append(
+                PreviewToolbarOverflowModel(
+                    id: "office-page",
+                    menuTitle: "页码",
+                    menuSystemImage: "number",
+                    isDisabled: false,
+                    estimatedWidth: 56,
+                    menuAction: {},
+                    content: AnyView(
+                        Text(officePageCount > 0 ? "\(officeCurrentPage)/\(officePageCount)" : "…")
+                            .font(.caption.monospacedDigit())
+                            .foregroundColor(.secondary)
+                            .frame(minWidth: 56, alignment: .center)
+                    )
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "office-next",
+                    title: "下一页",
+                    systemImage: "chevron.right",
+                    isDisabled: officePageCount == 0 || officeCurrentPage >= officePageCount,
+                    action: { [self] in sendOfficeNavigate(.nextPage) }
+                )
+            )
+        }
+        return items
+    }
+
+    private func previewOfficeRichTextToolbarItems() -> [PreviewToolbarOverflowModel] {
+        [
             previewToolbarIconItem(
                 id: "office-zoom-out",
                 title: "缩小",
@@ -447,18 +535,6 @@ extension PreviewSession {
                 action: { [self] in officeZoomScale = 1.0 }
             ),
         ]
-        // docx 走 TextEdit 式富文本预览，原生滚轮即可；xlsx/pptx 仍用 QuickLook + 拖拽平移。
-        if ext != "docx" {
-            items.append(
-                previewToolbarIconItem(
-                    id: "office-pan",
-                    title: officePanMode ? "关闭拖拽平移" : "拖拽平移",
-                    systemImage: officePanMode ? "hand.raised.fill" : "hand.raised",
-                    action: { [self] in officePanMode.toggle() }
-                )
-            )
-        }
-        return items
     }
 
     func previewArchiveToolbarItems() -> [PreviewToolbarOverflowModel] {

@@ -5415,8 +5415,19 @@ struct FileContentView: View {
                 QuickLookPreview(
                     url: officeURL,
                     reloadToken: session.officeReloadToken,
-                    zoomScale: session.officeZoomScale,
-                    panMode: session.officePanMode
+                    navigateRevision: session.officeNavigateRevision,
+                    navigateAction: session.officeNavigateAction,
+                    onStateChanged: { currentPage, pageCount, zoomScale in
+                        if session.officeCurrentPage != currentPage {
+                            session.officeCurrentPage = currentPage
+                        }
+                        if session.officePageCount != pageCount {
+                            session.officePageCount = pageCount
+                        }
+                        if abs(session.officeZoomScale - zoomScale) > 0.001 {
+                            session.officeZoomScale = zoomScale
+                        }
+                    }
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if !session.archiveEntries.isEmpty {
@@ -6662,64 +6673,57 @@ private struct MediaPreview: NSViewRepresentable {
 private struct QuickLookPreview: NSViewRepresentable {
     let url: URL
     let reloadToken: Int
-    let zoomScale: CGFloat
-    let panMode: Bool
+    let navigateRevision: UInt
+    let navigateAction: OfficePreviewNavigateAction?
+    let onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ zoomScale: CGFloat) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> OfficePreviewHostView {
         let host = OfficePreviewHostView()
-        host.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        host.setContentHuggingPriority(.defaultLow, for: .vertical)
-        host.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        host.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         guard let qlView = QLPreviewView(frame: .zero, style: .normal) else {
             return host
         }
         qlView.previewItem = url as NSURL
+        host.onStateChanged = { currentPage, pageCount, zoomPercent in
+            onStateChanged(currentPage, pageCount, CGFloat(zoomPercent) / 100.0)
+        }
         host.embed(qlView)
         context.coordinator.hostView = host
         context.coordinator.lastReloadToken = reloadToken
-        context.coordinator.lastAppliedZoomScale = -1
-        context.coordinator.lastAppliedPanMode = panMode
-        host.setZoomScale(zoomScale)
-        context.coordinator.lastAppliedZoomScale = zoomScale
-        host.setPanMode(panMode)
+        context.coordinator.lastNavigateRevision = navigateRevision
         return host
     }
 
     func updateNSView(_ host: OfficePreviewHostView, context: Context) {
         context.coordinator.hostView = host
+        host.onStateChanged = { currentPage, pageCount, zoomPercent in
+            onStateChanged(currentPage, pageCount, CGFloat(zoomPercent) / 100.0)
+        }
 
         if context.coordinator.lastReloadToken != reloadToken {
             guard let qlView = host.qlPreviewView ?? makePreviewView() else { return }
-            qlView.previewItem = nil
-            qlView.previewItem = url as NSURL
             if host.qlPreviewView == nil {
                 host.embed(qlView)
             }
+            host.setPreviewURL(url)
             context.coordinator.lastReloadToken = reloadToken
-            host.resetZoomState()
-            context.coordinator.lastAppliedZoomScale = 1.0
+            host.resetPreviewState()
         } else if let qlView = host.qlPreviewView {
             let currentURL = qlView.previewItem?.previewItemURL
             if currentURL?.path != url.path {
-                qlView.previewItem = url as NSURL
-                host.resetZoomState()
-                context.coordinator.lastAppliedZoomScale = 1.0
+                host.setPreviewURL(url)
+                host.resetPreviewState()
             }
         } else if let qlView = makePreviewView() {
             host.embed(qlView)
+            host.setPreviewURL(url)
         }
 
-        if abs(context.coordinator.lastAppliedZoomScale - zoomScale) > 0.001 {
-            host.setZoomScale(zoomScale)
-            context.coordinator.lastAppliedZoomScale = zoomScale
-        }
-
-        if context.coordinator.lastAppliedPanMode != panMode {
-            host.setPanMode(panMode)
-            context.coordinator.lastAppliedPanMode = panMode
+        if context.coordinator.lastNavigateRevision != navigateRevision,
+           let action = navigateAction {
+            host.applyNavigateAction(action)
+            context.coordinator.lastNavigateRevision = navigateRevision
         }
 
         let bounds = host.bounds.size
@@ -6738,8 +6742,7 @@ private struct QuickLookPreview: NSViewRepresentable {
     final class Coordinator {
         weak var hostView: OfficePreviewHostView?
         var lastReloadToken: Int = 0
-        var lastAppliedZoomScale: CGFloat = 1.0
-        var lastAppliedPanMode = false
+        var lastNavigateRevision: UInt = 0
         var lastHostBounds: NSSize = .zero
     }
 }

@@ -59,7 +59,16 @@ final class PreviewSession: ObservableObject, Identifiable {
 
     @Published var officeReloadToken = 0
     @Published var officeZoomScale: CGFloat = 1.0
+    @Published var officeCurrentPage = 0
+    @Published var officePageCount = 0
+    @Published var officeNavigateAction: OfficePreviewNavigateAction?
+    @Published var officeNavigateRevision: UInt = 0
     @Published var officePanMode = false
+
+    func sendOfficeNavigate(_ action: OfficePreviewNavigateAction) {
+        officeNavigateAction = action
+        officeNavigateRevision &+= 1
+    }
 
     // MARK: - Archive toolbar state
 
@@ -197,6 +206,10 @@ final class PreviewSession: ObservableObject, Identifiable {
         mediaIsMuted = false
         officeReloadToken = 0
         officeZoomScale = 1.0
+        officeCurrentPage = 0
+        officePageCount = 0
+        officeNavigateAction = nil
+        officeNavigateRevision = 0
         officePanMode = false
         archiveExpanded = true
         archiveReloadToken = 0

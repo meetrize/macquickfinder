@@ -2,34 +2,36 @@ import AppKit
 import Quartz
 import WebKit
 
-/// Office Quick Look 宿主：xlsx/pptx 走 QLWeb2View（WebKit），预览区始终铺满可用空间；缩放只作用于 Web 内容，不放大滚动条。
+/// Quick Look Office 预览宿主：使用系统 `Office.qlgenerator`（QLPreviewView），xlsx / pptx 分别走 WebKit 或 layer 缩放。
 final class OfficePreviewHostView: NSView {
-    private let panCaptureView = PanCaptureView()
-    private(set) var qlPreviewView: QLPreviewView?
-    private weak var zoomWebView: WKWebView?
-    private weak var qlInternalScrollView: NSScrollView?
-    private weak var qlInternalDocumentView: NSView?
+    private enum ZoomBackend {
+        /// xlsx：QLWeb2View + pageZoom
+        case qlWeb2(NSView)
+        /// pptx 等：Office.qlgenerator → QLPDFContainerView，无内置 zoom API
+        case pdfContainer
+        /// 其他 layer 型 Quick Look 内容
+        case layerContainer(NSView)
+    }
 
-    private var currentZoomScale: CGFloat = 1.0
-    private var panModeEnabled = false
+    private(set) var qlPreviewView: QLPreviewView?
+
     private var layoutGeneration = 0
-    private var baseDocumentSize: NSSize = .zero
-    private var usesWebContent = false
+    private var appliedZoomScale: CGFloat = 1.0
+    private var zoomBackend: ZoomBackend?
+
+    private var lastPublishedPage = -1
+    private var lastPublishedPageCount = -1
+    private var lastPublishedZoomPercent = -1
+
+    var onStateChanged: ((_ currentPage: Int, _ pageCount: Int, _ zoomPercent: Int) -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        panCaptureView.translatesAutoresizingMaskIntoConstraints = false
-        panCaptureView.isHidden = true
-        panCaptureView.onPan = { [weak self] delta in
-            self?.panBy(delta: delta)
-        }
-        addSubview(panCaptureView)
-        NSLayoutConstraint.activate([
-            panCaptureView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            panCaptureView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            panCaptureView.topAnchor.constraint(equalTo: topAnchor),
-            panCaptureView.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
+        clipsToBounds = true
+        setContentHuggingPriority(.defaultLow, for: .horizontal)
+        setContentHuggingPriority(.defaultLow, for: .vertical)
+        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultLow, for: .vertical)
     }
 
     @available(*, unavailable)
@@ -37,210 +39,184 @@ final class OfficePreviewHostView: NSView {
         nil
     }
 
-    override func layout() {
-        super.layout()
-        layoutPreviewToBounds()
-    }
-
-    override func resizeSubviews(withOldSize oldSize: NSSize) {
-        super.resizeSubviews(withOldSize: oldSize)
-        layoutPreviewToBounds()
-    }
-
     func embed(_ qlView: QLPreviewView) {
         if qlPreviewView === qlView {
-            layoutPreviewToBounds()
+            configureQLView(qlView)
             return
         }
+
         qlPreviewView?.removeFromSuperview()
         qlPreviewView = qlView
-        zoomWebView = nil
-        qlInternalScrollView = nil
-        qlInternalDocumentView = nil
-        baseDocumentSize = .zero
-        usesWebContent = false
+        zoomBackend = nil
+        appliedZoomScale = 1.0
 
-        qlView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(qlView, positioned: .below, relativeTo: panCaptureView)
+        configureQLView(qlView)
+        addSubview(qlView)
         NSLayoutConstraint.activate([
             qlView.leadingAnchor.constraint(equalTo: leadingAnchor),
             qlView.trailingAnchor.constraint(equalTo: trailingAnchor),
             qlView.topAnchor.constraint(equalTo: topAnchor),
             qlView.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
-        layoutPreviewToBounds()
+
         scheduleContentDiscovery()
     }
 
-    func setZoomScale(_ scale: CGFloat) {
-        let clamped = max(0.25, min(scale, 5.0))
-        guard abs(clamped - currentZoomScale) > 0.001 else { return }
-        currentZoomScale = clamped
-        applyZoom()
-    }
-
-    func setPanMode(_ enabled: Bool) {
-        panModeEnabled = enabled
-        panCaptureView.isHidden = !enabled
-        panCaptureView.isPanning = false
-        updateCursor()
-    }
-
-    func resetZoomState() {
-        currentZoomScale = 1.0
-        zoomWebView = nil
-        qlInternalScrollView = nil
-        qlInternalDocumentView = nil
-        baseDocumentSize = .zero
-        usesWebContent = false
-        applyZoom()
+    func setPreviewURL(_ url: URL) {
+        qlPreviewView?.previewItem = url as NSURL
+        zoomBackend = nil
+        appliedZoomScale = 1.0
+        configureQLView(qlPreviewView)
         scheduleContentDiscovery()
+    }
+
+    func resetPreviewState() {
+        appliedZoomScale = 1.0
+        zoomBackend = nil
+        configureQLView(qlPreviewView)
+        applyCurrentZoom()
+        publishStateIfNeeded(force: true)
+    }
+
+    func applyNavigateAction(_ action: OfficePreviewNavigateAction) {
+        guard let qlView = qlPreviewView else { return }
+        resolveZoomBackend(in: qlView)
+
+        switch action {
+        case .previousPage:
+            let current = qlCurrentPageIndex(in: qlView)
+            qlView.setValue(max(current - 1, 0), forKey: "currentPage")
+        case .nextPage:
+            let current = qlCurrentPageIndex(in: qlView)
+            let maxIndex = max(qlPageCount(in: qlView) - 1, 0)
+            qlView.setValue(min(current + 1, maxIndex), forKey: "currentPage")
+        case .zoomIn:
+            appliedZoomScale = min(appliedZoomScale * 1.2, 5.0)
+            applyCurrentZoom()
+        case .zoomOut:
+            appliedZoomScale = max(appliedZoomScale / 1.2, 0.25)
+            applyCurrentZoom()
+        case .resetZoom:
+            appliedZoomScale = 1.0
+            applyCurrentZoom()
+        }
+
+        publishStateIfNeeded(force: true)
     }
 
     func handleHostResize() {
-        layoutPreviewToBounds()
-        if !usesWebContent {
-            refreshLegacyDocumentMetrics()
-            applyZoom()
-        }
+        if case .qlWeb2 = zoomBackend { return }
+        applyCurrentZoom()
     }
 
-    private func layoutPreviewToBounds() {
-        guard bounds.width > 1, bounds.height > 1 else { return }
-        qlPreviewView?.needsLayout = true
-        qlPreviewView?.layoutSubtreeIfNeeded()
+    private func configureQLView(_ qlView: QLPreviewView?) {
+        guard let qlView else { return }
+        qlView.translatesAutoresizingMaskIntoConstraints = false
+        qlView.autostarts = true
+        let manualZoom = abs(appliedZoomScale - 1.0) > 0.001
+        qlView.setValue(!manualZoom, forKey: "sizesPreviewToFit")
+        qlView.setValue(!manualZoom, forKey: "autoZooms")
     }
 
     private func scheduleContentDiscovery() {
         layoutGeneration += 1
         let generation = layoutGeneration
-        for delay in [0.05, 0.15, 0.35, 0.75, 1.2] {
+        for delay in [0.15, 0.5, 1.0, 2.0] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                guard let self, self.layoutGeneration == generation else { return }
-                self.discoverPreviewContent()
-                self.applyZoom()
+                guard let self, self.layoutGeneration == generation, let qlView = self.qlPreviewView else { return }
+                self.resolveZoomBackend(in: qlView)
+                self.applyCurrentZoom()
+                self.publishStateIfNeeded(force: false)
             }
         }
     }
 
-    private func discoverPreviewContent() {
+    private func resolveZoomBackend(in qlView: QLPreviewView) {
+        if let qlWeb2 = findQLWeb2View(in: qlView) {
+            zoomBackend = .qlWeb2(qlWeb2)
+            return
+        }
+        if findPDFContainer(in: qlView) != nil {
+            zoomBackend = .pdfContainer
+            return
+        }
+        if let layerContainer = findLayerBasedContainer(in: qlView) {
+            zoomBackend = .layerContainer(layerContainer)
+            return
+        }
+        zoomBackend = .pdfContainer
+    }
+
+    private func applyCurrentZoom() {
         guard let qlView = qlPreviewView else { return }
-
-        if let webView = findWKWebView(in: qlView) {
-            usesWebContent = true
-            zoomWebView = webView
-            qlInternalScrollView = nil
-            qlInternalDocumentView = nil
-            baseDocumentSize = .zero
-            hideInternalScrollIndicators(in: qlView)
-            return
+        if zoomBackend == nil {
+            resolveZoomBackend(in: qlView)
         }
 
-        usesWebContent = false
-        zoomWebView = nil
-        refreshLegacyDocumentMetrics()
-    }
+        let scale = appliedZoomScale
+        let manualZoom = abs(scale - 1.0) > 0.001
+        configureQLView(qlView)
 
-    private func refreshLegacyDocumentMetrics() {
-        guard let qlView = qlPreviewView else { return }
-        hideInternalScrollIndicators(in: qlView)
-
-        let internalScroll = findPrimaryInternalScrollView(in: qlView)
-        qlInternalScrollView = internalScroll
-        qlInternalDocumentView = internalScroll?.documentView
-
-        guard let docView = internalScroll?.documentView else {
-            baseDocumentSize = .zero
-            return
-        }
-
-        let frame = docView.frame.size
-        guard frame.width > 1, frame.height > 1 else {
-            baseDocumentSize = .zero
-            return
-        }
-        baseDocumentSize = frame
-    }
-
-    private func applyZoom() {
-        if usesWebContent, let webView = zoomWebView ?? qlPreviewView.flatMap({ findWKWebView(in: $0) }) {
-            zoomWebView = webView
-            webView.pageZoom = currentZoomScale
-            return
-        }
-
-        if let qlWeb = qlPreviewView.flatMap({ findQLWeb2View(in: $0) }) {
-            usesWebContent = true
-            qlWeb.setValue(currentZoomScale, forKey: "pageZoom")
-            return
-        }
-
-        applyLegacyDocumentZoom()
-    }
-
-    private func applyLegacyDocumentZoom() {
-        guard let docView = qlInternalDocumentView ?? qlInternalScrollView?.documentView else { return }
-        qlInternalDocumentView = docView
-
-        if baseDocumentSize == .zero {
-            let size = docView.frame.size
-            if size.width > 1, size.height > 1 {
-                baseDocumentSize = size
+        switch zoomBackend {
+        case .qlWeb2(let qlWeb2):
+            qlWeb2.setValue(scale, forKey: "pageZoom")
+            if let wk = findWKWebView(in: qlView) {
+                wk.pageZoom = scale
             }
-        }
 
-        let base = baseDocumentSize
-        guard base.width > 1, base.height > 1 else { return }
+        case .pdfContainer:
+            applyPreviewViewLayerZoom(to: qlView, scale: scale, manualZoom: manualZoom)
 
-        docView.layer?.setAffineTransform(.identity)
-        if abs(currentZoomScale - 1.0) > 0.001 {
-            docView.layer?.setAffineTransform(
-                CGAffineTransform(scaleX: currentZoomScale, y: currentZoomScale)
-            )
-        }
+        case .layerContainer(let container):
+            applyPreviewViewLayerZoom(to: qlView, scale: scale, manualZoom: manualZoom)
+            // 同步清除旧路径可能在子 layer 上遗留的变换
+            container.layer?.setAffineTransform(.identity)
 
-        docView.frame = NSRect(
-            x: 0,
-            y: 0,
-            width: base.width * currentZoomScale,
-            height: base.height * currentZoomScale
-        )
-        if let scroll = qlInternalScrollView {
-            scroll.reflectScrolledClipView(scroll.contentView)
+        case nil:
+            applyPreviewViewLayerZoom(to: qlView, scale: scale, manualZoom: manualZoom)
         }
     }
 
-    private func panBy(delta: NSPoint) {
-        if usesWebContent {
-            guard let scroll = findWebScrollView() else { return }
-            var origin = scroll.contentView.bounds.origin
-            origin.x = clamp(origin.x - delta.x, min: 0, max: maxScrollX(for: scroll))
-            origin.y = clamp(origin.y - delta.y, min: 0, max: maxScrollY(for: scroll))
-            scroll.contentView.setBoundsOrigin(origin)
-            scroll.reflectScrolledClipView(scroll.contentView)
-            return
+    /// pptx（Office.qlgenerator → QLPDFContainerView）无公开 zoom API，对 QLPreviewView 做 layer 缩放。
+    private func applyPreviewViewLayerZoom(to qlView: QLPreviewView, scale: CGFloat, manualZoom: Bool) {
+        qlView.wantsLayer = true
+        guard let layer = qlView.layer else { return }
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        layer.position = CGPoint(x: qlView.bounds.midX, y: qlView.bounds.midY)
+        if manualZoom {
+            layer.setAffineTransform(CGAffineTransform(scaleX: scale, y: scale))
+        } else {
+            layer.setAffineTransform(.identity)
         }
-
-        guard let scroll = qlInternalScrollView else { return }
-        var origin = scroll.contentView.bounds.origin
-        origin.x = clamp(origin.x - delta.x, min: 0, max: maxScrollX(for: scroll))
-        origin.y = clamp(origin.y - delta.y, min: 0, max: maxScrollY(for: scroll))
-        scroll.contentView.setBoundsOrigin(origin)
-        scroll.reflectScrolledClipView(scroll.contentView)
+        CATransaction.commit()
     }
 
-    private func maxScrollX(for scroll: NSScrollView) -> CGFloat {
-        guard let docView = scroll.documentView else { return 0 }
-        return max(docView.frame.width - scroll.contentView.bounds.width, 0)
+    private func publishStateIfNeeded(force: Bool) {
+        guard let qlView = qlPreviewView else { return }
+        let pageCount = qlPageCount(in: qlView)
+        let currentPage = pageCount > 0 ? qlCurrentPageIndex(in: qlView) + 1 : 0
+        let zoomPercent = Int((appliedZoomScale * 100).rounded())
+
+        guard force
+            || currentPage != lastPublishedPage
+            || pageCount != lastPublishedPageCount
+            || zoomPercent != lastPublishedZoomPercent else { return }
+
+        lastPublishedPage = currentPage
+        lastPublishedPageCount = pageCount
+        lastPublishedZoomPercent = zoomPercent
+        onStateChanged?(currentPage, pageCount, zoomPercent)
     }
 
-    private func maxScrollY(for scroll: NSScrollView) -> CGFloat {
-        guard let docView = scroll.documentView else { return 0 }
-        return max(docView.frame.height - scroll.contentView.bounds.height, 0)
+    private func qlPageCount(in qlView: QLPreviewView) -> Int {
+        qlView.value(forKey: "numberOfPages") as? Int ?? 0
     }
 
-    private func clamp(_ value: CGFloat, min: CGFloat, max: CGFloat) -> CGFloat {
-        Swift.min(Swift.max(value, min), max)
+    private func qlCurrentPageIndex(in qlView: QLPreviewView) -> Int {
+        qlView.value(forKey: "currentPage") as? Int ?? 0
     }
 
     private func findWKWebView(in root: NSView) -> WKWebView? {
@@ -252,96 +228,26 @@ final class OfficePreviewHostView: NSView {
     }
 
     private func findQLWeb2View(in root: NSView) -> NSView? {
-        let name = String(describing: type(of: root))
-        if name == "QLWeb2View" { return root }
+        if String(describing: type(of: root)) == "QLWeb2View" { return root }
         for sub in root.subviews {
             if let found = findQLWeb2View(in: sub) { return found }
         }
         return nil
     }
 
-    private func findWebScrollView() -> NSScrollView? {
-        guard let webView = zoomWebView ?? qlPreviewView.flatMap({ findWKWebView(in: $0) }) else { return nil }
-        return findPrimaryInternalScrollView(in: webView)
-    }
-
-    private func findPrimaryInternalScrollView(in root: NSView) -> NSScrollView? {
-        var best: NSScrollView?
-        var bestArea: CGFloat = 0
-
-        func visit(_ node: NSView) {
-            if let scroll = node as? NSScrollView, let docView = scroll.documentView {
-                let area = docView.frame.width * docView.frame.height
-                if area > bestArea {
-                    bestArea = area
-                    best = scroll
-                }
-            }
-            for sub in node.subviews {
-                visit(sub)
-            }
+    private func findPDFContainer(in root: NSView) -> NSView? {
+        if String(describing: type(of: root)) == "QLPDFContainerView" { return root }
+        for sub in root.subviews {
+            if let found = findPDFContainer(in: sub) { return found }
         }
-
-        visit(root)
-        return best
+        return nil
     }
 
-    private func updateCursor() {
-        if panModeEnabled {
-            panCaptureView.resetCursor()
-        } else {
-            NSCursor.arrow.set()
+    private func findLayerBasedContainer(in root: NSView) -> NSView? {
+        if String(describing: type(of: root)) == "QLLayerBasedPreviewContainerView" { return root }
+        for sub in root.subviews {
+            if let found = findLayerBasedContainer(in: sub) { return found }
         }
-    }
-
-    private func hideInternalScrollIndicators(in view: NSView) {
-        if let scroll = view as? NSScrollView {
-            scroll.hasVerticalScroller = true
-            scroll.hasHorizontalScroller = true
-            scroll.autohidesScrollers = true
-            scroll.scrollerStyle = .overlay
-        }
-        for sub in view.subviews {
-            hideInternalScrollIndicators(in: sub)
-        }
-    }
-}
-
-private final class PanCaptureView: NSView {
-    var onPan: ((NSPoint) -> Void)?
-    var isPanning = false
-    private var lastLocation: NSPoint = .zero
-
-    override var acceptsFirstResponder: Bool { true }
-
-    override func resetCursorRects() {
-        discardCursorRects()
-        addCursorRect(bounds, cursor: .openHand)
-    }
-
-    func resetCursor() {
-        resetCursorRects()
-        window?.invalidateCursorRects(for: self)
-        if !isPanning {
-            NSCursor.openHand.set()
-        }
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        isPanning = true
-        lastLocation = event.locationInWindow
-        NSCursor.closedHand.set()
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        let location = event.locationInWindow
-        let delta = NSPoint(x: location.x - lastLocation.x, y: lastLocation.y - location.y)
-        lastLocation = location
-        onPan?(delta)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        isPanning = false
-        NSCursor.openHand.set()
+        return nil
     }
 }
