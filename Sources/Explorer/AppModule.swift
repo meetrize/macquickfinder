@@ -6348,7 +6348,6 @@ private struct TextFilePreview: NSViewRepresentable {
 
         private static func scrollToRange(_ range: NSRange, in textView: NSTextView) {
             textView.scrollRangeToVisible(range)
-            textView.showFindIndicator(for: range)
         }
     }
 

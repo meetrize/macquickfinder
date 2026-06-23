@@ -709,6 +709,9 @@ private struct PreviewTextSearchToolbarControls: View {
                 .textFieldStyle(.roundedBorder)
                 .font(.caption)
                 .frame(width: 96)
+                .onSubmit {
+                    session.findNextTextPreviewSearchMatch()
+                }
 
             if session.textPreviewSearchMatchCount > 1 {
                 Button {
