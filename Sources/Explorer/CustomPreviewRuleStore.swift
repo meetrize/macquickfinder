@@ -119,6 +119,8 @@ enum BuiltinPreviewExtensions {
     ]
     static let html: Set<String> = ["html", "htm"]
     static let markdown: Set<String> = ["md"]
+    /// 纯文本（非代码）扩展名；预览标题栏保留复制/跳转，不显示代码搜索框。
+    static let plainText: Set<String> = ["txt", "log", "csv", "ini", "config", "properties", "gitignore"]
 
     static func matchesBuiltIn(_ ext: String) -> Bool {
         let lower = ext.lowercased()
@@ -189,6 +191,15 @@ enum PreviewTypeClassifier {
     static func isOfficeFile(_ ext: String) -> Bool {
         if BuiltinPreviewExtensions.office.contains(ext.lowercased()) { return true }
         return customMode(forExtension: ext) == .quickLook
+    }
+
+    /// 代码类文本预览（语法高亮场景）；用于标题栏搜索框，替代复制/跳转按钮。
+    static func isCodeFile(_ ext: String) -> Bool {
+        if isMarkdownFile(ext) { return false }
+        let lower = ext.lowercased()
+        if BuiltinPreviewExtensions.plainText.contains(lower) { return false }
+        if BuiltinPreviewExtensions.text.contains(lower) { return true }
+        return customMode(forExtension: ext) == .text
     }
 }
 

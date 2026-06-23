@@ -44,6 +44,9 @@ final class PreviewSession: ObservableObject, Identifiable {
 
     @Published var textWrapEnabled = true
     @Published var textPreviewAction: TextPreviewAction?
+    @Published var textPreviewSearchQuery = ""
+    @Published var textPreviewSearchNextToken: UInt = 0
+    @Published var textPreviewSearchMatchCount = 0
     @Published var markdownMode: MarkdownDisplayMode = .preview
     @Published var markdownPreviewScale: CGFloat = 1.0
     @Published var markdownSourceFontSize: CGFloat = 13
@@ -68,6 +71,10 @@ final class PreviewSession: ObservableObject, Identifiable {
     func sendOfficeNavigate(_ action: OfficePreviewNavigateAction) {
         officeNavigateAction = action
         officeNavigateRevision &+= 1
+    }
+
+    func findNextTextPreviewSearchMatch() {
+        textPreviewSearchNextToken &+= 1
     }
 
     // MARK: - Archive toolbar state
@@ -201,6 +208,9 @@ final class PreviewSession: ObservableObject, Identifiable {
         imageEditUndoStack.removeAll()
         textWrapEnabled = true
         textPreviewAction = nil
+        textPreviewSearchQuery = ""
+        textPreviewSearchNextToken = 0
+        textPreviewSearchMatchCount = 0
         mediaControlAction = nil
         mediaIsPlaying = false
         mediaIsMuted = false

@@ -77,6 +77,16 @@ final class CustomPreviewRuleStoreTests: XCTestCase {
 
         XCTAssertTrue(PreviewTypeClassifier.isTextFile("proto"))
         XCTAssertFalse(PreviewTypeClassifier.isTextFile("bin"))
+        XCTAssertTrue(PreviewTypeClassifier.isCodeFile("proto"))
+    }
+
+    func testPreviewTypeClassifierCodeVsPlainText() {
+        XCTAssertTrue(PreviewTypeClassifier.isCodeFile("py"))
+        XCTAssertTrue(PreviewTypeClassifier.isCodeFile("java"))
+        XCTAssertTrue(PreviewTypeClassifier.isCodeFile("json"))
+        XCTAssertFalse(PreviewTypeClassifier.isCodeFile("txt"))
+        XCTAssertFalse(PreviewTypeClassifier.isCodeFile("md"))
+        XCTAssertFalse(PreviewTypeClassifier.isCodeFile("log"))
     }
 
     func testUpsertRuleSupportsExtensionlessFiles() {

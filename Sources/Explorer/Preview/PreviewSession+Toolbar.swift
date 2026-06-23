@@ -359,7 +359,19 @@ extension PreviewSession {
             )
         }
 
-        if !PreviewTypeClassifier.isMarkdownFile(ext) {
+        if showsCodeTextSearch(for: ext) {
+            items.append(
+                PreviewToolbarOverflowModel(
+                    id: "text-search",
+                    menuTitle: "搜索",
+                    menuSystemImage: "magnifyingglass",
+                    isDisabled: false,
+                    estimatedWidth: 148,
+                    menuAction: {},
+                    content: AnyView(PreviewTextSearchToolbarControls(session: self))
+                )
+            )
+        } else if !PreviewTypeClassifier.isMarkdownFile(ext) {
             items.append(
                 previewToolbarIconItem(
                     id: "text-copy",
@@ -387,6 +399,12 @@ extension PreviewSession {
         }
 
         return items
+    }
+
+    private func showsCodeTextSearch(for ext: String) -> Bool {
+        guard PreviewTypeClassifier.isCodeFile(ext) else { return false }
+        if PreviewTypeClassifier.isHtmlFile(ext), htmlMode == .preview { return false }
+        return true
     }
 
     func previewMediaToolbarItems() -> [PreviewToolbarOverflowModel] {
@@ -675,6 +693,35 @@ private struct PreviewImageColorSwatch: View {
                 .lineLimit(1)
         }
         .instantHoverTooltip("已复制到剪贴板")
+    }
+}
+
+private struct PreviewTextSearchToolbarControls: View {
+    @ObservedObject var session: PreviewSession
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "magnifyingglass")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            TextField("搜索", text: $session.textPreviewSearchQuery)
+                .textFieldStyle(.roundedBorder)
+                .font(.caption)
+                .frame(width: 96)
+
+            if session.textPreviewSearchMatchCount > 1 {
+                Button {
+                    session.findNextTextPreviewSearchMatch()
+                } label: {
+                    Image(systemName: "chevron.down")
+                }
+                .buttonStyle(.borderless)
+                .instantHoverTooltip("下一个")
+            }
+        }
+        .frame(minWidth: 120, alignment: .trailing)
+        .instantHoverTooltip("在预览中搜索")
     }
 }
 

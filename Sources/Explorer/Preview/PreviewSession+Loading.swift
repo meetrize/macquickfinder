@@ -19,6 +19,9 @@ extension PreviewSession {
         imagePickedWebColor = nil
         imageResizeTargetSize = nil
         textPreviewAction = nil
+        textPreviewSearchQuery = ""
+        textPreviewSearchNextToken = 0
+        textPreviewSearchMatchCount = 0
         mediaControlAction = nil
         mediaIsPlaying = false
         mediaIsMuted = false
