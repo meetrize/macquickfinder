@@ -256,18 +256,14 @@ extension PreviewSession {
         if PreviewTypeClassifier.isMarkdownFile(ext) {
             items.append(
                 previewToolbarIconItem(
-                    id: "md-preview",
-                    title: "预览模式",
-                    systemImage: markdownMode == .preview ? "eye.fill" : "eye",
-                    action: { [self] in markdownMode = .preview }
-                )
-            )
-            items.append(
-                previewToolbarIconItem(
-                    id: "md-source",
-                    title: "源码模式",
-                    systemImage: markdownMode == .source ? "doc.plaintext.fill" : "doc.plaintext",
-                    action: { [self] in markdownMode = .source }
+                    id: "md-toggle-mode",
+                    title: markdownMode == .preview ? "切换为源码模式" : "切换为预览模式",
+                    systemImage: markdownMode == .preview
+                        ? "chevron.left.forwardslash.chevron.right"
+                        : "eye",
+                    action: { [self] in
+                        markdownMode = markdownMode == .preview ? .source : .preview
+                    }
                 )
             )
 
@@ -363,30 +359,32 @@ extension PreviewSession {
             )
         }
 
-        items.append(
-            previewToolbarIconItem(
-                id: "text-copy",
-                title: "复制全文",
-                systemImage: "doc.on.doc",
-                action: { [self] in textPreviewAction = .copyAll }
+        if !PreviewTypeClassifier.isMarkdownFile(ext) {
+            items.append(
+                previewToolbarIconItem(
+                    id: "text-copy",
+                    title: "复制全文",
+                    systemImage: "doc.on.doc",
+                    action: { [self] in textPreviewAction = .copyAll }
+                )
             )
-        )
-        items.append(
-            previewToolbarIconItem(
-                id: "text-top",
-                title: "跳转顶部",
-                systemImage: "arrow.up.to.line",
-                action: { [self] in textPreviewAction = .scrollTop }
+            items.append(
+                previewToolbarIconItem(
+                    id: "text-top",
+                    title: "跳转顶部",
+                    systemImage: "arrow.up.to.line",
+                    action: { [self] in textPreviewAction = .scrollTop }
+                )
             )
-        )
-        items.append(
-            previewToolbarIconItem(
-                id: "text-bottom",
-                title: "跳转底部",
-                systemImage: "arrow.down.to.line",
-                action: { [self] in textPreviewAction = .scrollBottom }
+            items.append(
+                previewToolbarIconItem(
+                    id: "text-bottom",
+                    title: "跳转底部",
+                    systemImage: "arrow.down.to.line",
+                    action: { [self] in textPreviewAction = .scrollBottom }
+                )
             )
-        )
+        }
 
         return items
     }
