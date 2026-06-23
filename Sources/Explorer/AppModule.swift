@@ -592,6 +592,11 @@ private struct SnippetsSettingsTab: View {
     var body: some View {
         Form {
             Section {
+                Picker("面板显示模式", selection: $settings.displayMode) {
+                    ForEach(SnippetsDisplayMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
                 Toggle("最近执行置顶", isOn: $settings.pinRecentlyExecutedSnippets)
                 Stepper(value: $settings.maxConcurrentJobs, in: 1...4) {
                     Text("Job 并发上限：\(settings.maxConcurrentJobs)")

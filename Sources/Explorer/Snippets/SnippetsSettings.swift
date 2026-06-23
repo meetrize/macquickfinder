@@ -21,12 +21,22 @@ final class SnippetsSettings: ObservableObject {
         didSet { UserDefaults.standard.set(confirmDestructiveSnippets, forKey: ExplorerAppSettings.confirmDestructiveSnippetsKey) }
     }
 
+    @Published var displayMode: SnippetsDisplayMode {
+        didSet { UserDefaults.standard.set(displayMode.rawValue, forKey: ExplorerAppSettings.snippetsDisplayModeKey) }
+    }
+
     private init() {
         let d = UserDefaults.standard
         pinRecentlyExecutedSnippets = d.object(forKey: ExplorerAppSettings.pinRecentlyExecutedSnippetsKey) as? Bool ?? true
         maxConcurrentJobs = d.object(forKey: ExplorerAppSettings.maxConcurrentJobsKey) as? Int ?? 2
         autoShowOutputPanelOnShellRun = d.object(forKey: ExplorerAppSettings.autoShowOutputPanelOnShellRunKey) as? Bool ?? true
         confirmDestructiveSnippets = d.object(forKey: ExplorerAppSettings.confirmDestructiveSnippetsKey) as? Bool ?? true
+        if let raw = d.string(forKey: ExplorerAppSettings.snippetsDisplayModeKey),
+           let mode = SnippetsDisplayMode(rawValue: raw) {
+            displayMode = mode
+        } else {
+            displayMode = .standard
+        }
     }
 
     var clampedMaxConcurrentJobs: Int {

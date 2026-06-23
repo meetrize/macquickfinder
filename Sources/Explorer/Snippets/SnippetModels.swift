@@ -275,6 +275,20 @@ enum SnippetImportStrategy: String, CaseIterable, Identifiable {
     }
 }
 
+enum SnippetsDisplayMode: String, CaseIterable, Identifiable, Codable {
+    case standard
+    case minimal
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .standard: return "标准"
+        case .minimal: return "极简"
+        }
+    }
+}
+
 func snippetColumnCount(for panelWidth: CGFloat, maxColumns: Int = 4) -> Int {
     guard panelWidth > 400 else { return 1 }
     let extra = Int((panelWidth - 400) / 200)

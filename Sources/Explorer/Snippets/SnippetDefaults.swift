@@ -18,6 +18,7 @@ enum ExplorerAppSettings {
     static let maxConcurrentJobsKey = "snippets.maxConcurrentJobs"
     static let autoShowOutputPanelOnShellRunKey = "snippets.autoShowOutputPanel"
     static let confirmDestructiveSnippetsKey = "snippets.confirmDestructive"
+    static let snippetsDisplayModeKey = "snippets.displayMode"
     static let snippetsContentCollapsedKey = "snippets.contentCollapsed"
     static let outputPanelContentCollapsedKey = "snippets.outputPanelContentCollapsed"
     static let previewContentCollapsedKey = "snippets.previewContentCollapsed"

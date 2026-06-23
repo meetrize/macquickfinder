@@ -13,6 +13,7 @@ struct SnippetsPanelView: View {
 
     @ObservedObject private var store = SnippetStore.shared
     @ObservedObject private var executor = SnippetExecutor.shared
+    @ObservedObject private var settings = SnippetsSettings.shared
 
     @State private var searchText = ""
     @State private var selectedSnippetID: UUID?
@@ -154,6 +155,17 @@ struct SnippetsPanelView: View {
                 Text(searchText.isEmpty ? "当前上下文无匹配 Snippet" : "无搜索结果")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 80)
+            } else if settings.displayMode == .minimal {
+                SnippetFlowLayout(horizontalSpacing: 6, verticalSpacing: 4) {
+                    ForEach(visibleSnippets) { snippet in
+                        SnippetMinimalButtonView(snippet: snippet) {
+                            execute(snippet)
+                        }
+                        .contextMenu { snippetContextMenu(for: snippet) }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
             } else {
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: columnCount),
@@ -167,16 +179,7 @@ struct SnippetsPanelView: View {
                             onSelect: { selectedSnippetID = snippet.id }
                         )
                         .onTapGesture(count: 2) { execute(snippet) }
-                        .contextMenu {
-                            Button("编辑") { editorSnippet = snippet }
-                            Button("执行") { execute(snippet) }
-                            if !snippet.useSystemTerminal, snippet.scriptType == .shell || snippet.scriptType == .python3 {
-                                Button("在终端中执行") { execute(snippet, inSystemTerminal: true) }
-                            }
-                            Button("导出…") { exportSingle(snippet) }
-                            Divider()
-                            Button("删除", role: .destructive) { store.delete(id: snippet.id) }
-                        }
+                        .contextMenu { snippetContextMenu(for: snippet) }
                     }
                 }
                 .padding(8)
@@ -184,10 +187,23 @@ struct SnippetsPanelView: View {
         }
         .frame(maxHeight: .infinity)
         .onChange(of: visibleSnippets.map(\.id)) { _ in
+            guard settings.displayMode == .standard else { return }
             if selectedSnippetID == nil || !visibleSnippets.contains(where: { $0.id == selectedSnippetID }) {
                 selectedSnippetID = visibleSnippets.first?.id
             }
         }
+    }
+
+    @ViewBuilder
+    private func snippetContextMenu(for snippet: Snippet) -> some View {
+        Button("编辑") { editorSnippet = snippet }
+        Button("执行") { execute(snippet) }
+        if !snippet.useSystemTerminal, snippet.scriptType == .shell || snippet.scriptType == .python3 {
+            Button("在终端中执行") { execute(snippet, inSystemTerminal: true) }
+        }
+        Button("导出…") { exportSingle(snippet) }
+        Divider()
+        Button("删除", role: .destructive) { store.delete(id: snippet.id) }
     }
 
     private var searchBar: some View {
@@ -198,7 +214,11 @@ struct SnippetsPanelView: View {
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
                 .onSubmit {
-                    if let id = selectedSnippetID, let s = visibleSnippets.first(where: { $0.id == id }) {
+                    if settings.displayMode == .minimal {
+                        if let first = visibleSnippets.first {
+                            execute(first)
+                        }
+                    } else if let id = selectedSnippetID, let s = visibleSnippets.first(where: { $0.id == id }) {
                         execute(s)
                     } else if let first = visibleSnippets.first {
                         execute(first)
