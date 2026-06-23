@@ -44,7 +44,7 @@ enum ArchivePreviewLoader {
         guard permissions.first == "d" || permissions.first == "-" || permissions.first == "l" else { return nil }
         guard let size = Int64(tokens[4]) else { return nil }
 
-        let path = tokens.dropFirst(8).joined(separator: " ")
+        let path = decodeTarEscapedPath(tokens.dropFirst(8).joined(separator: " "))
         guard !path.isEmpty else { return nil }
 
         let isDirectory = permissions.hasPrefix("d") || path.hasSuffix("/")
@@ -55,6 +55,35 @@ enum ArchivePreviewLoader {
         )
     }
 
+    /// 将 `tar` 在 `LANG=C` 下输出的 `\345\237\272` 形式还原为 UTF-8 路径。
+    static func decodeTarEscapedPath(_ path: String) -> String {
+        guard path.contains("\\") else { return path }
+
+        var bytes = [UInt8]()
+        var index = path.startIndex
+        while index < path.endIndex {
+            let char = path[index]
+            if char == "\\" {
+                var cursor = path.index(after: index)
+                var digits = ""
+                while cursor < path.endIndex, digits.count < 3 {
+                    let next = path[cursor]
+                    guard next >= "0", next <= "7" else { break }
+                    digits.append(next)
+                    cursor = path.index(after: cursor)
+                }
+                if let byte = UInt8(digits, radix: 8) {
+                    bytes.append(byte)
+                    index = cursor
+                    continue
+                }
+            }
+            bytes.append(contentsOf: String(char).utf8)
+            index = path.index(after: index)
+        }
+        return String(bytes: bytes, encoding: .utf8) ?? path
+    }
+
     private static func runTarList(url: URL, maxLines: Int, timeoutSeconds: Int) async throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
@@ -62,6 +91,10 @@ enum ArchivePreviewLoader {
             "-c",
             "/usr/bin/tar -tvf \(shellEscape(url.path)) 2>&1 | /usr/bin/head -n \(maxLines)",
         ]
+        var environment = ProcessInfo.processInfo.environment
+        environment["LANG"] = "en_US.UTF-8"
+        environment["LC_ALL"] = "en_US.UTF-8"
+        process.environment = environment
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
