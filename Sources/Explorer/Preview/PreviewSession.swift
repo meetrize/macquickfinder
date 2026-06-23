@@ -270,9 +270,13 @@ final class PreviewSession: ObservableObject, Identifiable {
     }
 
     func cancelLoad() {
+        let hadActiveTask = loadTask != nil
         loadTask?.cancel()
         loadTask = nil
         mediaPlayer?.pause()
+        if hadActiveTask, case .loading = loadPhase {
+            loadPhase = .idle
+        }
     }
 
     func attachBrowserContext(_ context: PreviewBrowserContext) {

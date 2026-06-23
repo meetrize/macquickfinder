@@ -5515,7 +5515,12 @@ struct FileContentView: View {
     @MainActor
     private func applyLoadTaskIfNeeded() async {
         if lastAppliedLoadTaskID == loadTaskID {
-            return
+            // 上次 beginLoadTask 已登记，但任务可能被 cancel 导致永远停在 .loading。
+            if case .loading = session.loadPhase {
+                lastAppliedLoadTaskID = nil
+            } else {
+                return
+            }
         }
 
         if lastAppliedLoadTaskID == nil,
@@ -6640,15 +6645,20 @@ private struct MediaPreview: NSViewRepresentable {
     @Binding var controlAction: MediaControlAction?
     var onStateChanged: (_ isPlaying: Bool, _ isMuted: Bool) -> Void
 
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> AVPlayerView {
         let view = AVPlayerView()
         view.player = player
         view.controlsStyle = .floating
-        onStateChanged(player.timeControlStatus == .playing, player.isMuted)
+        context.coordinator.onStateChanged = onStateChanged
+        context.coordinator.emitState(from: player)
         return view
     }
 
     func updateNSView(_ nsView: AVPlayerView, context: Context) {
+        context.coordinator.onStateChanged = onStateChanged
+
         if nsView.player !== player {
             nsView.player = player
         }
@@ -6666,7 +6676,22 @@ private struct MediaPreview: NSViewRepresentable {
             }
             DispatchQueue.main.async { controlAction = nil }
         }
-        onStateChanged(player.timeControlStatus == .playing, player.isMuted)
+        context.coordinator.emitState(from: player)
+    }
+
+    final class Coordinator {
+        var onStateChanged: ((_ isPlaying: Bool, _ isMuted: Bool) -> Void)?
+        private var lastIsPlaying: Bool?
+        private var lastIsMuted: Bool?
+
+        func emitState(from player: AVPlayer) {
+            let isPlaying = player.timeControlStatus == .playing
+            let isMuted = player.isMuted
+            guard isPlaying != lastIsPlaying || isMuted != lastIsMuted else { return }
+            lastIsPlaying = isPlaying
+            lastIsMuted = isMuted
+            onStateChanged?(isPlaying, isMuted)
+        }
     }
 }
 
