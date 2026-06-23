@@ -172,9 +172,7 @@ extension FileListTableController {
     private func showBlankContextMenu(for event: NSEvent) {
         guard let tableView, interaction.blankMenuActions.isEnabled else { return }
         let controller = FileListBlankMenuController(actions: interaction.blankMenuActions)
-        let menu = controller.makeMenu()
-        guard !menu.items.isEmpty else { return }
-        NSMenu.popUpContextMenu(menu, with: event, for: tableView)
+        controller.popUp(with: event, for: tableView)
     }
     
     func handleMouseDragged(_ event: NSEvent) -> Bool {

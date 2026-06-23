@@ -15,6 +15,10 @@ public struct FileListBlankMenuActions {
     public var isInTrash = false
     public var emptyTrash: () -> Void = {}
     public var appendToMenu: ((NSMenu) -> Void)?
+    public var serviceFileURLs: () -> [URL] = { [] }
+    public var popUpContextMenu: (NSMenu, NSEvent, NSView, [URL]) -> Void = { menu, event, view, _ in
+        NSMenu.popUpContextMenu(menu, with: event, for: view)
+    }
     
     public init(
         isEnabled: Bool = true,
@@ -29,7 +33,11 @@ public struct FileListBlankMenuActions {
         openTerminal: @escaping () -> Void = {},
         isInTrash: Bool = false,
         emptyTrash: @escaping () -> Void = {},
-        appendToMenu: ((NSMenu) -> Void)? = nil
+        appendToMenu: ((NSMenu) -> Void)? = nil,
+        serviceFileURLs: @escaping () -> [URL] = { [] },
+        popUpContextMenu: @escaping (NSMenu, NSEvent, NSView, [URL]) -> Void = { menu, event, view, _ in
+            NSMenu.popUpContextMenu(menu, with: event, for: view)
+        }
     ) {
         self.isEnabled = isEnabled
         self.canGoBack = canGoBack
@@ -44,5 +52,7 @@ public struct FileListBlankMenuActions {
         self.isInTrash = isInTrash
         self.emptyTrash = emptyTrash
         self.appendToMenu = appendToMenu
+        self.serviceFileURLs = serviceFileURLs
+        self.popUpContextMenu = popUpContextMenu
     }
 }

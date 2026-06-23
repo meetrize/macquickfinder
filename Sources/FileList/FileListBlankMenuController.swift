@@ -50,7 +50,8 @@ public final class FileListBlankMenuController: NSObject {
         guard actions.isEnabled else { return }
         let menu = makeMenu()
         guard !menu.items.isEmpty else { return }
-        NSMenu.popUpContextMenu(menu, with: event, for: view)
+        let fileURLs = actions.serviceFileURLs()
+        actions.popUpContextMenu(menu, event, view, fileURLs)
     }
     
     private func makeItem(title: String, action: MenuAction, enabled: Bool) -> NSMenuItem {

@@ -3355,6 +3355,14 @@ struct ContentView: View {
         let inTrash = TrashLoader.isTrashPath(path)
         let pasteDestination = URL(fileURLWithPath: path, isDirectory: true)
         let canPaste = !inTrash && FileOperations.canPaste(to: pasteDestination)
+        let serviceFileURLs: () -> [URL] = {
+            let selected = FileItem.resolveSelection(ids: selection, from: items)
+                .filter { !$0.isParentDirectoryEntry }
+            if !selected.isEmpty {
+                return selected.map(\.url)
+            }
+            return [URL(fileURLWithPath: path, isDirectory: true)]
+        }
         
         return FileListBlankMenuActions(
             isEnabled: searchText.isEmpty,
@@ -3387,6 +3395,11 @@ struct ContentView: View {
                     selectedItems: selectedItems,
                     showHiddenFiles: showHiddenFiles
                 )
+                FileServicesMenuSupport.appendToMenu(menu, fileURLs: serviceFileURLs())
+            },
+            serviceFileURLs: serviceFileURLs,
+            popUpContextMenu: { menu, event, view, fileURLs in
+                FileServicesMenuSupport.popUpContextMenu(menu, with: event, for: view, fileURLs: fileURLs)
             }
         )
     }
@@ -6476,6 +6489,15 @@ private struct TextFilePreview: NSViewRepresentable {
         }
     }
 
+    private static let lineNumberGutterGap: CGFloat = 2
+
+    private static func applyCodeContentInset(to textView: NSTextView, showLineNumbers: Bool) {
+        textView.textContainerInset = NSSize(
+            width: showLineNumbers ? lineNumberGutterGap : 0,
+            height: 0
+        )
+    }
+
     private static func configureLineNumbers(
         scrollView: NSScrollView,
         textView: NSTextView,
@@ -6483,6 +6505,7 @@ private struct TextFilePreview: NSViewRepresentable {
         show: Bool,
         coordinator: Coordinator
     ) {
+        applyCodeContentInset(to: textView, showLineNumbers: show)
         scrollView.hasVerticalRuler = show
         scrollView.rulersVisible = show
         scrollView.drawsBackground = false
