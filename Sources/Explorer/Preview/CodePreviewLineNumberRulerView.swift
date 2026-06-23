@@ -23,7 +23,7 @@ final class CodePreviewLineNumberRulerView: NSRulerView {
         }
     }
 
-    override var isOpaque: Bool { false }
+    override var isOpaque: Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
         // 不调用 super，避免 NSRulerView 默认绘制不透明底色。
@@ -56,11 +56,11 @@ final class CodePreviewLineNumberRulerView: NSRulerView {
         let fillRect = bounds.intersection(rect)
         guard !fillRect.isNull, fillRect.width > 0, fillRect.height > 0 else { return }
 
-        NSColor.quaternaryLabelColor.withAlphaComponent(0.12).setFill()
-        fillRect.fill()
+        gutterBackgroundColor.setFill()
+        bounds.fill()
 
         let separator = NSBezierPath()
-        NSColor.separatorColor.withAlphaComponent(0.35).setStroke()
+        NSColor.separatorColor.setStroke()
         separator.move(to: NSPoint(x: bounds.maxX - 0.5, y: fillRect.minY))
         separator.line(to: NSPoint(x: bounds.maxX - 0.5, y: fillRect.maxY))
         separator.lineWidth = 1
@@ -95,6 +95,14 @@ final class CodePreviewLineNumberRulerView: NSRulerView {
             guard labelClipRect.contains(labelRect) else { return }
             label.draw(at: NSPoint(x: x, y: drawY), withAttributes: attributes)
         }
+    }
+
+    private var gutterBackgroundColor: NSColor {
+        let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        if isDark {
+            return NSColor(calibratedWhite: 0.18, alpha: 1)
+        }
+        return NSColor(calibratedWhite: 0.94, alpha: 1)
     }
 
     private static func isLogicalLineStart(location: Int, in text: NSString) -> Bool {
