@@ -413,7 +413,7 @@ extension PreviewSession {
 
     private func previewQuickLookOfficeToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
         let ext = item.url.pathExtension.lowercased()
-        let showsPageControls = ext == "pptx" || officePageCount > 1
+        let showsPageControls = BuiltinPreviewExtensions.presentation.contains(ext) || officePageCount > 1
         var items: [PreviewToolbarOverflowModel] = []
         if showsPageControls {
             items.append(

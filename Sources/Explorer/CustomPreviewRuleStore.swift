@@ -89,7 +89,9 @@ struct CustomPreviewRule: Codable, Identifiable, Equatable {
 enum BuiltinPreviewExtensions {
     static let image: Set<String> = ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"]
     static let media: Set<String> = ["mp4", "mov", "mp3", "wav"]
-    static let office: Set<String> = ["docx", "xlsx", "pptx"]
+    static let office: Set<String> = ["docx", "xlsx", "ppt", "pptx"]
+    /// 幻灯片类 Office 文件（Quick Look 多页预览）。
+    static let presentation: Set<String> = ["ppt", "pptx"]
     static let pdf: Set<String> = ["pdf"]
     static let text: Set<String> = [
         "txt", "md", "swift", "java", "py", "js", "ts", "go", "rs", "kt", "php", "rb",
