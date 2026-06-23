@@ -5,7 +5,7 @@ private final class FlippedDocumentView: NSView {
     override var isFlipped: Bool { true }
 }
 
-/// Office 预览宿主：外层 magnification 缩放；100% 走 QL 内部滚轮，放大后外层滚轮滚动。
+/// Office 预览宿主：100% 走 QL 内部滚轮；缩放时外层 magnification 放大整页内容，外层滚轮浏览。
 final class OfficePreviewHostView: NSView {
     private let scrollView = NSScrollView()
     private let contentContainer = FlippedDocumentView()
@@ -91,9 +91,8 @@ final class OfficePreviewHostView: NSView {
             guard let self, let window = self.window, event.window === window else { return event }
             let point = self.convert(event.locationInWindow, from: nil)
             guard self.bounds.contains(point) else { return event }
-            // 100% 走 QL 内部原生滚轮；放大后由外层 scrollView 接管滚轮。
             guard self.scrollMode == .outer else { return event }
-            guard self.outerMaxScrollY > 0 else { return event }
+            guard self.outerMaxScrollY > 0 || self.outerMaxScrollX > 0 else { return event }
             self.handleOuterScrollWheel(event)
             return nil
         }
@@ -229,7 +228,7 @@ final class OfficePreviewHostView: NSView {
             contentContainer.setFrameSize(NSSize(width: width, height: height))
             qlView.layer?.setAffineTransform(.identity)
             qlView.frame = NSRect(x: 0, y: 0, width: width, height: height)
-            applyMagnification(viewport: viewport)
+            applyOuterMagnification(viewport: viewport)
             updateScrollMode()
             return
         }
@@ -245,21 +244,20 @@ final class OfficePreviewHostView: NSView {
         scrollView.allowsMagnification = true
         scrollView.minMagnification = 0.25
         scrollView.maxMagnification = 5.0
+        applyOuterMagnification(viewport: viewport, priorVisible: priorVisible)
 
-        applyMagnification(viewport: viewport, priorVisible: priorVisible)
-        updateScrollMode()
-
-        if scrollMode == .outer, abs(currentZoomScale - 1.0) > 0.001, let internalScroll = qlInternalScrollView {
-            let clip = internalScroll.contentView
-            clip.setBoundsOrigin(.zero)
-            internalScroll.reflectScrolledClipView(clip)
+        if isDocumentZoomActive {
+            scrollMode = .outer
+            lockInternalScroll()
+        } else {
+            updateScrollMode()
         }
 
         switch scrollMode {
         case .outer:
-            if outerMaxScrollY > 0 {
+            if outerMaxScrollY > 0 || outerMaxScrollX > 0 {
                 var origin = priorOuterOrigin
-                if preserveScrollFraction > 0 {
+                if preserveScrollFraction > 0, outerMaxScrollY > 0 {
                     origin.y = preserveScrollFraction * outerMaxScrollY
                 }
                 setOuterScrollOrigin(origin)
@@ -278,8 +276,10 @@ final class OfficePreviewHostView: NSView {
         scrollView.reflectScrolledClipView(scrollView.contentView)
     }
 
-    private func applyMagnification(viewport: NSSize, priorVisible: NSRect = .zero) {
-        guard abs(scrollView.magnification - currentZoomScale) > 0.001 else { return }
+    private func applyOuterMagnification(viewport: NSSize, priorVisible: NSRect = .zero) {
+        let target = isDocumentZoomActive ? currentZoomScale : 1.0
+        guard abs(scrollView.magnification - target) > 0.001 else { return }
+
         let centerInClip: NSPoint
         if priorVisible.width > 0, priorVisible.height > 0 {
             let center = NSPoint(x: priorVisible.midX, y: priorVisible.midY)
@@ -287,16 +287,20 @@ final class OfficePreviewHostView: NSView {
         } else {
             centerInClip = NSPoint(x: viewport.width * 0.5, y: viewport.height * 0.5)
         }
-        scrollView.setMagnification(currentZoomScale, centeredAt: centerInClip)
+        scrollView.setMagnification(target, centeredAt: centerInClip)
+    }
+
+    private var isDocumentZoomActive: Bool {
+        abs(currentZoomScale - 1.0) > 0.001
     }
 
     private func updateScrollMode() {
-        if abs(currentZoomScale - 1.0) > 0.001 {
+        if isDocumentZoomActive {
             scrollMode = .outer
             return
         }
 
-        if outerMaxScrollY > 1 {
+        if outerMaxScrollY > 1 || outerMaxScrollX > 1 {
             scrollMode = .outer
             return
         }
@@ -306,10 +310,14 @@ final class OfficePreviewHostView: NSView {
 
     private var outerMaxScrollY: CGFloat {
         let magnification = max(scrollView.magnification, 0.0001)
-        let docSize = baseContentSize.width > 1 ? baseContentSize : contentContainer.frame.size
-        let scaledHeight = docSize.height * magnification
-        let viewportHeight = scrollView.contentView.bounds.height
-        return max(scaledHeight - viewportHeight, 0)
+        let docHeight = baseContentSize.height > 1 ? baseContentSize.height : contentContainer.frame.height
+        return max(docHeight * magnification - scrollView.contentView.bounds.height, 0)
+    }
+
+    private var outerMaxScrollX: CGFloat {
+        let magnification = max(scrollView.magnification, 0.0001)
+        let docWidth = baseContentSize.width > 1 ? baseContentSize.width : contentContainer.frame.width
+        return max(docWidth * magnification - scrollView.contentView.bounds.width, 0)
     }
 
     private var internalMaxScrollY: CGFloat {
@@ -345,9 +353,8 @@ final class OfficePreviewHostView: NSView {
     }
 
     private func setOuterScrollOrigin(_ proposed: NSPoint) {
-        let maxX = max(baseContentSize.width * scrollView.magnification - scrollView.contentView.bounds.width, 0)
         let origin = NSPoint(
-            x: min(max(proposed.x, 0), maxX),
+            x: min(max(proposed.x, 0), outerMaxScrollX),
             y: min(max(proposed.y, 0), outerMaxScrollY)
         )
         scrollView.contentView.setBoundsOrigin(origin)
@@ -362,6 +369,13 @@ final class OfficePreviewHostView: NSView {
         )
         internalScroll.contentView.setBoundsOrigin(origin)
         internalScroll.reflectScrolledClipView(internalScroll.contentView)
+    }
+
+    private func lockInternalScroll() {
+        guard let internalScroll = qlInternalScrollView else { return }
+        let clip = internalScroll.contentView
+        clip.setBoundsOrigin(.zero)
+        internalScroll.reflectScrolledClipView(clip)
     }
 
     private func findPrimaryInternalScrollView(in root: NSView) -> NSScrollView? {
@@ -394,7 +408,6 @@ final class OfficePreviewHostView: NSView {
         }
     }
 
-    /// 隐藏 QuickLook 内部滚动条（保留滚轮滚动能力）。
     private func hideInternalScrollIndicators(in view: NSView) {
         if let scroll = view as? NSScrollView, scroll !== scrollView {
             scroll.hasVerticalScroller = false

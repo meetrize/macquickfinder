@@ -48,6 +48,7 @@ extension PreviewSession {
         mediaPlayer?.pause()
         mediaPlayer = nil
         officeURL = nil
+        officeRichText = nil
         archiveEntries = []
         archiveTruncated = false
     }
@@ -178,6 +179,7 @@ extension PreviewSession {
             pdfData: Data? = nil,
             mediaURL: URL? = nil,
             office loadedOfficeURL: URL? = nil,
+            officeRichText loadedOfficeRichText: NSAttributedString? = nil,
             archive loadedArchiveEntries: [ArchiveEntryPreview]? = nil,
             archiveTruncated loadedArchiveTruncated: Bool = false,
             text content: String? = nil,
@@ -217,7 +219,8 @@ extension PreviewSession {
             } else {
                 mediaPlayer = nil
             }
-            officeURL = loadedOfficeURL
+            officeURL = loadedOfficeRichText == nil ? loadedOfficeURL : nil
+            officeRichText = loadedOfficeRichText
             archiveEntries = loadedArchiveEntries ?? []
             archiveTruncated = loadedArchiveTruncated
             if let content { textContent = content }
@@ -256,6 +259,20 @@ extension PreviewSession {
         if BuiltinPreviewExtensions.media.contains(ext) {
             guard !Task.isCancelled else { return }
             finish(mediaURL: url)
+            return
+        }
+
+        if ext == "docx" {
+            guard !Task.isCancelled else { return }
+            let richText = try? await Task.detached(priority: .userInitiated) {
+                try OfficeDocumentPreviewLoader.loadDOCX(from: url)
+            }.value
+            guard !Task.isCancelled else { return }
+            if let richText {
+                finish(officeRichText: richText)
+            } else {
+                finish(office: url)
+            }
             return
         }
 
@@ -430,6 +447,7 @@ extension PreviewSession {
             _ pdfData: Data?,
             _ mediaURL: URL?,
             _ office: URL?,
+            _ officeRichText: NSAttributedString?,
             _ archive: [ArchiveEntryPreview]?,
             _ archiveTruncated: Bool,
             _ text: String?,
@@ -439,19 +457,19 @@ extension PreviewSession {
         switch mode {
         case .quickLook:
             guard !Task.isCancelled else { return }
-            finish(nil, nil, nil, url, nil, false, nil, nil)
+            finish(nil, nil, nil, url, nil, nil, false, nil, nil)
         case .media:
             guard !Task.isCancelled else { return }
-            finish(nil, nil, url, nil, nil, false, nil, nil)
+            finish(nil, nil, url, nil, nil, nil, false, nil, nil)
         case .image:
             let imageData = try? await Task.detached(priority: .userInitiated) {
                 try Data(contentsOf: url, options: [.mappedIfSafe])
             }.value
             guard !Task.isCancelled else { return }
             if let imageData {
-                finish(imageData, nil, nil, nil, nil, false, nil, nil)
+                finish(imageData, nil, nil, nil, nil, nil, false, nil, nil)
             } else {
-                finish(nil, nil, nil, nil, nil, false, nil, "Unable to decode image format")
+                finish(nil, nil, nil, nil, nil, nil, false, nil, "Unable to decode image format")
             }
         case .pdf:
             let pdfData = try? await Task.detached(priority: .userInitiated) {
@@ -459,12 +477,12 @@ extension PreviewSession {
             }.value
             guard !Task.isCancelled else { return }
             if let pdfData {
-                finish(nil, pdfData, nil, nil, nil, false, nil, nil)
+                finish(nil, pdfData, nil, nil, nil, nil, false, nil, nil)
             } else {
-                finish(nil, nil, nil, nil, nil, false, nil, "Unable to load PDF document")
+                finish(nil, nil, nil, nil, nil, nil, false, nil, "Unable to load PDF document")
             }
         case .html where htmlMode == .preview:
-            finish(nil, nil, nil, nil, nil, false, nil, nil)
+            finish(nil, nil, nil, nil, nil, nil, false, nil, nil)
             Task.detached(priority: .utility) { [url, itemID] in
                 let content = try? TextFilePreviewReader.readPreview(from: url)
                 await MainActor.run {
@@ -480,11 +498,11 @@ extension PreviewSession {
                     try TextFilePreviewReader.readPreview(from: url)
                 }.value
                 guard !Task.isCancelled else { return }
-                finish(nil, nil, nil, nil, nil, false, content, nil)
+                finish(nil, nil, nil, nil, nil, nil, false, content, nil)
             } catch {
                 guard !Task.isCancelled else { return }
                 if error is CancellationError { return }
-                finish(nil, nil, nil, nil, nil, false, nil, error.localizedDescription)
+                finish(nil, nil, nil, nil, nil, nil, false, nil, error.localizedDescription)
             }
         }
     }

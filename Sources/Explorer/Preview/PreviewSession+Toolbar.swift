@@ -405,7 +405,8 @@ extension PreviewSession {
     }
 
     func previewOfficeToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
-        [
+        let ext = item.url.pathExtension.lowercased()
+        var items: [PreviewToolbarOverflowModel] = [
             previewToolbarIconItem(
                 id: "office-zoom-out",
                 title: "缩小",
@@ -445,13 +446,19 @@ extension PreviewSession {
                 isDisabled: abs(officeZoomScale - 1.0) < 0.001,
                 action: { [self] in officeZoomScale = 1.0 }
             ),
-            previewToolbarIconItem(
-                id: "office-pan",
-                title: officePanMode ? "关闭拖拽平移" : "拖拽平移",
-                systemImage: officePanMode ? "hand.raised.fill" : "hand.raised",
-                action: { [self] in officePanMode.toggle() }
-            ),
         ]
+        // docx 走 TextEdit 式富文本预览，原生滚轮即可；xlsx/pptx 仍用 QuickLook + 拖拽平移。
+        if ext != "docx" {
+            items.append(
+                previewToolbarIconItem(
+                    id: "office-pan",
+                    title: officePanMode ? "关闭拖拽平移" : "拖拽平移",
+                    systemImage: officePanMode ? "hand.raised.fill" : "hand.raised",
+                    action: { [self] in officePanMode.toggle() }
+                )
+            )
+        }
+        return items
     }
 
     func previewArchiveToolbarItems() -> [PreviewToolbarOverflowModel] {

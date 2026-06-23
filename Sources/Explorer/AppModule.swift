@@ -5521,6 +5521,13 @@ struct FileContentView: View {
                     session.mediaIsMuted = isMuted
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let officeRichText = session.officeRichText {
+                OfficeRichTextPreview(
+                    attributedText: officeRichText,
+                    wrapLines: session.textWrapEnabled,
+                    zoomScale: session.officeZoomScale
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let officeURL = session.officeURL {
                 QuickLookPreview(
                     url: officeURL,
@@ -5576,7 +5583,7 @@ struct FileContentView: View {
         }
         .opacity(contentOpacity)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .padding((session.isImagePreview || session.officeURL != nil) ? 0 : 12)
+        .padding((session.isImagePreview || session.officeURL != nil || session.officeRichText != nil) ? 0 : 12)
         .task(id: loadTaskID) {
             await applyLoadTaskIfNeeded()
         }

@@ -80,6 +80,7 @@ final class PreviewSession: ObservableObject, Identifiable {
     @Published var pdfDocument: PDFDocument?
     @Published var mediaPlayer: AVPlayer?
     @Published var officeURL: URL?
+    @Published var officeRichText: NSAttributedString?
     @Published var archiveEntries: [ArchiveEntryPreview] = []
     @Published var archiveTruncated = false
     @Published var imageSaveErrorMessage: String?
