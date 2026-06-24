@@ -3,19 +3,24 @@ import XCTest
 
 final class OutputPanelAttributedTextTests: XCTestCase {
     func testStderrUsesDistinctColorFromStdout() {
-        let attr = OutputPanelAttributedText.make(
+        let nsAttr = OutputPanelAttributedText.makeNSAttributedString(
             stdout: "ok\n",
             stderr: "err\n",
-            emptyPlaceholder: "(empty)",
             findText: ""
         )
 
-        let source = String(attr.characters)
-        XCTAssertTrue(source.contains("ok"))
-        XCTAssertTrue(source.contains("err"))
+        XCTAssertTrue(nsAttr.string.contains("ok"))
+        XCTAssertTrue(nsAttr.string.contains("err"))
 
-        XCTAssertFalse(attr.runs.filter { $0.foregroundColor == OutputPanelStyle.stdoutColor }.isEmpty)
-        XCTAssertFalse(attr.runs.filter { $0.foregroundColor == OutputPanelStyle.stderrColor }.isEmpty)
+        var hasStdoutColor = false
+        var hasStderrColor = false
+        nsAttr.enumerateAttribute(.foregroundColor, in: NSRange(location: 0, length: nsAttr.length)) { value, _, _ in
+            guard let color = value as? NSColor else { return }
+            if color == OutputPanelStyle.stdoutNSColor { hasStdoutColor = true }
+            if color == OutputPanelStyle.stderrNSColor { hasStderrColor = true }
+        }
+        XCTAssertTrue(hasStdoutColor)
+        XCTAssertTrue(hasStderrColor)
     }
 
     func testHighlightsPromptPathAndCommand() {

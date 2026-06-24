@@ -5,6 +5,26 @@ enum OutputPanelStyle {
     static let backgroundColor = Color(red: 0.118, green: 0.118, blue: 0.118)
     static let stdoutColor = Color(red: 0.86, green: 0.86, blue: 0.86)
     static let stderrColor = Color(red: 1.0, green: 0.55, blue: 0.55)
+
+    static var stdoutNSColor: NSColor {
+        NSColor(red: 0.86, green: 0.86, blue: 0.86, alpha: 1)
+    }
+
+    static var stderrNSColor: NSColor {
+        NSColor(red: 1.0, green: 0.55, blue: 0.55, alpha: 1)
+    }
+
+    static var promptPathNSColor: NSColor {
+        NSColor(red: 0.36, green: 0.75, blue: 0.85, alpha: 1)
+    }
+
+    static var promptCommandNSColor: NSColor {
+        NSColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1)
+    }
+
+    static var backgroundNSColor: NSColor {
+        NSColor(red: 0.118, green: 0.118, blue: 0.118, alpha: 1)
+    }
     static let promptPathColor = Color(red: 0.36, green: 0.75, blue: 0.85)
     static let promptCommandColor = Color(red: 0.95, green: 0.95, blue: 0.95)
     static let placeholderColor = Color(white: 0.55)

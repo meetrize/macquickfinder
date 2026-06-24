@@ -7,10 +7,6 @@ private enum OutputPanelFocusField: Hashable {
     case find
 }
 
-private enum OutputPanelScrollAnchor {
-    static let bottom = "output-bottom"
-}
-
 struct OutputPanelView: View {
     @ObservedObject var layout: ExplorerWindowLayoutState
     var maxPanelHeight: CGFloat = 800
@@ -432,8 +428,7 @@ struct OutputPanelView: View {
     private func outputText(job: JobRecord) -> some View {
         OutputPanelOutputScrollView(
             job: job,
-            findText: findText,
-            selectedJobID: jobStore.selectedJobID
+            findText: findText
         )
     }
 
@@ -523,52 +518,26 @@ struct OutputPanelView: View {
 private struct OutputPanelOutputScrollView: View {
     let job: JobRecord
     let findText: String
-    let selectedJobID: UUID?
-
-    private var outputTailToken: Int {
-        job.stdout.count + job.stderr.count
-    }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(OutputPanelAttributedText.make(
-                        stdout: job.stdout,
-                        stderr: job.stderr,
-                        emptyPlaceholder: L10n.Snippets.Output.noOutput,
-                        findText: findText
-                    ))
-                    .font(.system(.body, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .textSelection(.enabled)
+        ZStack(alignment: .topLeading) {
+            OutputPanelOutputTextView(
+                stdout: job.stdout,
+                stderr: job.stderr,
+                isRunning: job.status == .running,
+                findText: findText,
+                emptyPlaceholder: L10n.Snippets.Output.noOutput
+            )
 
-                    Color.clear
-                        .frame(height: 1)
-                        .id(OutputPanelScrollAnchor.bottom)
-                }
-            }
-            .onAppear {
-                scrollToBottom(using: proxy)
-            }
-            .onChange(of: outputTailToken) { _ in
-                scrollToBottom(using: proxy)
-            }
-            .onChange(of: job.status) { _ in
-                scrollToBottom(using: proxy)
-            }
-            .onChange(of: selectedJobID) { _ in
-                scrollToBottom(using: proxy)
+            if job.stdout.isEmpty, job.stderr.isEmpty {
+                Text(L10n.Snippets.Output.noOutput)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(OutputPanelStyle.placeholderColor)
+                    .padding(8)
+                    .allowsHitTesting(false)
             }
         }
         .background(OutputPanelStyle.backgroundColor)
-    }
-
-    private func scrollToBottom(using proxy: ScrollViewProxy) {
-        DispatchQueue.main.async {
-            proxy.scrollTo(OutputPanelScrollAnchor.bottom, anchor: .bottom)
-        }
     }
 }
 

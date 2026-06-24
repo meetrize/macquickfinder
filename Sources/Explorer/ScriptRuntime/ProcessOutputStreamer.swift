@@ -11,22 +11,25 @@ enum ProcessOutputStreamer {
         stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-            Task { @MainActor in
-                JobStore.shared.appendOutput(jobID: jobID, stdout: text)
+            Task {
+                await OutputStreamCoalescer.shared.enqueue(jobID: jobID, stdout: text)
             }
         }
         stderrPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-            Task { @MainActor in
-                JobStore.shared.appendOutput(jobID: jobID, stderr: text)
+            Task {
+                await OutputStreamCoalescer.shared.enqueue(jobID: jobID, stderr: text)
             }
         }
         process.terminationHandler = { proc in
             stdoutPipe.fileHandleForReading.readabilityHandler = nil
             stderrPipe.fileHandleForReading.readabilityHandler = nil
-            Task { @MainActor in
-                JobStore.shared.markFinished(jobID: jobID, exitCode: proc.terminationStatus)
+            Task {
+                await OutputStreamCoalescer.shared.flushNow(jobID: jobID)
+                await MainActor.run {
+                    JobStore.shared.markFinished(jobID: jobID, exitCode: proc.terminationStatus)
+                }
             }
         }
     }

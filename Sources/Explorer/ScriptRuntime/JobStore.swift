@@ -11,6 +11,8 @@ final class JobStore: ObservableObject {
     private var settings: SnippetsSettings { SnippetsSettings.shared }
     private let maxStoredJobs = 50
     private var pendingShellRuns: [PendingShellRun] = []
+    private var pendingOutputPublishes: [UUID: JobRecord] = [:]
+    private var outputPublishScheduled = false
 
     private struct PendingShellRun {
         var jobID: UUID
@@ -58,7 +60,8 @@ final class JobStore: ObservableObject {
 
     func appendOutput(jobID: UUID, stdout: String? = nil, stderr: String? = nil) {
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
-        var job = jobs[idx]
+        var job = pendingOutputPublishes[jobID] ?? jobs[idx]
+        let wasTruncated = job.outputTruncated
 
         if let stdout, !stdout.isEmpty {
             _ = OutputStreamLimiter.append(
@@ -81,7 +84,52 @@ final class JobStore: ObservableObject {
             )
         }
 
-        jobs[idx] = job
+        if job.status == .running {
+            OutputRunningDisplayBuffer.trimPreservingTail(&job.stdout)
+            pendingOutputPublishes[jobID] = job
+            if job.outputTruncated, !wasTruncated {
+                publishOutputNow(jobID: jobID, job: job)
+                pendingOutputPublishes.removeValue(forKey: jobID)
+            } else {
+                scheduleRunningOutputPublish()
+            }
+        } else {
+            publishOutputNow(jobID: jobID, job: job)
+        }
+
+        if !wasTruncated, job.outputTruncated {
+            terminateProcess(for: jobID)
+        }
+    }
+
+    private func publishOutputNow(jobID: UUID, job: JobRecord) {
+        guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
+        jobs[idx].stdout = job.stdout
+        jobs[idx].stderr = job.stderr
+        jobs[idx].outputTruncated = job.outputTruncated
+    }
+
+    private func scheduleRunningOutputPublish() {
+        guard !outputPublishScheduled else { return }
+        outputPublishScheduled = true
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            self.outputPublishScheduled = false
+            self.flushPendingOutputPublishes()
+        }
+    }
+
+    private func flushPendingOutputPublishes() {
+        let pending = pendingOutputPublishes
+        pendingOutputPublishes.removeAll()
+        for (jobID, job) in pending {
+            publishOutputNow(jobID: jobID, job: job)
+        }
+    }
+
+    private func flushPendingOutput(for jobID: UUID) {
+        guard let job = pendingOutputPublishes.removeValue(forKey: jobID) else { return }
+        publishOutputNow(jobID: jobID, job: job)
     }
 
     func markRunning(jobID: UUID, process: Process) {
@@ -92,19 +140,21 @@ final class JobStore: ObservableObject {
     }
 
     func markFinished(jobID: UUID, exitCode: Int32) {
+        flushPendingOutput(for: jobID)
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
         if jobs[idx].status == .cancelled {
             return
         }
-        appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: exitCode))
         jobs[idx].exitCode = exitCode
         jobs[idx].endedAt = Date()
         jobs[idx].process = nil
         jobs[idx].status = exitCode == 0 ? .succeeded : .failed
+        appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: exitCode))
         pumpQueue()
     }
 
     func markFailed(jobID: UUID, message: String) {
+        flushPendingOutput(for: jobID)
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
         appendOutput(jobID: jobID, stderr: message)
         appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: 1))
@@ -117,6 +167,7 @@ final class JobStore: ObservableObject {
 
     func cancel(jobID: UUID) {
         pendingShellRuns.removeAll { $0.jobID == jobID }
+        flushPendingOutput(for: jobID)
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
         if jobs[idx].status == .running {
             if let process = jobs[idx].process, process.isRunning {
@@ -336,6 +387,13 @@ final class JobStore: ObservableObject {
         if jobs.count > maxStoredJobs {
             jobs.removeFirst(jobs.count - maxStoredJobs)
         }
+    }
+
+    private func terminateProcess(for jobID: UUID) {
+        guard let idx = jobs.firstIndex(where: { $0.id == jobID }),
+              let process = jobs[idx].process,
+              process.isRunning else { return }
+        process.terminate()
     }
 
     /// 将旧版独立 stderr 缓冲并入 stdout 时间线（避免错误信息堆在后续命令下方）。

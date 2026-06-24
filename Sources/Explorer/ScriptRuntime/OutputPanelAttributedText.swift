@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -13,38 +14,48 @@ enum OutputPanelAttributedText {
             empty.foregroundColor = OutputPanelStyle.placeholderColor
             return empty
         }
+        return AttributedString(makeNSAttributedString(stdout: stdout, stderr: stderr, findText: findText))
+    }
 
-        var result = AttributedString()
+    static func makeNSAttributedString(
+        stdout: String,
+        stderr: String,
+        findText: String
+    ) -> NSAttributedString {
+        let baseFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        let result = NSMutableAttributedString()
         for segment in OutputSessionFormatting.transcriptSegments(from: stdout) {
-            var segmentAttr = AttributedString(segment.text)
-            segmentAttr.foregroundColor = segment.isStderr
-                ? OutputPanelStyle.stderrColor
-                : OutputPanelStyle.stdoutColor
+            let color = segment.isStderr ? OutputPanelStyle.stderrNSColor : OutputPanelStyle.stdoutNSColor
+            let segmentAttr = NSMutableAttributedString(
+                string: segment.text,
+                attributes: [.foregroundColor: color, .font: baseFont]
+            )
             if !segment.isStderr {
-                applyPromptStyling(to: &segmentAttr)
-                applyStatusStyling(to: &segmentAttr)
+                applyPromptStyling(to: segmentAttr)
+                applyStatusStyling(to: segmentAttr)
             }
             result.append(segmentAttr)
         }
 
         if !stderr.isEmpty {
-            if !result.characters.isEmpty {
-                result.append(AttributedString("\n"))
+            if result.length > 0 {
+                result.append(NSAttributedString(string: "\n", attributes: [.font: baseFont]))
             }
-            var stderrAttr = AttributedString(stderr)
-            stderrAttr.foregroundColor = OutputPanelStyle.stderrColor
-            result.append(stderrAttr)
+            result.append(NSAttributedString(
+                string: stderr,
+                attributes: [.foregroundColor: OutputPanelStyle.stderrNSColor, .font: baseFont]
+            ))
         }
 
         if !findText.isEmpty {
-            applyFindHighlight(to: &result, findText: findText)
+            applyFindHighlight(to: result, findText: findText)
         }
 
         return result
     }
 
-    private static func applyPromptStyling(to attr: inout AttributedString) {
-        let source = String(attr.characters)
+    private static func applyPromptStyling(to attr: NSMutableAttributedString) {
+        let source = attr.string
         guard let regex = try? NSRegularExpression(pattern: #"\n\n([^\n]+) \$ ([^\n]+)\n"#) else {
             return
         }
@@ -52,13 +63,13 @@ enum OutputPanelAttributedText {
         let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
         for match in regex.matches(in: source, range: fullRange) {
             guard match.numberOfRanges == 3 else { continue }
-            colorMatchGroup(match.range(at: 1), in: source, color: OutputPanelStyle.promptPathColor, attr: &attr)
-            colorMatchGroup(match.range(at: 2), in: source, color: OutputPanelStyle.promptCommandColor, attr: &attr)
+            colorMatchGroup(match.range(at: 1), color: OutputPanelStyle.promptPathNSColor, in: attr)
+            colorMatchGroup(match.range(at: 2), color: OutputPanelStyle.promptCommandNSColor, in: attr)
         }
     }
 
-    private static func applyStatusStyling(to attr: inout AttributedString) {
-        let source = String(attr.characters)
+    private static func applyStatusStyling(to attr: NSMutableAttributedString) {
+        let source = attr.string
         guard let regex = try? NSRegularExpression(pattern: #"\n([✓✗⊘])\n"#) else {
             return
         }
@@ -69,41 +80,40 @@ enum OutputPanelAttributedText {
             let lineRange = match.range(at: 1)
             guard let range = Range(lineRange, in: source) else { continue }
             let marker = String(source[range])
-            let color: Color
+            let color: NSColor
             switch marker {
-            case "✓": color = OutputPanelStyle.completionSuccessColor
-            case "✗": color = OutputPanelStyle.completionFailureColor
-            case "⊘": color = OutputPanelStyle.completionCancelledColor
+            case "✓": color = NSColor(red: 0.45, green: 0.82, blue: 0.52, alpha: 1)
+            case "✗": color = NSColor(red: 1.0, green: 0.55, blue: 0.55, alpha: 1)
+            case "⊘": color = NSColor(white: 0.62, alpha: 1)
             default: continue
             }
-            colorMatchGroup(lineRange, in: source, color: color, attr: &attr)
+            colorMatchGroup(lineRange, color: color, in: attr)
         }
     }
 
     private static func colorMatchGroup(
         _ nsRange: NSRange,
-        in source: String,
-        color: Color,
-        attr: inout AttributedString
+        color: NSColor,
+        in attr: NSMutableAttributedString
     ) {
-        guard let range = Range(nsRange, in: source) else { return }
-        guard let lower = AttributedString.Index(range.lowerBound, within: attr),
-              let upper = AttributedString.Index(range.upperBound, within: attr) else {
-            return
-        }
-        attr[lower..<upper].foregroundColor = color
+        guard nsRange.location != NSNotFound, nsRange.length > 0 else { return }
+        attr.addAttribute(.foregroundColor, value: color, range: nsRange)
     }
 
-    private static func applyFindHighlight(to attr: inout AttributedString, findText: String) {
-        var searchStart = attr.startIndex
-        while searchStart < attr.endIndex,
-              let range = attr[searchStart...].range(
+    private static func applyFindHighlight(to attr: NSMutableAttributedString, findText: String) {
+        let source = attr.string as NSString
+        var searchRange = NSRange(location: 0, length: source.length)
+        let highlight = NSColor.systemYellow.withAlphaComponent(0.35)
+        while searchRange.length > 0 {
+            let found = source.range(
                 of: findText,
-                options: .caseInsensitive,
-                locale: nil
-              ) {
-            attr[range].backgroundColor = OutputPanelStyle.findHighlightColor
-            searchStart = range.upperBound
+                options: [.caseInsensitive],
+                range: searchRange
+            )
+            guard found.location != NSNotFound else { break }
+            attr.addAttribute(.backgroundColor, value: highlight, range: found)
+            let nextLocation = found.location + found.length
+            searchRange = NSRange(location: nextLocation, length: source.length - nextLocation)
         }
     }
 }
