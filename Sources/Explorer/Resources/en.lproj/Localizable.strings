@@ -700,10 +700,14 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>(no output)</string>
 	<key>snippets.output.queued</key>
 	<string>Queued</string>
+	<key>snippets.output.run_history_command</key>
+	<string>Run this command</string>
 	<key>snippets.output.running</key>
 	<string>Running…</string>
 	<key>snippets.output.stop</key>
 	<string>Stop</string>
+	<key>snippets.output.truncated</key>
+	<string>[Output truncated: maximum size reached]</string>
 	<key>snippets.panel.close</key>
 	<string>Close Snippets</string>
 	<key>snippets.panel.collapse</key>

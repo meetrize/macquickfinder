@@ -62,6 +62,7 @@ struct ContentView: View {
     @State private var isPathBarTextMode = false
     @State private var liveLeftPanelDragWidth: CGFloat?
     @StateObject private var externalFolderOpenCenter = ExternalFolderOpenCenter.shared
+    @ObservedObject private var outputPanelTextEditing = OutputPanelTextEditingCenter.shared
     @State private var pendingExternalSelectionPath: String?
     
     init(initialPath: String? = nil) {
@@ -73,6 +74,10 @@ struct ContentView: View {
     
     private var isTextFieldEditing: Bool {
         activeBarField != nil || isFileListRenaming
+    }
+
+    private var isAnyTextFieldEditing: Bool {
+        isTextFieldEditing || outputPanelTextEditing.isActive
     }
     
     private var fileListViewMode: FileListViewMode {
@@ -235,9 +240,23 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            OutputPanelView(layout: layout, maxPanelHeight: outputMaxHeight)
+            OutputPanelView(
+                layout: layout,
+                maxPanelHeight: outputMaxHeight,
+                executionContext: OutputExecutionContext(
+                    cwd: path,
+                    selectedItems: FileItem.resolveSelection(ids: selection, from: items),
+                    showHiddenFiles: showHiddenFiles
+                ),
+                onNavigateToDirectory: { newPath in
+                    selection.removeAll()
+                    path = newPath
+                }
+            )
             }
             .frame(width: outer.size.width, height: outer.size.height)
+            .focusedValue(\.textFieldEditing, isAnyTextFieldEditing)
+            .background(TextEditingKeyMonitor(isActive: isAnyTextFieldEditing))
         }
         .background(WindowKeyLayoutTracker(layout: layout).frame(width: 0, height: 0).accessibilityHidden(true))
         .background(HostWindowReader(window: $hostWindow).frame(width: 0, height: 0).accessibilityHidden(true))
@@ -332,7 +351,6 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
-        .focusedValue(\.textFieldEditing, isTextFieldEditing)
         .focusedValue(
             \.windowLayoutCommands,
             WindowLayoutCommands(
@@ -354,7 +372,6 @@ struct ContentView: View {
                 toggleOutputPanel: { layout.isOutputPanelVisible.toggle() }
             )
         )
-        .background(TextEditingKeyMonitor(isActive: isTextFieldEditing))
         .background(BarTextFieldFocusSync(activeField: $activeBarField))
         .navigationTitle(currentDirectoryTitle)
         .modifier(InlineToolbarTitleModifier())

@@ -9,12 +9,14 @@ enum ShellRunner {
         workingDirectory: String?
     ) {
         let process = Process()
+        process.environment = ProcessInfo.processInfo.environment
 
         switch snippet.scriptType {
         case .shell:
             let interpreter = snippet.interpreter ?? SnippetDefaults.shellInterpreter
+            let command = wrapShellCommand(expandedContent, workingDirectory: workingDirectory)
             process.executableURL = URL(fileURLWithPath: interpreter)
-            process.arguments = ["-lc", expandedContent]
+            process.arguments = ["-ilc", command]
         case .python3:
             process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
             if expandedContent.contains("\n") {
@@ -41,5 +43,15 @@ enum ShellRunner {
         } catch {
             JobStore.shared.markFailed(jobID: jobID, message: error.localizedDescription)
         }
+    }
+
+    private static func wrapShellCommand(_ expandedContent: String, workingDirectory: String?) -> String {
+        guard let workingDirectory, !workingDirectory.isEmpty else {
+            return expandedContent
+        }
+        let directory = SnippetExpander.standardize(workingDirectory)
+        let changeDirectory = "cd \(ShellQuoting.singleQuote(directory))"
+        guard !expandedContent.isEmpty else { return changeDirectory }
+        return "\(changeDirectory) && \(expandedContent)"
     }
 }

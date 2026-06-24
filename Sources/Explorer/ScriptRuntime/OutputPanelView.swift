@@ -7,12 +7,23 @@ private enum OutputPanelFocusField: Hashable {
     case find
 }
 
+private enum OutputPanelScrollAnchor {
+    static let bottom = "output-bottom"
+}
+
 struct OutputPanelView: View {
     @ObservedObject var layout: ExplorerWindowLayoutState
     var maxPanelHeight: CGFloat = 800
+    let executionContext: OutputExecutionContext
+    var onNavigateToDirectory: (String) -> Void = { _ in }
     @ObservedObject private var jobStore = JobStore.shared
     @State private var findText = ""
     @State private var commandDraft = ""
+    @State private var commandHistories: [UUID: OutputCommandHistory] = [:]
+    @State private var completionSessions: [UUID: OutputCommandCompletionSession] = [:]
+    @State private var previousDirectories: [UUID: String] = [:]
+    @State private var completionListHint: String?
+    @State private var isHistoryPopoverPresented = false
     @State private var isOutputAreaActive = false
     /// 拖拽过程中的临时高度，避免每帧写 UserDefaults 导致抖动
     @State private var dragPanelHeight: CGFloat?
@@ -52,6 +63,12 @@ struct OutputPanelView: View {
                     .frame(height: effectivePanelHeight)
             }
             .animation(nil, value: effectivePanelHeight)
+            .onChange(of: layout.isOutputPanelVisible) { visible in
+                if !visible {
+                    focusedField = nil
+                    OutputPanelTextEditingCenter.shared.setActive(false)
+                }
+            }
         }
     }
 
@@ -70,6 +87,7 @@ struct OutputPanelView: View {
                     .onChange(of: jobStore.selectedJobID) { _ in
                         if let job = jobStore.selectedJob {
                             syncCommandDraft(for: job)
+                            resetHistoryBrowsing(for: job.id)
                         }
                     }
                 } else {
@@ -79,9 +97,15 @@ struct OutputPanelView: View {
                 }
             }
         }
-        .background(OutputPanelKeyMonitor(isActive: isOutputContextActive) {
-            focusedField = .find
-        })
+        .background(OutputPanelKeyMonitor(
+            isFindActive: isOutputContextActive,
+            isInterruptEnabled: jobStore.selectedJob?.status == .running,
+            onFind: { focusedField = .find },
+            onInterrupt: {
+                guard let job = jobStore.selectedJob, job.status == .running else { return }
+                jobStore.cancel(jobID: job.id)
+            }
+        ))
     }
 
     private var jobTabBar: some View {
@@ -172,6 +196,15 @@ struct OutputPanelView: View {
     private func bottomBar(job: JobRecord) -> some View {
         VStack(spacing: 0) {
             Divider()
+            if let completionListHint {
+                Text(completionListHint)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(OutputPanelStyle.commandTextColor.opacity(0.9))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 4)
+                    .lineLimit(3)
+            }
             HStack(alignment: .center, spacing: 10) {
                 commandTextField(for: job)
 
@@ -181,61 +214,210 @@ struct OutputPanelView: View {
             .padding(.vertical, 6)
         }
         .background(Color(nsColor: .controlBackgroundColor))
+        .focusedValue(\.textFieldEditing, focusedField != nil)
+        .background(TextEditingKeyMonitor(isActive: focusedField != nil))
     }
 
     private func trailingControls(job: JobRecord) -> some View {
         HStack(spacing: 8) {
-            if let duration = job.duration {
-                Text(String(format: "%.1fs", duration))
-                    .foregroundStyle(.secondary)
-            } else if job.status == .running || job.status == .queued {
-                Text(job.status == .queued ? L10n.Snippets.Output.queued : L10n.Snippets.Output.running)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let code = job.exitCode {
-                Text(L10n.Snippets.Output.exitCode(Int(code)))
-                    .foregroundStyle(code == 0 ? Color.secondary : Color.red)
-            } else if job.status == .cancelled {
-                Text(L10n.Snippets.Output.cancelled)
-                    .foregroundStyle(.secondary)
-            }
-
-            Button(L10n.Snippets.Output.clear) { jobStore.clearOutput(jobID: job.id) }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-
-            Button(L10n.Snippets.Output.copy) { copyAllOutput(job: job) }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            commandHistoryButton(job: job)
 
             findTextField
-
-            if job.status == .running {
-                Button(L10n.Snippets.Output.stop) { jobStore.cancel(jobID: job.id) }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-            }
         }
         .font(.caption)
     }
 
     private func commandTextField(for job: JobRecord) -> some View {
-        TextField(L10n.Snippets.Output.commandPlaceholder, text: $commandDraft)
-            .font(.system(.caption, design: .monospaced))
-            .lineLimit(1)
-            .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
-            .modifier(OutputCapsuleFieldStyle())
-            .focused($focusedField, equals: .command)
-            .onSubmit { rerunCommand(for: job) }
+        OutputCommandField(
+            text: $commandDraft,
+            isEnabled: true,
+            onFocusChange: { focused in
+                if focused {
+                    focusedField = .command
+                    isOutputAreaActive = false
+                } else if focusedField == .command {
+                    focusedField = nil
+                }
+            },
+            onSubmit: {
+                rerunCommand(for: job)
+            },
+            onHistoryNavigate: { direction in
+                navigateCommandHistory(for: job.id, direction: direction)
+            },
+            onTabComplete: { line, cursor in
+                completeCommand(for: job.id, line: line, cursor: cursor)
+            },
+            onCompletionSessionReset: {
+                resetCompletionSession(for: job.id)
+            }
+        )
+        .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
+        .modifier(OutputCommandCapsuleFieldStyle(isFocused: focusedField == .command))
+    }
+
+    private func commandHistoryButton(job: JobRecord) -> some View {
+        Button {
+            isHistoryPopoverPresented.toggle()
+        } label: {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .disabled(commandHistories[job.id]?.entries.isEmpty ?? true)
+        .popover(isPresented: $isHistoryPopoverPresented, arrowEdge: .top) {
+            commandHistoryPopoverContent(jobID: job.id)
+        }
+    }
+
+    private func commandHistoryPopoverContent(jobID: UUID) -> some View {
+        let entries = (commandHistories[jobID]?.entries ?? []).reversed()
+        return VStack(alignment: .leading, spacing: 8) {
+            if entries.isEmpty {
+                Text("No history")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .padding(.vertical, 6)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(entries.enumerated()), id: \.offset) { index, command in
+                            commandHistoryRow(
+                                jobID: jobID,
+                                command: command,
+                                displayIndex: index + 1
+                            )
+                        }
+                    }
+                }
+                .frame(maxHeight: 280)
+            }
+        }
+        .padding(8)
+        .frame(width: 400, alignment: .leading)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private func commandHistoryRow(jobID: UUID, command: String, displayIndex: Int) -> some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 0) {
+                Text(String(format: "%2d", displayIndex))
+                    .font(.system(size: 10, weight: .regular, design: .monospaced))
+                    .foregroundStyle(OutputPanelStyle.historyRunButtonIcon)
+                    .frame(width: 30, alignment: .center)
+                    .frame(maxHeight: .infinity)
+                    .background(OutputPanelStyle.historyRunButtonFill.opacity(0.85))
+                    .overlay(alignment: .trailing) {
+                        Rectangle()
+                            .fill(OutputPanelStyle.historyRunButtonBorder.opacity(0.35))
+                            .frame(width: 1)
+                    }
+
+                Text(command)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(OutputPanelStyle.commandTextColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 8)
+                    .padding(.vertical, 4)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                commandDraft = command
+                resetHistoryBrowsing(for: jobID)
+                focusedField = .command
+                isHistoryPopoverPresented = false
+            }
+
+            ZStack {
+                Color.clear
+                Image(systemName: "play.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(OutputPanelStyle.historyRunButtonIcon)
+            }
+            .frame(width: 28)
+            .frame(maxHeight: .infinity)
+            .background(OutputPanelStyle.historyRunButtonFill)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(OutputPanelStyle.historyRunButtonBorder.opacity(0.35))
+                    .frame(width: 1)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                executeHistoryCommand(jobID: jobID, command: command)
+            }
+            .help(L10n.Snippets.Output.runHistoryCommand)
+        }
+        .frame(height: 26)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(OutputPanelStyle.commandBackgroundColor.opacity(0.9))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(OutputPanelStyle.commandBorderColor.opacity(0.4), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
+    private func executeHistoryCommand(jobID: UUID, command: String) {
+        guard let job = jobStore.jobs.first(where: { $0.id == jobID }) else { return }
+        guard job.status != .running else { return }
+
+        let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let currentDirectory = executionContext.cwd
+        jobStore.executeInPlace(
+            jobID: jobID,
+            rawCommand: trimmed,
+            context: executionContext,
+            previousDirectory: previousDirectories[jobID],
+            onDirectoryChange: { newDirectory in
+                previousDirectories[jobID] = currentDirectory
+                onNavigateToDirectory(newDirectory)
+            }
+        )
+        recordCommandHistory(trimmed, for: jobID)
+        resetCompletionSession(for: jobID)
+        completionListHint = nil
+        isHistoryPopoverPresented = false
     }
 
     private var findTextField: some View {
         TextField(L10n.Snippets.Output.find, text: $findText)
-            .font(.caption)
+            .font(.system(.caption, design: .monospaced))
+            .foregroundStyle(OutputPanelStyle.commandTextColor)
+            .tint(OutputPanelStyle.commandFocusBorderColor)
+            .padding(.leading, focusedField == .find ? 2 : 14)
             .frame(width: 128)
-            .modifier(OutputCapsuleFieldStyle())
+            .modifier(OutputCommandCapsuleFieldStyle(isFocused: focusedField == .find))
+            .overlay(alignment: .leading) {
+                if focusedField != .find {
+                    Button {
+                        focusedField = .find
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(OutputPanelStyle.commandTextColor.opacity(0.85))
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 10)
+                    .help(L10n.Snippets.Output.find)
+                }
+            }
             .focused($focusedField, equals: .find)
+            .onChange(of: focusedField) { field in
+                if field == .find {
+                    OutputPanelTextEditingCenter.shared.setActive(true)
+                } else if field != .command {
+                    OutputPanelTextEditingCenter.shared.setActive(false)
+                }
+            }
     }
 
     private func failureBanner(job: JobRecord) -> some View {
@@ -248,33 +430,11 @@ struct OutputPanelView: View {
     }
 
     private func outputText(job: JobRecord) -> some View {
-        ScrollView {
-            Text(highlightedOutput(job: job))
-                .font(.system(.body, design: .monospaced))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
-                .textSelection(.enabled)
-        }
-        .background(Color(nsColor: .textBackgroundColor))
-    }
-
-    private func highlightedOutput(job: JobRecord) -> AttributedString {
-        var combined = job.stdout
-        if !job.stderr.isEmpty {
-            if !combined.isEmpty { combined += "\n" }
-            combined += job.stderr
-        }
-        var attr = AttributedString(combined.isEmpty ? L10n.Snippets.Output.noOutput : combined)
-        if !findText.isEmpty, let range = attr.range(of: findText, options: .caseInsensitive) {
-            attr[range].backgroundColor = .yellow.opacity(0.4)
-        }
-        return attr
-    }
-
-    private func copyAllOutput(job: JobRecord) {
-        let text = job.stdout + job.stderr
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        OutputPanelOutputScrollView(
+            job: job,
+            findText: findText,
+            selectedJobID: jobStore.selectedJobID
+        )
     }
 
     private func syncCommandDraft(for job: JobRecord) {
@@ -284,7 +444,131 @@ struct OutputPanelView: View {
     private func rerunCommand(for job: JobRecord) {
         let trimmed = commandDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        jobStore.rerunEditedCommand(fromJobID: job.id, content: trimmed)
+        guard job.status != .running else { return }
+
+        let currentDirectory = executionContext.cwd
+        jobStore.rerunEditedCommand(
+            fromJobID: job.id,
+            content: trimmed,
+            context: executionContext,
+            previousDirectory: previousDirectories[job.id],
+            onDirectoryChange: { newDirectory in
+                previousDirectories[job.id] = currentDirectory
+                onNavigateToDirectory(newDirectory)
+            }
+        )
+        recordCommandHistory(trimmed, for: job.id)
+        resetCompletionSession(for: job.id)
+        completionListHint = nil
+        commandDraft = ""
+    }
+
+    private func recordCommandHistory(_ command: String, for jobID: UUID) {
+        var history = commandHistories[jobID] ?? OutputCommandHistory()
+        history.record(command)
+        commandHistories[jobID] = history
+    }
+
+    private func resetHistoryBrowsing(for jobID: UUID) {
+        guard var history = commandHistories[jobID] else { return }
+        history.resetBrowsing()
+        commandHistories[jobID] = history
+    }
+
+    private func navigateCommandHistory(
+        for jobID: UUID,
+        direction: OutputCommandHistoryDirection
+    ) -> String? {
+        var history = commandHistories[jobID] ?? OutputCommandHistory()
+        guard let value = history.step(direction, currentDraft: commandDraft) else { return nil }
+        commandHistories[jobID] = history
+        commandDraft = value
+        return value
+    }
+
+    private func completeCommand(
+        for jobID: UUID,
+        line: String,
+        cursor: Int
+    ) -> OutputCommandCompletionResult? {
+        var session = completionSessions[jobID] ?? OutputCommandCompletionSession()
+        let request = OutputCommandCompletionRequest(
+            line: line,
+            cursor: cursor,
+            cwd: executionContext.cwd
+        )
+        let result = OutputCommandCompleter.complete(
+            request: request,
+            session: &session,
+            candidatesProvider: nil
+        )
+        completionSessions[jobID] = session
+        if let list = result?.listForDisplay, !list.isEmpty {
+            completionListHint = list.joined(separator: "  ")
+        } else if result != nil {
+            completionListHint = nil
+        }
+        if let result {
+            commandDraft = result.line
+        }
+        return result
+    }
+
+    private func resetCompletionSession(for jobID: UUID) {
+        completionSessions[jobID] = OutputCommandCompletionSession()
+        completionListHint = nil
+    }
+}
+
+private struct OutputPanelOutputScrollView: View {
+    let job: JobRecord
+    let findText: String
+    let selectedJobID: UUID?
+
+    private var outputTailToken: Int {
+        job.stdout.count + job.stderr.count
+    }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(OutputPanelAttributedText.make(
+                        stdout: job.stdout,
+                        stderr: job.stderr,
+                        emptyPlaceholder: L10n.Snippets.Output.noOutput,
+                        findText: findText
+                    ))
+                    .font(.system(.body, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .textSelection(.enabled)
+
+                    Color.clear
+                        .frame(height: 1)
+                        .id(OutputPanelScrollAnchor.bottom)
+                }
+            }
+            .onAppear {
+                scrollToBottom(using: proxy)
+            }
+            .onChange(of: outputTailToken) { _ in
+                scrollToBottom(using: proxy)
+            }
+            .onChange(of: job.status) { _ in
+                scrollToBottom(using: proxy)
+            }
+            .onChange(of: selectedJobID) { _ in
+                scrollToBottom(using: proxy)
+            }
+        }
+        .background(OutputPanelStyle.backgroundColor)
+    }
+
+    private func scrollToBottom(using proxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            proxy.scrollTo(OutputPanelScrollAnchor.bottom, anchor: .bottom)
+        }
     }
 }
 
@@ -295,7 +579,9 @@ private enum OutputCapsuleFieldMetrics {
     static let height: CGFloat = 30
 }
 
-private struct OutputCapsuleFieldStyle: ViewModifier {
+private struct OutputCommandCapsuleFieldStyle: ViewModifier {
+    var isFocused: Bool
+
     func body(content: Content) -> some View {
         content
             .textFieldStyle(.plain)
@@ -304,21 +590,28 @@ private struct OutputCapsuleFieldStyle: ViewModifier {
             .frame(height: OutputCapsuleFieldMetrics.height)
             .background(
                 Capsule(style: .continuous)
-                    .fill(Color(nsColor: .textBackgroundColor))
+                    .fill(OutputPanelStyle.commandBackgroundColor)
             )
             .overlay(
                 Capsule(style: .continuous)
-                    .strokeBorder(Color(nsColor: .separatorColor), lineWidth: OutputCapsuleFieldMetrics.borderWidth)
+                    .strokeBorder(
+                        isFocused
+                            ? OutputPanelStyle.commandFocusBorderColor
+                            : OutputPanelStyle.commandBorderColor,
+                        lineWidth: OutputCapsuleFieldMetrics.borderWidth
+                    )
             )
     }
 }
 
 private struct OutputPanelKeyMonitor: NSViewRepresentable {
-    let isActive: Bool
+    let isFindActive: Bool
+    let isInterruptEnabled: Bool
     let onFind: () -> Void
+    let onInterrupt: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onFind: onFind)
+        Coordinator(onFind: onFind, onInterrupt: onInterrupt)
     }
 
     func makeNSView(context: Context) -> NSView {
@@ -328,17 +621,22 @@ private struct OutputPanelKeyMonitor: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.isActive = isActive
+        context.coordinator.isFindActive = isFindActive
+        context.coordinator.isInterruptEnabled = isInterruptEnabled
     }
 
     final class Coordinator {
-        var isActive: Bool
+        var isFindActive: Bool
+        var isInterruptEnabled: Bool
         let onFind: () -> Void
+        let onInterrupt: () -> Void
         private var monitor: Any?
 
-        init(onFind: @escaping () -> Void) {
+        init(onFind: @escaping () -> Void, onInterrupt: @escaping () -> Void) {
             self.onFind = onFind
-            self.isActive = false
+            self.onInterrupt = onInterrupt
+            self.isFindActive = false
+            self.isInterruptEnabled = false
         }
 
         func install(on view: NSView) {
@@ -350,11 +648,20 @@ private struct OutputPanelKeyMonitor: NSViewRepresentable {
         }
 
         private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
-            guard isActive else { return event }
-            guard event.modifierFlags.contains(.command) else { return event }
-            guard event.charactersIgnoringModifiers?.lowercased() == "f" else { return event }
-            onFind()
-            return nil
+            switch OutputPanelKeyboard.action(
+                for: event,
+                isFindActive: isFindActive,
+                isInterruptEnabled: isInterruptEnabled
+            ) {
+            case .interrupt:
+                onInterrupt()
+                return nil
+            case .find:
+                onFind()
+                return nil
+            case nil:
+                return event
+            }
         }
 
         deinit {

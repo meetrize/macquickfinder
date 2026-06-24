@@ -44,6 +44,7 @@ final class JobStore: ObservableObject {
             status: .queued,
             stdout: "",
             stderr: "",
+            outputTruncated: false,
             exitCode: nil,
             startedAt: nil,
             endedAt: nil,
@@ -57,8 +58,30 @@ final class JobStore: ObservableObject {
 
     func appendOutput(jobID: UUID, stdout: String? = nil, stderr: String? = nil) {
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
-        if let stdout { jobs[idx].stdout += stdout }
-        if let stderr { jobs[idx].stderr += stderr }
+        var job = jobs[idx]
+
+        if let stdout, !stdout.isEmpty {
+            _ = OutputStreamLimiter.append(
+                stdout: &job.stdout,
+                stderr: &job.stderr,
+                truncated: &job.outputTruncated,
+                stdoutChunk: stdout,
+                stderrChunk: nil,
+                truncationNotice: L10n.Snippets.Output.truncated
+            )
+        }
+        if let stderr, !stderr.isEmpty {
+            _ = OutputStreamLimiter.append(
+                stdout: &job.stdout,
+                stderr: &job.stderr,
+                truncated: &job.outputTruncated,
+                stdoutChunk: OutputSessionFormatting.wrapStderr(stderr),
+                stderrChunk: nil,
+                truncationNotice: L10n.Snippets.Output.truncated
+            )
+        }
+
+        jobs[idx] = job
     }
 
     func markRunning(jobID: UUID, process: Process) {
@@ -70,6 +93,10 @@ final class JobStore: ObservableObject {
 
     func markFinished(jobID: UUID, exitCode: Int32) {
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
+        if jobs[idx].status == .cancelled {
+            return
+        }
+        appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: exitCode))
         jobs[idx].exitCode = exitCode
         jobs[idx].endedAt = Date()
         jobs[idx].process = nil
@@ -79,7 +106,8 @@ final class JobStore: ObservableObject {
 
     func markFailed(jobID: UUID, message: String) {
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
-        jobs[idx].stderr += message
+        appendOutput(jobID: jobID, stderr: message)
+        appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: 1))
         jobs[idx].endedAt = Date()
         jobs[idx].process = nil
         jobs[idx].status = .failed
@@ -91,11 +119,14 @@ final class JobStore: ObservableObject {
         pendingShellRuns.removeAll { $0.jobID == jobID }
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
         if jobs[idx].status == .running {
-            jobs[idx].process?.terminate()
+            if let process = jobs[idx].process, process.isRunning {
+                process.terminate()
+            }
         }
         jobs[idx].process = nil
         jobs[idx].status = .cancelled
         jobs[idx].endedAt = Date()
+        appendOutput(jobID: jobID, stdout: OutputSessionFormatting.cancelledStatus())
         pumpQueue()
     }
 
@@ -125,7 +156,9 @@ final class JobStore: ObservableObject {
     func removeAllJobs() {
         pendingShellRuns.removeAll()
         for job in jobs where job.status == .running {
-            job.process?.terminate()
+            if let process = job.process, process.isRunning {
+                process.terminate()
+            }
         }
         jobs.removeAll()
         selectedJobID = nil
@@ -137,7 +170,9 @@ final class JobStore: ObservableObject {
         pendingShellRuns.removeAll()
         if clearJobs {
             for job in jobs where job.status == .running {
-                job.process?.terminate()
+                if let process = job.process, process.isRunning {
+                    process.terminate()
+                }
             }
             jobs.removeAll()
             selectedJobID = nil
@@ -153,11 +188,109 @@ final class JobStore: ObservableObject {
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
         jobs[idx].stdout = ""
         jobs[idx].stderr = ""
+        jobs[idx].outputTruncated = false
     }
 
-    /// 以编辑后的命令内容重新执行，产生新 Job。
-    func rerunEditedCommand(fromJobID: UUID, content: String) {
-        SnippetExecutionService.rerunEditedCommand(fromJobID: fromJobID, content: content, jobStore: self)
+    func rerunEditedCommand(
+        fromJobID: UUID,
+        content: String,
+        context: OutputExecutionContext,
+        previousDirectory: String? = nil,
+        onDirectoryChange: ((String) -> Void)? = nil
+    ) {
+        SnippetExecutionService.rerunEditedCommand(
+            fromJobID: fromJobID,
+            content: content,
+            context: context,
+            jobStore: self,
+            previousDirectory: previousDirectory,
+            onDirectoryChange: onDirectoryChange
+        )
+    }
+
+    func executeInPlace(
+        jobID: UUID,
+        rawCommand: String,
+        context: OutputExecutionContext,
+        settings: SnippetsSettings? = nil,
+        previousDirectory: String? = nil,
+        onDirectoryChange: ((String) -> Void)? = nil
+    ) {
+        let settings = settings ?? SnippetsSettings.shared
+        guard let index = jobs.firstIndex(where: { $0.id == jobID }) else { return }
+
+        let trimmed = rawCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let status = jobs[index].status
+        guard status != .running else { return }
+
+        if trimmed == "clear" {
+            applyClearCommand(jobID: jobID, index: index, cwd: SnippetExpander.standardize(context.cwd))
+            return
+        }
+
+        inlinePendingStderr(jobID: jobID)
+
+        let snippet = SnippetExecutionService.resolveShellSnippet(for: jobs[index])
+        let cwd = SnippetExpander.standardize(context.cwd)
+
+        do {
+            let expanded = try SnippetExpander.expand(
+                trimmed,
+                context: context.snippetContext,
+                scriptType: .shell
+            )
+
+            if let onDirectoryChange,
+               let newDirectory = OutputDirectoryChangeParser.resolveLeadingDirectoryChange(
+                expandedCommand: expanded,
+                currentDirectory: cwd,
+                previousDirectory: previousDirectory
+               ) {
+                onDirectoryChange(newDirectory)
+            }
+
+            appendOutput(
+                jobID: jobID,
+                stdout: OutputSessionFormatting.prompt(cwd: cwd, command: trimmed)
+            )
+
+            jobs[index].expandedContent = trimmed
+            jobs[index].displayCommand = trimmed
+            jobs[index].workingDirectory = cwd
+            jobs[index].status = .queued
+            jobs[index].exitCode = nil
+            jobs[index].endedAt = nil
+            jobs[index].startedAt = nil
+            jobs[index].process = nil
+
+            if settings.autoShowOutputPanelOnShellRun {
+                OutputPanelPresenter.showIfAutoEnabled()
+            }
+
+            scheduleShellRun(
+                snippet: snippet,
+                expandedContent: expanded,
+                jobID: jobID,
+                workingDirectory: cwd
+            )
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            appendOutput(
+                jobID: jobID,
+                stdout: OutputSessionFormatting.prompt(cwd: cwd, command: trimmed)
+            )
+            appendOutput(jobID: jobID, stderr: message + "\n")
+            appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: 1))
+            jobs[index].expandedContent = trimmed
+            jobs[index].displayCommand = trimmed
+            jobs[index].workingDirectory = cwd
+            jobs[index].status = .failed
+            jobs[index].exitCode = 1
+            jobs[index].endedAt = Date()
+            jobs[index].process = nil
+        }
     }
 
     func runningCount() -> Int {
@@ -203,5 +336,27 @@ final class JobStore: ObservableObject {
         if jobs.count > maxStoredJobs {
             jobs.removeFirst(jobs.count - maxStoredJobs)
         }
+    }
+
+    /// 将旧版独立 stderr 缓冲并入 stdout 时间线（避免错误信息堆在后续命令下方）。
+    private func inlinePendingStderr(jobID: UUID) {
+        guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
+        let pending = jobs[idx].stderr
+        guard !pending.isEmpty else { return }
+        jobs[idx].stderr = ""
+        appendOutput(jobID: jobID, stdout: OutputSessionFormatting.wrapStderr(pending))
+    }
+
+    /// 内置 `clear`：清空当前 Tab 输出，不启动 shell 进程。
+    private func applyClearCommand(jobID: UUID, index: Int, cwd: String) {
+        clearOutput(jobID: jobID)
+        jobs[index].expandedContent = "clear"
+        jobs[index].displayCommand = "clear"
+        jobs[index].workingDirectory = cwd
+        jobs[index].status = .succeeded
+        jobs[index].exitCode = 0
+        jobs[index].endedAt = Date()
+        jobs[index].startedAt = nil
+        jobs[index].process = nil
     }
 }

@@ -14,6 +14,10 @@ struct PreviewTextSelectionActiveKey: FocusedValueKey {
 
 enum TextEditingCommands {
     static func send(_ selector: Selector) {
+        if let responder = NSApp.keyWindow?.firstResponder,
+           responder.tryToPerform(selector, with: nil) {
+            return
+        }
         NSApp.sendAction(selector, to: nil, from: nil)
     }
 

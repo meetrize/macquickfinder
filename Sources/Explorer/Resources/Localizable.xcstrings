@@ -5883,6 +5883,23 @@
         }
       }
     },
+    "snippets.output.run_history_command": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run this command"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接执行此命令"
+          }
+        }
+      }
+    },
     "snippets.output.no_output": {
       "extractionState": "manual",
       "localizations": {
@@ -5947,6 +5964,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "停止"
+          }
+        }
+      }
+    },
+    "snippets.output.truncated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[Output truncated: maximum size reached]"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[输出已截断：已达单 Tab 输出上限]"
           }
         }
       }

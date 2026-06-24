@@ -465,7 +465,9 @@ enum L10n {
             static var stop: String { ModuleLocalization.localized("snippets.output.stop", bundle: .module) }
             static var commandPlaceholder: String { ModuleLocalization.localized("snippets.output.command_placeholder", bundle: .module) }
             static var find: String { ModuleLocalization.localized("snippets.output.find", bundle: .module) }
+            static var runHistoryCommand: String { ModuleLocalization.localized("snippets.output.run_history_command", bundle: .module) }
             static var noOutput: String { ModuleLocalization.localized("snippets.output.no_output", bundle: .module) }
+            static var truncated: String { ModuleLocalization.localized("snippets.output.truncated", bundle: .module) }
 
             static func exitCode(_ code: Int) -> String {
                 ModuleLocalization.localized("snippets.output.exit_code \(code)", bundle: .module)

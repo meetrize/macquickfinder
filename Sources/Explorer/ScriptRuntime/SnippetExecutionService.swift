@@ -1,6 +1,6 @@
 import Foundation
 
-/// Snippet 执行分发：Job 创建后的 scriptType 路由与编辑后重跑。
+/// Snippet 执行分发：Job 创建后的 scriptType 路由与输出面板原地续跑。
 @MainActor
 enum SnippetExecutionService {
     static func dispatch(
@@ -31,36 +31,29 @@ enum SnippetExecutionService {
     static func rerunEditedCommand(
         fromJobID: UUID,
         content: String,
+        context: OutputExecutionContext,
         jobStore: JobStore? = nil,
-        settings: SnippetsSettings? = nil
+        settings: SnippetsSettings? = nil,
+        previousDirectory: String? = nil,
+        onDirectoryChange: ((String) -> Void)? = nil
     ) {
         let jobStore = jobStore ?? JobStore.shared
-        let settings = settings ?? SnippetsSettings.shared
-        guard let job = jobStore.jobs.first(where: { $0.id == fromJobID }) else { return }
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        guard case .snippet(let snippetID, let name) = job.source,
-              let snippet = SnippetStore.shared.snippet(id: snippetID) else { return }
-
-        let displayCommand = SnippetDisplayCommand.build(snippet: snippet, expandedContent: trimmed)
-        let newJobID = jobStore.createJob(
-            snippetName: name,
-            displayCommand: displayCommand,
-            source: job.source,
-            expandedContent: trimmed,
-            workingDirectory: job.workingDirectory
+        jobStore.executeInPlace(
+            jobID: fromJobID,
+            rawCommand: content,
+            context: context,
+            settings: settings,
+            previousDirectory: previousDirectory,
+            onDirectoryChange: onDirectoryChange
         )
+    }
 
-        if settings.autoShowOutputPanelOnShellRun {
-            OutputPanelPresenter.showIfAutoEnabled()
+    static func resolveShellSnippet(for job: JobRecord) -> Snippet {
+        if case .snippet(let snippetID, _) = job.source,
+           let snippet = SnippetStore.shared.snippet(id: snippetID),
+           snippet.scriptType == .shell {
+            return snippet
         }
-
-        dispatch(
-            snippet: snippet,
-            expandedContent: trimmed,
-            jobID: newJobID,
-            workingDirectory: job.workingDirectory,
-            jobStore: jobStore
-        )
+        return SnippetDefaults.inPlaceShellSnippet
     }
 }

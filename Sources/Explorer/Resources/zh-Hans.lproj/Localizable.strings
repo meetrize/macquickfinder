@@ -700,10 +700,14 @@
 	<string>（无输出）</string>
 	<key>snippets.output.queued</key>
 	<string>排队中</string>
+	<key>snippets.output.run_history_command</key>
+	<string>直接执行此命令</string>
 	<key>snippets.output.running</key>
 	<string>运行中…</string>
 	<key>snippets.output.stop</key>
 	<string>停止</string>
+	<key>snippets.output.truncated</key>
+	<string>[输出已截断：已达单 Tab 输出上限]</string>
 	<key>snippets.panel.close</key>
 	<string>关闭 Snippets</string>
 	<key>snippets.panel.collapse</key>

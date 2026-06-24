@@ -23,6 +23,7 @@ struct JobRecord: Identifiable {
     var status: JobStatus
     var stdout: String
     var stderr: String
+    var outputTruncated: Bool
     var exitCode: Int32?
     var startedAt: Date?
     var endedAt: Date?
