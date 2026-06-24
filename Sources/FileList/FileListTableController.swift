@@ -320,14 +320,48 @@ public final class FileListTableController: FileListContentController {
         guard let tableView, row >= 0, row < displayRows.count else { return }
         let matchedRowID = displayRows[row].id
         FileListTableAnimations.performWithoutAnimation {
-            // 快速搜索条位于列表底部：额外让“命中行后两行”进入可视区，
-            // 使命中行默认上移两行，避免被底部浮层遮挡。
-            let anchorRow = min(row + 2, max(0, displayRows.count - 1))
-            tableView.scrollRowToVisible(anchorRow)
+            scrollQuickSearchMatchRowIntoView(row, in: tableView)
             tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         }
         syncSelectionFromTable()
         interaction.onQuickSearchMatchSelected(matchedRowID)
+    }
+
+    private func scrollQuickSearchMatchRowIntoView(_ row: Int, in tableView: NSTableView) {
+        let visibleRows = tableView.rows(in: tableView.visibleRect)
+        guard visibleRows.length > 0 else {
+            tableView.scrollRowToVisible(row)
+            return
+        }
+
+        let visibleRange = visibleRows.location..<(visibleRows.location + visibleRows.length)
+        let filterBarReserve = tableView.rowHeight * 2 + tableView.intercellSpacing.height
+        let rowRect = tableView.rect(ofRow: row)
+        let visibleRect = tableView.visibleRect
+
+        if visibleRange.contains(row) {
+            let hasFilterBarClearance = rowRect.maxY <= visibleRect.maxY - filterBarReserve
+            let isNotClippedAtTop = rowRect.minY >= visibleRect.minY
+            if hasFilterBarClearance && isNotClippedAtTop {
+                return
+            }
+            if isNotClippedAtTop {
+                let anchorRow = min(row + 2, max(0, displayRows.count - 1))
+                tableView.scrollRowToVisible(anchorRow)
+                return
+            }
+            tableView.scrollRowToVisible(row)
+            return
+        }
+
+        if row < visibleRows.location {
+            // 命中行在可视区上方（如 Tab 循环回到第一条）：滚到命中行本身，避免 +2 锚点把首行顶出视口。
+            tableView.scrollRowToVisible(row)
+            return
+        }
+
+        let anchorRow = min(row + 2, max(0, displayRows.count - 1))
+        tableView.scrollRowToVisible(anchorRow)
     }
 
     func syncSelectionFromTable() {
