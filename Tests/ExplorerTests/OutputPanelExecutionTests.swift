@@ -24,6 +24,24 @@ final class OutputPanelExecutionTests: XCTestCase {
         )
     }
 
+    func testEnsureShellSessionIfNeededCreatesIdleTab() {
+        let store = JobStore.shared
+        store.removeAllJobs()
+
+        let jobID = store.ensureShellSessionIfNeeded()
+        XCTAssertNotNil(jobID)
+        XCTAssertEqual(store.jobs.count, 1)
+        let job = store.jobs.first
+        XCTAssertEqual(job?.snippetName, "Shell")
+        XCTAssertEqual(job?.source, .shellSession)
+        XCTAssertEqual(job?.status, .succeeded)
+        XCTAssertEqual(job?.stdout, "")
+        XCTAssertEqual(job?.stderr, "")
+
+        XCTAssertEqual(store.ensureShellSessionIfNeeded(), jobID)
+        XCTAssertEqual(store.jobs.count, 1)
+    }
+
     func testExecuteInPlaceAppendsPromptAndReusesJob() {
         let store = JobStore.shared
         store.removeAllJobs()

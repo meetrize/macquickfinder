@@ -28,6 +28,24 @@ final class JobStore: ObservableObject {
         return jobs.first { $0.id == id } ?? jobs.last
     }
 
+    /// 输出面板可见但尚无 Job 时，创建空闲 Shell Tab，使面板呈现命令框与空输出区。
+    @discardableResult
+    func ensureShellSessionIfNeeded() -> UUID? {
+        guard jobs.isEmpty else { return selectedJobID }
+        let shell = SnippetDefaults.inPlaceShellSnippet
+        let jobID = createJob(
+            snippetName: shell.name,
+            displayCommand: "",
+            source: .shellSession,
+            expandedContent: "",
+            workingDirectory: nil
+        )
+        if let idx = jobs.firstIndex(where: { $0.id == jobID }) {
+            jobs[idx].status = .succeeded
+        }
+        return jobID
+    }
+
     @discardableResult
     func createJob(
         snippetName: String,

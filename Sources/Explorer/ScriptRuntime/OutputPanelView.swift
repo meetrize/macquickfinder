@@ -59,8 +59,15 @@ struct OutputPanelView: View {
                     .frame(height: effectivePanelHeight)
             }
             .animation(nil, value: effectivePanelHeight)
+            .onAppear {
+                if layout.isOutputPanelVisible {
+                    jobStore.ensureShellSessionIfNeeded()
+                }
+            }
             .onChange(of: layout.isOutputPanelVisible) { visible in
-                if !visible {
+                if visible {
+                    jobStore.ensureShellSessionIfNeeded()
+                } else {
                     focusedField = nil
                     OutputPanelTextEditingCenter.shared.setActive(false)
                 }

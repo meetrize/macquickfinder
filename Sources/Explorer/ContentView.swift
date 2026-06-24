@@ -369,7 +369,13 @@ struct ContentView: View {
                 },
                 togglePreview: { layout.showPreview.toggle() },
                 toggleSnippets: { layout.showSnippets.toggle() },
-                toggleOutputPanel: { layout.isOutputPanelVisible.toggle() }
+                toggleOutputPanel: {
+                    if layout.isOutputPanelVisible {
+                        layout.isOutputPanelVisible = false
+                    } else {
+                        ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
+                    }
+                }
             )
         )
         .background(BarTextFieldFocusSync(activeField: $activeBarField))

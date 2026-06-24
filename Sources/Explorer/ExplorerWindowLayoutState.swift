@@ -326,6 +326,7 @@ final class ActiveWindowLayoutCenter {
     func showOutputPanel(on layout: ExplorerWindowLayoutState) {
         layout.isOutputPanelVisible = true
         layout.isOutputPanelContentCollapsed = false
+        JobStore.shared.ensureShellSessionIfNeeded()
     }
 
     func hideOutputPanel(on layout: ExplorerWindowLayoutState) {
