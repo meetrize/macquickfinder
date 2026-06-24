@@ -729,7 +729,7 @@ struct BarTextField: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .instantHoverTooltip("清除")
+                .instantHoverTooltip(L10n.Pathbar.clear)
             }
         }
         .padding(.horizontal, shape == .capsule ? 10 : 8)
@@ -1196,7 +1196,7 @@ struct PathBarView: View {
             if mode == .text {
                 PathBarBlankClickArea(onClick: handlePathBarTrailingClick)
                     .frame(width: pathBarTrailingClickWidth, height: fieldHeight)
-                    .instantHoverTooltip("点击全选路径")
+                    .instantHoverTooltip(L10n.Pathbar.selectAll)
             }
         }
         .overlay(alignment: .trailing) {
@@ -1315,7 +1315,7 @@ struct PathBarView: View {
         }
         let newValue = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !newValue.isEmpty {
-            if newValue == TrashLoader.displayName {
+            if TrashLoader.isTrashInput(newValue) {
                 path = TrashLoader.userTrashPath
             } else {
                 path = newValue
@@ -1390,7 +1390,7 @@ private struct PathBarNavigateButton: NSViewRepresentable {
     
     func makeNSView(context: Context) -> NavigateButton {
         let button = NavigateButton(
-            image: NSImage(systemSymbolName: "arrow.right.circle.fill", accessibilityDescription: "进入新路径") ?? NSImage(),
+            image: NSImage(systemSymbolName: "arrow.right.circle.fill", accessibilityDescription: L10n.Pathbar.commit) ?? NSImage(),
             target: context.coordinator,
             action: #selector(Coordinator.navigate(_:))
         )
@@ -1429,7 +1429,7 @@ private struct PathBarNavigateButton: NSViewRepresentable {
 
         override func mouseEntered(with event: NSEvent) {
             guard event.trackingArea === tooltipTrackingArea else { return }
-            RailTooltipPresenter.show(text: "进入新路径", anchor: self)
+            RailTooltipPresenter.show(text: L10n.Pathbar.commit, anchor: self)
         }
 
         override func mouseExited(with event: NSEvent) {
@@ -1599,7 +1599,7 @@ private struct PathBreadcrumbView: View {
                 PathBarBlankClickArea(onClick: onRequestEdit)
                     .frame(width: metrics.trailingClickWidth, height: fieldHeight)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                    .instantHoverTooltip("点击编辑完整路径")
+                    .instantHoverTooltip(L10n.Pathbar.edit)
                 
                 ScrollViewReader { scrollProxy in
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -1845,7 +1845,7 @@ private struct PathSeparatorMenu: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .instantHoverTooltip("显示子目录")
+        .instantHoverTooltip(L10n.Pathbar.subdirs)
     }
 }
 
@@ -1863,7 +1863,7 @@ private struct PathSeparatorMenuItems: View {
     
     var body: some View {
         if subdirectories.isEmpty {
-            Text("无子文件夹")
+            Text(L10n.Pathbar.noSubdirs)
                 .disabled(true)
         } else {
             ForEach(subdirectories) { subdirectory in
@@ -1897,6 +1897,6 @@ private struct PathBreadcrumbEllipsisMenu: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .instantHoverTooltip("显示上级路径")
+        .instantHoverTooltip(L10n.Pathbar.parent)
     }
 }

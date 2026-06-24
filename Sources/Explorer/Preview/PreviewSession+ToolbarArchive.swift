@@ -7,19 +7,19 @@ extension PreviewSession {
         [
             previewToolbarIconItem(
                 id: "archive-reload",
-                title: "刷新目录",
+                title: L10n.Preview.Toolbar.refreshListing,
                 systemImage: "arrow.clockwise",
                 action: { [self] in archive.reloadToken += 1 }
             ),
             previewToolbarIconItem(
                 id: "archive-expand",
-                title: archive.expanded ? "折叠到第一层" : "展开到全部层级",
+                title: archive.expanded ? L10n.Preview.Toolbar.archiveCollapse : L10n.Preview.Toolbar.archiveExpand,
                 systemImage: archive.expanded ? "chevron.down" : "chevron.right",
                 action: { [self] in archive.expanded.toggle() }
             ),
             previewToolbarIconItem(
                 id: "archive-copy",
-                title: "复制清单",
+                title: L10n.Preview.Toolbar.copyManifest,
                 systemImage: "doc.on.doc",
                 action: { [self] in archive.copyAction = .copyList }
             ),

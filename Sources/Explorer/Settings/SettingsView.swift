@@ -1,4 +1,5 @@
 import SwiftUI
+import FileList
 
 struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .general
@@ -9,13 +10,13 @@ struct SettingsView: View {
         TabView(selection: $selectedTab) {
             GeneralSettingsTab()
                 .tabItem {
-                    Label("通用", systemImage: "gearshape")
+                    Label(L10n.Settings.Tab.general, systemImage: "gearshape")
                 }
                 .tag(SettingsTab.general)
 
             SnippetsSettingsTab()
                 .tabItem {
-                    Label("Snippets", systemImage: "terminal")
+                    Label(L10n.Settings.Tab.snippets, systemImage: "terminal")
                 }
                 .tag(SettingsTab.snippets)
 
@@ -24,7 +25,7 @@ struct SettingsView: View {
                 showEditor: $showPreviewRuleEditor
             )
             .tabItem {
-                Label("预览", systemImage: "eye")
+                Label(L10n.Settings.Tab.preview, systemImage: "eye")
             }
             .tag(SettingsTab.preview)
 
@@ -51,17 +52,17 @@ private struct SnippetsSettingsTab: View {
     var body: some View {
         Form {
             Section {
-                Picker("面板显示模式", selection: $settings.displayMode) {
+                Picker(L10n.Settings.Snippets.displayMode, selection: $settings.displayMode) {
                     ForEach(SnippetsDisplayMode.allCases) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
-                Toggle("最近执行置顶", isOn: $settings.pinRecentlyExecutedSnippets)
+                Toggle(L10n.Settings.Snippets.pinRecent, isOn: $settings.pinRecentlyExecutedSnippets)
                 Stepper(value: $settings.maxConcurrentJobs, in: 1...4) {
-                    Text("Job 并发上限：\(settings.maxConcurrentJobs)")
+                    Text(L10n.Settings.Snippets.jobConcurrencyLimit(settings.maxConcurrentJobs))
                 }
-                Toggle("Shell 执行时自动展开输出面板", isOn: $settings.autoShowOutputPanelOnShellRun)
-                Toggle("危险命令二次确认", isOn: $settings.confirmDestructiveSnippets)
+                Toggle(L10n.Settings.Snippets.autoShowOutput, isOn: $settings.autoShowOutputPanelOnShellRun)
+                Toggle(L10n.Settings.Snippets.confirmDestructive, isOn: $settings.confirmDestructiveSnippets)
             }
         }
         .formStyle(.grouped)
@@ -70,6 +71,7 @@ private struct SnippetsSettingsTab: View {
 }
 
 private struct GeneralSettingsTab: View {
+    @ObservedObject private var languageSettings = InterfaceLanguageSettings.shared
     @AppStorage(AppPreferences.General.blankDoubleClickAction)
     private var blankDoubleClickAction = BlankDoubleClickAction.navigateToParent.rawValue
     @AppStorage(AppPreferences.General.windowSnapEnabled)
@@ -79,7 +81,19 @@ private struct GeneralSettingsTab: View {
     var body: some View {
         Form {
             Section {
-                Picker("空白处双击", selection: $blankDoubleClickAction) {
+                Picker(L10n.Settings.General.interfaceLanguage, selection: $languageSettings.language) {
+                    ForEach(InterfaceLanguage.allCases) { language in
+                        Text(language.pickerLabel).tag(language)
+                    }
+                }
+                Text(L10n.Settings.General.interfaceLanguageFooter)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section {
+                Picker(L10n.Settings.General.blankDoubleClick, selection: $blankDoubleClickAction) {
                     ForEach(BlankDoubleClickAction.allCases) { action in
                         Text(action.displayName).tag(action.rawValue)
                     }
@@ -88,7 +102,7 @@ private struct GeneralSettingsTab: View {
             }
 
             Section {
-                Toggle("启用窗口吸附与联动移动", isOn: $windowSnapEnabled)
+                Toggle(L10n.Settings.General.windowSnap, isOn: $windowSnapEnabled)
             }
 
             DefaultFileViewerSettingsSection(model: defaultFileViewerSettings)
@@ -106,7 +120,7 @@ private struct DefaultFileViewerSettingsSection: View {
 
     var body: some View {
         Section {
-            LabeledContent("当前默认") {
+            LabeledContent(L10n.Settings.DefaultViewer.current) {
                 HStack(spacing: 6) {
                     Circle()
                         .fill(model.isDefault ? Color.green : Color.secondary.opacity(0.5))
@@ -116,28 +130,28 @@ private struct DefaultFileViewerSettingsSection: View {
             }
 
             HStack {
-                Button("设为默认文件夹查看器") {
+                Button(L10n.Settings.DefaultViewer.set) {
                     model.setAsDefault()
                 }
                 .disabled(model.isDefault || model.isApplying)
 
-                Button("恢复 Finder") {
+                Button(L10n.Settings.DefaultViewer.restoreFinder) {
                     model.restoreFinder()
                 }
                 .disabled(model.isFinderDefault || model.isApplying)
             }
 
             if model.showsRestartReminder {
-                Text("更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。")
+                Text(L10n.Settings.DefaultViewer.restartHint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
         } header: {
-            Text("默认文件夹查看器")
+            Text(L10n.Settings.DefaultViewer.title)
         }
-        .alert("默认文件夹查看器", isPresented: alertBinding) {
-            Button("好", role: .cancel) {
+        .alert(L10n.Settings.DefaultViewer.title, isPresented: alertBinding) {
+            Button(L10n.Action.ok, role: .cancel) {
                 model.alertMessage = nil
             }
         } message: {

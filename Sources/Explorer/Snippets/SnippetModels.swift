@@ -29,13 +29,13 @@ enum SnippetScopeKind: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .anytime: return "始终"
-        case .global: return "有选中项"
-        case .filesOnly: return "仅文件"
-        case .directoriesOnly: return "仅目录"
-        case .singleSelection: return "单选"
-        case .fileExtensions: return "指定扩展名"
-        case .specificFiles: return "指定文件"
+        case .anytime: return L10n.Snippets.Scope.anytime
+        case .global: return L10n.Snippets.Scope.global
+        case .filesOnly: return L10n.Snippets.Scope.filesOnly
+        case .directoriesOnly: return L10n.Snippets.Scope.directoriesOnly
+        case .singleSelection: return L10n.Snippets.Scope.singleSelection
+        case .fileExtensions: return L10n.Snippets.Scope.fileExtensions
+        case .specificFiles: return L10n.Snippets.Scope.specificFiles
         }
     }
 }
@@ -64,11 +64,11 @@ enum SnippetScope: Codable, Equatable, Hashable {
     var shortBadge: String? {
         switch self {
         case .anytime, .global: return nil
-        case .filesOnly: return "文件"
-        case .directoriesOnly: return "目录"
-        case .singleSelection: return "1项"
+        case .filesOnly: return L10n.Snippets.Badge.file
+        case .directoriesOnly: return L10n.Snippets.Badge.directory
+        case .singleSelection: return L10n.Snippets.Badge.single
         case .fileExtensions(let exts): return exts.first.map { $0.lowercased() }
-        case .specificFiles: return "路径"
+        case .specificFiles: return L10n.Snippets.Badge.path
         }
     }
 
@@ -268,9 +268,9 @@ enum SnippetImportStrategy: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .skip: return "跳过"
-        case .overwrite: return "覆盖"
-        case .rename: return "重命名"
+        case .skip: return L10n.Snippets.Strategy.skip
+        case .overwrite: return L10n.Snippets.Strategy.overwrite
+        case .rename: return L10n.Snippets.Strategy.rename
         }
     }
 }
@@ -283,8 +283,8 @@ enum SnippetsDisplayMode: String, CaseIterable, Identifiable, Codable {
 
     var displayName: String {
         switch self {
-        case .standard: return "标准"
-        case .minimal: return "极简"
+        case .standard: return L10n.Settings.Snippets.displayStandard
+        case .minimal: return L10n.Settings.Snippets.displayMinimal
         }
     }
 }

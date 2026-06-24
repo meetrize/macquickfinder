@@ -57,6 +57,7 @@ enum AppPreferences {
     enum General {
         static let windowSnapEnabled = "windowSnapEnabled"
         static let blankDoubleClickAction = "blankDoubleClickAction"
+        static let interfaceLanguage = ModuleLocalization.preferenceKey
     }
 
     /// JSON / Data 持久化 blob。

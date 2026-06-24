@@ -15,32 +15,32 @@ enum CustomPreviewMode: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .text: return "文本预览"
-        case .markdown: return "Markdown 预览"
-        case .html: return "HTML 预览"
-        case .quickLook: return "QuickLook 预览"
-        case .image: return "图片预览"
-        case .pdf: return "PDF 预览"
-        case .media: return "媒体预览"
+        case .text: return L10n.Settings.Preview.Mode.text
+        case .markdown: return L10n.Settings.Preview.Mode.markdown
+        case .html: return L10n.Settings.Preview.Mode.html
+        case .quickLook: return L10n.Settings.Preview.Mode.quickLook
+        case .image: return L10n.Settings.Preview.Mode.image
+        case .pdf: return L10n.Settings.Preview.Mode.pdf
+        case .media: return L10n.Settings.Preview.Mode.media
         }
     }
 
     var detail: String {
         switch self {
         case .text:
-            return "以纯文本显示，并根据扩展名做语法高亮。"
+            return L10n.Settings.Preview.Mode.textDetail
         case .markdown:
-            return "渲染 Markdown；可在顶栏切换源码视图。"
+            return L10n.Settings.Preview.Mode.markdownDetail
         case .html:
-            return "在 WebKit 中渲染 HTML；可切换源码视图。"
+            return L10n.Settings.Preview.Mode.htmlDetail
         case .quickLook:
-            return "使用 macOS QuickLook，适合系统已支持预览的格式。"
+            return L10n.Settings.Preview.Mode.quickLookDetail
         case .image:
-            return "尝试按图片解码并显示。"
+            return L10n.Settings.Preview.Mode.imageDetail
         case .pdf:
-            return "使用 PDFKit 显示 PDF 文档。"
+            return L10n.Settings.Preview.Mode.pdfDetail
         case .media:
-            return "使用 AVPlayer 播放音视频。"
+            return L10n.Settings.Preview.Mode.mediaDetail
         }
     }
 }

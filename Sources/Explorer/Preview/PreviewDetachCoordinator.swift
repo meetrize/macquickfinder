@@ -60,11 +60,11 @@ final class PreviewDetachCoordinator: ObservableObject {
            currentSelectedFileID != previewID {
             let confirmed = await MainActor.run { () -> Bool in
                 let alert = NSAlert()
-                alert.messageText = "收回预览"
-                alert.informativeText = "收回将替换侧栏当前预览。是否继续？"
+                alert.messageText = L10n.Preview.reattachTitle
+                alert.informativeText = L10n.Preview.reattachMessage
                 alert.alertStyle = .warning
-                alert.addButton(withTitle: "收回")
-                alert.addButton(withTitle: "取消")
+                alert.addButton(withTitle: L10n.Preview.reattachConfirm)
+                alert.addButton(withTitle: L10n.Action.cancel)
                 return alert.runModal() == .alertFirstButtonReturn
             }
             guard confirmed else { return false }

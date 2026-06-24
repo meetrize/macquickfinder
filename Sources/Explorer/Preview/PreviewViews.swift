@@ -95,9 +95,9 @@ private struct FilePreviewEmptyChrome: View {
                 .buttonStyle(.borderless)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .instantHoverTooltip(layout.isPreviewContentCollapsed ? "展开预览" : "折叠预览")
+                .instantHoverTooltip(layout.isPreviewContentCollapsed ? L10n.Preview.expand : L10n.Preview.collapse)
 
-                Text("预览")
+                Text(L10n.Preview.title)
                     .font(.callout)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -113,7 +113,7 @@ private struct FilePreviewEmptyChrome: View {
                     Image(systemName: "xmark")
                 }
                 .buttonStyle(.borderless)
-                .instantHoverTooltip("关闭预览")
+                .instantHoverTooltip(L10n.Preview.close)
                 .fixedSize()
                 .layoutPriority(2)
             }
@@ -125,7 +125,7 @@ private struct FilePreviewEmptyChrome: View {
 
             if !layout.isPreviewContentCollapsed {
                 Divider()
-                Text("Select a file to preview")
+                Text(L10n.Preview.emptyState)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }

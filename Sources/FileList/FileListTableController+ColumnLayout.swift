@@ -298,13 +298,13 @@ extension FileListTableController {
         if let clickedColumnID, clickedColumnID.isMenuToggleable {
             menu.addItem(.separator())
 
-            let moveLeft = NSMenuItem(title: "左移", action: #selector(moveColumnLeft(_:)), keyEquivalent: "")
+            let moveLeft = NSMenuItem(title: L10n.Column.moveLeft, action: #selector(moveColumnLeft(_:)), keyEquivalent: "")
             moveLeft.target = self
             moveLeft.representedObject = clickedColumnID.rawValue
             moveLeft.isEnabled = configuration.canMoveColumn(clickedColumnID, offset: -1)
             menu.addItem(moveLeft)
 
-            let moveRight = NSMenuItem(title: "右移", action: #selector(moveColumnRight(_:)), keyEquivalent: "")
+            let moveRight = NSMenuItem(title: L10n.Column.moveRight, action: #selector(moveColumnRight(_:)), keyEquivalent: "")
             moveRight.target = self
             moveRight.representedObject = clickedColumnID.rawValue
             moveRight.isEnabled = configuration.canMoveColumn(clickedColumnID, offset: 1)

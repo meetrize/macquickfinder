@@ -7,7 +7,7 @@ enum ShellProcessRunner {
 
         var errorDescription: String? {
             switch self {
-            case .timedOut: return "命令执行超时"
+            case .timedOut: return L10n.Error.Shell.timedOut
             }
         }
     }

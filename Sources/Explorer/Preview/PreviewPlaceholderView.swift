@@ -11,16 +11,16 @@ struct PreviewPlaceholderView: View {
                 Image(systemName: "macwindow")
                     .foregroundStyle(.secondary)
 
-                Text("\(fileName) 已在独立窗口中预览")
+                Text(L10n.Preview.previewingInDetachedWindow(fileName))
                     .font(.callout)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
 
-                Button("聚焦窗口", action: onFocus)
+                Button(L10n.Preview.focusWindow, action: onFocus)
                     .buttonStyle(.borderless)
 
-                Button("收回侧栏", action: onDockBack)
+                Button(L10n.Preview.dockBack, action: onDockBack)
                     .buttonStyle(.borderless)
             }
             .frame(height: PanelTopBarMetrics.contentHeight)

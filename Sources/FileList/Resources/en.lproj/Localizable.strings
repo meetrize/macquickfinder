@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>action.empty_trash</key>
+	<string>Empty Trash</string>
+	<key>action.go_back</key>
+	<string>Back</string>
+	<key>action.go_up</key>
+	<string>Up</string>
+	<key>action.new_file</key>
+	<string>New File</string>
+	<key>action.new_folder</key>
+	<string>New Folder</string>
+	<key>action.open_terminal_here</key>
+	<string>Open Terminal Here</string>
+	<key>action.paste</key>
+	<string>Paste</string>
+	<key>column.date_modified</key>
+	<string>Date Modified</string>
+	<key>column.move_left</key>
+	<string>Move Left</string>
+	<key>column.move_right</key>
+	<string>Move Right</string>
+	<key>column.name</key>
+	<string>Name</string>
+	<key>column.size</key>
+	<string>Size</string>
+	<key>column.type</key>
+	<string>Type</string>
+	<key>settings.language.system</key>
+	<string>Follow System</string>
+	<key>view_mode.list</key>
+	<string>List</string>
+	<key>view_mode.thumbnail</key>
+	<string>Icons</string>
+</dict>
+</plist>

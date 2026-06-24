@@ -16,6 +16,9 @@ filter_known_spm_warnings() {
     '
 }
 
+echo "==> 编译 String Catalog (.xcstrings -> .lproj)"
+bash Scripts/compile_localizations.sh
+
 # Build the project
 build_args=(-c "$BUILD_CONFIG" --skip-update)
 if [ "$BUILD_CONFIG" = "debug" ] && [ "$FAST_DEBUG" = "1" ]; then
@@ -46,6 +49,27 @@ mkdir -p "$FRAMEWORKS_DIR"
 
 # Copy the executable
 cp ".build/$BUILD_CONFIG/Explorer" "$MACOS_DIR/"
+
+# Copy SPM localization resource bundles
+copy_spm_bundle() {
+    local pattern="$1"
+    local bundle_path
+    bundle_path=$(find -L ".build/$BUILD_CONFIG" -name "$pattern" -type d 2>/dev/null | head -1)
+    if [ -n "$bundle_path" ]; then
+        cp -R "$bundle_path" "$RESOURCES_DIR/"
+    else
+        echo "Warning: SPM resource bundle not found: $pattern"
+    fi
+}
+copy_spm_bundle "Explorer_Explorer.bundle"
+copy_spm_bundle "Explorer_FileList.bundle"
+
+# Copy Info.plist localizations
+for lproj in Explorer/Resources/*.lproj; do
+    if [ -d "$lproj" ]; then
+        cp -R "$lproj" "$RESOURCES_DIR/"
+    fi
+done
 
 # Create Info.plist in Contents directory
 cp Explorer/Info.plist "$APP_DIR/"

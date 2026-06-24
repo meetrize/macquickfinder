@@ -364,7 +364,7 @@ struct ContentView: View {
                     Image(systemName: leftPanelMode == .hidden ? "sidebar.left" : "sidebar.left")
                 }
                 .buttonStyle(.borderless)
-                .instantHoverTooltip(leftPanelMode == .hidden ? "显示左侧面板" : "隐藏左侧面板")
+                .instantHoverTooltip(leftPanelMode == .hidden ? L10n.Toolbar.showLeftPanel : L10n.Toolbar.hideLeftPanel)
             }
             .hideSharedBackgroundIfAvailable()
             
@@ -373,7 +373,7 @@ struct ContentView: View {
                     LucideIcon.folderPlus
                 }
                 .buttonStyle(.borderless)
-                .instantHoverTooltip("新建文件夹")
+                .instantHoverTooltip(L10n.Toolbar.newFolder)
             }
             .hideSharedBackgroundIfAvailable()
 
@@ -389,14 +389,14 @@ struct ContentView: View {
             .hideSharedBackgroundIfAvailable()
             
             ToolbarItem(placement: .primaryAction) {
-                Picker("视图", selection: Binding(
+                Picker(L10n.Toolbar.viewPicker, selection: Binding(
                     get: { layout.fileListViewModeRaw },
                     set: { layout.setFileListViewMode(FileListViewMode(rawValue: $0) ?? .list) }
                 )) {
                     ForEach(FileListViewMode.allCases, id: \.rawValue) { mode in
                         Image(systemName: mode.systemImageName)
                             .tag(mode.rawValue)
-                            .instantHoverTooltip(mode == .list ? "列表视图" : "缩略图视图")
+                            .instantHoverTooltip(mode == .list ? L10n.Toolbar.listView : L10n.Toolbar.thumbnailView)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -424,7 +424,7 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 30, alignment: .trailing)
                     }
-                    .instantHoverTooltip("缩略图大小")
+                    .instantHoverTooltip(L10n.Toolbar.thumbnailSize)
                 }
                 .hideSharedBackgroundIfAvailable()
             }
@@ -436,9 +436,9 @@ struct ContentView: View {
                             sortOrder = order
                         } label: {
                             if sortOrder == order {
-                                Label(order.rawValue, systemImage: "checkmark")
+                                Label(order.displayName, systemImage: "checkmark")
                             } else {
-                                Text(order.rawValue)
+                                Text(order.displayName)
                             }
                         }
                     }
@@ -451,19 +451,19 @@ struct ContentView: View {
             
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Toggle("自动计算文件夹大小", isOn: $autoCalculateDirectorySizes)
+                    Toggle(L10n.Toolbar.autoFolderSize, isOn: $autoCalculateDirectorySizes)
                 } label: {
                     Image(systemName: "gearshape")
                 }
                 .menuStyle(.borderlessButton)
-                .instantHoverTooltip("浏览设置")
+                .instantHoverTooltip(L10n.Toolbar.browseSettings)
             }
             .hideSharedBackgroundIfAvailable()
             
             ToolbarItem(placement: .primaryAction) {
                 BarTextField(
                     fieldID: .search,
-                    prompt: "Search files",
+                    prompt: L10n.Search.prompt,
                     text: $searchText,
                     activeField: $activeBarField,
                     icon: "magnifyingglass",
@@ -479,7 +479,7 @@ struct ContentView: View {
             BarTextFieldFocusRegistry.focus(field, in: hostWindow)
         }
         .background {
-            Button("Focus Search") {
+            Button(L10n.Search.focus) {
                 activeBarField = .search
             }
             .keyboardShortcut("f", modifiers: .command)
@@ -930,15 +930,15 @@ struct ContentView: View {
     
     private func createNewFolder() {
         let alert = NSAlert()
-        alert.messageText = "新建文件夹"
-        alert.informativeText = "输入新文件夹名称："
+        alert.messageText = L10n.Dialog.newFolderTitle
+        alert.informativeText = L10n.Dialog.newFolderMessage
         
         let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        textField.placeholderString = "文件夹名称"
+        textField.placeholderString = L10n.Dialog.folderNamePlaceholder
         alert.accessoryView = textField
         
-        alert.addButton(withTitle: "创建")
-        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: L10n.Dialog.create)
+        alert.addButton(withTitle: L10n.Action.cancel)
         
         alert.window.initialFirstResponder = textField
         
@@ -961,15 +961,15 @@ struct ContentView: View {
     
     private func createNewFile() {
         let alert = NSAlert()
-        alert.messageText = "新建文件"
-        alert.informativeText = "输入新文件名称："
+        alert.messageText = L10n.Dialog.newFileTitle
+        alert.informativeText = L10n.Dialog.newFileMessage
         
         let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        textField.placeholderString = "文件名称"
+        textField.placeholderString = L10n.Dialog.fileNamePlaceholder
         alert.accessoryView = textField
         
-        alert.addButton(withTitle: "创建")
-        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: L10n.Dialog.create)
+        alert.addButton(withTitle: L10n.Action.cancel)
         
         alert.window.initialFirstResponder = textField
         
@@ -981,8 +981,8 @@ struct ContentView: View {
                 
                 guard FileManager.default.createFile(atPath: fileURL.path, contents: Data()) else {
                     let errorAlert = NSAlert()
-                    errorAlert.messageText = "无法创建文件"
-                    errorAlert.informativeText = "请检查名称是否合法，或目标位置是否可写。"
+                    errorAlert.messageText = L10n.Dialog.cannotCreateFile
+                    errorAlert.informativeText = L10n.Dialog.cannotCreateFileMessage
                     errorAlert.runModal()
                     return
                 }

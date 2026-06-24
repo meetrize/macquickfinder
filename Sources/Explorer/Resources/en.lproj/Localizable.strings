@@ -1,0 +1,800 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>action.add_favorite</key>
+	<string>Add to Favorites</string>
+	<key>action.cancel</key>
+	<string>Cancel</string>
+	<key>action.copy</key>
+	<string>Copy</string>
+	<key>action.copy_filename</key>
+	<string>Copy Filename</string>
+	<key>action.copy_paths</key>
+	<string>Copy Full Path</string>
+	<key>action.cut</key>
+	<string>Cut</string>
+	<key>action.delete</key>
+	<string>Delete</string>
+	<key>action.delete_immediately</key>
+	<string>Delete Immediately</string>
+	<key>action.edit</key>
+	<string>Edit</string>
+	<key>action.empty_trash</key>
+	<string>Empty Trash</string>
+	<key>action.ok</key>
+	<string>OK</string>
+	<key>action.open</key>
+	<string>Open</string>
+	<key>action.open_in_new_window</key>
+	<string>Open in New Window</string>
+	<key>action.open_terminal_here</key>
+	<string>Open Terminal Here</string>
+	<key>action.open_with</key>
+	<string>Open With</string>
+	<key>action.open_with_default %@</key>
+	<string>%@ (Default)</string>
+	<key>action.open_with_none</key>
+	<string>(No Available Applications)</string>
+	<key>action.open_with_other</key>
+	<string>Other…</string>
+	<key>action.paste</key>
+	<string>Paste</string>
+	<key>action.put_back</key>
+	<string>Put Back</string>
+	<key>action.remove_favorite</key>
+	<string>Remove from Favorites</string>
+	<key>action.rename</key>
+	<string>Rename</string>
+	<key>action.save</key>
+	<string>Save</string>
+	<key>action.services</key>
+	<string>Services</string>
+	<key>action.show_info</key>
+	<string>Get Info</string>
+	<key>alert.confirm_delete.multiple %lld</key>
+	<string>Delete %lld items?</string>
+	<key>alert.confirm_delete.single %@</key>
+	<string>Delete "%@"?</string>
+	<key>alert.delete_immediately.message</key>
+	<string>These items will be permanently deleted and cannot be recovered.</string>
+	<key>alert.delete_immediately.multiple %lld</key>
+	<string>Delete %lld items immediately?</string>
+	<key>alert.delete_immediately.single %@</key>
+	<string>Delete "%@" immediately?</string>
+	<key>alert.delete_to_trash.message</key>
+	<string>Items will be moved to the Trash.</string>
+	<key>alert.empty_trash.message</key>
+	<string>All items in the Trash will be permanently deleted. This action cannot be undone.</string>
+	<key>alert.empty_trash.title</key>
+	<string>Empty Trash?</string>
+	<key>alert.open_with.choose_app %@</key>
+	<string>Choose an app to open "%@"</string>
+	<key>alert.open_with.prompt</key>
+	<string>Open</string>
+	<key>alert.operation_failed</key>
+	<string>Operation Failed</string>
+	<key>alert.put_back_failed.multiple %lld</key>
+	<string>%lld items could not be put back.</string>
+	<key>alert.put_back_failed.single %@</key>
+	<string>"%@" has no restore record and Finder cannot recover this item.</string>
+	<key>alert.put_back_failed.title</key>
+	<string>Cannot Put Back</string>
+	<key>alert.selected_items %lld</key>
+	<string>%lld items selected</string>
+	<key>dialog.cannot_create_file</key>
+	<string>Cannot Create File</string>
+	<key>dialog.cannot_create_file_message</key>
+	<string>Check whether the name is valid and the destination is writable.</string>
+	<key>dialog.create</key>
+	<string>Create</string>
+	<key>dialog.file_name_placeholder</key>
+	<string>File name</string>
+	<key>dialog.folder_name_placeholder</key>
+	<string>Folder name</string>
+	<key>dialog.new_file_message</key>
+	<string>Enter a name for the new file:</string>
+	<key>dialog.new_file_title</key>
+	<string>New File</string>
+	<key>dialog.new_folder_message</key>
+	<string>Enter a name for the new folder:</string>
+	<key>dialog.new_folder_title</key>
+	<string>New Folder</string>
+	<key>error.archive.empty_listing</key>
+	<string>Unable to read ZIP listing</string>
+	<key>error.archive.timed_out</key>
+	<string>Listing read timed out</string>
+	<key>error.default_viewer.defaults_command %lld</key>
+	<string>System command failed (exit code %lld).</string>
+	<key>error.default_viewer.finder_not_found</key>
+	<string>Finder app not found.</string>
+	<key>error.default_viewer.preferences_sync</key>
+	<string>Unable to write system preferences.</string>
+	<key>error.directory_not_found</key>
+	<string>Directory not found</string>
+	<key>error.empty_name</key>
+	<string>Name cannot be empty</string>
+	<key>error.image.unable_to_encode</key>
+	<string>Unable to encode image</string>
+	<key>error.image.unable_to_write</key>
+	<string>Unable to write file</string>
+	<key>error.no_permission</key>
+	<string>Permission denied</string>
+	<key>error.shell.timed_out</key>
+	<string>Command timed out</string>
+	<key>error.snippet_expansion.file_selection</key>
+	<string>A file (not a folder) must be selected</string>
+	<key>error.snippet_expansion.files_in_selection</key>
+	<string>At least one file must be selected</string>
+	<key>error.snippet_expansion.no_files</key>
+	<string>No files in selection</string>
+	<key>error.snippet_expansion.requires_selection</key>
+	<string>At least one item must be selected</string>
+	<key>error.snippet_expansion.single_selection</key>
+	<string>Exactly one item must be selected</string>
+	<key>error.snippet_import.empty_content</key>
+	<string>Content is empty</string>
+	<key>error.snippet_import.empty_name</key>
+	<string>Name is empty</string>
+	<key>error.snippet_import.invalid %@</key>
+	<string>Invalid Snippet: %@</string>
+	<key>error.snippet_import.invalid_format</key>
+	<string>Unrecognized Snippets file format</string>
+	<key>error.snippet_import.too_many</key>
+	<string>Too many items to import</string>
+	<key>error.snippet_import.unsupported_schema</key>
+	<string>Unsupported file version</string>
+	<key>error.symlink_loop</key>
+	<string>Symbolic link loop detected</string>
+	<key>folder.desktop</key>
+	<string>Desktop</string>
+	<key>folder.documents</key>
+	<string>Documents</string>
+	<key>folder.downloads</key>
+	<string>Downloads</string>
+	<key>folder.home</key>
+	<string>Home</string>
+	<key>info.access.executable</key>
+	<string>executable</string>
+	<key>info.access.label</key>
+	<string>Access:</string>
+	<key>info.access.readable</key>
+	<string>readable</string>
+	<key>info.access.writable</key>
+	<string>writable</string>
+	<key>info.bullet_item %@ %@ %@</key>
+	<string>• %@ (%@, %@)</string>
+	<key>info.created %@</key>
+	<string>Created: %@</string>
+	<key>info.ellipsis</key>
+	<string>…</string>
+	<key>info.hidden %@</key>
+	<string>Hidden: %@</string>
+	<key>info.hidden.label</key>
+	<string>Hidden:</string>
+	<key>info.kind.extension_file %@</key>
+	<string>Kind: %@ file</string>
+	<key>info.kind.file</key>
+	<string>Kind: File</string>
+	<key>info.kind.file_short</key>
+	<string>file</string>
+	<key>info.kind.folder</key>
+	<string>Kind: Folder</string>
+	<key>info.kind.folder_short</key>
+	<string>folder</string>
+	<key>info.location %@</key>
+	<string>Location: %@</string>
+	<key>info.modified %@</key>
+	<string>Modified: %@</string>
+	<key>info.no</key>
+	<string>No</string>
+	<key>info.path %@</key>
+	<string>Path: %@</string>
+	<key>info.path.label</key>
+	<string>Path:</string>
+	<key>info.permissions %@ %@</key>
+	<string>Permissions: %@ (%@)</string>
+	<key>info.size %@</key>
+	<string>Size: %@</string>
+	<key>info.type_identifier %@</key>
+	<string>Type identifier: %@</string>
+	<key>info.yes</key>
+	<string>Yes</string>
+	<key>menu.collapse_strip</key>
+	<string>Collapse Filmstrip</string>
+	<key>menu.expand_strip</key>
+	<string>Expand Filmstrip</string>
+	<key>menu.export_snippets</key>
+	<string>Export All Snippets…</string>
+	<key>menu.hide_output</key>
+	<string>Hide Output Panel</string>
+	<key>menu.hide_preview</key>
+	<string>Hide Preview</string>
+	<key>menu.hide_snippets</key>
+	<string>Hide Snippets</string>
+	<key>menu.import_snippets</key>
+	<string>Import Snippets…</string>
+	<key>menu.next_preview</key>
+	<string>Next Preview</string>
+	<key>menu.open_preview_detached</key>
+	<string>Open Preview in Separate Window</string>
+	<key>menu.previous_preview</key>
+	<string>Previous Preview</string>
+	<key>menu.reattach_preview</key>
+	<string>Move Preview Back to Sidebar</string>
+	<key>menu.show_output</key>
+	<string>Show Output Panel</string>
+	<key>menu.show_preview</key>
+	<string>Show Preview</string>
+	<key>menu.show_snippets</key>
+	<string>Show Snippets</string>
+	<key>menu.toggle_left_panel</key>
+	<string>Toggle Left Panel</string>
+	<key>menu.toggle_right_panel</key>
+	<string>Toggle Right Panel</string>
+	<key>pathbar.clear</key>
+	<string>Clear</string>
+	<key>pathbar.commit</key>
+	<string>Go to path</string>
+	<key>pathbar.edit</key>
+	<string>Click to edit full path</string>
+	<key>pathbar.no_subdirs</key>
+	<string>No subfolders</string>
+	<key>pathbar.parent</key>
+	<string>Show parent path</string>
+	<key>pathbar.select_all</key>
+	<string>Click to select full path</string>
+	<key>pathbar.subdirs</key>
+	<string>Show subdirectories</string>
+	<key>permission.automation.message</key>
+	<string>MeoFind needs permission to control Finder to show Trash contents.
+
+In System Settings → Privacy &amp; Security → Automation, allow MeoFind to control Finder.</string>
+	<key>permission.automation.open_settings</key>
+	<string>Open System Settings</string>
+	<key>permission.automation.title</key>
+	<string>Automation Permission Required</string>
+	<key>permission.fda.detected</key>
+	<string>Full Disk Access detected. Restart the app to finish enabling it.</string>
+	<key>permission.fda.later</key>
+	<string>Later</string>
+	<key>permission.fda.message</key>
+	<string>MeoFind needs this permission to browse all files and folders on your system.</string>
+	<key>permission.fda.not_detected</key>
+	<string>Permission not detected yet. Make sure this app is enabled in System Settings.</string>
+	<key>permission.fda.open_settings</key>
+	<string>Open System Settings</string>
+	<key>permission.fda.restart_app</key>
+	<string>Restart App</string>
+	<key>permission.fda.step1</key>
+	<string>Click Open System Settings below.</string>
+	<key>permission.fda.step2 %@</key>
+	<string>In Privacy &amp; Security → Full Disk Access, turn on %@.</string>
+	<key>permission.fda.step3</key>
+	<string>Return to this app and click Restart App to apply the permission.</string>
+	<key>permission.fda.title</key>
+	<string>Full Disk Access Required</string>
+	<key>preview.archive_truncated</key>
+	<string>[Truncated...]</string>
+	<key>preview.chrome.back_to_folder</key>
+	<string>Back to Folder</string>
+	<key>preview.chrome.close_preview</key>
+	<string>Close Preview</string>
+	<key>preview.chrome.close_window</key>
+	<string>Close Window</string>
+	<key>preview.chrome.collapse</key>
+	<string>Collapse Preview</string>
+	<key>preview.chrome.detach</key>
+	<string>Open in Detached Window</string>
+	<key>preview.chrome.dock_back</key>
+	<string>Dock to Sidebar</string>
+	<key>preview.chrome.expand</key>
+	<string>Expand Preview</string>
+	<key>preview.close</key>
+	<string>Close Preview</string>
+	<key>preview.collapse</key>
+	<string>Collapse Preview</string>
+	<key>preview.detached_placeholder %@</key>
+	<string>%@ is being previewed in a separate window</string>
+	<key>preview.dock_back</key>
+	<string>Move Back to Sidebar</string>
+	<key>preview.empty_state</key>
+	<string>Select a file to preview</string>
+	<key>preview.error_loading</key>
+	<string>Error Loading Preview</string>
+	<key>preview.expand</key>
+	<string>Expand Preview</string>
+	<key>preview.focus_window</key>
+	<string>Focus Window</string>
+	<key>preview.image.confirm</key>
+	<string>OK</string>
+	<key>preview.image.height</key>
+	<string>Height</string>
+	<key>preview.image.maintain_aspect</key>
+	<string>Maintain Aspect Ratio</string>
+	<key>preview.image.resize_hint</key>
+	<string>Set output size in pixels. After confirming, click Save Edits to write the file.</string>
+	<key>preview.image.resize_title</key>
+	<string>Resize Image</string>
+	<key>preview.image.validation.empty</key>
+	<string>Enter width and height</string>
+	<key>preview.image.validation.invalid</key>
+	<string>Enter valid pixel values</string>
+	<key>preview.image.validation.max</key>
+	<string>Each side cannot exceed 65535 pixels</string>
+	<key>preview.image.validation.positive</key>
+	<string>Width and height must be greater than 0</string>
+	<key>preview.image.width</key>
+	<string>Width</string>
+	<key>preview.loading</key>
+	<string>Loading preview...</string>
+	<key>preview.next</key>
+	<string>Next</string>
+	<key>preview.not_available</key>
+	<string>Preview not available for this file type</string>
+	<key>preview.previous</key>
+	<string>Previous</string>
+	<key>preview.reattach.confirm</key>
+	<string>Move Back</string>
+	<key>preview.reattach.message</key>
+	<string>Moving the preview back will replace the current sidebar preview. Continue?</string>
+	<key>preview.reattach.title</key>
+	<string>Move Preview Back</string>
+	<key>preview.save_failed_title</key>
+	<string>Save Failed</string>
+	<key>preview.session_closed</key>
+	<string>Preview session closed</string>
+	<key>preview.title</key>
+	<string>Preview</string>
+	<key>preview.toolbar.actual_size</key>
+	<string>Actual Size</string>
+	<key>preview.toolbar.archive_collapse</key>
+	<string>Collapse to Top Level</string>
+	<key>preview.toolbar.archive_expand</key>
+	<string>Expand All Levels</string>
+	<key>preview.toolbar.color_hex %@</key>
+	<string>Color %@</string>
+	<key>preview.toolbar.color_picker</key>
+	<string>Color Picker (click image to copy Web color)</string>
+	<key>preview.toolbar.copied_to_clipboard</key>
+	<string>Copied to Clipboard</string>
+	<key>preview.toolbar.copy_all</key>
+	<string>Copy All</string>
+	<key>preview.toolbar.copy_image</key>
+	<string>Copy Image</string>
+	<key>preview.toolbar.copy_manifest</key>
+	<string>Copy Manifest</string>
+	<key>preview.toolbar.eyedropper</key>
+	<string>Eyedropper</string>
+	<key>preview.toolbar.fit_page</key>
+	<string>Fit Page</string>
+	<key>preview.toolbar.fit_width</key>
+	<string>Fit Width</string>
+	<key>preview.toolbar.fit_window</key>
+	<string>Fit Window</string>
+	<key>preview.toolbar.flip_horizontal</key>
+	<string>Flip Horizontal</string>
+	<key>preview.toolbar.flip_vertical</key>
+	<string>Flip Vertical</string>
+	<key>preview.toolbar.font_size</key>
+	<string>Font Size</string>
+	<key>preview.toolbar.html_preview</key>
+	<string>HTML Parsed Preview</string>
+	<key>preview.toolbar.jump_bottom</key>
+	<string>Jump to Bottom</string>
+	<key>preview.toolbar.jump_to_page</key>
+	<string>Go to Page</string>
+	<key>preview.toolbar.jump_top</key>
+	<string>Jump to Top</string>
+	<key>preview.toolbar.markdown_to_preview</key>
+	<string>Switch to Preview Mode</string>
+	<key>preview.toolbar.markdown_to_source</key>
+	<string>Switch to Source Mode</string>
+	<key>preview.toolbar.more_actions</key>
+	<string>More Actions</string>
+	<key>preview.toolbar.mute</key>
+	<string>Mute</string>
+	<key>preview.toolbar.next_match</key>
+	<string>Next</string>
+	<key>preview.toolbar.next_page</key>
+	<string>Next Page</string>
+	<key>preview.toolbar.open_default_app</key>
+	<string>Open with Default App</string>
+	<key>preview.toolbar.page_number</key>
+	<string>Page Number</string>
+	<key>preview.toolbar.pause</key>
+	<string>Pause</string>
+	<key>preview.toolbar.play</key>
+	<string>Play</string>
+	<key>preview.toolbar.previous_page</key>
+	<string>Previous Page</string>
+	<key>preview.toolbar.refresh_listing</key>
+	<string>Refresh Listing</string>
+	<key>preview.toolbar.reset</key>
+	<string>Reset</string>
+	<key>preview.toolbar.reset_view</key>
+	<string>Reset View</string>
+	<key>preview.toolbar.resize</key>
+	<string>Resize</string>
+	<key>preview.toolbar.rotate_ccw</key>
+	<string>Rotate Counterclockwise</string>
+	<key>preview.toolbar.rotate_cw</key>
+	<string>Rotate Clockwise</string>
+	<key>preview.toolbar.save_edits</key>
+	<string>Save Edits</string>
+	<key>preview.toolbar.search_in_preview</key>
+	<string>Search in Preview</string>
+	<key>preview.toolbar.search_prompt</key>
+	<string>Search</string>
+	<key>preview.toolbar.source_mode</key>
+	<string>Source Mode</string>
+	<key>preview.toolbar.undo</key>
+	<string>Undo Last Step</string>
+	<key>preview.toolbar.unmute</key>
+	<string>Unmute</string>
+	<key>preview.toolbar.wrap_disable</key>
+	<string>Disable Word Wrap</string>
+	<key>preview.toolbar.wrap_enable</key>
+	<string>Enable Word Wrap</string>
+	<key>preview.toolbar.zoom</key>
+	<string>Zoom</string>
+	<key>preview.toolbar.zoom_in</key>
+	<string>Zoom In</string>
+	<key>preview.toolbar.zoom_in_font</key>
+	<string>Increase Font Size</string>
+	<key>preview.toolbar.zoom_in_overall</key>
+	<string>Zoom In (Overall)</string>
+	<key>preview.toolbar.zoom_out</key>
+	<string>Zoom Out</string>
+	<key>preview.toolbar.zoom_out_font</key>
+	<string>Decrease Font Size</string>
+	<key>preview.toolbar.zoom_out_overall</key>
+	<string>Zoom Out (Overall)</string>
+	<key>preview.toolbar.zoom_scale</key>
+	<string>Zoom Level</string>
+	<key>search.close_quick_search</key>
+	<string>Close Quick Search</string>
+	<key>search.focus</key>
+	<string>Focus Search</string>
+	<key>search.prompt</key>
+	<string>Search files</string>
+	<key>search.quick_search</key>
+	<string>Quick Search</string>
+	<key>settings.auto_show_output</key>
+	<string>Auto-show Output Panel on Shell Run</string>
+	<key>settings.blank_action.parent</key>
+	<string>Go to parent folder</string>
+	<key>settings.blank_action.terminal</key>
+	<string>Open Terminal here</string>
+	<key>settings.blank_double_click</key>
+	<string>Double-click on blank area</string>
+	<key>settings.confirm_destructive</key>
+	<string>Confirm Destructive Commands</string>
+	<key>settings.default_viewer.current</key>
+	<string>Current Default</string>
+	<key>settings.default_viewer.restart_hint</key>
+	<string>Log out and back in, or restart your Mac, for changes to take effect everywhere.</string>
+	<key>settings.default_viewer.restore_finder</key>
+	<string>Restore Finder</string>
+	<key>settings.default_viewer.set</key>
+	<string>Set as Default Folder Viewer</string>
+	<key>settings.default_viewer.title</key>
+	<string>Default Folder Viewer</string>
+	<key>settings.general.interface_language</key>
+	<string>Interface Language</string>
+	<key>settings.general.interface_language_footer</key>
+	<string>Applies immediately to most of the app. Restart MeoFind if menu bar items look unchanged.</string>
+	<key>settings.job_concurrency_limit %lld</key>
+	<string>Job Concurrency Limit: %lld</string>
+	<key>settings.pin_recent_snippets</key>
+	<string>Pin Recently Executed</string>
+	<key>settings.preview.add_rule</key>
+	<string>Add Rule…</string>
+	<key>settings.preview.add_rule_title</key>
+	<string>Add Preview Rule</string>
+	<key>settings.preview.builtin_catalog</key>
+	<string>Built-in Preview Types (Read-only)</string>
+	<key>settings.preview.code_line_numbers</key>
+	<string>Code Preview</string>
+	<key>settings.preview.code_line_numbers.footer</key>
+	<string>When enabled, line numbers appear to the left of code in the sidebar preview panel.</string>
+	<key>settings.preview.code_line_numbers.toggle</key>
+	<string>Show line numbers in code preview</string>
+	<key>settings.preview.custom_types</key>
+	<string>Custom File Types</string>
+	<key>settings.preview.detached_browse</key>
+	<string>Browse in Detached Window</string>
+	<key>settings.preview.detached_browse.footer</key>
+	<string>When enabled, the filmstrip and ← → navigation in a detached preview window only switch between files of the same type.</string>
+	<key>settings.preview.detached_browse.toggle</key>
+	<string>Show only same extension in detached browser strip</string>
+	<key>settings.preview.disabled</key>
+	<string>Disabled</string>
+	<key>settings.preview.edit_rule_title</key>
+	<string>Edit Preview Rule</string>
+	<key>settings.preview.enabled_toggle</key>
+	<string>Enabled</string>
+	<key>settings.preview.export_panel_title</key>
+	<string>Export Custom Preview Rules</string>
+	<key>settings.preview.export_rules</key>
+	<string>Export Rules…</string>
+	<key>settings.preview.export_success %lld</key>
+	<string>Exported %lld rules.</string>
+	<key>settings.preview.extensionless_label</key>
+	<string>(no extension)</string>
+	<key>settings.preview.extensions_field</key>
+	<string>Extensions (comma-separated)</string>
+	<key>settings.preview.import.merge</key>
+	<string>Merge</string>
+	<key>settings.preview.import.replace</key>
+	<string>Replace</string>
+	<key>settings.preview.import_complete</key>
+	<string>Import complete.</string>
+	<key>settings.preview.import_export_title</key>
+	<string>Import / Export</string>
+	<key>settings.preview.import_method_message</key>
+	<string>Merge keeps existing rules and updates matching IDs. Replace clears all existing rules.</string>
+	<key>settings.preview.import_method_title</key>
+	<string>Import Method</string>
+	<key>settings.preview.import_panel_title</key>
+	<string>Import Custom Preview Rules</string>
+	<key>settings.preview.import_rules</key>
+	<string>Import Rules…</string>
+	<key>settings.preview.mode.html</key>
+	<string>HTML Preview</string>
+	<key>settings.preview.mode.html.detail</key>
+	<string>Render HTML in WebKit; source view can be toggled.</string>
+	<key>settings.preview.mode.image</key>
+	<string>Image Preview</string>
+	<key>settings.preview.mode.image.detail</key>
+	<string>Decode and display as an image when possible.</string>
+	<key>settings.preview.mode.markdown</key>
+	<string>Markdown Preview</string>
+	<key>settings.preview.mode.markdown.detail</key>
+	<string>Render Markdown; source view can be toggled in the toolbar.</string>
+	<key>settings.preview.mode.media</key>
+	<string>Media Preview</string>
+	<key>settings.preview.mode.media.detail</key>
+	<string>Play audio and video with AVPlayer.</string>
+	<key>settings.preview.mode.pdf</key>
+	<string>PDF Preview</string>
+	<key>settings.preview.mode.pdf.detail</key>
+	<string>Display PDF documents with PDFKit.</string>
+	<key>settings.preview.mode.quicklook</key>
+	<string>QuickLook Preview</string>
+	<key>settings.preview.mode.quicklook.detail</key>
+	<string>Use macOS QuickLook for formats supported by the system.</string>
+	<key>settings.preview.mode.text</key>
+	<string>Text Preview</string>
+	<key>settings.preview.mode.text.detail</key>
+	<string>Display as plain text with syntax highlighting by extension.</string>
+	<key>settings.preview.no_rules_hint</key>
+	<string>No custom rules yet. Select an unpreviewable file to add one from the preview panel.</string>
+	<key>settings.preview.open_in_settings</key>
+	<string>Customize in Settings…</string>
+	<key>settings.preview.override_builtin</key>
+	<string>Override Built-in</string>
+	<key>settings.preview.override_builtin_toggle</key>
+	<string>Override built-in preview</string>
+	<key>settings.preview.preview_as_text</key>
+	<string>Preview as Text</string>
+	<key>settings.preview.preview_mode</key>
+	<string>Preview Mode</string>
+	<key>settings.preview.preview_quicklook</key>
+	<string>QuickLook Preview</string>
+	<key>settings.preview.unavailable_hint</key>
+	<string>Add a custom preview rule for this type, or try QuickLook.</string>
+	<key>settings.preview.unavailable_title %@</key>
+	<string>Cannot preview %@ files</string>
+	<key>settings.preview.validation_extensions</key>
+	<string>Enter at least one valid extension.</string>
+	<key>settings.snippets.display.minimal</key>
+	<string>Minimal</string>
+	<key>settings.snippets.display.standard</key>
+	<string>Standard</string>
+	<key>settings.snippets.display_mode</key>
+	<string>Panel display mode</string>
+	<key>settings.tab.general</key>
+	<string>General</string>
+	<key>settings.tab.preview</key>
+	<string>Preview</string>
+	<key>settings.tab.snippets</key>
+	<string>Snippets</string>
+	<key>settings.window_snap</key>
+	<string>Enable window snap and linked movement</string>
+	<key>sidebar.devices</key>
+	<string>Devices</string>
+	<key>sidebar.eject_device %@</key>
+	<string>Eject %@</string>
+	<key>sidebar.favorites</key>
+	<string>Favorites</string>
+	<key>sidebar.locations</key>
+	<string>Locations</string>
+	<key>sidebar.no_devices</key>
+	<string>No devices</string>
+	<key>sidebar.trash</key>
+	<string>Trash</string>
+	<key>snippets.badge.directory</key>
+	<string>Dir</string>
+	<key>snippets.badge.file</key>
+	<string>File</string>
+	<key>snippets.badge.path</key>
+	<string>Path</string>
+	<key>snippets.badge.single</key>
+	<string>1 item</string>
+	<key>snippets.builtin.copy_path</key>
+	<string>Copy Path</string>
+	<key>snippets.builtin.finder_info</key>
+	<string>Show Finder Info</string>
+	<key>snippets.builtin.list_directory</key>
+	<string>List Directory</string>
+	<key>snippets.builtin.open_default</key>
+	<string>Open with Default App</string>
+	<key>snippets.builtin.open_pdf</key>
+	<string>Open PDF (Preview)</string>
+	<key>snippets.builtin.open_terminal</key>
+	<string>Open in Terminal</string>
+	<key>snippets.builtin.show_attributes</key>
+	<string>Show Attributes</string>
+	<key>snippets.confirm.destructive_message</key>
+	<string>This Snippet may delete or move files. Continue?</string>
+	<key>snippets.confirm.destructive_title</key>
+	<string>Dangerous Command</string>
+	<key>snippets.confirm.proceed</key>
+	<string>Run Anyway</string>
+	<key>snippets.editor.content</key>
+	<string>Content</string>
+	<key>snippets.editor.edit_title</key>
+	<string>Edit Snippet</string>
+	<key>snippets.editor.extensions_placeholder</key>
+	<string>Extensions (comma-separated, e.g. pdf, md)</string>
+	<key>snippets.editor.interpreter</key>
+	<string>Interpreter</string>
+	<key>snippets.editor.name</key>
+	<string>Name</string>
+	<key>snippets.editor.new_title</key>
+	<string>New Snippet</string>
+	<key>snippets.editor.paths_placeholder</key>
+	<string>File paths (one per line)</string>
+	<key>snippets.editor.scope</key>
+	<string>Scope</string>
+	<key>snippets.editor.script_type</key>
+	<string>Script Type</string>
+	<key>snippets.editor.terminal_hint</key>
+	<string>Runs in Terminal or similar; output is not shown in the in-app panel</string>
+	<key>snippets.editor.use_system_terminal</key>
+	<string>Use System Terminal</string>
+	<key>snippets.import.rename_suffix</key>
+	<string>(imported)</string>
+	<key>snippets.import.rename_suffix %lld</key>
+	<string>(imported %lld)</string>
+	<key>snippets.output.cancelled</key>
+	<string>Cancelled</string>
+	<key>snippets.output.clear</key>
+	<string>Clear</string>
+	<key>snippets.output.close_all</key>
+	<string>Close All</string>
+	<key>snippets.output.close_current</key>
+	<string>Close Tab</string>
+	<key>snippets.output.close_others</key>
+	<string>Close Others</string>
+	<key>snippets.output.close_panel</key>
+	<string>Close Output Panel</string>
+	<key>snippets.output.collapse</key>
+	<string>Collapse Output Panel</string>
+	<key>snippets.output.command_failed %lld</key>
+	<string>Command failed with exit code %lld</string>
+	<key>snippets.output.command_placeholder</key>
+	<string>Expanded command; press Return to rerun</string>
+	<key>snippets.output.copy</key>
+	<string>Copy</string>
+	<key>snippets.output.empty_hint</key>
+	<string>Run a Snippet to see output here</string>
+	<key>snippets.output.exit_code %lld</key>
+	<string>Exit code %lld</string>
+	<key>snippets.output.expand</key>
+	<string>Expand Output Panel</string>
+	<key>snippets.output.find</key>
+	<string>Find</string>
+	<key>snippets.output.no_output</key>
+	<string>(no output)</string>
+	<key>snippets.output.queued</key>
+	<string>Queued</string>
+	<key>snippets.output.running</key>
+	<string>Running…</string>
+	<key>snippets.output.stop</key>
+	<string>Stop</string>
+	<key>snippets.panel.close</key>
+	<string>Close Snippets</string>
+	<key>snippets.panel.collapse</key>
+	<string>Collapse Snippets</string>
+	<key>snippets.panel.execute</key>
+	<string>Run</string>
+	<key>snippets.panel.execute_in_terminal</key>
+	<string>Run in Terminal</string>
+	<key>snippets.panel.expand</key>
+	<string>Expand Snippets</string>
+	<key>snippets.panel.export_all</key>
+	<string>Export All…</string>
+	<key>snippets.panel.export_single</key>
+	<string>Export This Snippet</string>
+	<key>snippets.panel.import</key>
+	<string>Import…</string>
+	<key>snippets.panel.import_button</key>
+	<string>Import</string>
+	<key>snippets.panel.import_conflict_message %lld</key>
+	<string>%lld snippets conflict with existing items</string>
+	<key>snippets.panel.import_conflict_title</key>
+	<string>Import Conflict</string>
+	<key>snippets.panel.import_done_message %lld %lld</key>
+	<string>Imported %lld, skipped %lld</string>
+	<key>snippets.panel.import_done_title</key>
+	<string>Import Complete</string>
+	<key>snippets.panel.import_export</key>
+	<string>Import / Export</string>
+	<key>snippets.panel.import_failed_title</key>
+	<string>Import Failed</string>
+	<key>snippets.panel.import_strategy_label</key>
+	<string>Resolution</string>
+	<key>snippets.panel.new</key>
+	<string>New</string>
+	<key>snippets.panel.no_match</key>
+	<string>No snippets match the current context</string>
+	<key>snippets.panel.no_results</key>
+	<string>No search results</string>
+	<key>snippets.panel.search_prompt</key>
+	<string>Search name or script content…</string>
+	<key>snippets.scope.anytime</key>
+	<string>Always</string>
+	<key>snippets.scope.directories_only</key>
+	<string>Directories Only</string>
+	<key>snippets.scope.file_extensions</key>
+	<string>Specific Extensions</string>
+	<key>snippets.scope.files_only</key>
+	<string>Files Only</string>
+	<key>snippets.scope.global</key>
+	<string>When Items Selected</string>
+	<key>snippets.scope.single_selection</key>
+	<string>Single Selection</string>
+	<key>snippets.scope.specific_files</key>
+	<string>Specific Files</string>
+	<key>snippets.strategy.overwrite</key>
+	<string>Overwrite</string>
+	<key>snippets.strategy.rename</key>
+	<string>Rename</string>
+	<key>snippets.strategy.skip</key>
+	<string>Skip</string>
+	<key>snippets.title</key>
+	<string>Snippets</string>
+	<key>sort.date_newest</key>
+	<string>Date (Newest First)</string>
+	<key>sort.date_oldest</key>
+	<string>Date (Oldest First)</string>
+	<key>sort.name_ascending</key>
+	<string>Name (A to Z)</string>
+	<key>sort.name_descending</key>
+	<string>Name (Z to A)</string>
+	<key>sort.size_largest</key>
+	<string>Size (Largest First)</string>
+	<key>sort.size_smallest</key>
+	<string>Size (Smallest First)</string>
+	<key>toolbar.auto_folder_size</key>
+	<string>Calculate All Folder Sizes</string>
+	<key>toolbar.browse_settings</key>
+	<string>Browse Settings</string>
+	<key>toolbar.hide_left_panel</key>
+	<string>Hide Left Panel</string>
+	<key>toolbar.list_view</key>
+	<string>List View</string>
+	<key>toolbar.new_folder</key>
+	<string>New Folder</string>
+	<key>toolbar.show_left_panel</key>
+	<string>Show Left Panel</string>
+	<key>toolbar.thumbnail_size</key>
+	<string>Icon Size</string>
+	<key>toolbar.thumbnail_view</key>
+	<string>Icon View</string>
+	<key>toolbar.view_picker</key>
+	<string>View</string>
+</dict>
+</plist>

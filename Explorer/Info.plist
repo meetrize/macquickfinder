@@ -20,6 +20,8 @@
     <string>13.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleDocumentTypes</key>
@@ -41,6 +43,6 @@
     <key>NSFileProviderDomainUsageDescription</key>
     <string>MeoFind needs access to browse your files</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>MeoFind 需要通过 Finder 读取废纸篓内容，并向终端发送指令以在指定目录中打开终端窗口。</string>
+    <string>MeoFind needs to read Trash contents via Finder and send commands to Terminal to open a shell in the selected folder.</string>
 </dict>
 </plist>

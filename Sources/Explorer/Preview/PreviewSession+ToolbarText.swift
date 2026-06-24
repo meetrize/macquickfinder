@@ -8,7 +8,7 @@ extension PreviewSession {
         var items: [PreviewToolbarOverflowModel] = [
             previewToolbarIconItem(
                 id: "text-wrap",
-                title: text.wrapEnabled ? "关闭自动换行" : "开启自动换行",
+                title: text.wrapEnabled ? L10n.Preview.Toolbar.wrapDisable : L10n.Preview.Toolbar.wrapEnable,
                 systemImage: text.wrapEnabled ? "text.justify.left" : "arrow.left.and.right.text.vertical",
                 action: { [self] in text.wrapEnabled.toggle() }
             ),
@@ -18,7 +18,7 @@ extension PreviewSession {
             items.append(
                 previewToolbarIconItem(
                     id: "md-toggle-mode",
-                    title: text.markdownMode == .preview ? "切换为源码模式" : "切换为预览模式",
+                    title: text.markdownMode == .preview ? L10n.Preview.Toolbar.markdownToSource : L10n.Preview.Toolbar.markdownToPreview,
                     systemImage: text.markdownMode == .preview
                         ? "chevron.left.forwardslash.chevron.right"
                         : "eye",
@@ -32,7 +32,7 @@ extension PreviewSession {
                 items.append(
                     previewToolbarIconItem(
                         id: "md-zoom-in",
-                        title: "放大（整体）",
+                        title: L10n.Preview.Toolbar.zoomInOverall,
                         systemImage: "plus.magnifyingglass",
                         action: { [self] in text.markdownPreviewScale = min(text.markdownPreviewScale + 0.1, 3.0) }
                     )
@@ -40,7 +40,7 @@ extension PreviewSession {
                 items.append(
                     previewToolbarIconItem(
                         id: "md-zoom-out",
-                        title: "缩小（整体）",
+                        title: L10n.Preview.Toolbar.zoomOutOverall,
                         systemImage: "minus.magnifyingglass",
                         isDisabled: text.markdownPreviewScale <= 0.5,
                         action: { [self] in text.markdownPreviewScale = max(text.markdownPreviewScale - 0.1, 0.5) }
@@ -49,7 +49,7 @@ extension PreviewSession {
                 items.append(
                     PreviewToolbarOverflowModel(
                         id: "md-scale",
-                        menuTitle: "缩放比例",
+                        menuTitle: L10n.Preview.Toolbar.zoomScale,
                         menuSystemImage: "percent",
                         isDisabled: false,
                         estimatedWidth: 44,
@@ -59,7 +59,7 @@ extension PreviewSession {
                                 .font(.caption.monospacedDigit())
                                 .foregroundColor(.secondary)
                                 .frame(minWidth: 44, alignment: .center)
-                                .instantHoverTooltip("缩放比例")
+                                .instantHoverTooltip(L10n.Preview.Toolbar.zoomScale)
                         )
                     )
                 )
@@ -67,7 +67,7 @@ extension PreviewSession {
                 items.append(
                     previewToolbarIconItem(
                         id: "md-font-up",
-                        title: "放大字体",
+                        title: L10n.Preview.Toolbar.zoomInFont,
                         systemImage: "plus.magnifyingglass",
                         action: { [self] in text.markdownSourceFontSize = min(text.markdownSourceFontSize + 1, 28) }
                     )
@@ -75,7 +75,7 @@ extension PreviewSession {
                 items.append(
                     previewToolbarIconItem(
                         id: "md-font-down",
-                        title: "缩小字体",
+                        title: L10n.Preview.Toolbar.zoomOutFont,
                         systemImage: "minus.magnifyingglass",
                         isDisabled: text.markdownSourceFontSize <= 9,
                         action: { [self] in text.markdownSourceFontSize = max(text.markdownSourceFontSize - 1, 9) }
@@ -84,7 +84,7 @@ extension PreviewSession {
                 items.append(
                     PreviewToolbarOverflowModel(
                         id: "md-font-size",
-                        menuTitle: "字体大小",
+                        menuTitle: L10n.Preview.Toolbar.fontSize,
                         menuSystemImage: "textformat.size",
                         isDisabled: false,
                         estimatedWidth: 44,
@@ -94,7 +94,7 @@ extension PreviewSession {
                                 .font(.caption.monospacedDigit())
                                 .foregroundColor(.secondary)
                                 .frame(minWidth: 44, alignment: .center)
-                                .instantHoverTooltip("字体大小")
+                                .instantHoverTooltip(L10n.Preview.Toolbar.fontSize)
                         )
                     )
                 )
@@ -105,7 +105,7 @@ extension PreviewSession {
             items.append(
                 previewToolbarIconItem(
                     id: "html-preview",
-                    title: "HTML 解析预览",
+                    title: L10n.Preview.Toolbar.htmlPreview,
                     systemImage: text.htmlMode == .preview ? "globe.americas.fill" : "globe.americas",
                     action: { [self] in text.htmlMode = .preview }
                 )
@@ -113,7 +113,7 @@ extension PreviewSession {
             items.append(
                 previewToolbarIconItem(
                     id: "html-source",
-                    title: "源码模式",
+                    title: L10n.Preview.Toolbar.sourceMode,
                     systemImage: text.htmlMode == .source ? "doc.plaintext.fill" : "doc.plaintext",
                     action: { [self] in text.htmlMode = .source }
                 )
@@ -124,7 +124,7 @@ extension PreviewSession {
             items.append(
                 PreviewToolbarOverflowModel(
                     id: "text-search",
-                    menuTitle: "搜索",
+                    menuTitle: L10n.Preview.Toolbar.searchPrompt,
                     menuSystemImage: "magnifyingglass",
                     isDisabled: false,
                     estimatedWidth: 148,
@@ -136,7 +136,7 @@ extension PreviewSession {
             items.append(
                 previewToolbarIconItem(
                     id: "text-copy",
-                    title: "复制全文",
+                    title: L10n.Preview.Toolbar.copyAll,
                     systemImage: "doc.on.doc",
                     action: { [self] in text.previewAction = .copyAll }
                 )
@@ -144,7 +144,7 @@ extension PreviewSession {
             items.append(
                 previewToolbarIconItem(
                     id: "text-top",
-                    title: "跳转顶部",
+                    title: L10n.Preview.Toolbar.jumpTop,
                     systemImage: "arrow.up.to.line",
                     action: { [self] in text.previewAction = .scrollTop }
                 )
@@ -152,7 +152,7 @@ extension PreviewSession {
             items.append(
                 previewToolbarIconItem(
                     id: "text-bottom",
-                    title: "跳转底部",
+                    title: L10n.Preview.Toolbar.jumpBottom,
                     systemImage: "arrow.down.to.line",
                     action: { [self] in text.previewAction = .scrollBottom }
                 )

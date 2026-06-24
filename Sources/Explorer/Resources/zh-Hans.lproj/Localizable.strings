@@ -1,0 +1,800 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>action.add_favorite</key>
+	<string>收藏</string>
+	<key>action.cancel</key>
+	<string>取消</string>
+	<key>action.copy</key>
+	<string>复制</string>
+	<key>action.copy_filename</key>
+	<string>复制文件名</string>
+	<key>action.copy_paths</key>
+	<string>复制完整路径</string>
+	<key>action.cut</key>
+	<string>剪切</string>
+	<key>action.delete</key>
+	<string>删除</string>
+	<key>action.delete_immediately</key>
+	<string>立刻删除</string>
+	<key>action.edit</key>
+	<string>编辑</string>
+	<key>action.empty_trash</key>
+	<string>清倒废纸篓</string>
+	<key>action.ok</key>
+	<string>好</string>
+	<key>action.open</key>
+	<string>打开</string>
+	<key>action.open_in_new_window</key>
+	<string>在新窗口中打开</string>
+	<key>action.open_terminal_here</key>
+	<string>在此处打开终端</string>
+	<key>action.open_with</key>
+	<string>打开方式</string>
+	<key>action.open_with_default %@</key>
+	<string>%@（默认）</string>
+	<key>action.open_with_none</key>
+	<string>（无可用应用）</string>
+	<key>action.open_with_other</key>
+	<string>其他…</string>
+	<key>action.paste</key>
+	<string>粘贴</string>
+	<key>action.put_back</key>
+	<string>放回原处</string>
+	<key>action.remove_favorite</key>
+	<string>取消收藏</string>
+	<key>action.rename</key>
+	<string>重命名</string>
+	<key>action.save</key>
+	<string>保存</string>
+	<key>action.services</key>
+	<string>服务</string>
+	<key>action.show_info</key>
+	<string>属性</string>
+	<key>alert.confirm_delete.multiple %lld</key>
+	<string>确认删除 %lld 个项目？</string>
+	<key>alert.confirm_delete.single %@</key>
+	<string>确认删除「%@」？</string>
+	<key>alert.delete_immediately.message</key>
+	<string>这些项目将被永久删除，无法恢复。</string>
+	<key>alert.delete_immediately.multiple %lld</key>
+	<string>立刻删除 %lld 个项目？</string>
+	<key>alert.delete_immediately.single %@</key>
+	<string>立刻删除「%@」？</string>
+	<key>alert.delete_to_trash.message</key>
+	<string>项目将移至废纸篓。</string>
+	<key>alert.empty_trash.message</key>
+	<string>废纸篓中的所有项目将被永久删除，此操作无法撤销。</string>
+	<key>alert.empty_trash.title</key>
+	<string>清倒废纸篓？</string>
+	<key>alert.open_with.choose_app %@</key>
+	<string>选择用于打开「%@」的应用</string>
+	<key>alert.open_with.prompt</key>
+	<string>打开</string>
+	<key>alert.operation_failed</key>
+	<string>操作失败</string>
+	<key>alert.put_back_failed.multiple %lld</key>
+	<string>%lld 个项目无法放回原处。</string>
+	<key>alert.put_back_failed.single %@</key>
+	<string>「%@」没有可用的原始位置记录，且 Finder 无法恢复此项目。</string>
+	<key>alert.put_back_failed.title</key>
+	<string>无法放回原处</string>
+	<key>alert.selected_items %lld</key>
+	<string>已选择 %lld 个项目</string>
+	<key>dialog.cannot_create_file</key>
+	<string>无法创建文件</string>
+	<key>dialog.cannot_create_file_message</key>
+	<string>请检查名称是否合法，或目标位置是否可写。</string>
+	<key>dialog.create</key>
+	<string>创建</string>
+	<key>dialog.file_name_placeholder</key>
+	<string>文件名称</string>
+	<key>dialog.folder_name_placeholder</key>
+	<string>文件夹名称</string>
+	<key>dialog.new_file_message</key>
+	<string>输入新文件名称：</string>
+	<key>dialog.new_file_title</key>
+	<string>新建文件</string>
+	<key>dialog.new_folder_message</key>
+	<string>输入新文件夹名称：</string>
+	<key>dialog.new_folder_title</key>
+	<string>新建文件夹</string>
+	<key>error.archive.empty_listing</key>
+	<string>无法读取 ZIP 目录</string>
+	<key>error.archive.timed_out</key>
+	<string>目录读取超时</string>
+	<key>error.default_viewer.defaults_command %lld</key>
+	<string>系统命令执行失败（退出码 %lld）。</string>
+	<key>error.default_viewer.finder_not_found</key>
+	<string>未找到 Finder 应用。</string>
+	<key>error.default_viewer.preferences_sync</key>
+	<string>无法写入系统偏好设置。</string>
+	<key>error.directory_not_found</key>
+	<string>目录不存在</string>
+	<key>error.empty_name</key>
+	<string>名称不能为空</string>
+	<key>error.image.unable_to_encode</key>
+	<string>无法编码图片</string>
+	<key>error.image.unable_to_write</key>
+	<string>无法写入文件</string>
+	<key>error.no_permission</key>
+	<string>无权限</string>
+	<key>error.shell.timed_out</key>
+	<string>命令执行超时</string>
+	<key>error.snippet_expansion.file_selection</key>
+	<string>需要选中一个文件（非目录）</string>
+	<key>error.snippet_expansion.files_in_selection</key>
+	<string>需要选中至少一个文件</string>
+	<key>error.snippet_expansion.no_files</key>
+	<string>选中项中没有文件</string>
+	<key>error.snippet_expansion.requires_selection</key>
+	<string>需要至少选中一项</string>
+	<key>error.snippet_expansion.single_selection</key>
+	<string>需要恰好选中一项</string>
+	<key>error.snippet_import.empty_content</key>
+	<string>内容为空</string>
+	<key>error.snippet_import.empty_name</key>
+	<string>名称为空</string>
+	<key>error.snippet_import.invalid %@</key>
+	<string>无效 Snippet：%@</string>
+	<key>error.snippet_import.invalid_format</key>
+	<string>无法识别的 Snippets 文件格式</string>
+	<key>error.snippet_import.too_many</key>
+	<string>导入条目过多</string>
+	<key>error.snippet_import.unsupported_schema</key>
+	<string>不支持的文件版本</string>
+	<key>error.symlink_loop</key>
+	<string>检测到循环链接</string>
+	<key>folder.desktop</key>
+	<string>桌面</string>
+	<key>folder.documents</key>
+	<string>文稿</string>
+	<key>folder.downloads</key>
+	<string>下载</string>
+	<key>folder.home</key>
+	<string>个人</string>
+	<key>info.access.executable</key>
+	<string>可执行</string>
+	<key>info.access.label</key>
+	<string>访问：</string>
+	<key>info.access.readable</key>
+	<string>可读</string>
+	<key>info.access.writable</key>
+	<string>可写</string>
+	<key>info.bullet_item %@ %@ %@</key>
+	<string>• %@（%@，%@）</string>
+	<key>info.created %@</key>
+	<string>创建时间：%@</string>
+	<key>info.ellipsis</key>
+	<string>…</string>
+	<key>info.hidden %@</key>
+	<string>隐藏：%@</string>
+	<key>info.hidden.label</key>
+	<string>隐藏：</string>
+	<key>info.kind.extension_file %@</key>
+	<string>种类：%@ 文件</string>
+	<key>info.kind.file</key>
+	<string>种类：文件</string>
+	<key>info.kind.file_short</key>
+	<string>文件</string>
+	<key>info.kind.folder</key>
+	<string>种类：文件夹</string>
+	<key>info.kind.folder_short</key>
+	<string>文件夹</string>
+	<key>info.location %@</key>
+	<string>位置：%@</string>
+	<key>info.modified %@</key>
+	<string>修改时间：%@</string>
+	<key>info.no</key>
+	<string>否</string>
+	<key>info.path %@</key>
+	<string>路径：%@</string>
+	<key>info.path.label</key>
+	<string>路径：</string>
+	<key>info.permissions %@ %@</key>
+	<string>权限：%@（%@）</string>
+	<key>info.size %@</key>
+	<string>大小：%@</string>
+	<key>info.type_identifier %@</key>
+	<string>类型标识：%@</string>
+	<key>info.yes</key>
+	<string>是</string>
+	<key>menu.collapse_strip</key>
+	<string>收起胶片条</string>
+	<key>menu.expand_strip</key>
+	<string>展开胶片条</string>
+	<key>menu.export_snippets</key>
+	<string>导出全部 Snippets…</string>
+	<key>menu.hide_output</key>
+	<string>关闭输出面板</string>
+	<key>menu.hide_preview</key>
+	<string>关闭预览</string>
+	<key>menu.hide_snippets</key>
+	<string>关闭 Snippets</string>
+	<key>menu.import_snippets</key>
+	<string>导入 Snippets…</string>
+	<key>menu.next_preview</key>
+	<string>下一个预览</string>
+	<key>menu.open_preview_detached</key>
+	<string>在独立窗口中打开预览</string>
+	<key>menu.previous_preview</key>
+	<string>上一个预览</string>
+	<key>menu.reattach_preview</key>
+	<string>收回预览到侧栏</string>
+	<key>menu.show_output</key>
+	<string>显示输出面板</string>
+	<key>menu.show_preview</key>
+	<string>显示预览</string>
+	<key>menu.show_snippets</key>
+	<string>显示 Snippets</string>
+	<key>menu.toggle_left_panel</key>
+	<string>切换左侧面板</string>
+	<key>menu.toggle_right_panel</key>
+	<string>切换右侧面板</string>
+	<key>pathbar.clear</key>
+	<string>清除</string>
+	<key>pathbar.commit</key>
+	<string>进入新路径</string>
+	<key>pathbar.edit</key>
+	<string>点击编辑完整路径</string>
+	<key>pathbar.no_subdirs</key>
+	<string>无子文件夹</string>
+	<key>pathbar.parent</key>
+	<string>显示上级路径</string>
+	<key>pathbar.select_all</key>
+	<string>点击全选路径</string>
+	<key>pathbar.subdirs</key>
+	<string>显示子目录</string>
+	<key>permission.automation.message</key>
+	<string>MeoFind 需要「控制 Finder」的权限才能显示废纸篓内容。
+
+请在「系统设置 → 隐私与安全性 → 自动化」中，允许 MeoFind 控制 Finder。</string>
+	<key>permission.automation.open_settings</key>
+	<string>打开系统设置</string>
+	<key>permission.automation.title</key>
+	<string>需要自动化权限</string>
+	<key>permission.fda.detected</key>
+	<string>已检测到完全磁盘访问权限，请重启应用以完成启用。</string>
+	<key>permission.fda.later</key>
+	<string>稍后</string>
+	<key>permission.fda.message</key>
+	<string>MeoFind 需要此权限才能浏览系统中的全部文件与文件夹。</string>
+	<key>permission.fda.not_detected</key>
+	<string>尚未检测到权限。请确认已在系统设置中勾选本应用。</string>
+	<key>permission.fda.open_settings</key>
+	<string>打开系统设置</string>
+	<key>permission.fda.restart_app</key>
+	<string>重启应用</string>
+	<key>permission.fda.step1</key>
+	<string>点击下方「打开系统设置」。</string>
+	<key>permission.fda.step2 %@</key>
+	<string>在「隐私与安全性 → 完全磁盘访问权限」中，打开 %@ 的开关。</string>
+	<key>permission.fda.step3</key>
+	<string>返回本应用后，点击「重启应用」使权限生效。</string>
+	<key>permission.fda.title</key>
+	<string>需要完全磁盘访问权限</string>
+	<key>preview.archive_truncated</key>
+	<string>[已截断…]</string>
+	<key>preview.chrome.back_to_folder</key>
+	<string>返回文件夹</string>
+	<key>preview.chrome.close_preview</key>
+	<string>关闭预览</string>
+	<key>preview.chrome.close_window</key>
+	<string>关闭窗口</string>
+	<key>preview.chrome.collapse</key>
+	<string>折叠预览</string>
+	<key>preview.chrome.detach</key>
+	<string>在独立窗口中打开</string>
+	<key>preview.chrome.dock_back</key>
+	<string>收回侧栏</string>
+	<key>preview.chrome.expand</key>
+	<string>展开预览</string>
+	<key>preview.close</key>
+	<string>关闭预览</string>
+	<key>preview.collapse</key>
+	<string>折叠预览</string>
+	<key>preview.detached_placeholder %@</key>
+	<string>%@ 已在独立窗口中预览</string>
+	<key>preview.dock_back</key>
+	<string>收回侧栏</string>
+	<key>preview.empty_state</key>
+	<string>选择文件以预览</string>
+	<key>preview.error_loading</key>
+	<string>预览加载失败</string>
+	<key>preview.expand</key>
+	<string>展开预览</string>
+	<key>preview.focus_window</key>
+	<string>聚焦窗口</string>
+	<key>preview.image.confirm</key>
+	<string>确定</string>
+	<key>preview.image.height</key>
+	<string>高度</string>
+	<key>preview.image.maintain_aspect</key>
+	<string>保持宽高比</string>
+	<key>preview.image.resize_hint</key>
+	<string>按像素设置输出尺寸。确认后需点击「保存编辑结果」写入文件。</string>
+	<key>preview.image.resize_title</key>
+	<string>调整图片尺寸</string>
+	<key>preview.image.validation.empty</key>
+	<string>请输入宽度和高度</string>
+	<key>preview.image.validation.invalid</key>
+	<string>请输入有效的像素数值</string>
+	<key>preview.image.validation.max</key>
+	<string>单边像素不能超过 65535</string>
+	<key>preview.image.validation.positive</key>
+	<string>宽度和高度必须大于 0</string>
+	<key>preview.image.width</key>
+	<string>宽度</string>
+	<key>preview.loading</key>
+	<string>正在加载预览…</string>
+	<key>preview.next</key>
+	<string>下一个</string>
+	<key>preview.not_available</key>
+	<string>无法预览此文件类型</string>
+	<key>preview.previous</key>
+	<string>上一个</string>
+	<key>preview.reattach.confirm</key>
+	<string>收回</string>
+	<key>preview.reattach.message</key>
+	<string>收回将替换侧栏当前预览。是否继续？</string>
+	<key>preview.reattach.title</key>
+	<string>收回预览</string>
+	<key>preview.save_failed_title</key>
+	<string>保存失败</string>
+	<key>preview.session_closed</key>
+	<string>预览会话已关闭</string>
+	<key>preview.title</key>
+	<string>预览</string>
+	<key>preview.toolbar.actual_size</key>
+	<string>原始大小</string>
+	<key>preview.toolbar.archive_collapse</key>
+	<string>折叠到第一层</string>
+	<key>preview.toolbar.archive_expand</key>
+	<string>展开到全部层级</string>
+	<key>preview.toolbar.color_hex %@</key>
+	<string>颜色 %@</string>
+	<key>preview.toolbar.color_picker</key>
+	<string>取色棒（点击图像复制 Web 颜色）</string>
+	<key>preview.toolbar.copied_to_clipboard</key>
+	<string>已复制到剪贴板</string>
+	<key>preview.toolbar.copy_all</key>
+	<string>复制全文</string>
+	<key>preview.toolbar.copy_image</key>
+	<string>复制图片</string>
+	<key>preview.toolbar.copy_manifest</key>
+	<string>复制清单</string>
+	<key>preview.toolbar.eyedropper</key>
+	<string>取色棒</string>
+	<key>preview.toolbar.fit_page</key>
+	<string>整页适配</string>
+	<key>preview.toolbar.fit_width</key>
+	<string>适配宽度</string>
+	<key>preview.toolbar.fit_window</key>
+	<string>适配窗口</string>
+	<key>preview.toolbar.flip_horizontal</key>
+	<string>水平翻转</string>
+	<key>preview.toolbar.flip_vertical</key>
+	<string>垂直翻转</string>
+	<key>preview.toolbar.font_size</key>
+	<string>字体大小</string>
+	<key>preview.toolbar.html_preview</key>
+	<string>HTML 解析预览</string>
+	<key>preview.toolbar.jump_bottom</key>
+	<string>跳转底部</string>
+	<key>preview.toolbar.jump_to_page</key>
+	<string>跳转到页码</string>
+	<key>preview.toolbar.jump_top</key>
+	<string>跳转顶部</string>
+	<key>preview.toolbar.markdown_to_preview</key>
+	<string>切换为预览模式</string>
+	<key>preview.toolbar.markdown_to_source</key>
+	<string>切换为源码模式</string>
+	<key>preview.toolbar.more_actions</key>
+	<string>更多操作</string>
+	<key>preview.toolbar.mute</key>
+	<string>静音</string>
+	<key>preview.toolbar.next_match</key>
+	<string>下一个</string>
+	<key>preview.toolbar.next_page</key>
+	<string>下一页</string>
+	<key>preview.toolbar.open_default_app</key>
+	<string>用默认应用打开</string>
+	<key>preview.toolbar.page_number</key>
+	<string>页码</string>
+	<key>preview.toolbar.pause</key>
+	<string>暂停</string>
+	<key>preview.toolbar.play</key>
+	<string>播放</string>
+	<key>preview.toolbar.previous_page</key>
+	<string>上一页</string>
+	<key>preview.toolbar.refresh_listing</key>
+	<string>刷新目录</string>
+	<key>preview.toolbar.reset</key>
+	<string>还原</string>
+	<key>preview.toolbar.reset_view</key>
+	<string>重置视图</string>
+	<key>preview.toolbar.resize</key>
+	<string>调整尺寸</string>
+	<key>preview.toolbar.rotate_ccw</key>
+	<string>逆时针旋转</string>
+	<key>preview.toolbar.rotate_cw</key>
+	<string>顺时针旋转</string>
+	<key>preview.toolbar.save_edits</key>
+	<string>保存编辑结果</string>
+	<key>preview.toolbar.search_in_preview</key>
+	<string>在预览中搜索</string>
+	<key>preview.toolbar.search_prompt</key>
+	<string>搜索</string>
+	<key>preview.toolbar.source_mode</key>
+	<string>源码模式</string>
+	<key>preview.toolbar.undo</key>
+	<string>撤销上一步</string>
+	<key>preview.toolbar.unmute</key>
+	<string>取消静音</string>
+	<key>preview.toolbar.wrap_disable</key>
+	<string>关闭自动换行</string>
+	<key>preview.toolbar.wrap_enable</key>
+	<string>开启自动换行</string>
+	<key>preview.toolbar.zoom</key>
+	<string>缩放</string>
+	<key>preview.toolbar.zoom_in</key>
+	<string>放大</string>
+	<key>preview.toolbar.zoom_in_font</key>
+	<string>放大字体</string>
+	<key>preview.toolbar.zoom_in_overall</key>
+	<string>放大（整体）</string>
+	<key>preview.toolbar.zoom_out</key>
+	<string>缩小</string>
+	<key>preview.toolbar.zoom_out_font</key>
+	<string>缩小字体</string>
+	<key>preview.toolbar.zoom_out_overall</key>
+	<string>缩小（整体）</string>
+	<key>preview.toolbar.zoom_scale</key>
+	<string>缩放比例</string>
+	<key>search.close_quick_search</key>
+	<string>关闭快速搜索</string>
+	<key>search.focus</key>
+	<string>聚焦搜索</string>
+	<key>search.prompt</key>
+	<string>搜索文件</string>
+	<key>search.quick_search</key>
+	<string>快速搜索</string>
+	<key>settings.auto_show_output</key>
+	<string>Shell 执行时自动展开输出面板</string>
+	<key>settings.blank_action.parent</key>
+	<string>返回上级目录</string>
+	<key>settings.blank_action.terminal</key>
+	<string>在本目录打开终端</string>
+	<key>settings.blank_double_click</key>
+	<string>空白处双击</string>
+	<key>settings.confirm_destructive</key>
+	<string>危险命令二次确认</string>
+	<key>settings.default_viewer.current</key>
+	<string>当前默认</string>
+	<key>settings.default_viewer.restart_hint</key>
+	<string>更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。</string>
+	<key>settings.default_viewer.restore_finder</key>
+	<string>恢复 Finder</string>
+	<key>settings.default_viewer.set</key>
+	<string>设为默认文件夹查看器</string>
+	<key>settings.default_viewer.title</key>
+	<string>默认文件夹查看器</string>
+	<key>settings.general.interface_language</key>
+	<string>界面语言</string>
+	<key>settings.general.interface_language_footer</key>
+	<string>大部分界面会立即切换。若菜单栏未更新，请重启 MeoFind。</string>
+	<key>settings.job_concurrency_limit %lld</key>
+	<string>Job 并发上限：%lld</string>
+	<key>settings.pin_recent_snippets</key>
+	<string>最近执行置顶</string>
+	<key>settings.preview.add_rule</key>
+	<string>添加规则…</string>
+	<key>settings.preview.add_rule_title</key>
+	<string>添加预览规则</string>
+	<key>settings.preview.builtin_catalog</key>
+	<string>内置预览类型（只读）</string>
+	<key>settings.preview.code_line_numbers</key>
+	<string>代码预览</string>
+	<key>settings.preview.code_line_numbers.footer</key>
+	<string>开启后，在右侧预览面板查看代码文件时，于代码左侧显示行号。</string>
+	<key>settings.preview.code_line_numbers.toggle</key>
+	<string>代码预览显示行号</string>
+	<key>settings.preview.custom_types</key>
+	<string>自定义文件类型</string>
+	<key>settings.preview.detached_browse</key>
+	<string>独立窗口浏览</string>
+	<key>settings.preview.detached_browse.footer</key>
+	<string>开启后，弹出预览窗口时胶片条与 ← → 导航仅在同类型文件间切换。</string>
+	<key>settings.preview.detached_browse.toggle</key>
+	<string>独立窗口浏览条仅显示同扩展名</string>
+	<key>settings.preview.disabled</key>
+	<string>已禁用</string>
+	<key>settings.preview.edit_rule_title</key>
+	<string>编辑预览规则</string>
+	<key>settings.preview.enabled_toggle</key>
+	<string>启用</string>
+	<key>settings.preview.export_panel_title</key>
+	<string>导出自定义预览规则</string>
+	<key>settings.preview.export_rules</key>
+	<string>导出规则…</string>
+	<key>settings.preview.export_success %lld</key>
+	<string>已导出 %lld 条规则。</string>
+	<key>settings.preview.extensionless_label</key>
+	<string>（无扩展名）</string>
+	<key>settings.preview.extensions_field</key>
+	<string>扩展名（逗号分隔）</string>
+	<key>settings.preview.import.merge</key>
+	<string>合并</string>
+	<key>settings.preview.import.replace</key>
+	<string>替换</string>
+	<key>settings.preview.import_complete</key>
+	<string>导入完成。</string>
+	<key>settings.preview.import_export_title</key>
+	<string>导入 / 导出</string>
+	<key>settings.preview.import_method_message</key>
+	<string>合并会保留现有规则并更新同 ID 条目；替换会清空现有规则。</string>
+	<key>settings.preview.import_method_title</key>
+	<string>导入方式</string>
+	<key>settings.preview.import_panel_title</key>
+	<string>导入自定义预览规则</string>
+	<key>settings.preview.import_rules</key>
+	<string>导入规则…</string>
+	<key>settings.preview.mode.html</key>
+	<string>HTML 预览</string>
+	<key>settings.preview.mode.html.detail</key>
+	<string>在 WebKit 中渲染 HTML；可切换源码视图。</string>
+	<key>settings.preview.mode.image</key>
+	<string>图片预览</string>
+	<key>settings.preview.mode.image.detail</key>
+	<string>尝试按图片解码并显示。</string>
+	<key>settings.preview.mode.markdown</key>
+	<string>Markdown 预览</string>
+	<key>settings.preview.mode.markdown.detail</key>
+	<string>渲染 Markdown；可在顶栏切换源码视图。</string>
+	<key>settings.preview.mode.media</key>
+	<string>媒体预览</string>
+	<key>settings.preview.mode.media.detail</key>
+	<string>使用 AVPlayer 播放音视频。</string>
+	<key>settings.preview.mode.pdf</key>
+	<string>PDF 预览</string>
+	<key>settings.preview.mode.pdf.detail</key>
+	<string>使用 PDFKit 显示 PDF 文档。</string>
+	<key>settings.preview.mode.quicklook</key>
+	<string>QuickLook 预览</string>
+	<key>settings.preview.mode.quicklook.detail</key>
+	<string>使用 macOS QuickLook，适合系统已支持预览的格式。</string>
+	<key>settings.preview.mode.text</key>
+	<string>文本预览</string>
+	<key>settings.preview.mode.text.detail</key>
+	<string>以纯文本显示，并根据扩展名做语法高亮。</string>
+	<key>settings.preview.no_rules_hint</key>
+	<string>尚未添加自定义规则。选中无法预览的文件时，可直接在预览面板一键添加。</string>
+	<key>settings.preview.open_in_settings</key>
+	<string>在设置中自定义…</string>
+	<key>settings.preview.override_builtin</key>
+	<string>覆盖内置</string>
+	<key>settings.preview.override_builtin_toggle</key>
+	<string>覆盖内置预览</string>
+	<key>settings.preview.preview_as_text</key>
+	<string>以文本预览</string>
+	<key>settings.preview.preview_mode</key>
+	<string>预览方式</string>
+	<key>settings.preview.preview_quicklook</key>
+	<string>QuickLook 预览</string>
+	<key>settings.preview.unavailable_hint</key>
+	<string>可将此类型添加到自定义预览规则，或尝试 QuickLook。</string>
+	<key>settings.preview.unavailable_title %@</key>
+	<string>无法预览 %@ 文件</string>
+	<key>settings.preview.validation_extensions</key>
+	<string>请至少填写一个有效扩展名。</string>
+	<key>settings.snippets.display.minimal</key>
+	<string>极简</string>
+	<key>settings.snippets.display.standard</key>
+	<string>标准</string>
+	<key>settings.snippets.display_mode</key>
+	<string>面板显示模式</string>
+	<key>settings.tab.general</key>
+	<string>通用</string>
+	<key>settings.tab.preview</key>
+	<string>预览</string>
+	<key>settings.tab.snippets</key>
+	<string>Snippets</string>
+	<key>settings.window_snap</key>
+	<string>启用窗口吸附与联动移动</string>
+	<key>sidebar.devices</key>
+	<string>设备</string>
+	<key>sidebar.eject_device %@</key>
+	<string>推出 %@</string>
+	<key>sidebar.favorites</key>
+	<string>个人收藏</string>
+	<key>sidebar.locations</key>
+	<string>位置</string>
+	<key>sidebar.no_devices</key>
+	<string>无设备</string>
+	<key>sidebar.trash</key>
+	<string>废纸篓</string>
+	<key>snippets.badge.directory</key>
+	<string>目录</string>
+	<key>snippets.badge.file</key>
+	<string>文件</string>
+	<key>snippets.badge.path</key>
+	<string>路径</string>
+	<key>snippets.badge.single</key>
+	<string>1项</string>
+	<key>snippets.builtin.copy_path</key>
+	<string>复制路径</string>
+	<key>snippets.builtin.finder_info</key>
+	<string>显示 Finder 信息</string>
+	<key>snippets.builtin.list_directory</key>
+	<string>列出目录</string>
+	<key>snippets.builtin.open_default</key>
+	<string>用默认应用打开</string>
+	<key>snippets.builtin.open_pdf</key>
+	<string>打开 PDF（预览）</string>
+	<key>snippets.builtin.open_terminal</key>
+	<string>在终端打开</string>
+	<key>snippets.builtin.show_attributes</key>
+	<string>查看属性</string>
+	<key>snippets.confirm.destructive_message</key>
+	<string>此 Snippet 可能删除或移动文件，确定执行？</string>
+	<key>snippets.confirm.destructive_title</key>
+	<string>危险命令确认</string>
+	<key>snippets.confirm.proceed</key>
+	<string>仍要执行</string>
+	<key>snippets.editor.content</key>
+	<string>内容</string>
+	<key>snippets.editor.edit_title</key>
+	<string>编辑 Snippet</string>
+	<key>snippets.editor.extensions_placeholder</key>
+	<string>扩展名（逗号分隔，如 pdf, md）</string>
+	<key>snippets.editor.interpreter</key>
+	<string>解释器</string>
+	<key>snippets.editor.name</key>
+	<string>名称</string>
+	<key>snippets.editor.new_title</key>
+	<string>新建 Snippet</string>
+	<key>snippets.editor.paths_placeholder</key>
+	<string>文件路径（每行一个）</string>
+	<key>snippets.editor.scope</key>
+	<string>作用域</string>
+	<key>snippets.editor.script_type</key>
+	<string>脚本类型</string>
+	<key>snippets.editor.terminal_hint</key>
+	<string>在 Terminal 等应用中运行，输出不显示在应用内面板</string>
+	<key>snippets.editor.use_system_terminal</key>
+	<string>使用系统终端</string>
+	<key>snippets.import.rename_suffix</key>
+	<string>（导入）</string>
+	<key>snippets.import.rename_suffix %lld</key>
+	<string>（导入 %lld）</string>
+	<key>snippets.output.cancelled</key>
+	<string>已取消</string>
+	<key>snippets.output.clear</key>
+	<string>清屏</string>
+	<key>snippets.output.close_all</key>
+	<string>关闭所有</string>
+	<key>snippets.output.close_current</key>
+	<string>关闭当前</string>
+	<key>snippets.output.close_others</key>
+	<string>关闭其他</string>
+	<key>snippets.output.close_panel</key>
+	<string>关闭输出面板</string>
+	<key>snippets.output.collapse</key>
+	<string>折叠输出面板</string>
+	<key>snippets.output.command_failed %lld</key>
+	<string>命令失败，退出码 %lld</string>
+	<key>snippets.output.command_placeholder</key>
+	<string>展开后的命令，回车重新执行</string>
+	<key>snippets.output.copy</key>
+	<string>复制</string>
+	<key>snippets.output.empty_hint</key>
+	<string>执行 Snippet 后在此查看输出</string>
+	<key>snippets.output.exit_code %lld</key>
+	<string>退出码 %lld</string>
+	<key>snippets.output.expand</key>
+	<string>展开输出面板</string>
+	<key>snippets.output.find</key>
+	<string>查找</string>
+	<key>snippets.output.no_output</key>
+	<string>（无输出）</string>
+	<key>snippets.output.queued</key>
+	<string>排队中</string>
+	<key>snippets.output.running</key>
+	<string>运行中…</string>
+	<key>snippets.output.stop</key>
+	<string>停止</string>
+	<key>snippets.panel.close</key>
+	<string>关闭 Snippets</string>
+	<key>snippets.panel.collapse</key>
+	<string>折叠 Snippets</string>
+	<key>snippets.panel.execute</key>
+	<string>执行</string>
+	<key>snippets.panel.execute_in_terminal</key>
+	<string>在终端中执行</string>
+	<key>snippets.panel.expand</key>
+	<string>展开 Snippets</string>
+	<key>snippets.panel.export_all</key>
+	<string>导出全部…</string>
+	<key>snippets.panel.export_single</key>
+	<string>导出此条</string>
+	<key>snippets.panel.import</key>
+	<string>导入…</string>
+	<key>snippets.panel.import_button</key>
+	<string>导入</string>
+	<key>snippets.panel.import_conflict_message %lld</key>
+	<string>有 %lld 条与现有 Snippet 冲突</string>
+	<key>snippets.panel.import_conflict_title</key>
+	<string>导入冲突</string>
+	<key>snippets.panel.import_done_message %lld %lld</key>
+	<string>已导入 %lld 条，跳过 %lld 条</string>
+	<key>snippets.panel.import_done_title</key>
+	<string>导入完成</string>
+	<key>snippets.panel.import_export</key>
+	<string>导入 / 导出</string>
+	<key>snippets.panel.import_failed_title</key>
+	<string>导入失败</string>
+	<key>snippets.panel.import_strategy_label</key>
+	<string>处理方式</string>
+	<key>snippets.panel.new</key>
+	<string>新建</string>
+	<key>snippets.panel.no_match</key>
+	<string>当前上下文无匹配 Snippet</string>
+	<key>snippets.panel.no_results</key>
+	<string>无搜索结果</string>
+	<key>snippets.panel.search_prompt</key>
+	<string>搜索名称或脚本内容…</string>
+	<key>snippets.scope.anytime</key>
+	<string>始终</string>
+	<key>snippets.scope.directories_only</key>
+	<string>仅目录</string>
+	<key>snippets.scope.file_extensions</key>
+	<string>指定扩展名</string>
+	<key>snippets.scope.files_only</key>
+	<string>仅文件</string>
+	<key>snippets.scope.global</key>
+	<string>有选中项</string>
+	<key>snippets.scope.single_selection</key>
+	<string>单选</string>
+	<key>snippets.scope.specific_files</key>
+	<string>指定文件</string>
+	<key>snippets.strategy.overwrite</key>
+	<string>覆盖</string>
+	<key>snippets.strategy.rename</key>
+	<string>重命名</string>
+	<key>snippets.strategy.skip</key>
+	<string>跳过</string>
+	<key>snippets.title</key>
+	<string>Snippets</string>
+	<key>sort.date_newest</key>
+	<string>日期 (最新优先)</string>
+	<key>sort.date_oldest</key>
+	<string>日期 (最早优先)</string>
+	<key>sort.name_ascending</key>
+	<string>名称 (A 到 Z)</string>
+	<key>sort.name_descending</key>
+	<string>名称 (Z 到 A)</string>
+	<key>sort.size_largest</key>
+	<string>大小 (最大优先)</string>
+	<key>sort.size_smallest</key>
+	<string>大小 (最小优先)</string>
+	<key>toolbar.auto_folder_size</key>
+	<string>自动计算文件夹大小</string>
+	<key>toolbar.browse_settings</key>
+	<string>浏览设置</string>
+	<key>toolbar.hide_left_panel</key>
+	<string>隐藏左侧面板</string>
+	<key>toolbar.list_view</key>
+	<string>列表视图</string>
+	<key>toolbar.new_folder</key>
+	<string>新建文件夹</string>
+	<key>toolbar.show_left_panel</key>
+	<string>显示左侧面板</string>
+	<key>toolbar.thumbnail_size</key>
+	<string>缩略图大小</string>
+	<key>toolbar.thumbnail_view</key>
+	<string>缩略图视图</string>
+	<key>toolbar.view_picker</key>
+	<string>视图</string>
+</dict>
+</plist>

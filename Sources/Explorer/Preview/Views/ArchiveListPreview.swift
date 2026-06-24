@@ -59,7 +59,7 @@ struct ArchiveListPreview: View {
                 }
 
                 if truncated && expanded {
-                    Text("[Truncated...]")
+                    Text(L10n.Preview.archiveTruncated)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .padding(.top, 6)

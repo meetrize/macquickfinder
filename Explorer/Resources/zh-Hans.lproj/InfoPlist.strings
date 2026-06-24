@@ -1,0 +1,10 @@
+/* App display */
+"CFBundleDisplayName" = "MeoFind";
+"CFBundleName" = "MeoFind";
+
+/* Document types */
+"CFBundleTypeName" = "文件夹";
+
+/* Privacy - usage descriptions */
+"NSFileProviderDomainUsageDescription" = "MeoFind 需要访问权限以浏览你的文件。";
+"NSAppleEventsUsageDescription" = "MeoFind 需要通过 Finder 读取废纸篓内容，并向终端发送指令以在指定目录中打开终端窗口。";

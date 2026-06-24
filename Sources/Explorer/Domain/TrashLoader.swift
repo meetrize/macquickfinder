@@ -2,7 +2,23 @@ import Foundation
 import FileList
 
 enum TrashLoader {
-    static let displayName = "废纸篓"
+    /// 稳定逻辑标识，永不本地化。
+    static let pathToken = "__TRASH__"
+    /// 旧版中文显示名，用于路径栏输入兼容。
+    static let legacyChineseDisplayName = "废纸篓"
+
+    /// 仅用于 UI 显示。
+    static var displayName: String { L10n.Sidebar.trash }
+
+    static func isTrashInput(_ input: String) -> Bool {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if trimmed == pathToken { return true }
+        if trimmed == displayName { return true }
+        if trimmed == legacyChineseDisplayName { return true }
+        if trimmed == "Trash" { return true }
+        return false
+    }
     
     static var userTrashPath: String {
         knownTrashDirectoryPaths().first

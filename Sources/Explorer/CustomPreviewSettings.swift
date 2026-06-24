@@ -28,24 +28,24 @@ struct PreviewSettingsTab: View {
     var body: some View {
         Form {
             Section {
-                Toggle("独立窗口浏览条仅显示同扩展名", isOn: $previewBrowserSameTypeOnly)
+                Toggle(L10n.Settings.Preview.detachedBrowseToggle, isOn: $previewBrowserSameTypeOnly)
             } header: {
-                Text("独立窗口浏览")
+                Text(L10n.Settings.Preview.detachedBrowse)
             } footer: {
-                Text("开启后，弹出预览窗口时胶片条与 ← → 导航仅在同类型文件间切换。")
+                Text(L10n.Settings.Preview.detachedBrowseFooter)
             }
 
             Section {
-                Toggle("代码预览显示行号", isOn: $codePreviewShowLineNumbers)
+                Toggle(L10n.Settings.Preview.codeLineNumbersToggle, isOn: $codePreviewShowLineNumbers)
             } header: {
-                Text("代码预览")
+                Text(L10n.Settings.Preview.codeLineNumbers)
             } footer: {
-                Text("开启后，在右侧预览面板查看代码文件时，于代码左侧显示行号。")
+                Text(L10n.Settings.Preview.codeLineNumbersFooter)
             }
 
             Section {
                 if store.rules.isEmpty {
-                    Text("尚未添加自定义规则。选中无法预览的文件时，可直接在预览面板一键添加。")
+                    Text(L10n.Settings.Preview.noRulesHint)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else {
@@ -59,22 +59,22 @@ struct PreviewSettingsTab: View {
                     }
                 }
 
-                Button("添加规则…") {
+                Button(L10n.Settings.Preview.addRule) {
                     editingRule = nil
                     showEditor = true
                 }
             } header: {
-                Text("自定义文件类型")
+                Text(L10n.Settings.Preview.customTypes)
             }
 
             Section {
-                Button("导出规则…") { exportRules() }
+                Button(L10n.Settings.Preview.exportRules) { exportRules() }
                     .disabled(store.rules.isEmpty)
-                Button("导入规则…") { importRules() }
+                Button(L10n.Settings.Preview.importRules) { importRules() }
             }
 
             Section {
-                DisclosureGroup("内置预览类型（只读）", isExpanded: $showBuiltInCatalog) {
+                DisclosureGroup(L10n.Settings.Preview.builtinCatalog, isExpanded: $showBuiltInCatalog) {
                     ForEach(BuiltinPreviewExtensions.catalogByMode, id: \.mode) { entry in
                         LabeledContent(entry.mode) {
                             Text(entry.extensions.joined(separator: ", "))
@@ -110,11 +110,11 @@ struct PreviewSettingsTab: View {
             editingRule = nil
             showEditor = true
         }
-        .alert("导入 / 导出", isPresented: Binding(
+        .alert(L10n.Settings.Preview.importExportTitle, isPresented: Binding(
             get: { importExportMessage != nil },
             set: { if !$0 { importExportMessage = nil } }
         )) {
-            Button("好", role: .cancel) {}
+            Button(L10n.Action.ok, role: .cancel) {}
         } message: {
             Text(importExportMessage ?? "")
         }
@@ -122,13 +122,13 @@ struct PreviewSettingsTab: View {
 
     private func exportRules() {
         let panel = NSSavePanel()
-        panel.title = "导出自定义预览规则"
+        panel.title = L10n.Settings.Preview.exportPanelTitle
         panel.nameFieldStringValue = "custom-preview-rules.json"
         panel.allowedContentTypes = [.json]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try store.exportJSON().write(to: url, options: .atomic)
-            importExportMessage = "已导出 \(store.rules.count) 条规则。"
+            importExportMessage = L10n.Settings.Preview.exportSuccess(store.rules.count)
         } catch {
             importExportMessage = error.localizedDescription
         }
@@ -136,7 +136,7 @@ struct PreviewSettingsTab: View {
 
     private func importRules() {
         let panel = NSOpenPanel()
-        panel.title = "导入自定义预览规则"
+        panel.title = L10n.Settings.Preview.importPanelTitle
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -151,7 +151,7 @@ struct PreviewSettingsTab: View {
                 return
             }
             try store.importJSON(data, merge: merge)
-            importExportMessage = "导入完成。"
+            importExportMessage = L10n.Settings.Preview.importComplete
         } catch {
             importExportMessage = error.localizedDescription
         }
@@ -160,11 +160,11 @@ struct PreviewSettingsTab: View {
     /// 返回 nil 表示用户取消。
     private func promptImportMergeOrReplace() -> Bool? {
         let alert = NSAlert()
-        alert.messageText = "导入方式"
-        alert.informativeText = "合并会保留现有规则并更新同 ID 条目；替换会清空现有规则。"
-        alert.addButton(withTitle: "合并")
-        alert.addButton(withTitle: "替换")
-        alert.addButton(withTitle: "取消")
+        alert.messageText = L10n.Settings.Preview.importMethodTitle
+        alert.informativeText = L10n.Settings.Preview.importMethodMessage
+        alert.addButton(withTitle: L10n.Settings.Preview.importMerge)
+        alert.addButton(withTitle: L10n.Settings.Preview.importReplace)
+        alert.addButton(withTitle: L10n.Action.cancel)
         let response = alert.runModal()
         if response == .alertFirstButtonReturn { return true }
         if response == .alertSecondButtonReturn { return false }
@@ -187,7 +187,7 @@ private struct CustomPreviewRuleRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if rule.overridesBuiltIn {
-                        Text("覆盖内置")
+                        Text(L10n.Settings.Preview.overrideBuiltin)
                             .font(.caption2)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
@@ -195,14 +195,14 @@ private struct CustomPreviewRuleRow: View {
                             .clipShape(RoundedRectangle(cornerRadius: 3))
                     }
                     if !rule.enabled {
-                        Text("已禁用")
+                        Text(L10n.Settings.Preview.disabled)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
             Spacer()
-            Button("编辑", action: onEdit)
+            Button(L10n.Action.edit, action: onEdit)
             Button(role: .destructive, action: onDelete) {
                 Image(systemName: "trash")
             }
@@ -225,14 +225,14 @@ struct CustomPreviewRuleEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(rule == nil ? "添加预览规则" : "编辑预览规则")
+            Text(rule == nil ? L10n.Settings.Preview.addRuleTitle : L10n.Settings.Preview.editRuleTitle)
                 .font(.headline)
 
             Form {
-                TextField("扩展名（逗号分隔）", text: $extensionsInput)
+                TextField(L10n.Settings.Preview.extensionsField, text: $extensionsInput)
                     .textFieldStyle(.roundedBorder)
 
-                Picker("预览方式", selection: $mode) {
+                Picker(L10n.Settings.Preview.previewMode, selection: $mode) {
                     ForEach(CustomPreviewMode.allCases) { item in
                         Text(item.displayName).tag(item)
                     }
@@ -242,8 +242,8 @@ struct CustomPreviewRuleEditorSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Toggle("覆盖内置预览", isOn: $overridesBuiltIn)
-                Toggle("启用", isOn: $enabled)
+                Toggle(L10n.Settings.Preview.overrideBuiltinToggle, isOn: $overridesBuiltIn)
+                Toggle(L10n.Settings.Preview.enabledToggle, isOn: $enabled)
             }
 
             if let validationMessage {
@@ -254,8 +254,8 @@ struct CustomPreviewRuleEditorSheet: View {
 
             HStack {
                 Spacer()
-                Button("取消", action: onCancel)
-                Button("保存") { save() }
+                Button(L10n.Action.cancel, action: onCancel)
+                Button(L10n.Action.save) { save() }
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -267,20 +267,20 @@ struct CustomPreviewRuleEditorSheet: View {
     private func populateFields() {
         if let rule {
             extensionsInput = rule.normalizedExtensions.map { ext in
-                ext == CustomPreviewRule.extensionlessKey ? "（无扩展名）" : ext
+                ext == CustomPreviewRule.extensionlessKey ? L10n.Settings.Preview.extensionlessLabel : ext
             }.joined(separator: ", ")
             mode = rule.mode
             overridesBuiltIn = rule.overridesBuiltIn
             enabled = rule.enabled
         } else if let prefillExtension {
-            extensionsInput = prefillExtension.isEmpty ? "（无扩展名）" : prefillExtension
+            extensionsInput = prefillExtension.isEmpty ? L10n.Settings.Preview.extensionlessLabel : prefillExtension
         }
     }
 
     private func save() {
         let extensions = CustomPreviewRule.parseExtensions(from: extensionsInput)
         guard !extensions.isEmpty else {
-            validationMessage = "请至少填写一个有效扩展名。"
+            validationMessage = L10n.Settings.Preview.validationExtensions
             return
         }
         validationMessage = nil
@@ -303,7 +303,7 @@ struct CustomPreviewUnavailableView: View {
 
     private var displayExtension: String {
         let ext = fileExtension.trimmingCharacters(in: .whitespacesAndNewlines)
-        return ext.isEmpty ? "（无扩展名）" : ".\(ext)"
+        return ext.isEmpty ? L10n.Settings.Preview.extensionlessLabel : ".\(ext)"
     }
 
     var body: some View {
@@ -312,20 +312,20 @@ struct CustomPreviewUnavailableView: View {
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
 
-            Text("无法预览 \(displayExtension) 文件")
+            Text(L10n.Settings.Preview.unavailableTitle(displayExtension))
                 .font(.headline)
 
-            Text("可将此类型添加到自定义预览规则，或尝试 QuickLook。")
+            Text(L10n.Settings.Preview.unavailableHint)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 10) {
-                Button("以文本预览") { onAddRule(.text) }
-                Button("QuickLook 预览") { onAddRule(.quickLook) }
+                Button(L10n.Settings.Preview.previewAsText) { onAddRule(.text) }
+                Button(L10n.Settings.Preview.previewQuickLook) { onAddRule(.quickLook) }
             }
 
-            Button("在设置中自定义…", action: onOpenSettings)
+            Button(L10n.Settings.Preview.openInSettings, action: onOpenSettings)
                 .buttonStyle(.link)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

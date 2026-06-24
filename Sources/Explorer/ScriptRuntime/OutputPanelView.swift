@@ -73,7 +73,7 @@ struct OutputPanelView: View {
                         }
                     }
                 } else {
-                    Text("执行 Snippet 后在此查看输出")
+                    Text(L10n.Snippets.Output.emptyHint)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -113,15 +113,15 @@ struct OutputPanelView: View {
                         }
                         .padding(.trailing, 4)
                         .contextMenu {
-                            Button("关闭当前") {
+                            Button(L10n.Snippets.Output.closeCurrent) {
                                 jobStore.removeJob(id: job.id)
                             }
 
-                            Button("关闭其他") {
+                            Button(L10n.Snippets.Output.closeOthers) {
                                 jobStore.removeOtherJobs(keeping: job.id)
                             }
 
-                            Button("关闭所有") {
+                            Button(L10n.Snippets.Output.closeAll) {
                                 jobStore.removeAllJobs()
                             }
                         }
@@ -137,7 +137,7 @@ struct OutputPanelView: View {
                 Image(systemName: layout.isOutputPanelContentCollapsed ? "chevron.up" : "chevron.down")
             }
             .buttonStyle(.borderless)
-            .instantHoverTooltip(layout.isOutputPanelContentCollapsed ? "展开输出面板" : "折叠输出面板")
+            .instantHoverTooltip(layout.isOutputPanelContentCollapsed ? L10n.Snippets.Output.expand : L10n.Snippets.Output.collapse)
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
 
@@ -148,7 +148,7 @@ struct OutputPanelView: View {
                     .font(.caption)
             }
             .buttonStyle(.borderless)
-            .instantHoverTooltip("关闭输出面板")
+            .instantHoverTooltip(L10n.Snippets.Output.closePanel)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
         }
@@ -189,30 +189,30 @@ struct OutputPanelView: View {
                 Text(String(format: "%.1fs", duration))
                     .foregroundStyle(.secondary)
             } else if job.status == .running || job.status == .queued {
-                Text(job.status == .queued ? "排队中" : "运行中…")
+                Text(job.status == .queued ? L10n.Snippets.Output.queued : L10n.Snippets.Output.running)
                     .foregroundStyle(.secondary)
             }
 
             if let code = job.exitCode {
-                Text("退出码 \(code)")
+                Text(L10n.Snippets.Output.exitCode(Int(code)))
                     .foregroundStyle(code == 0 ? Color.secondary : Color.red)
             } else if job.status == .cancelled {
-                Text("已取消")
+                Text(L10n.Snippets.Output.cancelled)
                     .foregroundStyle(.secondary)
             }
 
-            Button("清屏") { jobStore.clearOutput(jobID: job.id) }
+            Button(L10n.Snippets.Output.clear) { jobStore.clearOutput(jobID: job.id) }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
 
-            Button("复制") { copyAllOutput(job: job) }
+            Button(L10n.Snippets.Output.copy) { copyAllOutput(job: job) }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
 
             findTextField
 
             if job.status == .running {
-                Button("停止") { jobStore.cancel(jobID: job.id) }
+                Button(L10n.Snippets.Output.stop) { jobStore.cancel(jobID: job.id) }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
             }
@@ -221,7 +221,7 @@ struct OutputPanelView: View {
     }
 
     private func commandTextField(for job: JobRecord) -> some View {
-        TextField("展开后的命令，回车重新执行", text: $commandDraft)
+        TextField(L10n.Snippets.Output.commandPlaceholder, text: $commandDraft)
             .font(.system(.caption, design: .monospaced))
             .lineLimit(1)
             .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
@@ -231,7 +231,7 @@ struct OutputPanelView: View {
     }
 
     private var findTextField: some View {
-        TextField("查找", text: $findText)
+        TextField(L10n.Snippets.Output.find, text: $findText)
             .font(.caption)
             .frame(width: 128)
             .modifier(OutputCapsuleFieldStyle())
@@ -239,7 +239,7 @@ struct OutputPanelView: View {
     }
 
     private func failureBanner(job: JobRecord) -> some View {
-        Text("命令失败，退出码 \(job.exitCode ?? -1)")
+        Text(L10n.Snippets.Output.commandFailed(Int(job.exitCode ?? -1)))
             .font(.caption)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -264,7 +264,7 @@ struct OutputPanelView: View {
             if !combined.isEmpty { combined += "\n" }
             combined += job.stderr
         }
-        var attr = AttributedString(combined.isEmpty ? "（无输出）" : combined)
+        var attr = AttributedString(combined.isEmpty ? L10n.Snippets.Output.noOutput : combined)
         if !findText.isEmpty, let range = attr.range(of: findText, options: .caseInsensitive) {
             attr[range].backgroundColor = .yellow.opacity(0.4)
         }

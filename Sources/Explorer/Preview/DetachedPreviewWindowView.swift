@@ -17,7 +17,7 @@ struct DetachedPreviewWindowView: View {
             if let session {
                 DetachedPreviewWindowContent(session: session)
             } else {
-                Text("预览会话已关闭")
+                Text(L10n.Preview.sessionClosed)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

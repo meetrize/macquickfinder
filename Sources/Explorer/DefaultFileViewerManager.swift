@@ -152,11 +152,11 @@ enum DefaultFileViewerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .preferencesSyncFailed:
-            return "无法写入系统偏好设置。"
+            return L10n.Error.DefaultViewer.preferencesSync
         case .defaultsCommandFailed(let code):
-            return "系统命令执行失败（退出码 \(code)）。"
+            return L10n.Error.DefaultViewer.defaultsCommand(code)
         case .finderNotFound:
-            return "未找到 Finder 应用。"
+            return L10n.Error.DefaultViewer.finderNotFound
         }
     }
 }

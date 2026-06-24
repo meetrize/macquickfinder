@@ -93,14 +93,10 @@ enum FinderAutomationPermission {
     @MainActor
     private static func showAccessDeniedAlert() {
         let alert = NSAlert()
-        alert.messageText = "需要自动化权限"
-        alert.informativeText = """
-        MeoFind 需要「控制 Finder」的权限才能显示废纸篓内容。
-
-        请在「系统设置 → 隐私与安全性 → 自动化」中，允许 MeoFind 控制 Finder。
-        """
-        alert.addButton(withTitle: "打开系统设置")
-        alert.addButton(withTitle: "取消")
+        alert.messageText = L10n.Permission.Automation.title
+        alert.informativeText = L10n.Permission.Automation.message
+        alert.addButton(withTitle: L10n.Permission.Automation.openSettings)
+        alert.addButton(withTitle: L10n.Action.cancel)
         
         if alert.runModal() == .alertFirstButtonReturn {
             openAutomationSettings()

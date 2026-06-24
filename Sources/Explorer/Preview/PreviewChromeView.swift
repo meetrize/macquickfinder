@@ -41,7 +41,7 @@ struct PreviewChromeView: View {
                 .buttonStyle(.borderless)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .instantHoverTooltip(isContentCollapsed ? "展开预览" : "折叠预览")
+                .instantHoverTooltip(isContentCollapsed ? L10n.Preview.Chrome.expand : L10n.Preview.Chrome.collapse)
             }
 
             if session.isShowingFolderChildPreview {
@@ -49,7 +49,7 @@ struct PreviewChromeView: View {
                     Image(systemName: "arrow.uturn.backward")
                 }
                 .buttonStyle(.borderless)
-                .instantHoverTooltip("返回文件夹")
+                .instantHoverTooltip(L10n.Preview.Chrome.backToFolder)
             }
 
             Text(title)
@@ -76,7 +76,7 @@ struct PreviewChromeView: View {
                     Image(systemName: "macwindow.badge.plus")
                 }
                 .buttonStyle(.borderless)
-                .instantHoverTooltip("在独立窗口中打开")
+                .instantHoverTooltip(L10n.Preview.Chrome.detach)
                 .fixedSize()
                 .layoutPriority(2)
             }
@@ -86,7 +86,7 @@ struct PreviewChromeView: View {
                     Image(systemName: "sidebar.right")
                 }
                 .buttonStyle(.borderless)
-                .instantHoverTooltip("收回侧栏")
+                .instantHoverTooltip(L10n.Preview.Chrome.dockBack)
                 .fixedSize()
                 .layoutPriority(2)
             }
@@ -95,7 +95,7 @@ struct PreviewChromeView: View {
                 Image(systemName: "xmark")
             }
             .buttonStyle(.borderless)
-            .instantHoverTooltip(placement == .detachedWindow ? "关闭窗口" : "关闭预览")
+            .instantHoverTooltip(placement == .detachedWindow ? L10n.Preview.Chrome.closeWindow : L10n.Preview.Chrome.closePreview)
             .fixedSize()
             .layoutPriority(2)
         }

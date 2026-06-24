@@ -10,9 +10,9 @@ enum ImagePreviewSaveError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unableToEncode:
-            return "无法编码图片"
+            return L10n.Error.Image.unableToEncode
         case .unableToWrite:
-            return "无法写入文件"
+            return L10n.Error.Image.unableToWrite
         }
     }
 }

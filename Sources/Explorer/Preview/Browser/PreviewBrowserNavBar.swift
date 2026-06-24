@@ -15,7 +15,7 @@ struct PreviewBrowserNavBar: View {
             }
             .buttonStyle(.borderless)
             .disabled(context.currentIndex == 0)
-            .instantHoverTooltip("上一个")
+            .instantHoverTooltip(L10n.Preview.previous)
 
             Text(context.currentItem.name)
                 .font(.callout)
@@ -36,7 +36,7 @@ struct PreviewBrowserNavBar: View {
             }
             .buttonStyle(.borderless)
             .disabled(context.currentIndex + 1 >= context.count)
-            .instantHoverTooltip("下一个")
+            .instantHoverTooltip(L10n.Preview.next)
 
             Button {
                 session.isBrowserStripExpanded.toggle()
@@ -44,7 +44,7 @@ struct PreviewBrowserNavBar: View {
                 Image(systemName: session.isBrowserStripExpanded ? "chevron.down" : "film")
             }
             .buttonStyle(.borderless)
-            .instantHoverTooltip(session.isBrowserStripExpanded ? "收起胶片条" : "展开胶片条")
+            .instantHoverTooltip(session.isBrowserStripExpanded ? L10n.Menu.collapseStrip : L10n.Menu.expandStrip)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

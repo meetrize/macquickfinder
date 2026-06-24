@@ -18,7 +18,7 @@ extension PreviewSession {
             items.append(
                 previewToolbarIconItem(
                     id: "office-prev",
-                    title: "上一页",
+                    title: L10n.Preview.Toolbar.previousPage,
                     systemImage: "chevron.left",
                     isDisabled: office.pageCount > 0 && office.currentPage <= 1,
                     action: { [self] in office.sendNavigate(.previousPage) }
@@ -28,14 +28,14 @@ extension PreviewSession {
         items.append(contentsOf: [
             previewToolbarIconItem(
                 id: "office-zoom-out",
-                title: "缩小",
+                title: L10n.Preview.Toolbar.zoomOut,
                 systemImage: "minus.magnifyingglass",
                 isDisabled: office.zoomScale <= 0.25,
                 action: { [self] in office.sendNavigate(.zoomOut) }
             ),
             PreviewToolbarOverflowModel(
                 id: "office-scale",
-                menuTitle: "缩放比例",
+                menuTitle: L10n.Preview.Toolbar.zoomScale,
                 menuSystemImage: "percent",
                 isDisabled: false,
                 estimatedWidth: 44,
@@ -45,19 +45,19 @@ extension PreviewSession {
                         .font(.caption.monospacedDigit())
                         .foregroundColor(.secondary)
                         .frame(minWidth: 44, alignment: .center)
-                        .instantHoverTooltip("缩放比例")
+                        .instantHoverTooltip(L10n.Preview.Toolbar.zoomScale)
                 )
             ),
             previewToolbarIconItem(
                 id: "office-zoom-in",
-                title: "放大",
+                title: L10n.Preview.Toolbar.zoomIn,
                 systemImage: "plus.magnifyingglass",
                 isDisabled: office.zoomScale >= 5.0,
                 action: { [self] in office.sendNavigate(.zoomIn) }
             ),
             previewToolbarIconItem(
                 id: "office-reset",
-                title: "还原",
+                title: L10n.Preview.Toolbar.reset,
                 systemImage: "arrow.counterclockwise",
                 isDisabled: abs(office.zoomScale - 1.0) < 0.001,
                 action: { [self] in office.sendNavigate(.resetZoom) }
@@ -67,7 +67,7 @@ extension PreviewSession {
             items.append(
                 PreviewToolbarOverflowModel(
                     id: "office-page",
-                    menuTitle: "页码",
+                    menuTitle: L10n.Preview.Toolbar.pageNumber,
                     menuSystemImage: "number",
                     isDisabled: false,
                     estimatedWidth: 56,
@@ -77,14 +77,14 @@ extension PreviewSession {
                             .font(.caption.monospacedDigit())
                             .foregroundColor(.secondary)
                             .frame(minWidth: 56, alignment: .center)
-                            .instantHoverTooltip("页码")
+                            .instantHoverTooltip(L10n.Preview.Toolbar.pageNumber)
                     )
                 )
             )
             items.append(
                 previewToolbarIconItem(
                     id: "office-next",
-                    title: "下一页",
+                    title: L10n.Preview.Toolbar.nextPage,
                     systemImage: "chevron.right",
                     isDisabled: office.pageCount == 0 || office.currentPage >= office.pageCount,
                     action: { [self] in office.sendNavigate(.nextPage) }
@@ -98,7 +98,7 @@ extension PreviewSession {
         [
             previewToolbarIconItem(
                 id: "office-zoom-out",
-                title: "缩小",
+                title: L10n.Preview.Toolbar.zoomOut,
                 systemImage: "minus.magnifyingglass",
                 isDisabled: office.zoomScale <= 0.25,
                 action: { [self] in
@@ -107,7 +107,7 @@ extension PreviewSession {
             ),
             PreviewToolbarOverflowModel(
                 id: "office-scale",
-                menuTitle: "缩放比例",
+                menuTitle: L10n.Preview.Toolbar.zoomScale,
                 menuSystemImage: "percent",
                 isDisabled: false,
                 estimatedWidth: 44,
@@ -117,12 +117,12 @@ extension PreviewSession {
                         .font(.caption.monospacedDigit())
                         .foregroundColor(.secondary)
                         .frame(minWidth: 44, alignment: .center)
-                        .instantHoverTooltip("缩放比例")
+                        .instantHoverTooltip(L10n.Preview.Toolbar.zoomScale)
                 )
             ),
             previewToolbarIconItem(
                 id: "office-zoom-in",
-                title: "放大",
+                title: L10n.Preview.Toolbar.zoomIn,
                 systemImage: "plus.magnifyingglass",
                 isDisabled: office.zoomScale >= 5.0,
                 action: { [self] in
@@ -131,7 +131,7 @@ extension PreviewSession {
             ),
             previewToolbarIconItem(
                 id: "office-reset",
-                title: "还原",
+                title: L10n.Preview.Toolbar.reset,
                 systemImage: "arrow.counterclockwise",
                 isDisabled: abs(office.zoomScale - 1.0) < 0.001,
                 action: { [self] in office.zoomScale = 1.0 }

@@ -7,7 +7,7 @@ extension PreviewSession {
         var items: [PreviewToolbarOverflowModel] = [
             PreviewToolbarOverflowModel(
                 id: "image-zoom",
-                menuTitle: "缩放",
+                menuTitle: L10n.Preview.Toolbar.zoom,
                 menuSystemImage: "plus.magnifyingglass",
                 isDisabled: false,
                 estimatedWidth: 120,
@@ -16,7 +16,7 @@ extension PreviewSession {
             ),
             previewToolbarIconItem(
                 id: "image-rotate-left",
-                title: "逆时针旋转",
+                title: L10n.Preview.Toolbar.rotateCCW,
                 systemImage: "rotate.left",
                 action: { [self] in
                     image.performEdit {
@@ -26,7 +26,7 @@ extension PreviewSession {
             ),
             previewToolbarIconItem(
                 id: "image-rotate-right",
-                title: "顺时针旋转",
+                title: L10n.Preview.Toolbar.rotateCW,
                 systemImage: "rotate.right",
                 action: { [self] in
                     image.performEdit {
@@ -36,7 +36,7 @@ extension PreviewSession {
             ),
             previewToolbarIconItem(
                 id: "image-flip-horizontal",
-                title: "水平翻转",
+                title: L10n.Preview.Toolbar.flipHorizontal,
                 systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right",
                 action: { [self] in
                     image.performEdit {
@@ -46,7 +46,7 @@ extension PreviewSession {
             ),
             previewToolbarIconItem(
                 id: "image-flip-vertical",
-                title: "垂直翻转",
+                title: L10n.Preview.Toolbar.flipVertical,
                 systemImage: "arrow.up.and.down.righttriangle.up.righttriangle.down",
                 action: { [self] in
                     image.performEdit {
@@ -56,34 +56,34 @@ extension PreviewSession {
             ),
             previewToolbarIconItem(
                 id: "image-undo",
-                title: "撤销上一步",
+                title: L10n.Preview.Toolbar.undo,
                 systemImage: "arrow.uturn.backward",
                 isDisabled: image.editUndoStack.isEmpty,
                 action: { [self] in image.undoLastEdit() }
             ),
             previewToolbarIconItem(
                 id: "image-reset",
-                title: "重置视图",
+                title: L10n.Preview.Toolbar.resetView,
                 systemImage: "arrow.counterclockwise",
                 action: { [self] in image.resetViewTransform() }
             ),
             previewToolbarIconItem(
                 id: "image-resize",
-                title: "调整尺寸",
+                title: L10n.Preview.Toolbar.resize,
                 systemImage: "aspectratio",
                 isDisabled: image.sourcePixelSize.width <= 0 || image.sourcePixelSize.height <= 0,
                 action: { [self] in image.showResizeSheet = true }
             ),
             previewToolbarIconItem(
                 id: "image-save",
-                title: "保存编辑结果",
+                title: L10n.Preview.Toolbar.saveEdits,
                 systemImage: "square.and.arrow.down",
                 isDisabled: !image.hasEdits,
                 action: { [self] in image.previewAction = .save }
             ),
             PreviewToolbarOverflowModel(
                 id: "image-eyedropper",
-                menuTitle: "取色棒",
+                menuTitle: L10n.Preview.Toolbar.eyedropper,
                 menuSystemImage: "eyedropper",
                 isDisabled: false,
                 estimatedWidth: 20,
@@ -92,13 +92,13 @@ extension PreviewSession {
             ),
             previewToolbarIconItem(
                 id: "image-copy",
-                title: "复制图片",
+                title: L10n.Preview.Toolbar.copyImage,
                 systemImage: "doc.on.doc",
                 action: { [self] in copyImageToPasteboard(item) }
             ),
             previewToolbarIconItem(
                 id: "image-open",
-                title: "用默认应用打开",
+                title: L10n.Preview.Toolbar.openDefaultApp,
                 systemImage: "arrow.up.forward.app",
                 action: { NSWorkspace.shared.open(item.url) }
             ),
@@ -108,7 +108,7 @@ extension PreviewSession {
             items.insert(
                 PreviewToolbarOverflowModel(
                     id: "image-color",
-                    menuTitle: "颜色 \(hex)",
+                    menuTitle: L10n.Preview.Toolbar.colorHex(hex),
                     menuSystemImage: "eyedropper.half.filled",
                     isDisabled: false,
                     estimatedWidth: 72,

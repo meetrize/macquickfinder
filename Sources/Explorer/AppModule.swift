@@ -12,9 +12,9 @@ enum BlankDoubleClickAction: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .navigateToParent:
-            return "返回上级目录"
+            return L10n.Settings.General.blankActionParent
         case .openTerminal:
-            return "在本目录打开终端"
+            return L10n.Settings.General.blankActionTerminal
         }
     }
 }
@@ -67,19 +67,19 @@ struct FileCommands: Commands {
             } else if isPreviewTextSelectionActive {
                 TextEditingCommands.previewSelectionButtons()
             } else {
-                Button("剪切") {
+                Button(L10n.Action.cut) {
                     handlers?.cut?()
                 }
                 .keyboardShortcut("x", modifiers: .command)
                 .disabled(!(handlers?.canCut ?? false))
                 
-                Button("复制") {
+                Button(L10n.Action.copy) {
                     handlers?.copy?()
                 }
                 .keyboardShortcut("c", modifiers: .command)
                 .disabled(!(handlers?.canCopy ?? false))
                 
-                Button("粘贴") {
+                Button(L10n.Action.paste) {
                     handlers?.paste?()
                 }
                 .keyboardShortcut("v", modifiers: .command)
@@ -89,7 +89,7 @@ struct FileCommands: Commands {
         
         CommandGroup(after: .pasteboard) {
             if !isTextFieldEditing {
-                Button("删除") {
+                Button(L10n.Action.delete) {
                     handlers?.delete?()
                 }
                 .keyboardShortcut(.delete)
@@ -201,6 +201,7 @@ struct LucideIcon: View {
 @main
 struct ExplorerApp: App {
     @NSApplicationDelegateAdaptor(ExplorerAppDelegate.self) private var appDelegate
+    @StateObject private var languageSettings = InterfaceLanguageSettings.shared
     @FocusedValue(\.windowLayoutCommands) private var windowLayoutCommands
     @FocusedValue(\.previewDetachCommands) private var previewDetachCommands
     @FocusedValue(\.previewBrowseCommands) private var previewBrowseCommands
@@ -211,6 +212,7 @@ struct ExplorerApp: App {
                 ContentView()
             }
             .frame(minWidth: 267, minHeight: 200)
+            .applyInterfaceLanguageEnvironment()
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
@@ -223,16 +225,20 @@ struct ExplorerApp: App {
                 ContentView(initialPath: requestedPath)
             }
             .frame(minWidth: 267, minHeight: 200)
+            .applyInterfaceLanguageEnvironment()
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
 
         WindowGroup(id: ExplorerWindowScene.preview, for: PreviewWindowValue.self) { $value in
-            if let value {
-                DetachedPreviewWindowView(sessionID: value.sessionID)
-            } else {
-                EmptyView()
+            Group {
+                if let value {
+                    DetachedPreviewWindowView(sessionID: value.sessionID)
+                } else {
+                    EmptyView()
+                }
             }
+            .applyInterfaceLanguageEnvironment()
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
@@ -240,62 +246,64 @@ struct ExplorerApp: App {
         
         Settings {
             SettingsView()
+                .applyInterfaceLanguageEnvironment()
         }
     }
 
     @CommandsBuilder
     private var explorerCommands: some Commands {
+        let _ = languageSettings.revision
         FileCommands()
         CommandGroup(after: .sidebar) {
-            Button("切换左侧面板") {
+            Button(L10n.Menu.toggleLeftPanel) {
                 windowLayoutCommands?.toggleLeftPanel()
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.toggleLeftPanel)
 
-            Button("切换右侧面板") {
+            Button(L10n.Menu.toggleRightPanel) {
                 windowLayoutCommands?.toggleRightPanel()
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.toggleRightPanel)
 
             Divider()
-            Button((windowLayoutCommands?.showPreview ?? true) ? "关闭预览" : "显示预览") {
+            Button((windowLayoutCommands?.showPreview ?? true) ? L10n.Menu.hidePreview : L10n.Menu.showPreview) {
                 windowLayoutCommands?.togglePreview()
             }
-            Button((windowLayoutCommands?.showSnippets ?? true) ? "关闭 Snippets" : "显示 Snippets") {
+            Button((windowLayoutCommands?.showSnippets ?? true) ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets) {
                 windowLayoutCommands?.toggleSnippets()
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.toggleSnippets)
-            Button((windowLayoutCommands?.isOutputPanelVisible ?? false) ? "关闭输出面板" : "显示输出面板") {
+            Button((windowLayoutCommands?.isOutputPanelVisible ?? false) ? L10n.Menu.hideOutputPanel : L10n.Menu.showOutputPanel) {
                 windowLayoutCommands?.toggleOutputPanel()
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.toggleOutputPanel)
             Divider()
-            Button("导入 Snippets…") {
+            Button(L10n.Menu.importSnippets) {
                 NotificationCenter.default.post(name: .snippetsImportRequested, object: nil)
             }
-            Button("导出全部 Snippets…") {
+            Button(L10n.Menu.exportSnippets) {
                 NotificationCenter.default.post(name: .snippetsExportAllRequested, object: nil)
             }
             Divider()
-            Button("在独立窗口中打开预览") {
+            Button(L10n.Menu.openPreviewDetached) {
                 previewDetachCommands?.detachPreview?()
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.detachPreview)
             .disabled(!(previewDetachCommands?.canDetach ?? false))
-            Button("收回预览到侧栏") {
+            Button(L10n.Menu.reattachPreview) {
                 previewDetachCommands?.dockPreview?()
             }
             .disabled(!(previewDetachCommands?.canDock ?? false))
             Divider()
-            Button("上一个预览") {
+            Button(L10n.Menu.previousPreview) {
                 previewBrowseCommands?.browsePrevious?()
             }
             .disabled(!(previewBrowseCommands?.canBrowsePrevious ?? false))
-            Button("下一个预览") {
+            Button(L10n.Menu.nextPreview) {
                 previewBrowseCommands?.browseNext?()
             }
             .disabled(!(previewBrowseCommands?.canBrowseNext ?? false))
-            Button(previewBrowseCommands?.isStripExpanded == true ? "收起胶片条" : "展开胶片条") {
+            Button(previewBrowseCommands?.isStripExpanded == true ? L10n.Menu.collapseStrip : L10n.Menu.expandStrip) {
                 previewBrowseCommands?.toggleStrip?()
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.togglePreviewBrowserStrip)
@@ -380,6 +388,10 @@ struct ExternalNavigationTarget: Equatable {
 }
 
 private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        ModuleLocalization.applyAppleLanguagesOverride()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         FileServicesMenuSupport.registerIfNeeded()
     }

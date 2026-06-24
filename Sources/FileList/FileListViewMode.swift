@@ -8,9 +8,9 @@ public enum FileListViewMode: String, CaseIterable, Codable, Sendable {
     public var displayName: String {
         switch self {
         case .list:
-            return "列表"
+            return L10n.ViewMode.list
         case .thumbnail:
-            return "缩略图"
+            return L10n.ViewMode.thumbnail
         }
     }
     

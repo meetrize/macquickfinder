@@ -22,25 +22,25 @@ public final class FileListBlankMenuController: NSObject {
     public func makeMenu() -> NSMenu {
         let menu = NSMenu()
         
-        menu.addItem(makeItem(title: "返回", action: .goBack, enabled: actions.canGoBack))
-        menu.addItem(makeItem(title: "向上", action: .goUp, enabled: actions.canGoUp))
+        menu.addItem(makeItem(title: L10n.Action.goBack, action: .goBack, enabled: actions.canGoBack))
+        menu.addItem(makeItem(title: L10n.Action.goUp, action: .goUp, enabled: actions.canGoUp))
         
         if actions.isInTrash {
             menu.addItem(.separator())
-            menu.addItem(makeItem(title: "清倒废纸篓", action: .emptyTrash, enabled: true))
+            menu.addItem(makeItem(title: L10n.Action.emptyTrash, action: .emptyTrash, enabled: true))
             return menu
         }
         
         if actions.canPaste {
             menu.addItem(.separator())
-            menu.addItem(makeItem(title: "粘贴", action: .paste, enabled: true))
+            menu.addItem(makeItem(title: L10n.Action.paste, action: .paste, enabled: true))
         }
         
         menu.addItem(.separator())
-        menu.addItem(makeItem(title: "新建文件夹", action: .newFolder, enabled: true))
-        menu.addItem(makeItem(title: "新建文件", action: .newFile, enabled: true))
+        menu.addItem(makeItem(title: L10n.Action.newFolder, action: .newFolder, enabled: true))
+        menu.addItem(makeItem(title: L10n.Action.newFile, action: .newFile, enabled: true))
         menu.addItem(.separator())
-        menu.addItem(makeItem(title: "在此处打开终端", action: .openTerminal, enabled: true))
+        menu.addItem(makeItem(title: L10n.Action.openTerminalHere, action: .openTerminal, enabled: true))
         actions.appendToMenu?(menu)
         
         return menu

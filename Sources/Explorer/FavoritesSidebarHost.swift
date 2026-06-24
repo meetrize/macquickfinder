@@ -117,7 +117,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
                 rowView.isFavoriteSelected = selected
                 rowView.isDropTargetRow = row == dropHighlightRow
                 rowView.showsRailLayout = !parent.showsTitle
-                rowView.updateTooltip(parent.showsTitle ? nil : item.name)
+                rowView.updateTooltip(parent.showsTitle ? nil : item.displayName)
                 rowView.needsDisplay = true
             }
             if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: true) as? FavoriteSidebarCellView {
@@ -160,7 +160,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         if let item = item(at: row) {
             rowView.isFavoriteSelected = parent.isSelected(item.path)
             rowView.isDropTargetRow = row == dropHighlightRow
-            rowView.updateTooltip(parent.showsTitle ? nil : item.name)
+            rowView.updateTooltip(parent.showsTitle ? nil : item.displayName)
         }
         return rowView
     }
@@ -170,7 +170,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         
         let menu = NSMenu()
         let removeItem = menu.addItem(
-            withTitle: "取消收藏",
+            withTitle: L10n.Action.removeFavorite,
             action: #selector(removeFavorite(_:)),
             keyEquivalent: ""
         )
@@ -540,7 +540,7 @@ private final class FavoriteSidebarCellView: NSTableCellView {
         iconView.image = image
         iconView.contentTintColor = isSelected ? .controlAccentColor : .labelColor
         
-        titleField.stringValue = showsTitle ? item.name : ""
+        titleField.stringValue = showsTitle ? item.displayName : ""
         titleField.isHidden = !showsTitle
         titleField.alphaValue = showsTitle ? 1 : 0
         titleField.textColor = isSelected ? .controlAccentColor : .labelColor

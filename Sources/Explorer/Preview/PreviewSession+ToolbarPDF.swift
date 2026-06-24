@@ -7,21 +7,21 @@ extension PreviewSession {
         [
             previewToolbarIconItem(
                 id: "pdf-prev",
-                title: "上一页",
+                title: L10n.Preview.Toolbar.previousPage,
                 systemImage: "chevron.left",
                 isDisabled: pdf.currentPage <= 1,
                 action: { [self] in pdf.navigateAction = .previous }
             ),
             previewToolbarIconItem(
                 id: "pdf-zoom-out",
-                title: "缩小",
+                title: L10n.Preview.Toolbar.zoomOut,
                 systemImage: "minus.magnifyingglass",
                 isDisabled: pdf.scalePercent > 0 && pdf.scalePercent <= 25,
                 action: { [self] in pdf.navigateAction = .zoomOut }
             ),
             PreviewToolbarOverflowModel(
                 id: "pdf-page",
-                menuTitle: "页码",
+                menuTitle: L10n.Preview.Toolbar.pageNumber,
                 menuSystemImage: "number",
                 isDisabled: false,
                 estimatedWidth: 82,
@@ -30,7 +30,7 @@ extension PreviewSession {
             ),
             PreviewToolbarOverflowModel(
                 id: "pdf-scale",
-                menuTitle: "缩放比例",
+                menuTitle: L10n.Preview.Toolbar.zoomScale,
                 menuSystemImage: "percent",
                 isDisabled: false,
                 estimatedWidth: 44,
@@ -40,31 +40,31 @@ extension PreviewSession {
                         .font(.caption.monospacedDigit())
                         .foregroundColor(.secondary)
                         .frame(minWidth: 44, alignment: .center)
-                        .instantHoverTooltip("缩放比例")
+                        .instantHoverTooltip(L10n.Preview.Toolbar.zoomScale)
                 )
             ),
             previewToolbarIconItem(
                 id: "pdf-zoom-in",
-                title: "放大",
+                title: L10n.Preview.Toolbar.zoomIn,
                 systemImage: "plus.magnifyingglass",
                 isDisabled: pdf.scalePercent >= 500,
                 action: { [self] in pdf.navigateAction = .zoomIn }
             ),
             previewToolbarIconItem(
                 id: "pdf-fit-width",
-                title: "适配宽度",
+                title: L10n.Preview.Toolbar.fitWidth,
                 systemImage: "arrow.left.and.right.square",
                 action: { [self] in pdf.navigateAction = .fitWidth }
             ),
             previewToolbarIconItem(
                 id: "pdf-fit-page",
-                title: "整页适配",
+                title: L10n.Preview.Toolbar.fitPage,
                 systemImage: "arrow.up.left.and.arrow.down.right",
                 action: { [self] in pdf.navigateAction = .fitPage }
             ),
             previewToolbarIconItem(
                 id: "pdf-next",
-                title: "下一页",
+                title: L10n.Preview.Toolbar.nextPage,
                 systemImage: "chevron.right",
                 isDisabled: pdf.pageCount == 0 || pdf.currentPage >= pdf.pageCount,
                 action: { [self] in pdf.navigateAction = .next }

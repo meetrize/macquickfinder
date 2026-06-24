@@ -31,15 +31,15 @@ struct ImageResizeSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("调整图片尺寸")
+            Text(L10n.Preview.Image.resizeTitle)
                 .font(.headline)
 
-            Text("按像素设置输出尺寸。确认后需点击「保存编辑结果」写入文件。")
+            Text(L10n.Preview.Image.resizeHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Toggle("保持宽高比", isOn: $maintainAspectRatio)
+            Toggle(L10n.Preview.Image.maintainAspect, isOn: $maintainAspectRatio)
                 .toggleStyle(.checkbox)
                 .onChange(of: maintainAspectRatio) { isLocked in
                     guard isLocked else { return }
@@ -47,10 +47,10 @@ struct ImageResizeSheet: View {
                 }
 
             HStack(spacing: 12) {
-                dimensionField(title: "宽度", text: widthBinding)
+                dimensionField(title: L10n.Preview.Image.width, text: widthBinding)
                 Text("×")
                     .foregroundStyle(.secondary)
-                dimensionField(title: "高度", text: heightBinding)
+                dimensionField(title: L10n.Preview.Image.height, text: heightBinding)
             }
 
             if let message = validationMessage {
@@ -61,9 +61,9 @@ struct ImageResizeSheet: View {
 
             HStack {
                 Spacer()
-                Button("取消", action: onCancel)
+                Button(L10n.Action.cancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button("确定") {
+                Button(L10n.Preview.Image.confirm) {
                     guard let size = parsedSize else { return }
                     onApply(size.width, size.height)
                 }
@@ -107,16 +107,16 @@ struct ImageResizeSheet: View {
 
     private var validationMessage: String? {
         if widthText.isEmpty || heightText.isEmpty {
-            return "请输入宽度和高度"
+            return L10n.Preview.Image.validationEmpty
         }
         guard let width = Int(widthText), let height = Int(heightText) else {
-            return "请输入有效的像素数值"
+            return L10n.Preview.Image.validationInvalid
         }
         if width <= 0 || height <= 0 {
-            return "宽度和高度必须大于 0"
+            return L10n.Preview.Image.validationPositive
         }
         if width > 65_535 || height > 65_535 {
-            return "单边像素不能超过 65535"
+            return L10n.Preview.Image.validationMax
         }
         return nil
     }

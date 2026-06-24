@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Explorer",
+    defaultLocalization: "en",
     platforms: [.macOS(.v13)],
     products: [
         .executable(name: "Explorer", targets: ["Explorer"])
@@ -11,10 +12,14 @@ let package = Package(
     targets: [
         .target(
             name: "FileList",
-            dependencies: []),
+            dependencies: [],
+            resources: [.process("Resources")]
+        ),
         .executableTarget(
             name: "Explorer",
-            dependencies: ["FileList"]),
+            dependencies: ["FileList"],
+            resources: [.process("Resources")]
+        ),
         .testTarget(
             name: "FileListTests",
             dependencies: ["FileList"]),

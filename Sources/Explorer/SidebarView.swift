@@ -116,7 +116,7 @@ struct SidebarView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                sidebarSection("Favorites") {
+                sidebarSection(L10n.Sidebar.favorites) {
                     FavoritesSidebarRows(
                         favoritesStore: favoritesStore,
                         path: $path,
@@ -126,9 +126,9 @@ struct SidebarView: View {
                     )
                 }
                 
-                sidebarSection("Devices") {
+                sidebarSection(L10n.Sidebar.devices) {
                     if devices.isEmpty {
-                        Text("No devices")
+                        Text(L10n.Sidebar.noDevices)
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 8)
                     } else {
@@ -150,7 +150,7 @@ struct SidebarView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .foregroundStyle(.secondary)
-                                        .instantHoverTooltip("推出 \(device.name)")
+                                        .instantHoverTooltip(L10n.Sidebar.ejectDevice(device.name))
                                     }
                                 }
                             )
@@ -158,9 +158,9 @@ struct SidebarView: View {
                     }
                 }
                 
-                sidebarSection("位置") {
+                sidebarSection(L10n.Sidebar.locations) {
                     SidebarRow(
-                        title: "废纸篓",
+                        title: TrashLoader.displayName,
                         icon: "trash",
                         isSelected: isSelected(trashPath),
                         dropDestinationPath: trashPath,
@@ -304,7 +304,7 @@ struct SidebarRailView: View {
                     .padding(.horizontal, 4)
                 
                 SidebarRow(
-                    title: "废纸篓",
+                    title: TrashLoader.displayName,
                     icon: "trash",
                     isSelected: isSelected(trashPath),
                     dropDestinationPath: trashPath,

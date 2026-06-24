@@ -3,27 +3,35 @@ import XCTest
 
 final class FileListRenamePresenterTests: XCTestCase {
     private final class MockAdapter: FileListRenameUIAdapter {
+        private final class State {
+            var performRenameCalls: [(FileListRow, String)] = []
+            var editingChanges: [Bool] = []
+        }
+
         var renameInteraction: FileListTableInteraction
         let renameCoordinator = FileListRenameCoordinator()
         var renamingRowID: String?
         var isRenaming: Bool { renamingRowID != nil }
 
+        private let state = State()
+
         private(set) var activatedRow: FileListRow?
         private(set) var deactivatedRowID: String?
         private(set) var retryRowID: String?
         private(set) var clearedPending = false
-        private(set) var editingChanges: [Bool] = []
-        private(set) var performRenameCalls: [(FileListRow, String)] = []
+        var editingChanges: [Bool] { state.editingChanges }
+        var performRenameCalls: [(FileListRow, String)] { state.performRenameCalls }
 
         init() {
+            let state = state
             renameInteraction = FileListTableInteraction(
                 canRename: { _ in true },
-                performRename: { [weak self] item, newName, completion in
-                    self?.performRenameCalls.append((item, newName))
+                performRename: { item, newName, completion in
+                    state.performRenameCalls.append((item, newName))
                     completion(true)
                 },
-                onRenameEditingChanged: { [weak self] editing in
-                    self?.editingChanges.append(editing)
+                onRenameEditingChanged: { editing in
+                    state.editingChanges.append(editing)
                 }
             )
         }
@@ -105,13 +113,15 @@ final class FileListRenamePresenterTests: XCTestCase {
     func testCommitRenameRetriesOnFailure() {
         let adapter = MockAdapter()
         adapter.renamingRowID = "a"
-        adapter.renameInteraction.performRename = { [weak adapter] item, newName, completion in
-            adapter?.performRenameCalls.append((item, newName))
+        var capturedCalls: [(FileListRow, String)] = []
+        adapter.renameInteraction.performRename = { item, newName, completion in
+            capturedCalls.append((item, newName))
             completion(false)
         }
 
         FileListRenamePresenter.commitRename(newName: "after.txt", adapter: adapter)
 
+        XCTAssertEqual(capturedCalls.count, 1)
         XCTAssertEqual(adapter.retryRowID, "a")
     }
 }

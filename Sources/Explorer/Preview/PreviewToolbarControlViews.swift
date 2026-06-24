@@ -11,7 +11,7 @@ struct PreviewImageZoomToolbarControls: View {
                 Image(systemName: "minus.magnifyingglass")
             }
             .buttonStyle(.borderless)
-            .instantHoverTooltip("缩小")
+            .instantHoverTooltip(L10n.Preview.Toolbar.zoomOut)
             .disabled(session.image.zoomScale <= 0.1)
 
             Button {
@@ -20,7 +20,7 @@ struct PreviewImageZoomToolbarControls: View {
                 Image(systemName: "plus.magnifyingglass")
             }
             .buttonStyle(.borderless)
-            .instantHoverTooltip("放大")
+            .instantHoverTooltip(L10n.Preview.Toolbar.zoomIn)
 
             Button {
                 session.image.zoomAction = .fit
@@ -28,7 +28,7 @@ struct PreviewImageZoomToolbarControls: View {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
             }
             .buttonStyle(.borderless)
-            .instantHoverTooltip("适配窗口")
+            .instantHoverTooltip(L10n.Preview.Toolbar.fitWindow)
 
             Button {
                 session.image.zoomAction = .actualSize
@@ -36,13 +36,13 @@ struct PreviewImageZoomToolbarControls: View {
                 Image(systemName: "1.magnifyingglass")
             }
             .buttonStyle(.borderless)
-            .instantHoverTooltip("原始大小")
+            .instantHoverTooltip(L10n.Preview.Toolbar.actualSize)
 
             Text(session.image.effectiveZoomPercent > 0 ? "\(session.image.effectiveZoomPercent)%" : "--")
                 .font(.caption.monospacedDigit())
                 .foregroundColor(.secondary)
                 .frame(minWidth: 36, alignment: .center)
-                .instantHoverTooltip("缩放比例")
+                .instantHoverTooltip(L10n.Preview.Toolbar.zoomScale)
         }
     }
 }
@@ -62,7 +62,7 @@ struct PreviewImageEyedropperToolbarButton: View {
                 )
         }
         .buttonStyle(.borderless)
-        .instantHoverTooltip("取色棒（点击图像复制 Web 颜色）")
+        .instantHoverTooltip(L10n.Preview.Toolbar.colorPicker)
     }
 }
 
@@ -84,7 +84,7 @@ struct PreviewImageColorSwatch: View {
                 .foregroundColor(.secondary)
                 .lineLimit(1)
         }
-        .instantHoverTooltip("已复制到剪贴板")
+        .instantHoverTooltip(L10n.Preview.Toolbar.copiedToClipboard)
     }
 }
 
@@ -97,7 +97,7 @@ struct PreviewTextSearchToolbarControls: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            TextField("搜索", text: $session.text.searchQuery)
+            TextField(L10n.Preview.Toolbar.searchPrompt, text: $session.text.searchQuery)
                 .textFieldStyle(.roundedBorder)
                 .font(.caption)
                 .frame(width: 96)
@@ -112,11 +112,11 @@ struct PreviewTextSearchToolbarControls: View {
                     Image(systemName: "chevron.down")
                 }
                 .buttonStyle(.borderless)
-                .instantHoverTooltip("下一个")
+                .instantHoverTooltip(L10n.Preview.Toolbar.nextMatch)
             }
         }
         .frame(minWidth: 120, alignment: .trailing)
-        .instantHoverTooltip("在预览中搜索")
+        .instantHoverTooltip(L10n.Preview.Toolbar.searchInPreview)
     }
 }
 
@@ -144,6 +144,6 @@ struct PreviewPDFPageInputField: View {
                 .foregroundColor(.secondary)
         }
         .frame(minWidth: 74, alignment: .center)
-        .instantHoverTooltip("跳转到页码")
+        .instantHoverTooltip(L10n.Preview.Toolbar.jumpToPage)
     }
 }

@@ -7,8 +7,8 @@ enum ArchivePreviewLoader {
 
         var errorDescription: String? {
             switch self {
-            case .emptyListing: return "无法读取 ZIP 目录"
-            case .timedOut: return "目录读取超时"
+            case .emptyListing: return L10n.Error.Archive.emptyListing
+            case .timedOut: return L10n.Error.Archive.timedOut
             }
         }
     }

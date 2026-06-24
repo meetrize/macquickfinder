@@ -167,9 +167,9 @@ private struct FullDiskAccessPromptView: View {
                     .symbolRenderingMode(.hierarchical)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("需要完全磁盘访问权限")
+                    Text(L10n.Permission.FullDiskAccess.title)
                         .font(.title2.weight(.semibold))
-                    Text("MeoFind 需要此权限才能浏览系统中的全部文件与文件夹。")
+                    Text(L10n.Permission.FullDiskAccess.message)
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -177,30 +177,30 @@ private struct FullDiskAccessPromptView: View {
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                instructionRow(number: 1, text: "点击下方「打开系统设置」。")
+                instructionRow(number: 1, text: L10n.Permission.FullDiskAccess.step1)
                 instructionRow(
                     number: 2,
-                    text: "在「隐私与安全性 → 完全磁盘访问权限」中，打开 \(FullDiskAccessPermission.appDisplayName) 的开关。"
+                    text: L10n.Permission.FullDiskAccess.step2(FullDiskAccessPermission.appDisplayName)
                 )
                 instructionRow(
                     number: 3,
-                    text: "返回本应用后，点击「重启应用」使权限生效。"
+                    text: L10n.Permission.FullDiskAccess.step3
                 )
             }
             .padding(.vertical, 4)
 
             if prompt.hasAccess {
-                Label("已检测到完全磁盘访问权限，请重启应用以完成启用。", systemImage: "checkmark.circle.fill")
+                Label(L10n.Permission.FullDiskAccess.detected, systemImage: "checkmark.circle.fill")
                     .font(.callout)
                     .foregroundStyle(.green)
             } else if prompt.didOpenSystemSettings {
-                Label("尚未检测到权限。请确认已在系统设置中勾选本应用。", systemImage: "exclamationmark.triangle.fill")
+                Label(L10n.Permission.FullDiskAccess.notDetected, systemImage: "exclamationmark.triangle.fill")
                     .font(.callout)
                     .foregroundStyle(.orange)
             }
 
             HStack {
-                Button("稍后") {
+                Button(L10n.Permission.FullDiskAccess.later) {
                     prompt.dismissForNow()
                     dismiss()
                 }
@@ -208,12 +208,12 @@ private struct FullDiskAccessPromptView: View {
 
                 Spacer()
 
-                Button("打开系统设置") {
+                Button(L10n.Permission.FullDiskAccess.openSettings) {
                     prompt.openSystemSettings()
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
 
-                Button("重启应用") {
+                Button(L10n.Permission.FullDiskAccess.restartApp) {
                     prompt.restartApplication()
                 }
                 .keyboardShortcut(.defaultAction)

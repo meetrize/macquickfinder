@@ -7,13 +7,13 @@ extension PreviewSession {
         [
             previewToolbarIconItem(
                 id: "media-play",
-                title: media.isPlaying ? "暂停" : "播放",
+                title: media.isPlaying ? L10n.Preview.Toolbar.pause : L10n.Preview.Toolbar.play,
                 systemImage: media.isPlaying ? "pause.fill" : "play.fill",
                 action: { [self] in media.controlAction = .togglePlayPause }
             ),
             previewToolbarIconItem(
                 id: "media-mute",
-                title: media.isMuted ? "取消静音" : "静音",
+                title: media.isMuted ? L10n.Preview.Toolbar.unmute : L10n.Preview.Toolbar.mute,
                 systemImage: media.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
                 action: { [self] in media.controlAction = .toggleMute }
             ),

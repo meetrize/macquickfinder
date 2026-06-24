@@ -9,24 +9,24 @@ public enum FileListColumnID: String, CaseIterable, Codable, Identifiable, Hasha
     
     public var id: String { rawValue }
     
+    /// 本地化列标题（表头与右键菜单共用）。
+    public var localizedTitle: String {
+        switch self {
+        case .name: return L10n.Column.name
+        case .type: return L10n.Column.type
+        case .size: return L10n.Column.size
+        case .dateModified: return L10n.Column.dateModified
+        }
+    }
+
     /// 表头显示（不参与本地化，便于与 NSTableColumn 对应）
     public var headerTitle: String {
-        switch self {
-        case .name: return "Name"
-        case .type: return "Type"
-        case .size: return "Size"
-        case .dateModified: return "Date Modified"
-        }
+        localizedTitle
     }
     
     /// 表头右键菜单显示名
     public var menuTitle: String {
-        switch self {
-        case .name: return "名称"
-        case .type: return "类型"
-        case .size: return "大小"
-        case .dateModified: return "修改日期"
-        }
+        localizedTitle
     }
     
     public var knownHeaderTitles: [String] {

@@ -74,14 +74,14 @@ struct SnippetsPanelView: View {
         )) {
             importConflictSheet
         }
-        .alert("危险命令确认", isPresented: Binding(
+        .alert(L10n.Snippets.Confirm.destructiveTitle, isPresented: Binding(
             get: { executor.pendingDestructiveSnippet != nil },
             set: { if !$0 { executor.cancelDestructiveExecution() } }
         )) {
-            Button("取消", role: .cancel) { executor.cancelDestructiveExecution() }
-            Button("仍要执行", role: .destructive) { executor.confirmDestructiveExecution() }
+            Button(L10n.Action.cancel, role: .cancel) { executor.cancelDestructiveExecution() }
+            Button(L10n.Snippets.Confirm.proceed, role: .destructive) { executor.confirmDestructiveExecution() }
         } message: {
-            Text("此 Snippet 可能删除或移动文件，确定执行？")
+            Text(L10n.Snippets.Confirm.destructiveMessage)
         }
         .onReceive(NotificationCenter.default.publisher(for: .snippetsImportRequested)) { _ in
             importSnippets()
@@ -103,9 +103,9 @@ struct SnippetsPanelView: View {
             .buttonStyle(.borderless)
             .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
             .contentShape(Rectangle())
-            .instantHoverTooltip(layout.isSnippetsContentCollapsed ? "展开 Snippets" : "折叠 Snippets")
+            .instantHoverTooltip(layout.isSnippetsContentCollapsed ? L10n.Snippets.Panel.expand : L10n.Snippets.Panel.collapse)
 
-            Text("Snippets")
+            Text(L10n.Snippets.title)
                 .font(.callout)
                 .fontWeight(.medium)
             Spacer(minLength: 0)
@@ -117,11 +117,11 @@ struct SnippetsPanelView: View {
                 .buttonStyle(.borderless)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .instantHoverTooltip("新建")
+                .instantHoverTooltip(L10n.Snippets.Panel.new)
 
                 Menu {
-                    Button("导入…") { importSnippets() }
-                    Button("导出全部…") { exportAll() }
+                    Button(L10n.Snippets.Panel.importAction) { importSnippets() }
+                    Button(L10n.Snippets.Panel.exportAll) { exportAll() }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -129,7 +129,7 @@ struct SnippetsPanelView: View {
                 .menuIndicator(.hidden)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .instantHoverTooltip("导入 / 导出")
+                .instantHoverTooltip(L10n.Snippets.Panel.importExport)
 
                 Button { showSnippets = false } label: {
                     Image(systemName: "xmark")
@@ -137,7 +137,7 @@ struct SnippetsPanelView: View {
                 .buttonStyle(.borderless)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
-                .instantHoverTooltip("关闭 Snippets")
+                .instantHoverTooltip(L10n.Snippets.Panel.close)
             }
         }
         .frame(height: PanelTopBarMetrics.contentHeight)
@@ -148,7 +148,7 @@ struct SnippetsPanelView: View {
     private var snippetGrid: some View {
         ScrollView {
             if visibleSnippets.isEmpty {
-                Text(searchText.isEmpty ? "当前上下文无匹配 Snippet" : "无搜索结果")
+                Text(searchText.isEmpty ? L10n.Snippets.Panel.noMatch : L10n.Snippets.Panel.noResults)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 80)
             } else if settings.displayMode == .minimal {
@@ -192,21 +192,21 @@ struct SnippetsPanelView: View {
 
     @ViewBuilder
     private func snippetContextMenu(for snippet: Snippet) -> some View {
-        Button("编辑") { editorSnippet = snippet }
-        Button("执行") { execute(snippet) }
+        Button(L10n.Action.edit) { editorSnippet = snippet }
+        Button(L10n.Snippets.Panel.execute) { execute(snippet) }
         if !snippet.useSystemTerminal, snippet.scriptType == .shell || snippet.scriptType == .python3 {
-            Button("在终端中执行") { execute(snippet, inSystemTerminal: true) }
+            Button(L10n.Snippets.Panel.executeInTerminal) { execute(snippet, inSystemTerminal: true) }
         }
-        Button("导出…") { exportSingle(snippet) }
+        Button(L10n.Snippets.Panel.exportSingle) { exportSingle(snippet) }
         Divider()
-        Button("删除", role: .destructive) { store.delete(id: snippet.id) }
+        Button(L10n.Action.delete, role: .destructive) { store.delete(id: snippet.id) }
     }
 
     private var searchBar: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("搜索名称或脚本内容…", text: $searchText)
+            TextField(L10n.Snippets.Panel.searchPrompt, text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
                 .onSubmit {
@@ -236,18 +236,18 @@ struct SnippetsPanelView: View {
 
     private var importConflictSheet: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("导入冲突")
+            Text(L10n.Snippets.Panel.importConflictTitle)
                 .font(.headline)
-            Text("有 \(importConflictItems?.filter { $0.conflict != nil }.count ?? 0) 条与现有 Snippet 冲突")
-            Picker("处理方式", selection: $importConflictStrategy) {
+            Text(L10n.Snippets.Panel.importConflictMessage(importConflictItems?.filter { $0.conflict != nil }.count ?? 0))
+            Picker(L10n.Snippets.Panel.importStrategyLabel, selection: $importConflictStrategy) {
                 ForEach(SnippetImportStrategy.allCases) { s in
                     Text(s.displayName).tag(s)
                 }
             }
             HStack {
                 Spacer()
-                Button("取消") { importConflictItems = nil }
-                Button("导入") { finishImport() }
+                Button(L10n.Action.cancel) { importConflictItems = nil }
+                Button(L10n.Snippets.Panel.importButton) { finishImport() }
             }
         }
         .padding(20)
@@ -306,14 +306,14 @@ struct SnippetsPanelView: View {
     private func showImportToast(imported: Int, skipped: Int) {
         // Simple alert for now
         let alert = NSAlert()
-        alert.messageText = "导入完成"
-        alert.informativeText = "已导入 \(imported) 条，跳过 \(skipped) 条"
+        alert.messageText = L10n.Snippets.Panel.importDoneTitle
+        alert.informativeText = L10n.Snippets.Panel.importDoneMessage(imported: imported, skipped: skipped)
         alert.runModal()
     }
 
     private func presentError(_ message: String) {
         let alert = NSAlert()
-        alert.messageText = "导入失败"
+        alert.messageText = L10n.Snippets.Panel.importFailedTitle
         alert.informativeText = message
         alert.runModal()
     }

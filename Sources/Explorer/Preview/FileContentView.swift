@@ -44,7 +44,7 @@ struct FileContentView: View {
     var body: some View {
         ZStack {
             if session.isLoading {
-                ProgressView("Loading preview...")
+                ProgressView(L10n.Preview.loading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let errorMsg = session.errorMessage {
                 VStack {
@@ -53,7 +53,7 @@ struct FileContentView: View {
                         .foregroundColor(.orange)
                         .padding()
 
-                    Text("Error loading preview")
+                    Text(L10n.Preview.errorLoading)
                         .font(.headline)
 
                     Text(errorMsg)
@@ -168,7 +168,7 @@ struct FileContentView: View {
                     }
                 )
             } else {
-                Text("Preview not available for this file type")
+                Text(L10n.Preview.notAvailable)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -201,11 +201,11 @@ struct FileContentView: View {
             }
             DispatchQueue.main.async { session.image.previewAction = nil }
         }
-        .alert("保存失败", isPresented: Binding(
+        .alert(L10n.Preview.saveFailedTitle, isPresented: Binding(
             get: { session.content.imageSaveErrorMessage != nil },
             set: { if !$0 { session.content.imageSaveErrorMessage = nil } }
         )) {
-            Button("好", role: .cancel) {}
+            Button(L10n.Action.ok, role: .cancel) {}
         } message: {
             Text(session.content.imageSaveErrorMessage ?? "")
         }

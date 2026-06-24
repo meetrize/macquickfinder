@@ -9,11 +9,11 @@ enum SnippetExpansionError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .requiresSingleSelection: return "需要恰好选中一项"
-        case .requiresSelection: return "需要至少选中一项"
-        case .requiresFileSelection: return "需要选中一个文件（非目录）"
-        case .requiresFilesInSelection: return "需要选中至少一个文件"
-        case .noFilesInSelection: return "选中项中没有文件"
+        case .requiresSingleSelection: return L10n.Error.SnippetExpansion.singleSelection
+        case .requiresSelection: return L10n.Error.SnippetExpansion.requiresSelection
+        case .requiresFileSelection: return L10n.Error.SnippetExpansion.fileSelection
+        case .requiresFilesInSelection: return L10n.Error.SnippetExpansion.filesInSelection
+        case .noFilesInSelection: return L10n.Error.SnippetExpansion.noFiles
         }
     }
 }

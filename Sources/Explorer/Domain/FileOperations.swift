@@ -123,11 +123,11 @@ enum FileOperations {
     
     static func emptyTrash(completion: @escaping () -> Void) {
         let alert = NSAlert()
-        alert.messageText = "清倒废纸篓？"
-        alert.informativeText = "废纸篓中的所有项目将被永久删除，此操作无法撤销。"
+        alert.messageText = L10n.Alert.emptyTrashTitle
+        alert.informativeText = L10n.Alert.emptyTrashMessage
         alert.alertStyle = .warning
-        let emptyButton = alert.addButton(withTitle: "清倒废纸篓")
-        alert.addButton(withTitle: "取消")
+        let emptyButton = alert.addButton(withTitle: L10n.Action.emptyTrash)
+        alert.addButton(withTitle: L10n.Action.cancel)
         alert.window.initialFirstResponder = emptyButton
         
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -168,10 +168,11 @@ enum FileOperations {
         
         let alert = NSAlert()
         if failedItems.count == 1 {
-            alert.messageText = "无法放回原处"
-            alert.informativeText = "「\(failedItems[0].name)」没有可用的原始位置记录，且 Finder 无法恢复此项目。"
+            alert.messageText = L10n.Alert.putBackFailedTitle
+            alert.informativeText = L10n.Alert.putBackFailedSingle(failedItems[0].name)
         } else {
-            alert.informativeText = "\(failedItems.count) 个项目无法放回原处。"
+            alert.messageText = L10n.Alert.putBackFailedTitle
+            alert.informativeText = L10n.Alert.putBackFailedMultiple(failedItems.count)
         }
         alert.alertStyle = .warning
         alert.runModal()
@@ -216,14 +217,14 @@ enum FileOperations {
         
         let alert = NSAlert()
         if items.count == 1 {
-            alert.messageText = "立刻删除「\(items[0].name)」？"
+            alert.messageText = L10n.Alert.deleteImmediatelySingle(items[0].name)
         } else {
-            alert.messageText = "立刻删除 \(items.count) 个项目？"
+            alert.messageText = L10n.Alert.deleteImmediatelyMultiple(items.count)
         }
-        alert.informativeText = "这些项目将被永久删除，无法恢复。"
+        alert.informativeText = L10n.Alert.deleteImmediatelyMessage
         alert.alertStyle = .warning
-        let deleteButton = alert.addButton(withTitle: "立刻删除")
-        alert.addButton(withTitle: "取消")
+        let deleteButton = alert.addButton(withTitle: L10n.Action.deleteImmediately)
+        alert.addButton(withTitle: L10n.Action.cancel)
         alert.window.initialFirstResponder = deleteButton
         
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -247,9 +248,9 @@ enum FileOperations {
         
         if let error {
             guard showError else { return false }
-            let message = error[NSAppleScript.errorMessage] as? String ?? "操作失败"
+            let message = error[NSAppleScript.errorMessage] as? String ?? L10n.Alert.operationFailed
             let alert = NSAlert()
-            alert.messageText = "操作失败"
+            alert.messageText = L10n.Alert.operationFailed
             alert.informativeText = message
             alert.alertStyle = .warning
             alert.runModal()
@@ -326,8 +327,8 @@ enum FileOperations {
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.message = "选择用于打开「\(item.name)」的应用"
-        panel.prompt = "打开"
+        panel.message = L10n.Alert.openWithChooseApp(item.name)
+        panel.prompt = L10n.Alert.openWithPrompt
         
         guard panel.runModal() == .OK, let appURL = panel.url else { return }
         
@@ -375,14 +376,14 @@ enum FileOperations {
     static func delete(_ items: [FileItem], completion: @escaping () -> Void) {
         let alert = NSAlert()
         if items.count == 1 {
-            alert.messageText = "确认删除「\(items[0].name)」？"
+            alert.messageText = L10n.Alert.confirmDeleteSingle(items[0].name)
         } else {
-            alert.messageText = "确认删除 \(items.count) 个项目？"
+            alert.messageText = L10n.Alert.confirmDeleteMultiple(items.count)
         }
-        alert.informativeText = "项目将移至废纸篓。"
+        alert.informativeText = L10n.Alert.deleteToTrashMessage
         alert.alertStyle = .warning
-        let deleteButton = alert.addButton(withTitle: "删除")
-        alert.addButton(withTitle: "取消")
+        let deleteButton = alert.addButton(withTitle: L10n.Action.delete)
+        alert.addButton(withTitle: L10n.Action.cancel)
         alert.window.initialFirstResponder = deleteButton
         
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -410,7 +411,7 @@ enum FileOperations {
             return .failure(NSError(
                 domain: NSCocoaErrorDomain,
                 code: NSFileWriteInvalidFileNameError,
-                userInfo: [NSLocalizedDescriptionKey: "名称不能为空"]
+                userInfo: [NSLocalizedDescriptionKey: L10n.Error.emptyName]
             ))
         }
         guard trimmed != item.name else {
@@ -436,15 +437,15 @@ enum FileOperations {
             alert.messageText = item.name
             alert.informativeText = buildInfoText(for: item)
         } else {
-            alert.messageText = "已选择 \(items.count) 个项目"
+            alert.messageText = L10n.Alert.selectedItems(items.count)
             let preview = items.prefix(20).map { item in
-                let kind = item.isDirectory ? "文件夹" : "文件"
-                return "• \(item.name)（\(kind)，\(item.sizeDisplay)）"
+                let kind = item.isDirectory ? L10n.Info.kindFolderShort : L10n.Info.kindFileShort
+                return L10n.Info.bulletItem(item.name, kind, item.sizeDisplay)
             }.joined(separator: "\n")
-            alert.informativeText = items.count > 20 ? preview + "\n…" : preview
+            alert.informativeText = items.count > 20 ? preview + "\n" + L10n.Info.ellipsis : preview
         }
         
-        alert.addButton(withTitle: "好")
+        alert.addButton(withTitle: L10n.Action.ok)
         alert.runModal()
     }
     
@@ -452,15 +453,15 @@ enum FileOperations {
         var lines: [String] = []
         
         if item.isDirectory {
-            lines.append("种类：文件夹")
+            lines.append(L10n.Info.kindFolder)
         } else if item.url.pathExtension.isEmpty {
-            lines.append("种类：文件")
+            lines.append(L10n.Info.kindFile)
         } else {
-            lines.append("种类：\(item.url.pathExtension.uppercased()) 文件")
+            lines.append(L10n.Info.kindExtensionFile(item.url.pathExtension.uppercased()))
         }
         
-        lines.append("大小：\(item.sizeDisplay)")
-        lines.append("位置：\(item.url.deletingLastPathComponent().path)")
+        lines.append(L10n.Info.size(item.sizeDisplay))
+        lines.append(L10n.Info.location(item.url.deletingLastPathComponent().path))
         
         let keys: Set<URLResourceKey> = [
             .creationDateKey,
@@ -474,32 +475,35 @@ enum FileOperations {
         
         if let values = try? item.url.resourceValues(forKeys: keys) {
             if let created = values.creationDate {
-                lines.append("创建时间：\(FileItemFormatters.formatDate(created))")
+                lines.append(L10n.Info.created(FileItemFormatters.formatDate(created)))
             }
-            lines.append("修改时间：\(item.dateDisplay)")
-            lines.append("隐藏：\(item.isHidden ? "是" : "否")")
+            lines.append(L10n.Info.modified(item.dateDisplay))
+            lines.append(L10n.Info.hidden(item.isHidden))
             
             if let attributes = try? FileManager.default.attributesOfItem(atPath: item.url.path),
                let permissions = attributes[.posixPermissions] as? Int {
                 lines.append(
-                    "权限：\(posixPermissionString(permissions))（\(String(format: "%04o", permissions))）"
+                    L10n.Info.permissions(
+                        posixPermissionString(permissions),
+                        String(format: "%04o", permissions)
+                    )
                 )
             }
             
             var access: [String] = []
-            if values.isReadable == true { access.append("可读") }
-            if values.isWritable == true { access.append("可写") }
-            if values.isExecutable == true { access.append("可执行") }
+            if values.isReadable == true { access.append(L10n.Info.accessReadable) }
+            if values.isWritable == true { access.append(L10n.Info.accessWritable) }
+            if values.isExecutable == true { access.append(L10n.Info.accessExecutable) }
             if !access.isEmpty {
-                lines.append("访问：\(access.joined(separator: "、"))")
+                lines.append("\(L10n.Info.accessLabel)\(access.joined(separator: ", "))")
             }
             
             if let typeIdentifier = values.typeIdentifier {
-                lines.append("类型标识：\(typeIdentifier)")
+                lines.append(L10n.Info.typeIdentifier(typeIdentifier))
             }
         }
         
-        lines.append("路径：\(item.url.path)")
+        lines.append(L10n.Info.path(item.url.path))
         return lines.joined(separator: "\n")
     }
     

@@ -89,7 +89,7 @@ enum FileServicesMenuSupport {
         // 已有自定义「服务」子菜单时，禁止系统再注入英文 Services 项。
         menu.allowsContextMenuPlugIns = false
         menu.addItem(.separator())
-        let servicesItem = NSMenuItem(title: "服务", action: nil, keyEquivalent: "")
+        let servicesItem = NSMenuItem(title: L10n.Action.services, action: nil, keyEquivalent: "")
         let submenu = NSMenu()
         servicesItem.submenu = submenu
         menu.addItem(servicesItem)

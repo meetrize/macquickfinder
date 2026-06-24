@@ -61,10 +61,10 @@ enum SnippetImportExport {
     private static func validate(_ snippets: [Snippet]) throws {
         for snippet in snippets {
             guard !snippet.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw SnippetImportError.invalidSnippet("名称为空")
+                throw SnippetImportError.invalidSnippet(L10n.Error.SnippetImport.emptyName)
             }
             guard !snippet.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw SnippetImportError.invalidSnippet("内容为空")
+                throw SnippetImportError.invalidSnippet(L10n.Error.SnippetImport.emptyContent)
             }
         }
     }
@@ -85,10 +85,10 @@ enum SnippetImportError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidFormat: return "无法识别的 Snippets 文件格式"
-        case .unsupportedSchema: return "不支持的文件版本"
-        case .tooManyItems: return "导入条目过多"
-        case .invalidSnippet(let msg): return "无效 Snippet：\(msg)"
+        case .invalidFormat: return L10n.Error.SnippetImport.invalidFormat
+        case .unsupportedSchema: return L10n.Error.SnippetImport.unsupportedSchema
+        case .tooManyItems: return L10n.Error.SnippetImport.tooMany
+        case .invalidSnippet(let msg): return L10n.Error.SnippetImport.invalid(msg)
         }
     }
 }

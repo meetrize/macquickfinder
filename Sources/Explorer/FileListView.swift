@@ -448,7 +448,7 @@ struct FileListView: View {
                     throw NSError(
                         domain: "Explorer.FileTree",
                         code: 1,
-                        userInfo: [NSLocalizedDescriptionKey: "检测到循环链接"]
+                        userInfo: [NSLocalizedDescriptionKey: L10n.Error.symlinkLoop]
                     )
                 }
                 
@@ -482,9 +482,9 @@ struct FileListView: View {
                     expandingDirectoryIDs.remove(directoryID)
                     let nsError = error as NSError
                     if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoPermissionError {
-                        expandErrorByDirectoryID[directoryID] = "无权限"
+                        expandErrorByDirectoryID[directoryID] = L10n.Error.noPermission
                     } else if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileNoSuchFileError {
-                        expandErrorByDirectoryID[directoryID] = "目录不存在"
+                        expandErrorByDirectoryID[directoryID] = L10n.Error.directoryNotFound
                     } else {
                         expandErrorByDirectoryID[directoryID] = nsError.localizedDescription
                     }
@@ -509,7 +509,7 @@ struct FileListView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("快速搜索", text: $quickSearchText)
+            TextField(L10n.Search.quickSearch, text: $quickSearchText)
                 .textFieldStyle(.plain)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -534,7 +534,7 @@ struct FileListView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .instantHoverTooltip("关闭快速搜索")
+            .instantHoverTooltip(L10n.Search.closeQuickSearch)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

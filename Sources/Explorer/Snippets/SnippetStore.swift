@@ -166,11 +166,11 @@ final class SnippetStore: ObservableObject {
     }
 
     private func uniqueName(for base: String) -> String {
-        var candidate = "\(base) (导入)"
+        var candidate = "\(base) \(L10n.Snippets.Import.renameSuffix)"
         var counter = 2
         let names = Set(snippets.map { $0.name.lowercased() })
         while names.contains(candidate.lowercased()) {
-            candidate = "\(base) (导入 \(counter))"
+            candidate = "\(base) \(L10n.Snippets.Import.renameSuffix(counter: counter))"
             counter += 1
         }
         return candidate
@@ -179,20 +179,20 @@ final class SnippetStore: ObservableObject {
     static func builtinSnippets() -> [Snippet] {
         let now = Date()
         return [
-            Snippet(name: "列出目录", scriptType: .shell, scope: .anytime, content: "ls -la %d",
+            Snippet(name: L10n.Snippets.Builtin.listDirectory, scriptType: .shell, scope: .anytime, content: "ls -la %d",
                     sortOrder: 0, createdAt: now, updatedAt: now, isBuiltin: true),
-            Snippet(name: "查看属性", scriptType: .shell, scope: .singleSelection, content: "stat %p",
+            Snippet(name: L10n.Snippets.Builtin.showAttributes, scriptType: .shell, scope: .singleSelection, content: "stat %p",
                     sortOrder: 1, createdAt: now, updatedAt: now, isBuiltin: true),
-            Snippet(name: "在终端打开", scriptType: .shell, scope: .anytime, content: "open -a Terminal %d",
+            Snippet(name: L10n.Snippets.Builtin.openTerminal, scriptType: .shell, scope: .anytime, content: "open -a Terminal %d",
                     sortOrder: 2, createdAt: now, updatedAt: now, isBuiltin: true),
-            Snippet(name: "复制路径", scriptType: .shell, scope: .singleSelection, content: "printf '%s' %p | pbcopy",
+            Snippet(name: L10n.Snippets.Builtin.copyPath, scriptType: .shell, scope: .singleSelection, content: "printf '%s' %p | pbcopy",
                     sortOrder: 3, createdAt: now, updatedAt: now, isBuiltin: true),
-            Snippet(name: "用默认应用打开", scriptType: .shell, scope: .filesOnly, content: "open %q",
+            Snippet(name: L10n.Snippets.Builtin.openDefault, scriptType: .shell, scope: .filesOnly, content: "open %q",
                     sortOrder: 4, createdAt: now, updatedAt: now, isBuiltin: true),
-            Snippet(name: "显示 Finder 信息", scriptType: .appleScript, scope: .singleSelection,
+            Snippet(name: L10n.Snippets.Builtin.finderInfo, scriptType: .appleScript, scope: .singleSelection,
                     content: #"tell application "Finder" to open information window of (POSIX file "%p" as alias)"#,
                     sortOrder: 5, createdAt: now, updatedAt: now, isBuiltin: true),
-            Snippet(name: "打开 PDF（预览）", scriptType: .shell, scope: .fileExtensions(["pdf"]),
+            Snippet(name: L10n.Snippets.Builtin.openPDF, scriptType: .shell, scope: .fileExtensions(["pdf"]),
                     content: "open -a Preview %q", sortOrder: 6, createdAt: now, updatedAt: now, isBuiltin: true),
         ]
     }

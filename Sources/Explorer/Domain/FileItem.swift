@@ -10,6 +10,17 @@ enum SortOrder: String, CaseIterable, Identifiable {
     case sizeLargest = "Size (Largest First)"
     
     var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .nameAscending: return L10n.Sort.nameAscending
+        case .nameDescending: return L10n.Sort.nameDescending
+        case .dateNewest: return L10n.Sort.dateNewest
+        case .dateOldest: return L10n.Sort.dateOldest
+        case .sizeSmallest: return L10n.Sort.sizeSmallest
+        case .sizeLargest: return L10n.Sort.sizeLargest
+        }
+    }
 }
 
 enum FileItemFormatters {

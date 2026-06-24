@@ -1,0 +1,10 @@
+/* App display */
+"CFBundleDisplayName" = "MeoFind";
+"CFBundleName" = "MeoFind";
+
+/* Document types */
+"CFBundleTypeName" = "Folder";
+
+/* Privacy - usage descriptions */
+"NSFileProviderDomainUsageDescription" = "MeoFind needs access to browse your files.";
+"NSAppleEventsUsageDescription" = "MeoFind needs to read Trash contents via Finder and send commands to Terminal to open a shell in the selected folder.";

@@ -99,7 +99,7 @@ struct PreviewToolbarOverflowLayout: View {
                     }
                     .menuIndicator(.hidden)
                     .buttonStyle(.borderless)
-                    .instantHoverTooltip("更多操作")
+                    .instantHoverTooltip(L10n.Preview.Toolbar.moreActions)
                     .fixedSize()
                 }
             }

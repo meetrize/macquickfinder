@@ -59,26 +59,26 @@ struct SnippetEditorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(snippet == nil ? "新建 Snippet" : "编辑 Snippet")
+            Text(snippet == nil ? L10n.Snippets.Editor.newTitle : L10n.Snippets.Editor.editTitle)
                 .font(.headline)
 
-            TextField("名称", text: $name)
+            TextField(L10n.Snippets.Editor.name, text: $name)
 
-            Picker("作用域", selection: $scopeKind) {
+            Picker(L10n.Snippets.Editor.scope, selection: $scopeKind) {
                 ForEach(SnippetScopeKind.allCases) { kind in
                     Text(kind.displayName).tag(kind)
                 }
             }
 
             if scopeKind == .fileExtensions {
-                TextField("扩展名（逗号分隔，如 pdf, md）", text: $scopeValues)
+                TextField(L10n.Snippets.Editor.extensionsPlaceholder, text: $scopeValues)
             }
             if scopeKind == .specificFiles {
-                TextField("文件路径（每行一个）", text: $scopeValues, axis: .vertical)
+                TextField(L10n.Snippets.Editor.pathsPlaceholder, text: $scopeValues, axis: .vertical)
                     .lineLimit(3...6)
             }
 
-            Picker("脚本类型", selection: $scriptType) {
+            Picker(L10n.Snippets.Editor.scriptType, selection: $scriptType) {
                 ForEach(SnippetScriptType.allCases) { type in
                     Text(type.displayName).tag(type)
                 }
@@ -90,20 +90,20 @@ struct SnippetEditorSheet: View {
             }
 
             if scriptType == .shell {
-                Picker("解释器", selection: $interpreter) {
+                Picker(L10n.Snippets.Editor.interpreter, selection: $interpreter) {
                     Text("zsh").tag(SnippetDefaults.shellInterpreter)
                     Text("bash").tag(SnippetDefaults.bashInterpreter)
                 }
             }
 
             if scriptType == .shell || scriptType == .python3 {
-                Toggle("使用系统终端", isOn: $useSystemTerminal)
-                Text("在 Terminal 等应用中运行，输出不显示在应用内面板")
+                Toggle(L10n.Snippets.Editor.useSystemTerminal, isOn: $useSystemTerminal)
+                Text(L10n.Snippets.Editor.terminalHint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            Text("内容")
+            Text(L10n.Snippets.Editor.content)
                 .font(.subheadline)
             TextEditor(text: $content)
                 .font(.system(.body, design: .monospaced))
@@ -113,17 +113,17 @@ struct SnippetEditorSheet: View {
 
             HStack {
                 if let snippet, let onDelete {
-                    Button("删除", role: .destructive) {
+                    Button(L10n.Action.delete, role: .destructive) {
                         onDelete(snippet.id)
                         dismiss()
                     }
                 }
                 if let snippet, let onExport {
-                    Button("导出此条") { onExport(snippet) }
+                    Button(L10n.Snippets.Panel.exportSingle) { onExport(snippet) }
                 }
                 Spacer()
-                Button("取消") { dismiss() }
-                Button("保存") { save() }
+                Button(L10n.Action.cancel) { dismiss() }
+                Button(L10n.Action.save) { save() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || content.isEmpty)
             }

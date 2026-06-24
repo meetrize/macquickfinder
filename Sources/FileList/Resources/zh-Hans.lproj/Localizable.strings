@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>action.empty_trash</key>
+	<string>清倒废纸篓</string>
+	<key>action.go_back</key>
+	<string>返回</string>
+	<key>action.go_up</key>
+	<string>向上</string>
+	<key>action.new_file</key>
+	<string>新建文件</string>
+	<key>action.new_folder</key>
+	<string>新建文件夹</string>
+	<key>action.open_terminal_here</key>
+	<string>在此处打开终端</string>
+	<key>action.paste</key>
+	<string>粘贴</string>
+	<key>column.date_modified</key>
+	<string>修改日期</string>
+	<key>column.move_left</key>
+	<string>左移</string>
+	<key>column.move_right</key>
+	<string>右移</string>
+	<key>column.name</key>
+	<string>名称</string>
+	<key>column.size</key>
+	<string>大小</string>
+	<key>column.type</key>
+	<string>类型</string>
+	<key>settings.language.system</key>
+	<string>跟随系统</string>
+	<key>view_mode.list</key>
+	<string>列表</string>
+	<key>view_mode.thumbnail</key>
+	<string>缩略图</string>
+</dict>
+</plist>
