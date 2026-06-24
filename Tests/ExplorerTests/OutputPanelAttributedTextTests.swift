@@ -56,4 +56,18 @@ final class OutputPanelAttributedTextTests: XCTestCase {
         let wrapped = OutputSessionFormatting.wrapStderr("err\n")
         XCTAssertEqual(OutputSessionFormatting.stripStderrMarkers(wrapped), "err\n")
     }
+
+    func testInlineStderrMarkersAreNotVisibleInRenderedText() {
+        let stdout = OutputSessionFormatting.wrapStderr("Cloning into 'KLineChart'...\n")
+            + OutputSessionFormatting.wrapStderr("remote: Enumerating objects: 57132, done.\n")
+        let nsAttr = OutputPanelAttributedText.makeNSAttributedString(
+            stdout: stdout,
+            stderr: "",
+            findText: ""
+        )
+        XCTAssertFalse(nsAttr.string.contains(OutputSessionFormatting.stderrOpenMarker))
+        XCTAssertFalse(nsAttr.string.contains(OutputSessionFormatting.stderrCloseMarker))
+        XCTAssertTrue(nsAttr.string.contains("Cloning into 'KLineChart'..."))
+        XCTAssertTrue(nsAttr.string.contains("remote: Enumerating objects: 57132, done."))
+    }
 }

@@ -46,12 +46,13 @@ enum ShellRunner {
     }
 
     private static func wrapShellCommand(_ expandedContent: String, workingDirectory: String?) -> String {
+        let command = ShellCommandProgressSupport.augment(expandedContent)
         guard let workingDirectory, !workingDirectory.isEmpty else {
-            return expandedContent
+            return command
         }
         let directory = SnippetExpander.standardize(workingDirectory)
         let changeDirectory = "cd \(ShellQuoting.singleQuote(directory))"
-        guard !expandedContent.isEmpty else { return changeDirectory }
-        return "\(changeDirectory) && \(expandedContent)"
+        guard !command.isEmpty else { return changeDirectory }
+        return "\(changeDirectory) && \(command)"
     }
 }

@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 输出区：运行中用 NSTextView 增量追加；结束后一次性套用富文本样式。
+/// 输出区：运行中与结束后均按 stderr 分段富文本渲染，避免内联控制符显示为乱码。
 struct OutputPanelOutputTextView: NSViewRepresentable {
     let stdout: String
     let stderr: String
@@ -55,30 +55,26 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         let wasNearBottom = coordinator.isScrolledNearBottom()
 
         if stdout.isEmpty, stderr.isEmpty {
-            if coordinator.renderedStdoutLength > 0 || coordinator.renderedStderrLength > 0 {
+            if !coordinator.lastRenderedStdout.isEmpty || !coordinator.lastRenderedStderr.isEmpty {
                 coordinator.replaceAll(with: NSAttributedString())
+                coordinator.lastRenderedStdout = ""
+                coordinator.lastRenderedStderr = ""
             }
             return
         }
 
         if isRunning {
             coordinator.renderStyledSnapshot = false
-            if stdout.count < coordinator.renderedStdoutLength {
-                coordinator.replaceAll(with: plainAttributed(stdout))
+            if stdout != coordinator.lastRenderedStdout || stderr != coordinator.lastRenderedStderr {
+                let attributed = OutputPanelAttributedText.makeNSAttributedString(
+                    stdout: stdout,
+                    stderr: stderr,
+                    findText: ""
+                )
+                coordinator.replaceAll(with: attributed)
+                coordinator.lastRenderedStdout = stdout
+                coordinator.lastRenderedStderr = stderr
                 coordinator.renderedStdoutLength = stdout.count
-            } else if stdout.count > coordinator.renderedStdoutLength {
-                let deltaStart = stdout.index(stdout.startIndex, offsetBy: coordinator.renderedStdoutLength)
-                coordinator.appendPlain(String(stdout[deltaStart...]))
-                coordinator.renderedStdoutLength = stdout.count
-            }
-
-            if stderr.count < coordinator.renderedStderrLength {
-                coordinator.replaceAll(with: plainAttributed(stdout, stderr: stderr))
-                coordinator.renderedStdoutLength = stdout.count
-                coordinator.renderedStderrLength = stderr.count
-            } else if stderr.count > coordinator.renderedStderrLength {
-                let deltaStart = stderr.index(stderr.startIndex, offsetBy: coordinator.renderedStderrLength)
-                coordinator.appendStyled(String(stderr[deltaStart...]), color: OutputPanelStyle.stderrNSColor)
                 coordinator.renderedStderrLength = stderr.count
             }
         } else {
@@ -92,6 +88,8 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
                 coordinator.replaceAll(with: attributed)
                 coordinator.renderStyledSnapshot = true
                 coordinator.styledSnapshotKey = snapshotKey
+                coordinator.lastRenderedStdout = stdout
+                coordinator.lastRenderedStderr = stderr
                 coordinator.renderedStdoutLength = stdout.count
                 coordinator.renderedStderrLength = stderr.count
             }
@@ -102,31 +100,13 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         }
     }
 
-    private func plainAttributed(_ stdout: String, stderr: String = "") -> NSAttributedString {
-        let combined = NSMutableAttributedString()
-        if !stdout.isEmpty {
-            combined.append(NSAttributedString(
-                string: stdout,
-                attributes: [.foregroundColor: OutputPanelStyle.stdoutNSColor]
-            ))
-        }
-        if !stderr.isEmpty {
-            if combined.length > 0 {
-                combined.append(NSAttributedString(string: "\n"))
-            }
-            combined.append(NSAttributedString(
-                string: stderr,
-                attributes: [.foregroundColor: OutputPanelStyle.stderrNSColor]
-            ))
-        }
-        return combined
-    }
-
     final class Coordinator {
         weak var textView: NSTextView?
         weak var scrollView: NSScrollView?
         var renderedStdoutLength = 0
         var renderedStderrLength = 0
+        var lastRenderedStdout = ""
+        var lastRenderedStderr = ""
         var renderStyledSnapshot = false
         var styledSnapshotKey = ""
 
@@ -135,24 +115,6 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
             textView.textStorage?.setAttributedString(attributed)
             renderedStdoutLength = 0
             renderedStderrLength = 0
-        }
-
-        func appendPlain(_ text: String) {
-            guard let textView, !text.isEmpty else { return }
-            let attrs: [NSAttributedString.Key: Any] = [
-                .foregroundColor: OutputPanelStyle.stdoutNSColor,
-                .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-            ]
-            textView.textStorage?.append(NSAttributedString(string: text, attributes: attrs))
-        }
-
-        func appendStyled(_ text: String, color: NSColor) {
-            guard let textView, !text.isEmpty else { return }
-            let attrs: [NSAttributedString.Key: Any] = [
-                .foregroundColor: color,
-                .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-            ]
-            textView.textStorage?.append(NSAttributedString(string: text, attributes: attrs))
         }
 
         func isScrolledNearBottom(threshold: CGFloat = 24) -> Bool {

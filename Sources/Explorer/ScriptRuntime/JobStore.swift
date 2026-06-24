@@ -13,6 +13,7 @@ final class JobStore: ObservableObject {
     private var pendingShellRuns: [PendingShellRun] = []
     private var pendingOutputPublishes: [UUID: JobRecord] = [:]
     private var outputPublishScheduled = false
+    private var stderrStreamStates: [UUID: StreamProgressOutput.StreamState] = [:]
 
     private struct PendingShellRun {
         var jobID: UUID
@@ -92,14 +93,7 @@ final class JobStore: ObservableObject {
             )
         }
         if let stderr, !stderr.isEmpty {
-            _ = OutputStreamLimiter.append(
-                stdout: &job.stdout,
-                stderr: &job.stderr,
-                truncated: &job.outputTruncated,
-                stdoutChunk: OutputSessionFormatting.wrapStderr(stderr),
-                stderrChunk: nil,
-                truncationNotice: L10n.Snippets.Output.truncated
-            )
+            appendStderrStream(jobID: jobID, job: &job, chunk: stderr, truncationNotice: L10n.Snippets.Output.truncated)
         }
 
         if job.status == .running {
@@ -159,6 +153,7 @@ final class JobStore: ObservableObject {
 
     func markFinished(jobID: UUID, exitCode: Int32) {
         flushPendingOutput(for: jobID)
+        flushStderrStreamTail(jobID: jobID)
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
         if jobs[idx].status == .cancelled {
             return
@@ -173,6 +168,7 @@ final class JobStore: ObservableObject {
 
     func markFailed(jobID: UUID, message: String) {
         flushPendingOutput(for: jobID)
+        flushStderrStreamTail(jobID: jobID)
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
         appendOutput(jobID: jobID, stderr: message)
         appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: 1))
@@ -186,6 +182,7 @@ final class JobStore: ObservableObject {
     func cancel(jobID: UUID) {
         pendingShellRuns.removeAll { $0.jobID == jobID }
         flushPendingOutput(for: jobID)
+        flushStderrStreamTail(jobID: jobID)
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
         if jobs[idx].status == .running {
             if let process = jobs[idx].process, process.isRunning {
@@ -434,5 +431,71 @@ final class JobStore: ObservableObject {
         jobs[index].endedAt = Date()
         jobs[index].startedAt = nil
         jobs[index].process = nil
+    }
+
+    private func appendStderrStream(
+        jobID: UUID,
+        job: inout JobRecord,
+        chunk: String,
+        truncationNotice: String
+    ) {
+        var state = stderrStreamStates[jobID] ?? StreamProgressOutput.StreamState()
+        let hadPending = !state.pending.isEmpty
+        let committed = StreamProgressOutput.ingest(chunk: chunk, state: &state)
+        stderrStreamStates[jobID] = state
+
+        let usesProgressRewrite = chunk.contains("\r") || hadPending || !state.pending.isEmpty
+        if usesProgressRewrite {
+            stripTrailingOpenStderrBlock(from: &job.stdout)
+            if !committed.isEmpty {
+                _ = OutputStreamLimiter.append(
+                    stdout: &job.stdout,
+                    stderr: &job.stderr,
+                    truncated: &job.outputTruncated,
+                    stdoutChunk: OutputSessionFormatting.wrapStderr(committed),
+                    stderrChunk: nil,
+                    truncationNotice: truncationNotice
+                )
+            }
+            if !state.pending.isEmpty {
+                _ = OutputStreamLimiter.append(
+                    stdout: &job.stdout,
+                    stderr: &job.stderr,
+                    truncated: &job.outputTruncated,
+                    stdoutChunk: OutputSessionFormatting.wrapStderr(state.pending),
+                    stderrChunk: nil,
+                    truncationNotice: truncationNotice
+                )
+            }
+        } else if !committed.isEmpty {
+            _ = OutputStreamLimiter.append(
+                stdout: &job.stdout,
+                stderr: &job.stderr,
+                truncated: &job.outputTruncated,
+                stdoutChunk: OutputSessionFormatting.wrapStderr(committed),
+                stderrChunk: nil,
+                truncationNotice: truncationNotice
+            )
+        }
+    }
+
+    private func flushStderrStreamTail(jobID: UUID) {
+        guard var state = stderrStreamStates.removeValue(forKey: jobID) else { return }
+        let tail = StreamProgressOutput.flush(state: &state)
+        guard !tail.isEmpty else { return }
+        stripTrailingOpenStderrBlock(from: &jobs, jobID: jobID)
+        appendOutput(jobID: jobID, stderr: tail)
+    }
+
+    private func stripTrailingOpenStderrBlock(from stdout: inout String) {
+        guard let openRange = stdout.range(of: OutputSessionFormatting.stderrOpenMarker, options: .backwards) else { return }
+        let afterOpen = stdout[openRange.upperBound...]
+        guard !afterOpen.contains(OutputSessionFormatting.stderrCloseMarker) else { return }
+        stdout = String(stdout[..<openRange.lowerBound])
+    }
+
+    private func stripTrailingOpenStderrBlock(from jobs: inout [JobRecord], jobID: UUID) {
+        guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
+        stripTrailingOpenStderrBlock(from: &jobs[idx].stdout)
     }
 }
