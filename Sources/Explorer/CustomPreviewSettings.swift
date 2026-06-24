@@ -17,9 +17,9 @@ struct PreviewSettingsTab: View {
     @ObservedObject private var store = CustomPreviewRuleStore.shared
     @Binding var prefillExtension: String?
     @Binding var showEditor: Bool
-    @AppStorage(ExplorerAppSettings.previewBrowserSameTypeOnlyKey)
+    @AppStorage(AppPreferences.Preview.browserSameTypeOnly)
     private var previewBrowserSameTypeOnly = false
-    @AppStorage(ExplorerAppSettings.codePreviewShowLineNumbersKey)
+    @AppStorage(AppPreferences.Preview.codeShowLineNumbers)
     private var codePreviewShowLineNumbers = false
 
     @State private var editingRule: CustomPreviewRule?

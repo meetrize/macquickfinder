@@ -19,8 +19,8 @@ filter_known_spm_warnings() {
 # Build the project
 build_args=(-c "$BUILD_CONFIG" --skip-update)
 if [ "$BUILD_CONFIG" = "debug" ] && [ "$FAST_DEBUG" = "1" ]; then
-    # 仅编译 Explorer 可执行目标，跳过测试与其它产物；-q 减少 SPM 输出
-    build_args+=(--target Explorer -q)
+    # 仅编译 Explorer 可执行产物；--product 会链接二进制，--target 只编译不链接
+    build_args+=(--product Explorer -q)
 fi
 
 if [ "$BUILD_CONFIG" = "debug" ] && [ "$FAST_DEBUG" = "1" ]; then

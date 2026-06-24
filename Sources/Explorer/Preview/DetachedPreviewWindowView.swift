@@ -32,7 +32,7 @@ struct DetachedPreviewWindowView: View {
 private struct DetachedPreviewWindowContent: View {
     @ObservedObject var session: PreviewSession
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(ExplorerAppSettings.previewBrowserSameTypeOnlyKey)
+    @AppStorage(AppPreferences.Preview.browserSameTypeOnly)
     private var previewBrowserSameTypeOnly = false
 
     private var browseCommands: PreviewBrowseCommands {
@@ -52,59 +52,21 @@ private struct DetachedPreviewWindowContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                if session.isShowingFolderChildPreview {
-                    Button {
-                        session.folderInlineChild = nil
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
+            PreviewChromeView(
+                session: session,
+                title: session.browseTarget.name,
+                titleMaxWidth: 160,
+                isContentCollapsed: false,
+                placement: .detachedWindow,
+                actions: PreviewChromeActions(
+                    onBackFromFolderChild: { session.folderInlineChild = nil },
+                    onDock: { dockAndDismiss() },
+                    onClose: {
+                        PreviewDetachCoordinator.shared.onDetachedWindowWillClose(sessionID: session.id)
+                        dismiss()
                     }
-                    .buttonStyle(.borderless)
-                    .instantHoverTooltip("返回文件夹")
-                }
-
-                Text(session.browseTarget.name)
-                    .font(.callout)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(minWidth: 0, maxWidth: 160, alignment: .leading)
-
-                if let item = session.toolbarFileItem {
-                    PreviewToolbarOverflowLayout(
-                        spacing: 4,
-                        items: session.previewToolbarItems(for: item)
-                    )
-                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .trailing)
-                } else {
-                    Spacer(minLength: 0)
-                }
-
-                Button {
-                    Task {
-                        let docked = await PreviewDetachCoordinator.shared.dockBack(
-                            sessionID: session.id,
-                            currentSelectedFileID: nil
-                        )
-                        if docked { dismiss() }
-                    }
-                } label: {
-                    Image(systemName: "sidebar.right")
-                }
-                .buttonStyle(.borderless)
-                .instantHoverTooltip("收回侧栏")
-
-                Button {
-                    PreviewDetachCoordinator.shared.onDetachedWindowWillClose(sessionID: session.id)
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.borderless)
-                .instantHoverTooltip("关闭窗口")
-            }
-            .frame(height: PanelTopBarMetrics.contentHeight)
-            .padding(.horizontal, 10)
-            .padding(.vertical, PanelTopBarMetrics.verticalPadding)
+                )
+            )
 
             Divider()
 
@@ -122,35 +84,7 @@ private struct DetachedPreviewWindowContent: View {
             }
         }
         .navigationTitle(session.browseTarget.name)
-        .onChange(of: session.pdfCurrentPage) { newValue in
-            if newValue > 0 {
-                session.pdfPageInput = "\(newValue)"
-            } else {
-                session.pdfPageInput = ""
-            }
-        }
-        .sheet(isPresented: $session.showImageResizeSheet) {
-            let dialogSize = session.imageResizeDialogSize
-            let oriented = session.imageEffectiveOrientedPixelSize
-            ImageResizeSheet(
-                initialWidth: dialogSize.width,
-                initialHeight: dialogSize.height,
-                aspectWidth: max(1, Int(oriented.width.rounded())),
-                aspectHeight: max(1, Int(oriented.height.rounded())),
-                onCancel: { session.showImageResizeSheet = false },
-                onApply: { width, height in
-                    session.performImageEdit {
-                        session.imageResizeTargetSize = CGSize(width: width, height: height)
-                    }
-                    session.imageZoomScale = 1.0
-                    session.imageZoomAction = .fit
-                    session.showImageResizeSheet = false
-                }
-            )
-        }
-        .onChange(of: session.imageEditUndoClearNonce) { _ in
-            session.clearImageEditUndoStack()
-        }
+        .previewSessionInteractions(session)
         .focusedValue(\.previewBrowseCommands, browseCommands)
         .background(PreviewBrowserKeyboardMonitor(session: session))
         .background(DetachedPreviewWindowTracker(sessionID: session.id))
@@ -162,6 +96,16 @@ private struct DetachedPreviewWindowContent: View {
         }
         .onChange(of: session.browseContext?.currentIndex) { _ in
             session.scheduleBrowseContentPrefetch()
+        }
+    }
+
+    private func dockAndDismiss() {
+        Task {
+            let docked = await PreviewDetachCoordinator.shared.dockBack(
+                sessionID: session.id,
+                currentSelectedFileID: nil
+            )
+            if docked { dismiss() }
         }
     }
 }

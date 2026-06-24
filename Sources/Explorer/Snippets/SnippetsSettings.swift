@@ -6,32 +6,68 @@ final class SnippetsSettings: ObservableObject {
     static let shared = SnippetsSettings()
 
     @Published var pinRecentlyExecutedSnippets: Bool {
-        didSet { UserDefaults.standard.set(pinRecentlyExecutedSnippets, forKey: ExplorerAppSettings.pinRecentlyExecutedSnippetsKey) }
+        didSet {
+            UserDefaultsStorage.set(
+                pinRecentlyExecutedSnippets,
+                forKey: AppPreferences.Snippets.pinRecentlyExecuted
+            )
+        }
     }
 
     @Published var maxConcurrentJobs: Int {
-        didSet { UserDefaults.standard.set(maxConcurrentJobs, forKey: ExplorerAppSettings.maxConcurrentJobsKey) }
+        didSet {
+            UserDefaultsStorage.set(
+                maxConcurrentJobs,
+                forKey: AppPreferences.Snippets.maxConcurrentJobs
+            )
+        }
     }
 
     @Published var autoShowOutputPanelOnShellRun: Bool {
-        didSet { UserDefaults.standard.set(autoShowOutputPanelOnShellRun, forKey: ExplorerAppSettings.autoShowOutputPanelOnShellRunKey) }
+        didSet {
+            UserDefaultsStorage.set(
+                autoShowOutputPanelOnShellRun,
+                forKey: AppPreferences.Snippets.autoShowOutputPanelOnShellRun
+            )
+        }
     }
 
     @Published var confirmDestructiveSnippets: Bool {
-        didSet { UserDefaults.standard.set(confirmDestructiveSnippets, forKey: ExplorerAppSettings.confirmDestructiveSnippetsKey) }
+        didSet {
+            UserDefaultsStorage.set(
+                confirmDestructiveSnippets,
+                forKey: AppPreferences.Snippets.confirmDestructive
+            )
+        }
     }
 
     @Published var displayMode: SnippetsDisplayMode {
-        didSet { UserDefaults.standard.set(displayMode.rawValue, forKey: ExplorerAppSettings.snippetsDisplayModeKey) }
+        didSet {
+            UserDefaultsStorage.set(
+                displayMode.rawValue,
+                forKey: AppPreferences.Snippets.displayMode
+            )
+        }
     }
 
     private init() {
-        let d = UserDefaults.standard
-        pinRecentlyExecutedSnippets = d.object(forKey: ExplorerAppSettings.pinRecentlyExecutedSnippetsKey) as? Bool ?? true
-        maxConcurrentJobs = d.object(forKey: ExplorerAppSettings.maxConcurrentJobsKey) as? Int ?? 2
-        autoShowOutputPanelOnShellRun = d.object(forKey: ExplorerAppSettings.autoShowOutputPanelOnShellRunKey) as? Bool ?? true
-        confirmDestructiveSnippets = d.object(forKey: ExplorerAppSettings.confirmDestructiveSnippetsKey) as? Bool ?? true
-        if let raw = d.string(forKey: ExplorerAppSettings.snippetsDisplayModeKey),
+        pinRecentlyExecutedSnippets = UserDefaultsStorage.bool(
+            forKey: AppPreferences.Snippets.pinRecentlyExecuted,
+            default: true
+        )
+        maxConcurrentJobs = UserDefaultsStorage.int(
+            forKey: AppPreferences.Snippets.maxConcurrentJobs,
+            default: 2
+        )
+        autoShowOutputPanelOnShellRun = UserDefaultsStorage.bool(
+            forKey: AppPreferences.Snippets.autoShowOutputPanelOnShellRun,
+            default: true
+        )
+        confirmDestructiveSnippets = UserDefaultsStorage.bool(
+            forKey: AppPreferences.Snippets.confirmDestructive,
+            default: true
+        )
+        if let raw = UserDefaults.standard.string(forKey: AppPreferences.Snippets.displayMode),
            let mode = SnippetsDisplayMode(rawValue: raw) {
             displayMode = mode
         } else {

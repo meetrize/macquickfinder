@@ -40,7 +40,7 @@ final class ThumbnailDiskCache {
             return nil
         }
         let isThumbnail = (try? fileURL.extendedAttribute(name: "com.meofind.thumb.isThumbnail")) == Data([1])
-        let cost = estimatedCost(of: image)
+        let cost = ThumbnailImageCost.estimatedBytes(of: image)
         return ThumbnailCache.Entry(image: image, isThumbnail: isThumbnail, cost: cost)
     }
     
@@ -51,12 +51,12 @@ final class ThumbnailDiskCache {
             return
         }
         let fileURL = fileURL(for: key)
-        // 同步落盘，避免用户快速离开目录时异步写入尚未完成。
-        ioQueue.sync {
+        let isThumbnailByte = isThumbnail ? UInt8(1) : UInt8(0)
+        ioQueue.async {
             try? png.write(to: fileURL, options: .atomic)
             try? fileURL.setExtendedAttribute(
                 name: "com.meofind.thumb.isThumbnail",
-                data: Data([isThumbnail ? 1 : 0])
+                data: Data([isThumbnailByte])
             )
         }
     }
@@ -87,13 +87,6 @@ final class ThumbnailDiskCache {
         withUnsafeBytes(of: UInt64(bitPattern: key.fileSize)) { data.append(contentsOf: $0) }
         withUnsafeBytes(of: key.sizeBucket) { data.append(contentsOf: $0) }
         return data
-    }
-    
-    private func estimatedCost(of image: NSImage) -> Int {
-        let size = image.size
-        let scale = image.recommendedLayerContentsScale(0)
-        let pixels = Int(size.width * scale) * Int(size.height * scale)
-        return max(pixels * 4, 16_384)
     }
 }
 

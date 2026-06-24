@@ -32,32 +32,7 @@ enum AppleScriptEngine {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         process.arguments = ["-e", expandedContent]
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-
-        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-            Task { @MainActor in
-                JobStore.shared.appendOutput(jobID: jobID, stdout: text)
-            }
-        }
-        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-            Task { @MainActor in
-                JobStore.shared.appendOutput(jobID: jobID, stderr: text)
-            }
-        }
-        process.terminationHandler = { proc in
-            stdoutPipe.fileHandleForReading.readabilityHandler = nil
-            stderrPipe.fileHandleForReading.readabilityHandler = nil
-            Task { @MainActor in
-                JobStore.shared.markFinished(jobID: jobID, exitCode: proc.terminationStatus)
-            }
-        }
+        ProcessOutputStreamer.attach(to: process, jobID: jobID)
         do {
             try process.run()
             JobStore.shared.markRunning(jobID: jobID, process: process)

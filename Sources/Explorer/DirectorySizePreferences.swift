@@ -1,17 +1,20 @@
 import Foundation
 
 enum DirectorySizePreferences {
-    static let autoCalculateKey = "autoCalculateDirectorySizes"
-    
+    static var autoCalculateKey: String { AppPreferences.Directory.autoCalculateDirectorySizes }
+
     static var autoCalculateDirectorySizes: Bool {
         get {
-            guard UserDefaults.standard.object(forKey: autoCalculateKey) != nil else {
-                return true
-            }
-            return UserDefaults.standard.bool(forKey: autoCalculateKey)
+            UserDefaultsStorage.bool(
+                forKey: AppPreferences.Directory.autoCalculateDirectorySizes,
+                default: true
+            )
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: autoCalculateKey)
+            UserDefaultsStorage.set(
+                newValue,
+                forKey: AppPreferences.Directory.autoCalculateDirectorySizes
+            )
         }
     }
 }

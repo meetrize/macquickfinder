@@ -89,8 +89,8 @@ flowchart TB
 
 | 问题 | 位置 | 说明 |
 |------|------|------|
-| 应用巨石 | `AppModule.swift`（9,160 行） | 含 `@main`、`ContentView`、`FileListView`、`FilePreviewView`、`FileContentView`、`loadItems`、收藏夹、回收站等 |
-| 预览 UI 错位 | `Preview/` vs `AppModule` | 加载器在 `Preview/`，主要视图仍在 `AppModule` 约 4900–5500 行 |
+| 应用巨石 | `AppModule.swift`（约 430 行） | 已拆分为 ContentView/PathBar/FileList/Sidebar/Preview/Domain 等模块；详见 `docs/refactor-execution-plan.md` |
+| 预览 UI 错位 | `Preview/` vs `AppModule` | 加载器与 `FileContentView`/`FilePreviewSessionHost` 已在 `Preview/`；`FilePreviewView` 等仍在 `AppModule` |
 | 命名遗留 | `FileListTableInteraction` | 缩略图模式也使用，含 "Table" 字样易误导 |
 | 输出面板游离 | `OutputPanelView` | 与 `RightPanelStackView` 并列挂在 `ContentView`，两套 resize 手柄模式 |
 
@@ -221,7 +221,7 @@ public struct XxxColumnProvider: Equatable {
 
 - `FolderPreviewLoader` 与主列表排序不一致 → 右栏预览顺序与主列表/browser 条可能不同  
 - `DirectoryItemCountService` 与 `FolderPreviewLoader` 对隐藏文件的处理路径不同（`atPath` vs `includingPropertiesForKeys` + `.skipsHiddenFiles`）  
-- `FolderPreviewView` 同时调度 `DirectoryItemCountService` 并调用 `FolderPreviewLoader`，`itemCountText` 有两套数据源（overlay count vs `loadResult.totalCount`）
+- `FolderPreviewView` 同时调度 `DirectoryItemCountService` 并调用 `FolderPreviewLoader`；~~`itemCountText` 有两套数据源~~ **E5.2 已统一为 `DirectoryMetadataOverlay`**
 
 ---
 
@@ -333,12 +333,12 @@ public struct XxxColumnProvider: Equatable {
 
 | 问题 | 说明 |
 |------|------|
-| 主线程同步磁盘读 | `prepareThumbnailItem` → `ThumbnailCache.entry` → `ThumbnailDiskCache.loadSync` via `ioQueue.sync` |
-| 框选 O(n) | `handleBlankRubberBandDrag` 对每个 `displayRows` 项调 `layoutAttributesForItem` |
-| `setDropHighlight` | 遍历所有可见 item 切换高亮 |
-| 全量 `reloadData` | 列表变更时失效所有 cell，重新触发缩略图加载 |
-| 磁盘写入阻塞 | `ThumbnailDiskCache.store` 用 `ioQueue.sync` 写 PNG |
-| 图标缓存驱逐 | `workspaceIconCache` 达 300 条目时**全清**，可能引发惊群重取 |
+| 主线程同步磁盘读 | ~~`prepareThumbnailItem` → 同步磁盘~~ **E6.1/E6.2 已改异步** |
+| 框选 O(n) | ~~对每个 `displayRows` 调 `layoutAttributesForItem`~~ **E6.3 已用 `layoutAttributesForElements(in:)`** |
+| `setDropHighlight` | ~~遍历所有可见 item~~ **E6.4 仅更新 previous/new** |
+| 全量 `reloadData` | 列表变更仍全量；**E6.5 排序/搜索改 `reloadItems`** |
+| 磁盘写入阻塞 | **E6.6 已 async** |
+| 图标缓存驱逐 | ~~达 300 条目全清~~ **E6.7 已有 LRU 逐出** |
 
 ### 3.4 预览加载
 
@@ -346,7 +346,7 @@ public struct XxxColumnProvider: Equatable {
 |------|------|
 | `PreviewSession` 状态膨胀 | 所有类型字段常驻内存，切换文件时 `prepareForLoad` 无法完全释放 UI 状态 |
 | Browser 排序不一致 | `PreviewBrowserContext` 用 `FileListSortEngine`；`FolderPreviewLoader` 用不同规则 |
-| `ThumbnailGenerator.shutdown` | `QLConcurrencyGate.waitUntilIdle` 用 `Thread.sleep(0.005)` 轮询 |
+| `ThumbnailGenerator.shutdown` | ~~`QLConcurrencyGate.waitUntilIdle` 轮询~~ **E6.8 已改 `NSCondition`** |
 
 ### 3.5 已有优化（值得保留）
 
@@ -435,7 +435,7 @@ struct AsyncColumnProvider<Info: Equatable>: Equatable {
 | `Explorer/Domain/FileItem.swift` | `FileItem`、`SortOrder`、`FileOperations` | ~800 |
 | `Explorer/Domain/FavoritesStore.swift` | 收藏夹持久化 | ~200 |
 | `Explorer/Domain/TrashRestoreStore.swift` | 回收站恢复记录 | ~150 |
-| `Explorer/Sidebar/SidebarView.swift` | 侧边栏 SwiftUI | ~400 |
+| `Explorer/PathBarView.swift` | 地址栏 + 工具栏输入框焦点栈 | ~1,902 |
 | `Explorer/Settings/SettingsView.swift` | 设置界面 | ~300 |
 
 目标：`AppModule.swift` 仅保留 `@main struct ExplorerApp` + WindowGroup 声明（< 200 行）。
@@ -518,7 +518,7 @@ struct DirectoryListingLoader {
 - `WindowSnapCoordinator`  
 - `PreviewBrowserContext`  
 
-可考虑 `AppPreferences` 注册表 + 统一 key 命名空间（`docs/i18n-design.md` 国际化时也会受益）。
+可考虑 ~~`AppPreferences` 注册表~~ **E5.5 已实现** + 统一 key 命名空间（`docs/i18n-design.md` 国际化时也会受益）。
 
 #### 4.3.3 Resize 手柄统一
 
@@ -593,38 +593,69 @@ struct DirectoryListingLoader {
 
 ## 七、分阶段实施路线图
 
-### Phase A — 低风险、高收益（1–2 周）
+### Phase A — 低风险、高收益（1–2 周）✅ 已完成 2026-06-23
 
-- [ ] 提取 `ShellQuoting` 工具，删除 5 处重复  
-- [ ] 统一 `isAppBundle` → `FileListApplicationBundle.isBundle`  
-- [ ] 泛型 `AsyncColumnProvider<Info>` 替换两个 ColumnProvider  
-- [ ] 列表模式增加 workspace 图标缓存（对齐缩略图）  
-- [ ] `SnippetExecutor` 抽取 `buildDisplayCommand`，`JobStore` 复用  
+- [x] 提取 `ShellQuoting` 工具，删除 5 处重复  
+- [x] 统一 `isAppBundle` → `FileListApplicationBundle.isBundle`（`FileItem.isApplicationBundle`）  
+- [x] 泛型 `AsyncColumnProvider<Info>` 替换两个 ColumnProvider  
+- [x] 列表模式增加 workspace 图标缓存（`FileListWorkspaceIconCache`，缩略图同步复用）  
+- [x] `SnippetExecutor` 抽取 `SnippetDisplayCommand.build`，`JobStore` 复用  
 
-### Phase B — FileList 双轨合并（2–4 周）
+### Phase B — FileList 双轨合并 ✅ 已完成 2026-06-23
 
-- [ ] 实现 `FileListInteractionCoordinator`  
-- [ ] 实现 `FileListRenameCoordinator`  
-- [ ] 统一 `MetadataRefreshEngine`（size + count merge/refresh）  
-- [ ] 拆分 `FileListTableController.swift`  
-- [ ] 优化 listing 签名与 padding 列可见行更新  
+- [x] 实现 `FileListInteractionCoordinator`（键盘、框选、拖放项、空白菜单、选中 ID）  
+- [x] 实现 `FileListRenameCoordinator`（二次点击改名状态机）  
+- [x] 统一 `FileListDirectoryMetadataRefresh`（size + count merge/refresh）  
+- [x] 拆分 `FileListTableController.swift`（+DirectoryMetadata；其余逻辑已在 +Interaction/+Rename 扩展）  
+- [x] 优化 listing 签名（`FileListListingSignature.hash`）与 padding 列可见行更新  
 
-### Phase C — Explorer 瘦身（3–5 周）
+### Phase C — Explorer 瘦身 ✅ 部分完成 2026-06-23
 
-- [ ] 迁出 `FileContentView`、`FilePreviewSessionHost` 到 `Preview/`  
-- [ ] 迁出 `ContentView`、`FileListView`  
-- [ ] 泛化 `DirectoryMetadataService` + 统一调度器  
-- [ ] `DirectoryListingLoader` 替换三处枚举  
-- [ ] Archive 加载全部走 `ArchivePreviewLoader`  
-- [ ] `ProcessOutputStreamer` + `SnippetExecutionService`  
+- [x] 迁出 `FileContentView`、`FilePreviewSessionHost` 到 `Preview/`  
+- [x] 迁出 `ContentView`、`FileListView` 到 `Explorer/ContentView.swift`（~1,108 行）、`Explorer/FileListView.swift`（~662 行）  
+- [x] 迁出 `SidebarView`、`SidebarRailView`、`SidebarRow` 到 `Explorer/SidebarView.swift`（~563 行）  
+- [x] 迁出 `PathBarView` 栈到 `Explorer/PathBarView.swift`（~1,902 行）  
+- [x] 迁出 `SettingsView`、`PreviewViews`、`Domain/*`（`FileItem`、`FavoritesStore`、`TrashLoader`、`FileOperations` 等）；`AppModule.swift` 降至约 **430 行**（仅 `@main` + 命令 + 工具栏图标）  
+- [x] 统一目录元数据调度（`DirectoryMetadataScheduler` + 共享 `DirectoryMetadataSchedulePriority`）  
+- [x] `DirectoryMetadataService<Entry>` 泛型 Actor — size/count 共享队列、缓存、generation；`DirectorySizeComputer` / `DirectoryItemCountComputer` 提供计算策略  
+- [x] `DirectoryListingLoader` 替换主列表与 `FolderPreviewLoader` 枚举  
+- [x] Archive 加载全部走 `ArchivePreviewLoader.listArchiveEntries`  
+- [x] `ProcessOutputStreamer` + `OutputPanelPresenter`（脚本输出流与面板展示）  
+- [x] `SnippetExecutionService` — 统一 scriptType 分发；`JobStore.rerunEditedCommand` / `SnippetExecutor` 已接入  
 
-### Phase D — 深度重构（按需）
+### Phase D — 深度重构 ✅ 已完成 2026-06-23
 
-- [ ] `PreviewSession` 按类型拆分状态  
-- [ ] `PreviewCapability` 单一来源  
-- [ ] `PreviewChromeView` 共享  
-- [ ] 新增 `FileListTests`；补齐 Actor/加载器测试  
-- [ ] 评估 `ExplorerCore` 第三 target  
+- [x] `PreviewCapability` — 单一来源判定预览/分离/浏览/预取能力；`PreviewBrowserEligibility` 转发  
+- [x] `PreviewChromeView` — 内联侧栏与独立窗口共享顶栏  
+- [x] `PreviewSessionStateReset` — 按类型分组的重置逻辑（image/pdf/text/media/office/archive）  
+- [x] `PreviewSessionViewModifiers` — PDF 页码、图片缩放 sheet 等共用修饰  
+- [x] `PreviewSession` 嵌套状态（`PreviewSessionNestedState` + `session.image.*` 绑定迁移）  
+- [x] `PreviewContentLoader` / `PreviewLoadRoute` / `PreviewLoadPayload` 加载管道拆分  
+- [x] `DirectoryMetadataServiceTests`、`PreviewCapabilityTests`、`PreviewLoadDispatchTests`  
+
+### Phase E — 收尾与测试基建 🔄 进行中 2026-06-23
+
+详见 `docs/refactor-execution-plan.md`。
+
+**已完成（首批评审）：** `FileListTests` target、`FileListListingSignatureTests`、`FileListInteractionCoordinatorTests`、`DirectoryListingLoaderTests`；`ThumbnailImageCost`、`ShellProcessRunner`、`DestructiveActionConfirmer`、`SnippetStore.visibleSnippets`、`FileListContentInteraction` typealias；移除 `ThumbnailCache.entry` 同步磁盘 API。
+
+**待后续 PR：** `FileListSortEngine` 树缓存（E6.9）、`FileListThumbnailCellView` 拆分（E4.4）、目录大小双重门控（E5.3）。
+
+**E5.5 已完成：** `AppPreferences` 键注册表 + `UserDefaultsStorage` / `@UserDefaults*` property wrapper；`ExplorerAppSettings` 兼容转发；主要 Store/Settings 已迁移。
+
+**E4.3 已完成：** `FileListTableController` 拆为 `+ColumnLayout`（padding/列宽/表头菜单/观察者）与 `+CellConfiguration`（cell 工厂/配置/命中测试）；主文件 ~330 行。
+
+**E6 已完成：** 框选/命中测试改 `layoutAttributesForElements(in:)`；drop 高亮仅更新前后 item；排序/搜索用 `reloadItems`；`QLConcurrencyGate` 改 `NSCondition`；`FileListWorkspaceIconCache` 已为 LRU。
+
+**E4.2 已完成：** 表格拖放迁入 `FileListTableController+DragDrop`；`FileListDragDropSupport` 统一 `evaluateDrop` / `performAcceptedDrop` / `beginFileDrag`；缩略图保留会话态，目标解析与 perform 走共享模块。
+
+**E7.1 已完成：** `PreviewViews.swift` 瘦身为侧栏壳（~146 行）；各类型预览迁入 `Preview/Views/`（13 个文件）。
+
+**E7.2 已完成：** 收藏夹拖放/重排逻辑迁入 `Domain/`（`FavoritesSidebarDropPolicy`、`FavoritesSidebarDropHandler`、`FavoritePathNormalization`）。
+
+**E5.1 已完成：** `DirectorySizeOverlay` + `DirectoryItemCountOverlay` 合并为 `DirectoryMetadataOverlay`。
+
+**E5.2 已完成：** `FolderPreviewView` 子项数量统一取自 `DirectoryMetadataOverlay`；`LoadResult` 不再携带 `totalCount`。
 
 ---
 
@@ -632,15 +663,19 @@ struct DirectoryListingLoader {
 
 | 行数 | 文件 | 主要问题 |
 |------|------|----------|
-| 9,160 | `Explorer/AppModule.swift` | 应用巨石，预览 UI、加载、设置、收藏夹 |
-| 1,241 | `FileList/FileListTableController.swift` | 过大，宜拆分 extension |
+| 430 | `Explorer/AppModule.swift` | `@main`、菜单命令、Lucide 工具栏图标 |
+| 1,902 | `Explorer/PathBarView.swift` | 地址栏、面包屑、工具栏输入框焦点 |
+| 1,108 | `Explorer/ContentView.swift` | 主窗口编排、`loadItems`、面板 wiring |
+| 662 | `Explorer/FileListView.swift` | 文件列表 SwiftUI 壳 + 元数据桥接 |
+| 563 | `Explorer/SidebarView.swift` | 侧栏 SwiftUI + 卷挂载/拖放 |
+| 330 | `FileList/FileListTableController.swift` | ~~过大~~ **E4.3 已拆 +ColumnLayout / +CellConfiguration** |
 | 916 | `Explorer/FavoritesSidebarHost.swift` | 无测试，可抽数据层 |
 | 713 | `FileList/Thumbnail/FileListThumbnailController.swift` | 与 TableController 大量重复 |
 | 688 | `Explorer/WindowSnapCoordinator.swift` | 无测试 |
 | 587 | `FileList/FileListTableController+Interaction.swift` | 与缩略图 Interaction 重复 |
 | 485 | `FileList/Thumbnail/FileListThumbnailCellView.swift` | 可拆分 |
 | 468 | `Explorer/Preview/PreviewSession+Loading.swift` | 单体 loadContent + 内联 tar |
-| 390 | `FileList/Thumbnail/FileListThumbnailController+DragDrop.swift` | 与表格拖放重复 |
+| 390 | `FileList/Thumbnail/FileListThumbnailController+DragDrop.swift` | ~~与表格拖放重复~~ **E4.2 已共享 `FileListDragDropSupport`** |
 | 367 | `Explorer/ScriptRuntime/OutputPanelView.swift` | 无测试 |
 | 362 | `Explorer/ExplorerWindowLayoutState.swift` | 无测试 |
 | 330 | `FileList/Thumbnail/FileListThumbnailController+Interaction.swift` | 重复 |

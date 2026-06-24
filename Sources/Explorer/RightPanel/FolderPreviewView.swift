@@ -5,8 +5,7 @@ struct FolderPreviewView: View {
     let folder: FileItem
     let showHiddenFiles: Bool
     let autoCalculateDirectorySizes: Bool
-    @ObservedObject var sizeOverlay: DirectorySizeOverlay
-    @ObservedObject var countOverlay: DirectoryItemCountOverlay
+    @ObservedObject var metadataOverlay: DirectoryMetadataOverlay
     let showContentsList: Bool
     let onNavigate: (String) -> Void
     let onOpenFolder: () -> Void
@@ -97,26 +96,19 @@ struct FolderPreviewView: View {
         return parts.joined(separator: " · ")
     }
 
-    private var itemCountText: String {
-        let overlayCount = countOverlay.countDisplay(for: folder.id)
-        if overlayCount.count >= 0 {
-            return formatItemCount(overlayCount.count)
-        }
-        if let total = loadResult?.totalCount, total > 0 || loadResult?.errorMessage == nil {
-            return formatItemCount(total)
-        }
-        if isLoadingContents {
-            return "正在统计…"
-        }
-        return "— 项"
+    private var resolvedItemCount: Int? {
+        FolderPreviewItemCountDisplay.resolvedCount(from: metadataOverlay, path: folder.id)
     }
 
-    private func formatItemCount(_ count: Int) -> String {
-        "\(count) 项"
+    private var itemCountText: String {
+        FolderPreviewItemCountDisplay.summaryText(
+            count: resolvedItemCount,
+            isApplicationBundle: FileListApplicationBundle.isBundle(path: folder.id)
+        )
     }
 
     private var directorySizeText: String {
-        let display = sizeOverlay.sizeDisplay(for: folder.id)
+        let display = metadataOverlay.sizeDisplay(for: folder.id)
         if display.sortableSize < 0 {
             return autoCalculateDirectorySizes ? "大小计算中…" : ""
         }
@@ -154,7 +146,12 @@ struct FolderPreviewView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     if result.truncated {
-                        Text("显示前 \(FolderPreviewLoader.maxChildren) / \(result.totalCount) 项")
+                        Text(
+                            FolderPreviewItemCountDisplay.truncationCaption(
+                                maxChildren: FolderPreviewLoader.maxChildren,
+                                totalCount: resolvedItemCount
+                            )
+                        )
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -197,7 +194,6 @@ struct FolderPreviewView: View {
         guard !TrashLoader.isTrashPath(folder.id) else {
             loadResult = FolderPreviewLoader.LoadResult(
                 children: [],
-                totalCount: 0,
                 truncated: false,
                 errorMessage: "废纸篓中的文件夹不支持预览内容"
             )
@@ -222,7 +218,7 @@ struct FolderPreviewView: View {
     }
 
     private func handlePreviewChild(_ child: FileItem) {
-        if child.isDirectory, isAppBundle(child) {
+        if child.isDirectory, child.isApplicationBundle {
             onOpenChild(child)
             return
         }
@@ -234,7 +230,7 @@ struct FolderPreviewView: View {
 
     private func handleOpenChild(_ child: FileItem) {
         if child.isDirectory {
-            if isAppBundle(child) {
+            if child.isApplicationBundle {
                 onOpenChild(child)
             } else {
                 onNavigate(child.id)
@@ -242,10 +238,6 @@ struct FolderPreviewView: View {
             return
         }
         onOpenChild(child)
-    }
-
-    private func isAppBundle(_ item: FileItem) -> Bool {
-        item.isDirectory && item.url.pathExtension.lowercased() == "app"
     }
 
     private func copyPathToPasteboard() {

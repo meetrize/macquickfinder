@@ -323,7 +323,7 @@ final class CustomPreviewRuleStore: ObservableObject {
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: ExplorerAppSettings.customPreviewRulesKey) else {
+        guard let data = UserDefaultsStorage.data(forKey: AppPreferences.Preview.customRules) else {
             rules = []
             return
         }
@@ -332,6 +332,6 @@ final class CustomPreviewRuleStore: ObservableObject {
 
     private func persist() {
         guard let data = try? JSONEncoder().encode(rules) else { return }
-        UserDefaults.standard.set(data, forKey: ExplorerAppSettings.customPreviewRulesKey)
+        UserDefaultsStorage.set(data, forKey: AppPreferences.Preview.customRules)
     }
 }

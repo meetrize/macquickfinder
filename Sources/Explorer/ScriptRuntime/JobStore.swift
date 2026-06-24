@@ -157,50 +157,7 @@ final class JobStore: ObservableObject {
 
     /// 以编辑后的命令内容重新执行，产生新 Job。
     func rerunEditedCommand(fromJobID: UUID, content: String) {
-        guard let job = jobs.first(where: { $0.id == fromJobID }) else { return }
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        guard case .snippet(let snippetID, let name) = job.source,
-              let snippet = SnippetStore.shared.snippet(id: snippetID) else { return }
-
-        let displayCommand: String
-        switch snippet.scriptType {
-        case .shell:
-            let interpreter = snippet.interpreter ?? SnippetDefaults.shellInterpreter
-            displayCommand = "\(interpreter) -lc '\(trimmed)'"
-        case .python3:
-            displayCommand = trimmed.contains("\n")
-                ? "python3 << '\(trimmed.prefix(80))…'"
-                : "python3 -c '\(trimmed)'"
-        case .appleScript:
-            displayCommand = trimmed
-        }
-
-        let newJobID = createJob(
-            snippetName: name,
-            displayCommand: displayCommand,
-            source: job.source,
-            expandedContent: trimmed,
-            workingDirectory: job.workingDirectory
-        )
-
-        if settings.autoShowOutputPanelOnShellRun {
-            if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
-                ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
-            }
-        }
-
-        switch snippet.scriptType {
-        case .shell, .python3:
-            scheduleShellRun(
-                snippet: snippet,
-                expandedContent: trimmed,
-                jobID: newJobID,
-                workingDirectory: job.workingDirectory
-            )
-        case .appleScript:
-            AppleScriptEngine.run(snippet: snippet, expandedContent: trimmed, jobID: newJobID)
-        }
+        SnippetExecutionService.rerunEditedCommand(fromJobID: fromJobID, content: content, jobStore: self)
     }
 
     func runningCount() -> Int {

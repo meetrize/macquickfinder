@@ -318,7 +318,10 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         
         if row >= 0,
            let target = item(at: row),
-           FavoritesStore.pathsRepresentSameLocation(draggedPath, target.path) {
+           FavoritesSidebarDropPolicy.shouldRejectReorder(
+               draggedPath: draggedPath,
+               ontoTargetPath: target.path
+           ) {
             clearDropIndicator()
             return []
         }
@@ -354,24 +357,19 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     private func isDropOntoRowCenter(_ location: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
         let rowRect = tableView.rect(ofRow: row)
         guard rowRect.contains(location) else { return false }
-        let edgeBand = min(rowRect.height * 0.25, 4)
-        let relativeY = location.y - rowRect.minY
-        return relativeY >= edgeBand && relativeY <= rowRect.height - edgeBand
+        return FavoritesSidebarDropPolicy.isDropOntoRowCenter(
+            locationY: location.y,
+            rowMinY: rowRect.minY,
+            rowHeight: rowRect.height
+        )
     }
-    
+
     private func canDropOntoRow(_ row: Int, urls: [URL]) -> Bool {
         guard let item = item(at: row) else { return false }
-        let destinationPath = (item.path as NSString).standardizingPath
-        for url in urls {
-            let sourcePath = (url.path as NSString).standardizingPath
-            if FavoritesStore.pathsRepresentSameLocation(sourcePath, destinationPath) {
-                return false
-            }
-            if sourcePath.hasPrefix(destinationPath + "/") {
-                return false
-            }
-        }
-        return true
+        return FavoritesSidebarDropPolicy.canDropOntoFavorite(
+            destinationPath: item.path,
+            sourcePaths: urls.map(\.path)
+        )
     }
     
     private func applyRowDropIndicator(row: Int, in tableView: FavoritesTableView) {
@@ -402,29 +400,26 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     }
     
     private func addableFavoriteDirectoryURLs(from urls: [URL]) -> [URL] {
-        urls.filter { url in
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-                  isDirectory.boolValue,
-                  !FileListApplicationBundle.isBundle(path: url.path),
-                  !parent.favoritesStore.contains(path: url.path) else {
-                return false
-            }
-            return true
+        FavoritesSidebarDropPolicy.filterAddableDirectoryURLs(urls) { path in
+            parent.favoritesStore.contains(path: path)
         }
     }
     
     private func insertBeforeIndex(for location: NSPoint, in tableView: NSTableView) -> Int {
         let rowCount = tableView.numberOfRows
-        guard rowCount > 0 else { return 0 }
-        
         let row = tableView.row(at: location)
-        if row < 0 {
-            return rowCount
+        let rowMidY: CGFloat?
+        if row >= 0, row < rowCount {
+            rowMidY = tableView.rect(ofRow: row).midY
+        } else {
+            rowMidY = nil
         }
-        
-        let rowRect = tableView.rect(ofRow: row)
-        return location.y < rowRect.midY ? row : row + 1
+        return FavoritesSidebarDropPolicy.insertBeforeIndex(
+            locationY: location.y,
+            rowAtLocation: row,
+            rowCount: rowCount,
+            rowMidY: rowMidY
+        )
     }
     
     private func applyInsertDropIndicator(insertBefore: Int, in tableView: FavoritesTableView) {
@@ -442,7 +437,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         }
         
         let items = parent.favoritesStore.items
-        guard let fromIndex = items.firstIndex(where: {
+        guard items.contains(where: {
             FavoritesStore.pathsRepresentSameLocation($0.path, draggedPath)
         }) else {
             return false
@@ -450,27 +445,24 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         
         let insertIndex: Int
         if pendingInsertBeforeIndex >= 0 {
-            insertIndex = min(max(pendingInsertBeforeIndex, 0), items.count)
+            insertIndex = FavoritesSidebarDropPolicy.clampedInsertIndex(
+                pendingInsertBeforeIndex,
+                itemCount: items.count
+            )
         } else {
             insertIndex = items.count
         }
-        
-        var targetIndex = insertIndex
-        if fromIndex < targetIndex {
-            targetIndex -= 1
-        }
-        guard targetIndex != fromIndex else { return true }
-        
+
         parent.favoritesStore.moveItem(withPath: draggedPath, toInsertBefore: insertIndex)
         syncFromParent()
         return true
     }
-    
+
     private func destinationPathForPendingDrop() -> String {
-        let items = parent.favoritesStore.items
-        guard !items.isEmpty else { return "" }
-        let row = pendingDropRow < 0 ? 0 : min(pendingDropRow, items.count - 1)
-        return items[row].path
+        FavoritesSidebarDropPolicy.destinationPath(
+            for: parent.favoritesStore.items,
+            pendingDropRow: pendingDropRow
+        )
     }
     
     private func clearDropIndicator() {

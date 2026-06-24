@@ -1,0 +1,227 @@
+import AppKit
+import Foundation
+import UniformTypeIdentifiers
+
+/// 列表模式与缩略图模式共享的行状态、搜索追踪、重命名与指针会话状态。
+public class FileListContentController: NSObject {
+    var sourceRows: [FileListRow] = []
+    var displayRows: [FileListRow] = []
+    var selectionGet: (() -> Set<String>)?
+    var selectionSet: ((Set<String>) -> Void)?
+    weak var preferencesStore: FileListPreferencesStore?
+    var interaction = FileListTableInteraction()
+
+    var lastSearchText = ""
+    var lastQuickSearchText = ""
+    var lastListingSignatureHash = 0
+
+    let renameCoordinator = FileListRenameCoordinator()
+    let dragThreshold = FileListInteractionCoordinator.dragThreshold
+
+    var mouseDownLocation: NSPoint?
+    var mouseDownEvent: NSEvent?
+    var mouseDownCanStartFileDrag = false
+    var dragSessionActive = false
+    var blankMouseDownEvent: NSEvent?
+    var blankDragSelecting = false
+    var wasAlreadySelectedAtMouseDown = false
+
+    var directorySizeDisplay: ((String) -> DirectorySizeDisplayInfo)?
+    var lastDirectorySizeRevision: UInt = 0
+    var pendingDirectorySizeRefresh = false
+
+    var directoryItemCountDisplay: ((String) -> DirectoryItemCountDisplayInfo)?
+    var lastDirectoryItemCountRevision: UInt = 0
+    var pendingDirectoryItemCountRefresh = false
+
+    public var onOpenRow: ((FileListRow) -> Void)?
+    public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
+
+    var visiblePathsNotifyWorkItem: DispatchWorkItem?
+    var lastReportedVisibleDirectoryPaths: [String] = []
+
+    var renamingRowID: String? {
+        get { renameCoordinator.renamingRowID }
+        set { renameCoordinator.renamingRowID = newValue }
+    }
+
+    var isRenaming: Bool { renameCoordinator.isRenaming }
+
+    var isUserPointerActive: Bool {
+        dragSessionActive
+            || blankDragSelecting
+            || mouseDownEvent != nil
+            || blankMouseDownEvent != nil
+    }
+
+    // MARK: - Update pipeline (shared)
+
+    struct ListingUpdatePlan {
+        let searchChanged: Bool
+        let quickSearchChanged: Bool
+        let listingChanged: Bool
+        let mergedSourceRows: [FileListRow]
+        let sortedDisplayRows: [FileListRow]
+        let orderChanged: Bool
+        let displayUnchanged: Bool
+    }
+
+    func bindUpdateContext(
+        interaction: FileListTableInteraction,
+        selectionGet: @escaping () -> Set<String>,
+        selectionSet: @escaping (Set<String>) -> Void,
+        preferencesStore: FileListPreferencesStore
+    ) {
+        self.interaction = interaction
+        self.selectionGet = selectionGet
+        self.selectionSet = selectionSet
+        self.preferencesStore = preferencesStore
+    }
+
+    func prepareListingUpdate(
+        rows: [FileListRow],
+        metadataProviders: FileListDirectoryMetadataRefresh.Providers
+    ) -> ListingUpdatePlan {
+        let searchChanged = interaction.searchText != lastSearchText
+        lastSearchText = interaction.searchText
+        let quickSearchChanged = interaction.quickSearchText != lastQuickSearchText
+        lastQuickSearchText = interaction.quickSearchText
+
+        let listingHash = FileListListingSignature.hash(for: rows)
+        let listingChanged = listingHash != lastListingSignatureHash
+        if listingChanged {
+            lastListingSignatureHash = listingHash
+            lastDirectorySizeRevision = 0
+            lastDirectoryItemCountRevision = 0
+        }
+
+        let previousSourceRows = sourceRows
+        let mergedRows: [FileListRow]
+        if listingChanged || previousSourceRows.isEmpty {
+            mergedRows = rows
+        } else {
+            mergedRows = FileListDirectoryMetadataRefresh.mergePreservingMetadata(
+                incoming: rows,
+                existing: previousSourceRows,
+                providers: metadataProviders
+            )
+        }
+        sourceRows = mergedRows
+
+        let sort = preferencesStore?.sort ?? FileListSortState.default
+        let previousDisplayRows = displayRows
+        let newDisplay = FileListSortEngine.sorted(mergedRows, by: sort)
+        let orderChanged = newDisplay.map(\.id) != previousDisplayRows.map(\.id)
+        let displayUnchanged = !orderChanged
+            && !searchChanged
+            && !quickSearchChanged
+            && !listingChanged
+            && newDisplay == previousDisplayRows
+
+        displayRows = newDisplay
+        if orderChanged {
+            lastReportedVisibleDirectoryPaths = []
+        }
+
+        return ListingUpdatePlan(
+            searchChanged: searchChanged,
+            quickSearchChanged: quickSearchChanged,
+            listingChanged: listingChanged,
+            mergedSourceRows: mergedRows,
+            sortedDisplayRows: newDisplay,
+            orderChanged: orderChanged,
+            displayUnchanged: displayUnchanged
+        )
+    }
+
+    func setDisplayRows(_ rows: [FileListRow]) {
+        displayRows = rows
+    }
+
+    // MARK: - Quick search
+
+    func firstQuickSearchMatchIndex() -> Int? {
+        let keyword = interaction.quickSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else { return nil }
+        return displayRows.firstIndex(where: {
+            !$0.isParentDirectoryEntry
+                && $0.name.range(
+                    of: keyword,
+                    options: [.caseInsensitive, .diacriticInsensitive],
+                    range: nil,
+                    locale: .current
+                ) != nil
+        })
+    }
+
+    // MARK: - Visible directory paths
+
+    func scheduleVisibleDirectoryPathsNotify(debounce: TimeInterval = 0.12) {
+        visiblePathsNotifyWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.reportVisibleDirectoryPathsIfNeeded()
+        }
+        visiblePathsNotifyWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + debounce, execute: work)
+    }
+
+    func reportVisibleDirectoryPathsIfNeeded() {
+        guard onVisibleDirectoryPathsChanged != nil else { return }
+        let paths = visibleDirectoryPaths()
+        guard paths != lastReportedVisibleDirectoryPaths else { return }
+        lastReportedVisibleDirectoryPaths = paths
+        onVisibleDirectoryPathsChanged?(paths)
+    }
+
+    func visibleDirectoryPaths() -> [String] {
+        []
+    }
+
+    // MARK: - Pointer session cleanup (subclass extends)
+
+    func clearBlankDragState() {
+        if blankDragSelecting || dragSessionActive {
+            FileListContentInteractionNotifier.notifyDidEnd()
+        }
+        blankMouseDownEvent = nil
+        blankDragSelecting = false
+        mouseDownCanStartFileDrag = false
+    }
+
+    func noteDragSessionEnded(performingDrop: Bool) {
+        dragSessionActive = false
+        FileListContentInteractionNotifier.notifyDidEnd()
+        mouseDownLocation = nil
+        mouseDownEvent = nil
+        mouseDownCanStartFileDrag = false
+        if performingDrop {
+            DispatchQueue.main.async { [weak self] in
+                self?.interaction.onDragEnded()
+            }
+        }
+    }
+
+}
+
+enum FileListDragDropRegistration {
+    static let fileURLPasteboardTypes: [NSPasteboard.PasteboardType] = [
+        .fileURL,
+        NSPasteboard.PasteboardType(UTType.fileURL.identifier),
+        NSPasteboard.PasteboardType("public.file-url"),
+        NSPasteboard.PasteboardType("NSFilenamesPboardType"),
+    ]
+
+    static func registerDragTypes(on view: NSView) {
+        view.registerForDraggedTypes(fileURLPasteboardTypes)
+    }
+
+    static func configureSourceMasks(on view: NSView) {
+        if let collectionView = view as? NSCollectionView {
+            collectionView.setDraggingSourceOperationMask(.move, forLocal: true)
+            collectionView.setDraggingSourceOperationMask([.move, .copy], forLocal: false)
+        } else if let tableView = view as? NSTableView {
+            tableView.setDraggingSourceOperationMask(.move, forLocal: true)
+            tableView.setDraggingSourceOperationMask([.move, .copy], forLocal: false)
+        }
+    }
+}

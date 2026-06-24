@@ -92,23 +92,6 @@ public struct FileListBlankAreaView: NSViewRepresentable {
             tableView.selectRowIndexes(rows, byExtendingSelection: false)
         }
         
-        static func rowsInVerticalRange(
-            minY: CGFloat,
-            maxY: CGFloat,
-            tableView: NSTableView
-        ) -> IndexSet {
-            let lower = min(minY, maxY)
-            let upper = max(minY, maxY)
-            var rows = IndexSet()
-            for row in 0..<tableView.numberOfRows {
-                let rowRect = tableView.rect(ofRow: row)
-                if rowRect.maxY >= lower && rowRect.minY <= upper {
-                    rows.insert(row)
-                }
-            }
-            return rows
-        }
-        
         func popUpContextMenu(with event: NSEvent, for view: NSView) {
             menuController.popUp(with: event, for: view)
         }
@@ -151,10 +134,10 @@ public struct FileListBlankAreaView: NSViewRepresentable {
             window?.makeFirstResponder(tableView)
             let startY = tableView.convert(mouseDownEvent.locationInWindow, from: nil).y
             let currentY = tableView.convert(event.locationInWindow, from: nil).y
-            let rows = Coordinator.rowsInVerticalRange(
+            let rows = FileListInteractionCoordinator.rowsInVerticalRange(
                 minY: startY,
                 maxY: currentY,
-                tableView: tableView
+                in: tableView
             )
             coordinator.applyRowSelection(rows, tableView: tableView)
         }

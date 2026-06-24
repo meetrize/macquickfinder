@@ -7,59 +7,95 @@ import SwiftUI
 @MainActor
 final class ExplorerWindowLayoutState: ObservableObject {
     @Published var showPreview: Bool {
-        didSet { persistBool(ExplorerAppSettings.showPreviewKey, showPreview) }
+        didSet { UserDefaultsStorage.set(showPreview, forKey: AppPreferences.Layout.showPreview, in: defaults) }
     }
 
     @Published var showSnippets: Bool {
-        didSet { persistBool(ExplorerAppSettings.showSnippetsKey, showSnippets) }
+        didSet { UserDefaultsStorage.set(showSnippets, forKey: AppPreferences.Layout.showSnippets, in: defaults) }
     }
 
     @Published private(set) var leftPanelModeRaw: String {
-        didSet { persistString(AppSettings.leftPanelModeKey, leftPanelModeRaw) }
+        didSet { UserDefaultsStorage.set(leftPanelModeRaw, forKey: AppPreferences.Layout.leftPanelMode, in: defaults) }
     }
 
     @Published private(set) var leftPanelLastVisibleModeRaw: String {
-        didSet { persistString(AppSettings.leftPanelLastVisibleModeKey, leftPanelLastVisibleModeRaw) }
+        didSet {
+            UserDefaultsStorage.set(
+                leftPanelLastVisibleModeRaw,
+                forKey: AppPreferences.Layout.leftPanelLastVisibleMode,
+                in: defaults
+            )
+        }
     }
 
     @Published private(set) var leftPanelSidebarWidth: Double {
-        didSet { persistDouble(AppSettings.leftPanelSidebarWidthKey, leftPanelSidebarWidth) }
+        didSet {
+            UserDefaultsStorage.set(
+                leftPanelSidebarWidth,
+                forKey: AppPreferences.Layout.leftPanelSidebarWidth,
+                in: defaults
+            )
+        }
     }
 
     @Published var previewPanelWidth: Double {
-        didSet { persistDouble(AppSettings.previewPanelWidthKey, previewPanelWidth) }
+        didSet { UserDefaultsStorage.set(previewPanelWidth, forKey: AppPreferences.Layout.previewPanelWidth, in: defaults) }
     }
 
     @Published var previewSnippetsSplitRatio: Double {
-        didSet { persistDouble(ExplorerAppSettings.previewSnippetsSplitRatioKey, previewSnippetsSplitRatio) }
+        didSet {
+            UserDefaultsStorage.set(
+                previewSnippetsSplitRatio,
+                forKey: AppPreferences.Layout.previewSnippetsSplitRatio,
+                in: defaults
+            )
+        }
     }
 
     @Published var isOutputPanelVisible: Bool {
-        didSet { persistBool(ExplorerAppSettings.outputPanelVisibleKey, isOutputPanelVisible) }
+        didSet { UserDefaultsStorage.set(isOutputPanelVisible, forKey: AppPreferences.Panels.outputVisible, in: defaults) }
     }
 
     @Published var outputPanelHeight: Double {
-        didSet { persistDouble(ExplorerAppSettings.outputPanelHeightKey, outputPanelHeight) }
+        didSet { UserDefaultsStorage.set(outputPanelHeight, forKey: AppPreferences.Panels.outputHeight, in: defaults) }
     }
 
     @Published var isSnippetsContentCollapsed: Bool {
-        didSet { persistBool(ExplorerAppSettings.snippetsContentCollapsedKey, isSnippetsContentCollapsed) }
+        didSet {
+            UserDefaultsStorage.set(
+                isSnippetsContentCollapsed,
+                forKey: AppPreferences.Panels.snippetsContentCollapsed,
+                in: defaults
+            )
+        }
     }
 
     @Published var isOutputPanelContentCollapsed: Bool {
-        didSet { persistBool(ExplorerAppSettings.outputPanelContentCollapsedKey, isOutputPanelContentCollapsed) }
+        didSet {
+            UserDefaultsStorage.set(
+                isOutputPanelContentCollapsed,
+                forKey: AppPreferences.Panels.outputContentCollapsed,
+                in: defaults
+            )
+        }
     }
 
     @Published var isPreviewContentCollapsed: Bool {
-        didSet { persistBool(ExplorerAppSettings.previewContentCollapsedKey, isPreviewContentCollapsed) }
+        didSet {
+            UserDefaultsStorage.set(
+                isPreviewContentCollapsed,
+                forKey: AppPreferences.Panels.previewContentCollapsed,
+                in: defaults
+            )
+        }
     }
 
     @Published private(set) var fileListViewModeRaw: String {
-        didSet { persistString(FileListStorageKeys.viewMode, fileListViewModeRaw) }
+        didSet { UserDefaultsStorage.set(fileListViewModeRaw, forKey: AppPreferences.FileList.viewMode, in: defaults) }
     }
 
     @Published var thumbnailCellSize: Double {
-        didSet { persistDouble(FileListStorageKeys.thumbnailCellSize, thumbnailCellSize) }
+        didSet { UserDefaultsStorage.set(thumbnailCellSize, forKey: AppPreferences.FileList.thumbnailCellSize, in: defaults) }
     }
 
     private let defaults: UserDefaults
@@ -168,12 +204,15 @@ final class ExplorerWindowLayoutState: ObservableObject {
 
     func recordLastOpenedPath(_ path: String) {
         let standardized = (path as NSString).standardizingPath
-        defaults.set(standardized, forKey: AppSettings.lastOpenedPathKey)
+        UserDefaultsStorage.set(standardized, forKey: AppPreferences.Layout.lastOpenedPath, in: defaults)
     }
 
     static func restoredLastOpenedPath(defaults: UserDefaults = .standard) -> String {
-        let trimmed = (defaults.string(forKey: AppSettings.lastOpenedPathKey) ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = UserDefaultsStorage.string(
+            forKey: AppPreferences.Layout.lastOpenedPath,
+            default: "",
+            in: defaults
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             return FileManager.default.homeDirectoryForCurrentUser.path
         }
@@ -205,35 +244,69 @@ final class ExplorerWindowLayoutState: ObservableObject {
 
     private static func loadSnapshot(from defaults: UserDefaults) -> Snapshot {
         Snapshot(
-            showPreview: defaults.object(forKey: ExplorerAppSettings.showPreviewKey) as? Bool ?? true,
-            showSnippets: defaults.object(forKey: ExplorerAppSettings.showSnippetsKey) as? Bool ?? true,
-            leftPanelModeRaw: defaults.string(forKey: AppSettings.leftPanelModeKey) ?? LeftPanelMode.sidebar.rawValue,
-            leftPanelLastVisibleModeRaw: defaults.string(forKey: AppSettings.leftPanelLastVisibleModeKey)
-                ?? LeftPanelVisibleMode.sidebar.rawValue,
-            leftPanelSidebarWidth: defaults.object(forKey: AppSettings.leftPanelSidebarWidthKey) as? Double ?? 240,
-            previewPanelWidth: defaults.object(forKey: AppSettings.previewPanelWidthKey) as? Double ?? 320,
-            previewSnippetsSplitRatio: defaults.object(forKey: ExplorerAppSettings.previewSnippetsSplitRatioKey) as? Double ?? 0.55,
-            isOutputPanelVisible: defaults.object(forKey: ExplorerAppSettings.outputPanelVisibleKey) as? Bool ?? false,
-            outputPanelHeight: defaults.object(forKey: ExplorerAppSettings.outputPanelHeightKey) as? Double ?? 200,
-            isSnippetsContentCollapsed: defaults.object(forKey: ExplorerAppSettings.snippetsContentCollapsedKey) as? Bool ?? false,
-            isOutputPanelContentCollapsed: defaults.object(forKey: ExplorerAppSettings.outputPanelContentCollapsedKey) as? Bool ?? false,
-            isPreviewContentCollapsed: defaults.object(forKey: ExplorerAppSettings.previewContentCollapsedKey) as? Bool ?? false,
-            fileListViewModeRaw: defaults.string(forKey: FileListStorageKeys.viewMode) ?? FileListViewMode.list.rawValue,
-            thumbnailCellSize: defaults.object(forKey: FileListStorageKeys.thumbnailCellSize) as? Double
-                ?? Double(FileListThumbnailMetrics.defaultCellSize)
+            showPreview: UserDefaultsStorage.bool(forKey: AppPreferences.Layout.showPreview, default: true, in: defaults),
+            showSnippets: UserDefaultsStorage.bool(forKey: AppPreferences.Layout.showSnippets, default: true, in: defaults),
+            leftPanelModeRaw: UserDefaultsStorage.string(
+                forKey: AppPreferences.Layout.leftPanelMode,
+                default: LeftPanelMode.sidebar.rawValue,
+                in: defaults
+            ),
+            leftPanelLastVisibleModeRaw: UserDefaultsStorage.string(
+                forKey: AppPreferences.Layout.leftPanelLastVisibleMode,
+                default: LeftPanelVisibleMode.sidebar.rawValue,
+                in: defaults
+            ),
+            leftPanelSidebarWidth: UserDefaultsStorage.double(
+                forKey: AppPreferences.Layout.leftPanelSidebarWidth,
+                default: 240,
+                in: defaults
+            ),
+            previewPanelWidth: UserDefaultsStorage.double(
+                forKey: AppPreferences.Layout.previewPanelWidth,
+                default: 320,
+                in: defaults
+            ),
+            previewSnippetsSplitRatio: UserDefaultsStorage.double(
+                forKey: AppPreferences.Layout.previewSnippetsSplitRatio,
+                default: 0.55,
+                in: defaults
+            ),
+            isOutputPanelVisible: UserDefaultsStorage.bool(
+                forKey: AppPreferences.Panels.outputVisible,
+                default: false,
+                in: defaults
+            ),
+            outputPanelHeight: UserDefaultsStorage.double(
+                forKey: AppPreferences.Panels.outputHeight,
+                default: 200,
+                in: defaults
+            ),
+            isSnippetsContentCollapsed: UserDefaultsStorage.bool(
+                forKey: AppPreferences.Panels.snippetsContentCollapsed,
+                default: false,
+                in: defaults
+            ),
+            isOutputPanelContentCollapsed: UserDefaultsStorage.bool(
+                forKey: AppPreferences.Panels.outputContentCollapsed,
+                default: false,
+                in: defaults
+            ),
+            isPreviewContentCollapsed: UserDefaultsStorage.bool(
+                forKey: AppPreferences.Panels.previewContentCollapsed,
+                default: false,
+                in: defaults
+            ),
+            fileListViewModeRaw: UserDefaultsStorage.string(
+                forKey: AppPreferences.FileList.viewMode,
+                default: FileListViewMode.list.rawValue,
+                in: defaults
+            ),
+            thumbnailCellSize: UserDefaultsStorage.double(
+                forKey: AppPreferences.FileList.thumbnailCellSize,
+                default: Double(FileListThumbnailMetrics.defaultCellSize),
+                in: defaults
+            )
         )
-    }
-
-    private func persistBool(_ key: String, _ value: Bool) {
-        defaults.set(value, forKey: key)
-    }
-
-    private func persistString(_ key: String, _ value: String) {
-        defaults.set(value, forKey: key)
-    }
-
-    private func persistDouble(_ key: String, _ value: Double) {
-        defaults.set(value, forKey: key)
     }
 }
 
@@ -286,14 +359,6 @@ extension FocusedValues {
         get { self[WindowLayoutCommandsKey.self] }
         set { self[WindowLayoutCommandsKey.self] = newValue }
     }
-}
-
-private enum AppSettings {
-    static let previewPanelWidthKey = "previewPanelWidth"
-    static let leftPanelModeKey = "leftPanelMode"
-    static let leftPanelLastVisibleModeKey = "leftPanelLastVisibleMode"
-    static let leftPanelSidebarWidthKey = "leftPanelSidebarWidth"
-    static let lastOpenedPathKey = "lastOpenedPath"
 }
 
 struct WindowKeyLayoutTracker: NSViewRepresentable {

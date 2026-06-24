@@ -72,15 +72,7 @@ extension FileListThumbnailController {
         interaction.onBlankSingleClick()
     }
     
-    func clearBlankDragState() {
-        blankMouseDownEvent = nil
-        blankDragSelecting = false
-    }
-    
     func handleBlankMouseUp() {
-        if blankDragSelecting || dragSessionActive {
-            FileListContentInteractionNotifier.notifyDidEnd()
-        }
         clearBlankDragState()
         mouseDownCanStartFileDrag = false
     }
@@ -94,6 +86,8 @@ extension FileListThumbnailController {
         mouseDownIndexPath = nil
         mouseDownLocation = nil
         mouseDownCanStartFileDrag = false
+        flushPendingDirectorySizeRefreshIfNeeded()
+        flushPendingDirectoryItemCountRefreshIfNeeded()
     }
     
     private func clearSelectionOnBlankClickIfNeeded() {
@@ -172,14 +166,10 @@ extension FileListThumbnailController {
             height: abs(currentPoint.y - startPoint.y)
         )
         
-        var indexPaths = Set<IndexPath>()
-        for item in 0..<displayRows.count {
-            let indexPath = IndexPath(item: item, section: 0)
-            guard let frame = collectionView.layoutAttributesForItem(at: indexPath)?.frame else { continue }
-            if frame.intersects(selectionRect) {
-                indexPaths.insert(indexPath)
-            }
-        }
+        let indexPaths = FileListThumbnailCollectionLayoutSupport.indexPaths(
+            intersecting: selectionRect,
+            in: collectionView
+        )
         collectionView.selectionIndexPaths = indexPaths
         syncSelectionFromCollection()
         return true
@@ -220,8 +210,11 @@ extension FileListThumbnailController {
     
     private func showBlankContextMenu(for event: NSEvent) {
         guard let collectionView else { return }
-        let controller = FileListBlankMenuController(actions: interaction.blankMenuActions)
-        controller.popUp(with: event, for: collectionView)
+        FileListInteractionCoordinator.showBlankContextMenu(
+            for: event,
+            on: collectionView,
+            actions: interaction.blankMenuActions
+        )
     }
     
     func handleKeyDown(_ event: NSEvent) -> Bool {
@@ -261,35 +254,18 @@ extension FileListThumbnailController {
         
         let flags = event.modifierFlags
         if !flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
-            if event.keyCode == 53 {
-                interaction.onQuickSearchEscape()
-                return true
-            }
-            if event.keyCode == 51 || event.keyCode == 117 {
-                if !interaction.quickSearchText.isEmpty {
-                    interaction.onQuickSearchBackspace()
-                    return true
-                }
-                if event.keyCode == 51,
-                   effectiveSelectionIDs().isEmpty,
-                   interaction.canNavigateBack() {
-                    interaction.onNavigateBack()
-                    return true
-                }
-            }
-            if let input = quickSearchInputCharacter(from: event) {
-                interaction.onQuickSearchInput(input)
+            if FileListInteractionCoordinator.handleQuickSearchKeys(
+                event: event,
+                interaction: interaction,
+                effectiveSelectionIDs: { [weak self] in self?.effectiveSelectionIDs() ?? [] }
+            ) {
                 return true
             }
         }
-        
-        guard event.keyCode == 51 || event.keyCode == 117 else { return false }
-        guard !flags.contains(.command) else { return false }
-        guard interaction.canDelete() else { return false }
-        interaction.onDelete()
-        return true
+
+        return FileListInteractionCoordinator.handleDeleteKey(event: event, interaction: interaction)
     }
-    
+
     private func handleArrowKeyNavigation(_ event: NSEvent) -> Bool {
         guard let collectionView else { return false }
         let columns = gridColumnCount()
@@ -311,20 +287,5 @@ extension FileListThumbnailController {
         syncSelectionFromCollection()
         collectionView.scrollToItems(at: [nextPath], scrollPosition: .nearestVerticalEdge)
         return true
-    }
-    
-    private func quickSearchInputCharacter(from event: NSEvent) -> String? {
-        guard let input = event.charactersIgnoringModifiers, input.count == 1,
-              let scalar = input.unicodeScalars.first
-        else { return nil }
-        
-        if CharacterSet.whitespacesAndNewlines.contains(scalar) { return nil }
-        if CharacterSet.controlCharacters.contains(scalar) { return nil }
-        if (0xF700...0xF8FF).contains(scalar.value) { return nil }
-        
-        if CharacterSet.letters.contains(scalar) || CharacterSet.decimalDigits.contains(scalar) {
-            return input
-        }
-        return nil
     }
 }

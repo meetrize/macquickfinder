@@ -8,13 +8,13 @@ final class FileListThumbnailCollectionView: NSCollectionView {
         forSendType sendType: NSPasteboard.PasteboardType?,
         returnType: NSPasteboard.PasteboardType?
     ) -> Any? {
-        if let requestor = servicesRequestor?.validRequestor(
-            forSendType: sendType,
+        FileListDraggingDestinationSupport.validRequestor(
+            servicesRequestor: servicesRequestor,
+            sendType: sendType,
             returnType: returnType
         ) {
-            return requestor
+            super.validRequestor(forSendType: sendType, returnType: returnType)
         }
-        return super.validRequestor(forSendType: sendType, returnType: returnType)
     }
 
     override func becomeFirstResponder() -> Bool {
@@ -36,11 +36,15 @@ final class FileListThumbnailCollectionView: NSCollectionView {
     // MARK: - NSDraggingDestination（比 delegate 更可靠，且能收到 exited 以清除高亮）
     
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        interactionController?.handleDraggingUpdated(sender) ?? []
+        FileListDraggingDestinationSupport.standardDraggingUpdated {
+            interactionController?.handleDraggingUpdated(sender) ?? []
+        }
     }
     
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        interactionController?.handleDraggingUpdated(sender) ?? []
+        FileListDraggingDestinationSupport.standardDraggingUpdated {
+            interactionController?.handleDraggingUpdated(sender) ?? []
+        }
     }
     
     override func draggingExited(_ sender: NSDraggingInfo?) {
@@ -60,11 +64,15 @@ final class FileListThumbnailCollectionView: NSCollectionView {
     }
     
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        interactionController?.handleDraggingUpdated(sender) != []
+        FileListDraggingDestinationSupport.standardPrepareForDragOperation {
+            interactionController?.handleDraggingUpdated(sender) ?? []
+        }
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        interactionController?.performDragOperation(sender) ?? false
+        FileListDraggingDestinationSupport.standardPerformDragOperation {
+            interactionController?.performDragOperation(sender) ?? false
+        }
     }
     
     override func concludeDragOperation(_ sender: NSDraggingInfo?) {
@@ -75,16 +83,7 @@ final class FileListThumbnailCollectionView: NSCollectionView {
     
     /// 解析点击坐标对应的 item；`indexPathForItem` 在自定义 cell 下常失效，需回退到布局 frame。
     func indexPath(at point: NSPoint) -> IndexPath? {
-        if let indexPath = indexPathForItem(at: point) {
-            return indexPath
-        }
-        for indexPath in indexPathsForVisibleItems() {
-            guard let frame = layoutAttributesForItem(at: indexPath)?.frame else { continue }
-            if frame.contains(point) {
-                return indexPath
-            }
-        }
-        return nil
+        FileListThumbnailCollectionLayoutSupport.indexPath(at: point, in: self)
     }
     
     override func mouseDown(with event: NSEvent) {

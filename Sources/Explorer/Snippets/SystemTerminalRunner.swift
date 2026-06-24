@@ -31,7 +31,7 @@ enum SystemTerminalRunner {
         var lines: [String] = ["#!\(interpreter)"]
 
         if let workingDirectory, !workingDirectory.isEmpty {
-            lines.append("cd \(shellSingleQuote(workingDirectory)) || exit 1")
+            lines.append("cd \(ShellQuoting.singleQuote(workingDirectory)) || exit 1")
         }
 
         switch snippet.scriptType {
@@ -50,10 +50,6 @@ enum SystemTerminalRunner {
         }
 
         return lines.joined(separator: "\n") + "\n"
-    }
-
-    private static func shellSingleQuote(_ value: String) -> String {
-        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     private static func heredocDelimiter(avoiding content: String) -> String {

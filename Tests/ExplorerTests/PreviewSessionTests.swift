@@ -22,29 +22,29 @@ final class PreviewSessionTests: XCTestCase {
     func testDefaultToolbarStateMatchesFilePreviewView() {
         let session = PreviewSession(hostWindowID: UUID(), file: makeFileItem())
 
-        XCTAssertEqual(session.imageZoomScale, 1.0)
-        XCTAssertNil(session.imageZoomAction)
-        XCTAssertEqual(session.imageEffectiveZoomPercent, 0)
-        XCTAssertEqual(session.pdfCurrentPage, 0)
-        XCTAssertTrue(session.textWrapEnabled)
-        XCTAssertEqual(session.markdownMode, .preview)
-        XCTAssertEqual(session.htmlMode, .preview)
+        XCTAssertEqual(session.image.zoomScale, 1.0)
+        XCTAssertNil(session.image.zoomAction)
+        XCTAssertEqual(session.image.effectiveZoomPercent, 0)
+        XCTAssertEqual(session.pdf.currentPage, 0)
+        XCTAssertTrue(session.text.wrapEnabled)
+        XCTAssertEqual(session.text.markdownMode, .preview)
+        XCTAssertEqual(session.text.htmlMode, .preview)
         XCTAssertEqual(session.location, .inline)
         XCTAssertNil(session.folderInlineChild)
     }
 
     func testResetControlsClearsMutatedState() {
         let session = PreviewSession(hostWindowID: UUID(), file: makeFileItem())
-        session.imageZoomScale = 2.5
-        session.imageRotationQuarterTurns = 1
-        session.pdfCurrentPage = 3
-        session.markdownMode = .source
-        session.mediaIsPlaying = true
-        session.archiveExpanded = false
-        session.officeZoomScale = 1.5
-        session.officeCurrentPage = 2
-        session.officePageCount = 5
-        session.imageEditUndoStack = [
+        session.image.zoomScale = 2.5
+        session.image.rotationQuarterTurns = 1
+        session.pdf.currentPage = 3
+        session.text.markdownMode = .source
+        session.media.isPlaying = true
+        session.archive.expanded = false
+        session.office.zoomScale = 1.5
+        session.office.currentPage = 2
+        session.office.pageCount = 5
+        session.image.editUndoStack = [
             ImageEditSnapshot(
                 rotationQuarterTurns: 0,
                 flipHorizontal: false,
@@ -56,16 +56,16 @@ final class PreviewSessionTests: XCTestCase {
 
         session.resetControls()
 
-        XCTAssertEqual(session.imageZoomScale, 1.0)
-        XCTAssertEqual(session.imageRotationQuarterTurns, 0)
-        XCTAssertEqual(session.pdfCurrentPage, 0)
-        XCTAssertEqual(session.markdownMode, .preview)
-        XCTAssertFalse(session.mediaIsPlaying)
-        XCTAssertTrue(session.archiveExpanded)
-        XCTAssertEqual(session.officeZoomScale, 1.0)
-        XCTAssertEqual(session.officeCurrentPage, 0)
-        XCTAssertEqual(session.officePageCount, 0)
-        XCTAssertTrue(session.imageEditUndoStack.isEmpty)
+        XCTAssertEqual(session.image.zoomScale, 1.0)
+        XCTAssertEqual(session.image.rotationQuarterTurns, 0)
+        XCTAssertEqual(session.pdf.currentPage, 0)
+        XCTAssertEqual(session.text.markdownMode, .preview)
+        XCTAssertFalse(session.media.isPlaying)
+        XCTAssertTrue(session.archive.expanded)
+        XCTAssertEqual(session.office.zoomScale, 1.0)
+        XCTAssertEqual(session.office.currentPage, 0)
+        XCTAssertEqual(session.office.pageCount, 0)
+        XCTAssertTrue(session.image.editUndoStack.isEmpty)
     }
 
     func testOfficeToolbarIncludesZoomControls() {
@@ -111,9 +111,9 @@ final class PreviewSessionTests: XCTestCase {
                 dateDisplay: ""
             )
         )
-        session.officeURL = URL(fileURLWithPath: "/tmp/sample.pptx")
-        session.officePageCount = 3
-        session.officeCurrentPage = 2
+        session.content.officeURL = URL(fileURLWithPath: "/tmp/sample.pptx")
+        session.office.pageCount = 3
+        session.office.currentPage = 2
 
         let items = session.previewToolbarItems(for: session.file)
         let ids = Set(items.map(\.id))
@@ -121,21 +121,22 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertTrue(ids.contains("office-next"))
         XCTAssertTrue(ids.contains("office-page"))
         XCTAssertTrue(ids.contains("office-zoom-in"))
+    }
 
     func testImageEditUndoRoundTrip() {
         let session = PreviewSession(hostWindowID: UUID(), file: makeFileItem())
-        session.imageZoomScale = 1.0
+        session.image.zoomScale = 1.0
 
-        session.performImageEdit {
-            session.imageZoomScale = 2.0
-            session.imageRotationQuarterTurns = 1
+        session.image.performEdit {
+            session.image.zoomScale = 2.0
+            session.image.rotationQuarterTurns = 1
         }
-        XCTAssertEqual(session.imageZoomScale, 2.0)
-        XCTAssertEqual(session.imageRotationQuarterTurns, 1)
+        XCTAssertEqual(session.image.zoomScale, 2.0)
+        XCTAssertEqual(session.image.rotationQuarterTurns, 1)
 
-        session.undoLastImageEdit()
-        XCTAssertEqual(session.imageZoomScale, 1.0)
-        XCTAssertEqual(session.imageRotationQuarterTurns, 0)
+        session.image.undoLastEdit()
+        XCTAssertEqual(session.image.zoomScale, 1.0)
+        XCTAssertEqual(session.image.rotationQuarterTurns, 0)
     }
 
     func testPreviewContentItemPrefersFolderInlineChild() {
@@ -154,10 +155,10 @@ final class PreviewSessionTests: XCTestCase {
 
     func testImageEffectiveOrientedPixelSizeSwapsOn90DegreeRotation() {
         let session = PreviewSession(hostWindowID: UUID(), file: makeFileItem())
-        session.imageSourcePixelSize = CGSize(width: 800, height: 600)
-        session.imageRotationQuarterTurns = 1
+        session.image.sourcePixelSize = CGSize(width: 800, height: 600)
+        session.image.rotationQuarterTurns = 1
 
-        let oriented = session.imageEffectiveOrientedPixelSize
+        let oriented = session.image.effectiveOrientedPixelSize
         XCTAssertEqual(oriented.width, 600)
         XCTAssertEqual(oriented.height, 800)
     }

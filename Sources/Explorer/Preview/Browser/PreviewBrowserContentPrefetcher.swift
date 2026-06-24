@@ -31,10 +31,7 @@ final class PreviewBrowserContentPrefetcher {
     }
 
     static func isPrefetchEligible(_ item: FileItem) -> Bool {
-        guard !item.isDirectory else { return false }
-        guard item.size > 0, item.size <= PreviewBrowserStripMetrics.contentPrefetchMaxFileSize else { return false }
-        let ext = item.url.pathExtension.lowercased()
-        return BuiltinPreviewExtensions.image.contains(ext) || BuiltinPreviewExtensions.pdf.contains(ext)
+        PreviewCapability.isPrefetchEligible(item)
     }
 
     private func prefetchAdjacent(items: [FileItem], centerIndex: Int) async {

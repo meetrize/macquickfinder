@@ -116,35 +116,10 @@ final class DirectoryFSEventsMonitor {
         
         let showHidden = showHiddenFiles
         Task {
-            await DirectorySizeService.shared.invalidate(paths: paths)
-            await DirectoryItemCountService.shared.invalidate(paths: paths)
-            await MainActor.run {
-                DirectorySizeOverlay.shared.remove(paths: paths)
-            }
-            guard DirectorySizePreferences.autoCalculateDirectorySizes else {
-                let showHidden = showHiddenFiles
-                let itemCountPaths = paths.filter { !FileListApplicationBundle.isBundle(path: $0) }
-                guard !itemCountPaths.isEmpty else { return }
-                await DirectoryItemCountService.shared.schedule(
-                    paths: itemCountPaths,
-                    showHiddenFiles: showHidden,
-                    priority: .visible
-                )
-                return
-            }
-            await DirectorySizeService.shared.schedule(
+            await DirectoryMetadataScheduler.rescheduleAfterFSEventsInvalidation(
                 paths: paths,
-                showHiddenFiles: showHidden,
-                priority: .visible
+                showHiddenFiles: showHidden
             )
-            let itemCountPaths = paths.filter { !FileListApplicationBundle.isBundle(path: $0) }
-            if !itemCountPaths.isEmpty {
-                await DirectoryItemCountService.shared.schedule(
-                    paths: itemCountPaths,
-                    showHiddenFiles: showHidden,
-                    priority: .visible
-                )
-            }
         }
     }
 }

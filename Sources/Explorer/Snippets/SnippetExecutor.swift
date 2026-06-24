@@ -37,13 +37,7 @@ final class SnippetExecutor: ObservableObject {
     ) {
         let useSystemTerminal = inSystemTerminal ?? snippet.useSystemTerminal
         if settings.confirmDestructiveSnippets, isDestructive(snippet.content) {
-            let alert = NSAlert()
-            alert.messageText = "危险命令确认"
-            alert.informativeText = "此 Snippet 可能删除或移动文件，确定执行？"
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "取消")
-            alert.addButton(withTitle: "仍要执行")
-            guard alert.runModal() == .alertSecondButtonReturn else { return }
+            guard DestructiveActionConfirmer.confirmDestructiveSnippet() else { return }
         }
         performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal)
     }
@@ -99,16 +93,7 @@ final class SnippetExecutor: ObservableObject {
             return
         }
 
-        let displayCommand: String
-        switch snippet.scriptType {
-        case .shell:
-            let interpreter = snippet.interpreter ?? SnippetDefaults.shellInterpreter
-            displayCommand = "\(interpreter) -lc '\(expanded)'"
-        case .python3:
-            displayCommand = "python3 << '\(expanded.prefix(80))…'"
-        case .appleScript:
-            displayCommand = expanded
-        }
+        let displayCommand = SnippetDisplayCommand.build(snippet: snippet, expandedContent: expanded)
 
         let jobID = jobStore.createJob(
             snippetName: snippet.name,
@@ -119,22 +104,16 @@ final class SnippetExecutor: ObservableObject {
         )
 
         if settings.autoShowOutputPanelOnShellRun {
-            if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
-                ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
-            }
+            OutputPanelPresenter.showIfAutoEnabled()
         }
 
-        switch snippet.scriptType {
-        case .shell, .python3:
-            jobStore.scheduleShellRun(
-                snippet: snippet,
-                expandedContent: expanded,
-                jobID: jobID,
-                workingDirectory: cwd
-            )
-        case .appleScript:
-            AppleScriptEngine.run(snippet: snippet, expandedContent: expanded, jobID: jobID)
-        }
+        SnippetExecutionService.dispatch(
+            snippet: snippet,
+            expandedContent: expanded,
+            jobID: jobID,
+            workingDirectory: cwd,
+            jobStore: jobStore
+        )
 
         store.recordExecution(id: snippet.id)
     }
@@ -154,9 +133,7 @@ final class SnippetExecutor: ObservableObject {
         )
         jobStore.markFailed(jobID: jobID, message: message + "\n")
         if settings.autoShowOutputPanelOnShellRun {
-            if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
-                ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
-            }
+            OutputPanelPresenter.showIfAutoEnabled()
         }
     }
 

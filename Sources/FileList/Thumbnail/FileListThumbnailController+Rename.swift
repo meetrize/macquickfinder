@@ -1,45 +1,76 @@
 import AppKit
 import Foundation
 
-extension FileListThumbnailController {
-    var isRenaming: Bool { renamingRowID != nil }
-    
-    func beginRename(indexPath: IndexPath) {
-        guard renamingRowID == nil else { return }
-        guard indexPath.item >= 0, indexPath.item < displayRows.count else { return }
-        let row = displayRows[indexPath.item]
-        guard !row.isParentDirectoryEntry else { return }
-        guard interaction.canRename(row) else { return }
-        
-        if let collectionView, !collectionView.selectionIndexPaths.contains(indexPath) {
+extension FileListThumbnailController: FileListRenameUIAdapter {
+    var renameInteraction: FileListTableInteraction { interaction }
+
+    func renameRow(matching id: String) -> FileListRow? {
+        guard let indexPath = indexPath(for: id),
+              indexPath.item >= 0,
+              indexPath.item < displayRows.count else { return nil }
+        return displayRows[indexPath.item]
+    }
+
+    func renameEnsureSelected(row: FileListRow) {
+        guard let collectionView,
+              let indexPath = indexPath(for: row.id) else { return }
+        if !collectionView.selectionIndexPaths.contains(indexPath) {
             collectionView.selectionIndexPaths = [indexPath]
             syncSelectionFromCollection()
         }
-        
-        renamingRowID = row.id
+    }
+
+    func renameClearPendingTarget() {
         pendingRenameIndexPath = nil
-        interaction.onRenameEditingChanged(true)
-        
+    }
+
+    func renameActivateEditor(for row: FileListRow) {
+        guard let indexPath = indexPath(for: row.id) else { return }
         guard let item = thumbnailItem(at: indexPath) else {
             collectionView?.scrollToItems(at: [indexPath], scrollPosition: .nearestVerticalEdge)
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.renamingRowID == row.id else { return }
-                self.beginRenameUI(at: indexPath, row: row)
+                self.activateThumbnailRenameUI(at: indexPath, row: row)
             }
             return
         }
-        beginRenameUI(item: item, row: row)
+        activateThumbnailRenameUI(item: item, row: row)
     }
-    
-    private func beginRenameUI(at indexPath: IndexPath, row: FileListRow) {
+
+    func renameDeactivateEditor(forRowID rowID: String) {
+        if let indexPath = indexPath(for: rowID) {
+            thumbnailItem(at: indexPath)?.endRename()
+        }
+        refreshVisibleItemAppearance()
+    }
+
+    func renameRetryBegin(forRowID rowID: String) {
+        guard let indexPath = indexPath(for: rowID) else { return }
+        beginRename(indexPath: indexPath)
+    }
+
+    func beginRename(indexPath: IndexPath) {
+        guard indexPath.item >= 0, indexPath.item < displayRows.count else { return }
+        FileListRenamePresenter.beginRename(row: displayRows[indexPath.item], adapter: self)
+    }
+
+    func cancelRename() {
+        FileListRenamePresenter.cancelRename(adapter: self)
+    }
+
+    func commitRename(newName: String) {
+        FileListRenamePresenter.commitRename(newName: newName, adapter: self)
+    }
+
+    private func activateThumbnailRenameUI(at indexPath: IndexPath, row: FileListRow) {
         guard let item = thumbnailItem(at: indexPath) else {
             cancelRename()
             return
         }
-        beginRenameUI(item: item, row: row)
+        activateThumbnailRenameUI(item: item, row: row)
     }
-    
-    private func beginRenameUI(item: FileListThumbnailItem, row: FileListRow) {
+
+    private func activateThumbnailRenameUI(item: FileListThumbnailItem, row: FileListRow) {
         item.beginRename(
             name: row.name,
             onCommit: { [weak self] newName in
@@ -50,77 +81,34 @@ extension FileListThumbnailController {
             }
         )
     }
-    
-    func cancelRename() {
-        guard let rowID = renamingRowID,
-              let indexPath = indexPath(for: rowID) else {
-            renamingRowID = nil
-            pendingRenameIndexPath = nil
-            interaction.onRenameEditingChanged(false)
-            return
-        }
-        
-        thumbnailItem(at: indexPath)?.endRename()
-        renamingRowID = nil
-        pendingRenameIndexPath = nil
-        interaction.onRenameEditingChanged(false)
-        refreshVisibleItemAppearance()
-    }
-    
-    func commitRename(newName: String) {
-        guard let rowID = renamingRowID,
-              let indexPath = indexPath(for: rowID),
-              indexPath.item >= 0,
-              indexPath.item < displayRows.count else { return }
-        let row = displayRows[indexPath.item]
-        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if trimmed.isEmpty || trimmed == row.name {
-            cancelRename()
-            return
-        }
-        
-        renamingRowID = nil
-        pendingRenameIndexPath = nil
-        interaction.onRenameEditingChanged(false)
-        thumbnailItem(at: indexPath)?.endRename()
-        refreshVisibleItemAppearance()
-        
-        interaction.performRename(row, trimmed) { [weak self] success in
-            guard let self, !success else { return }
-            if let retryPath = self.indexPath(for: rowID) {
-                self.beginRename(indexPath: retryPath)
-            }
-        }
-    }
-    
+
     func shouldBeginRenameOnMouseUp(indexPath: IndexPath, pointInCollection: NSPoint) -> Bool {
-        guard !isRenaming else { return false }
         guard indexPath.item >= 0, indexPath.item < displayRows.count else { return false }
-        guard isSoleSelectedIndexPath(indexPath) else { return false }
-        guard isRenameNameClickPoint(pointInCollection, indexPath: indexPath) else { return false }
-        
         let row = displayRows[indexPath.item]
-        guard !row.isParentDirectoryEntry else { return false }
-        guard interaction.canRename(row) else { return false }
-        return isRenameSecondClickEligible(itemID: row.id)
+        return renameCoordinator.shouldBeginRenameOnMouseUp(
+            isSoleSelection: isSoleSelectedIndexPath(indexPath),
+            isNameClickPoint: isRenameNameClickPoint(pointInCollection, indexPath: indexPath),
+            canRename: interaction.canRename(row),
+            isParentDirectory: row.isParentDirectoryEntry,
+            itemID: row.id
+        )
     }
-    
+
     func armRenameEligibleAfterClickIfNeeded(_ event: NSEvent, indexPath: IndexPath, pointInCollection: NSPoint) {
-        guard renamingRowID == nil, pendingRenameIndexPath == nil else { return }
-        guard wasAlreadySelectedAtMouseDown else { return }
-        guard event.clickCount == 1 else { return }
-        let flags = event.modifierFlags
-        guard !flags.contains(.command), !flags.contains(.shift) else { return }
-        guard isSoleSelectedIndexPath(indexPath) else { return }
         guard indexPath.item >= 0, indexPath.item < displayRows.count else { return }
-        guard isRenameNameClickPoint(pointInCollection, indexPath: indexPath) else { return }
-        
         let row = displayRows[indexPath.item]
-        guard !row.isParentDirectoryEntry, interaction.canRename(row) else { return }
-        rowRenameEligibleSince[row.id] = Date()
+        renameCoordinator.armEligibleAfterClickIfNeeded(
+            wasAlreadySelectedAtMouseDown: wasAlreadySelectedAtMouseDown,
+            event: event,
+            hasPendingRename: pendingRenameIndexPath != nil,
+            isSoleSelection: isSoleSelectedIndexPath(indexPath),
+            isNameClickPoint: isRenameNameClickPoint(pointInCollection, indexPath: indexPath),
+            canRename: interaction.canRename(row),
+            isParentDirectory: row.isParentDirectoryEntry,
+            itemID: row.id
+        )
     }
-    
+
     func isRenameNameClickPoint(_ point: NSPoint, indexPath: IndexPath) -> Bool {
         guard let collectionView else { return false }
         guard let item = collectionView.item(at: indexPath) as? FileListThumbnailItem,
@@ -129,7 +117,7 @@ extension FileListThumbnailController {
         let pointInWindow = collectionView.convert(point, to: nil)
         return cell.isPointInFileNameLabel(pointInWindow)
     }
-    
+
     func isSoleSelectedIndexPath(_ indexPath: IndexPath) -> Bool {
         guard let collectionView else { return false }
         if collectionView.selectionIndexPaths == [indexPath] { return true }
@@ -137,7 +125,7 @@ extension FileListThumbnailController {
         let rowID = displayRows[indexPath.item].id
         return effectiveSelectionIDs() == [rowID]
     }
-    
+
     func recordRenameSelectionTimestamps() {
         guard let collectionView else { return }
         let currentIDs = Set(
@@ -146,25 +134,10 @@ extension FileListThumbnailController {
                 return displayRows[indexPath.item].id
             }
         )
-        let now = Date()
-        for id in currentIDs.subtracting(lastKnownSelectionIDs) {
-            rowRenameEligibleSince[id] = now
-        }
-        for id in lastKnownSelectionIDs.subtracting(currentIDs) {
-            rowRenameEligibleSince.removeValue(forKey: id)
-        }
-        lastKnownSelectionIDs = currentIDs
+        renameCoordinator.recordSelectionTimestamps(currentIDs: currentIDs)
     }
-    
-    private func isRenameSecondClickEligible(itemID: String) -> Bool {
-        guard let selectedAt = rowRenameEligibleSince[itemID] else { return false }
-        return Date().timeIntervalSince(selectedAt) > NSEvent.doubleClickInterval
-    }
-    
+
     func cancelRenameIfNeededForDataUpdate() {
-        guard renamingRowID != nil else { return }
-        renamingRowID = nil
-        pendingRenameIndexPath = nil
-        interaction.onRenameEditingChanged(false)
+        FileListRenamePresenter.cancelIfNeededForDataUpdate(adapter: self)
     }
 }

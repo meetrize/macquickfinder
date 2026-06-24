@@ -63,13 +63,9 @@ enum FullDiskAccessPermission {
         let bundlePath = Bundle.main.bundleURL.path
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = ["-c", "sleep 0.25; open \(shellSingleQuoted(bundlePath))"]
+        process.arguments = ["-c", "sleep 0.25; open \(ShellQuoting.singleQuote(bundlePath))"]
         try? process.run()
         NSApp.terminate(nil)
-    }
-
-    private static func shellSingleQuoted(_ value: String) -> String {
-        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     static var appDisplayName: String {

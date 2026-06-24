@@ -110,12 +110,13 @@ final class PreviewBrowserContext: ObservableObject {
         sameTypeOnly: Bool? = nil
     ) -> PreviewBrowserContext? {
         let resolvedSameTypeOnly = sameTypeOnly
-            ?? UserDefaults.standard.bool(forKey: ExplorerAppSettings.previewBrowserSameTypeOnlyKey)
+            ?? UserDefaultsStorage.bool(
+                forKey: AppPreferences.Preview.browserSameTypeOnly,
+                default: false
+            )
 
         let candidates = items.filter { item in
-            guard !item.isParentDirectoryEntry, !item.isDirectory else { return false }
-            if !showHiddenFiles, item.isHidden { return false }
-            return PreviewBrowserEligibility.canPreviewInDetachedWindow(item)
+            PreviewCapability.isBrowserCandidate(item, showHiddenFiles: showHiddenFiles)
         }
 
         guard !candidates.isEmpty else { return nil }

@@ -3,51 +3,24 @@ import Foundation
 import UniformTypeIdentifiers
 
 /// 缩略图网格的数据源、布局与选择控制器。
-public final class FileListThumbnailController: NSObject {
-    private(set) var scrollView: NSScrollView?
+public final class FileListThumbnailController: FileListContentController {
     private(set) var collectionView: FileListThumbnailCollectionView?
     
-    private var sourceRows: [FileListRow] = []
-    private(set) var displayRows: [FileListRow] = []
-    var selectionGet: (() -> Set<String>)?
-    var selectionSet: ((Set<String>) -> Void)?
-    private weak var preferencesStore: FileListPreferencesStore?
-    var interaction = FileListTableInteraction()
-    var lastSearchText = ""
-    var lastQuickSearchText = ""
     private var cellSize: CGFloat = FileListThumbnailMetrics.defaultCellSize
     
-    private var lastListingSignature = ""
     private var scrollWheelMonitor: Any?
     private var scrollBoundsObserver: NSObjectProtocol?
     private var visibleThumbnailLoadWorkItem: DispatchWorkItem?
     private var pendingDisplayRows: [FileListRow]?
     private var pendingCollectionUpdateWorkItem: DispatchWorkItem?
     private var isPerformingCollectionUpdate = false
+    private var pendingCollectionReloadFull = false
     private var hasInstalledCollectionView = false
     private let thumbnailGenerator = ThumbnailGenerator()
-    private var directorySizeDisplay: ((String) -> DirectorySizeDisplayInfo)?
-    private var lastDirectorySizeRevision: UInt = 0
-    private var pendingDirectorySizeRefresh = false
-    private var directoryItemCountDisplay: ((String) -> DirectoryItemCountDisplayInfo)?
-    private var lastDirectoryItemCountRevision: UInt = 0
-    private var pendingDirectoryItemCountRefresh = false
-    private var lastReportedVisibleDirectoryPaths: [String] = []
-    private var visiblePathsNotifyWorkItem: DispatchWorkItem?
     
     // Interaction state
     var mouseDownIndexPath: IndexPath?
-    var mouseDownLocation: NSPoint?
-    var mouseDownEvent: NSEvent?
-    var mouseDownCanStartFileDrag = false
-    var dragSessionActive = false
-    var blankMouseDownEvent: NSEvent?
-    var blankDragSelecting = false
     var pendingRenameIndexPath: IndexPath?
-    var renamingRowID: String?
-    var rowRenameEligibleSince: [String: Date] = [:]
-    var lastKnownSelectionIDs: Set<String> = []
-    var wasAlreadySelectedAtMouseDown = false
     var dropHighlightIndexPath: IndexPath?
     var pendingDropTargetIndexPath: IndexPath?
     var activeDragURLs: [URL]?
@@ -55,11 +28,9 @@ public final class FileListThumbnailController: NSObject {
     weak var activeDraggingSession: NSDraggingSession?
     var skipNextItemMouseUp = false
     var usedSystemItemMouseDown = false
-    let dragThreshold: CGFloat = 4
-    
     var onCellSizeChange: ((CGFloat) -> Void)?
-    public var onOpenRow: ((FileListRow) -> Void)?
-    public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
+    
+    private(set) var scrollView: NSScrollView?
     
     public override init() {
         super.init()
@@ -81,14 +52,8 @@ public final class FileListThumbnailController: NSObject {
         collectionView.backgroundColors = [.textBackgroundColor]
         collectionView.dataSource = self
         collectionView.delegate = self
-        collectionView.registerForDraggedTypes([
-            .fileURL,
-            NSPasteboard.PasteboardType(UTType.fileURL.identifier),
-            NSPasteboard.PasteboardType("public.file-url"),
-            NSPasteboard.PasteboardType("NSFilenamesPboardType"),
-        ])
-        collectionView.setDraggingSourceOperationMask(.move, forLocal: true)
-        collectionView.setDraggingSourceOperationMask([.move, .copy], forLocal: false)
+        FileListDragDropRegistration.registerDragTypes(on: collectionView)
+        FileListDragDropRegistration.configureSourceMasks(on: collectionView)
         collectionView.register(
             FileListThumbnailItem.self,
             forItemWithIdentifier: FileListThumbnailItem.identifier
@@ -120,10 +85,12 @@ public final class FileListThumbnailController: NSObject {
         preferencesStore: FileListPreferencesStore,
         cellSize: CGFloat
     ) {
-        self.interaction = interaction
-        self.selectionGet = selectionGet
-        self.selectionSet = selectionSet
-        self.preferencesStore = preferencesStore
+        bindUpdateContext(
+            interaction: interaction,
+            selectionGet: selectionGet,
+            selectionSet: selectionSet,
+            preferencesStore: preferencesStore
+        )
         collectionView?.servicesRequestor = interaction.servicesRequestor
         
         let normalizedCellSize = FileListThumbnailMetrics.steppedCellSize(from: cellSize)
@@ -136,50 +103,34 @@ public final class FileListThumbnailController: NSObject {
             }
         }
         
-        let searchChanged = interaction.searchText != lastSearchText
-        let quickSearchChanged = interaction.quickSearchText != lastQuickSearchText
-        lastSearchText = interaction.searchText
-        lastQuickSearchText = interaction.quickSearchText
-        
-        let listingSignature = rows.map(\.id).joined(separator: "\u{1F}")
-        let listingChanged = listingSignature != lastListingSignature
-        if listingChanged {
-            lastListingSignature = listingSignature
-            lastDirectorySizeRevision = 0
-            // 仅取消进行中的 QL 请求；内存/磁盘缓存按 path+mtime 键保留，返回同目录时可即时命中。
+        let plan = prepareListingUpdate(
+            rows: rows,
+            metadataProviders: .init(
+                directorySize: directorySizeDisplay,
+                directoryItemCount: directoryItemCountDisplay
+            )
+        )
+        if plan.listingChanged {
             thumbnailGenerator.cancelInFlightRequests()
+            if renamingRowID != nil {
+                cancelRenameIfNeededForDataUpdate()
+            }
         }
         
-        let previousSourceRows = sourceRows
-        let mergedRows: [FileListRow]
-        if listingChanged || previousSourceRows.isEmpty {
-            mergedRows = rows
-        } else {
-            mergedRows = mergePreservingDirectoryMetadata(incoming: rows, existing: previousSourceRows)
-        }
-        sourceRows = mergedRows
+        guard hasInstalledCollectionView else { return }
         
-        let sort = preferencesStore.sort
-        let previousDisplayRows = displayRows
-        let newDisplay = FileListSortEngine.sorted(mergedRows, by: sort)
-        let orderChanged = newDisplay.map(\.id) != previousDisplayRows.map(\.id)
-        
-        guard hasInstalledCollectionView else {
-            displayRows = newDisplay
-            sourceRows = mergedRows
-            return
-        }
-        
-        if orderChanged || searchChanged || listingChanged || cellSizeChanged {
-            pendingDisplayRows = newDisplay
-            if listingChanged {
+        if plan.orderChanged || plan.searchChanged || plan.listingChanged || cellSizeChanged {
+            pendingDisplayRows = plan.sortedDisplayRows
+            pendingCollectionReloadFull = plan.listingChanged || cellSizeChanged
+            if plan.listingChanged {
                 pendingScrollToTop = true
             }
             scheduleCollectionReload()
         } else {
-            displayRows = newDisplay
-            if quickSearchChanged {
+            if plan.quickSearchChanged {
                 scheduleQuickSearchRefresh()
+            } else if plan.displayUnchanged {
+                scheduleVisibleDirectoryPathsNotify(debounce: 0.08)
             }
         }
     }
@@ -215,99 +166,51 @@ public final class FileListThumbnailController: NSObject {
         lastDirectoryItemCountRevision = provider.revision
         applyDirectoryItemCountDisplayUpdates()
     }
-    
-    private func mergePreservingDirectoryMetadata(
-        incoming: [FileListRow],
-        existing: [FileListRow]
-    ) -> [FileListRow] {
-        let existingByID = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
-        return incoming.map { row in
-            guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
-            var updated = row
-            
-            if let directorySizeDisplay {
-                let info = directorySizeDisplay(row.iconPath)
-                if info != .unknown {
-                    updated = updated.withDirectorySizeDisplay(info)
-                }
-            } else if let cached = existingByID[row.id], cached.sizeDisplay != "--" {
-                updated = updated.withDirectorySizeDisplay(
-                    DirectorySizeDisplayInfo(sortableSize: cached.size, text: cached.sizeDisplay)
-                )
-            }
-            
-            if let directoryItemCountDisplay, !FileListApplicationBundle.isBundle(path: row.iconPath) {
-                let info = directoryItemCountDisplay(row.iconPath)
-                if info != .unknown {
-                    updated = updated.withChildCountDisplay(info)
-                }
-            } else if let cached = existingByID[row.id], let childCount = cached.childCountDisplay,
-                      !FileListApplicationBundle.isBundle(path: row.iconPath) {
-                updated = updated.withChildCountDisplay(
-                    DirectoryItemCountDisplayInfo(count: -1, text: childCount)
-                )
-            }
-            
-            return updated
-        }
-    }
-    
+
     private func applyDirectorySizeDisplayUpdates() {
         guard let directorySizeDisplay else { return }
-        var changed = false
-        displayRows = displayRows.map { row in
-            guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
-            let info = directorySizeDisplay(row.iconPath)
-            guard info != .unknown, row.sizeDisplay != info.text else { return row }
-            changed = true
-            return row.withDirectorySizeDisplay(info)
+        if isUserPointerActive {
+            pendingDirectorySizeRefresh = true
+            return
         }
-        sourceRows = sourceRows.map { row in
-            guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
-            let info = directorySizeDisplay(row.iconPath)
-            guard info != .unknown, row.sizeDisplay != info.text else { return row }
-            changed = true
-            return row.withDirectorySizeDisplay(info)
-        }
-        guard changed else { return }
-        pendingDirectorySizeRefresh = true
-        flushPendingDirectorySizeRefreshIfNeeded()
+        pendingDirectorySizeRefresh = false
+        let result = FileListDirectoryMetadataRefresh.applySizeDisplayUpdates(
+            sourceRows: sourceRows,
+            displayRows: displayRows,
+            display: directorySizeDisplay
+        )
+        guard result.changed else { return }
+        sourceRows = result.sourceRows
+        displayRows = result.displayRows
+        refreshVisibleItemAppearance()
     }
-    
+
     private func applyDirectoryItemCountDisplayUpdates() {
         guard let directoryItemCountDisplay else { return }
-        var changed = false
-        displayRows = displayRows.map { row in
-            guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
-            guard !FileListApplicationBundle.isBundle(path: row.iconPath) else { return row }
-            let info = directoryItemCountDisplay(row.iconPath)
-            guard info != .unknown, row.childCountDisplay != info.text else { return row }
-            changed = true
-            return row.withChildCountDisplay(info)
+        if isUserPointerActive {
+            pendingDirectoryItemCountRefresh = true
+            return
         }
-        sourceRows = sourceRows.map { row in
-            guard row.isDirectory, !row.isParentDirectoryEntry else { return row }
-            guard !FileListApplicationBundle.isBundle(path: row.iconPath) else { return row }
-            let info = directoryItemCountDisplay(row.iconPath)
-            guard info != .unknown, row.childCountDisplay != info.text else { return row }
-            changed = true
-            return row.withChildCountDisplay(info)
-        }
-        guard changed else { return }
-        pendingDirectoryItemCountRefresh = true
-        flushPendingDirectoryItemCountRefreshIfNeeded()
-    }
-    
-    private func flushPendingDirectoryItemCountRefreshIfNeeded() {
-        guard pendingDirectoryItemCountRefresh else { return }
         pendingDirectoryItemCountRefresh = false
+        let result = FileListDirectoryMetadataRefresh.applyItemCountDisplayUpdates(
+            sourceRows: sourceRows,
+            displayRows: displayRows,
+            display: directoryItemCountDisplay
+        )
+        guard result.changed else { return }
+        sourceRows = result.sourceRows
+        displayRows = result.displayRows
         refreshVisibleItemAppearance()
     }
-    
-    private func flushPendingDirectorySizeRefreshIfNeeded() {
+
+    func flushPendingDirectoryItemCountRefreshIfNeeded() {
+        guard pendingDirectoryItemCountRefresh else { return }
+        applyDirectoryItemCountDisplayUpdates()
+    }
+
+    func flushPendingDirectorySizeRefreshIfNeeded() {
         guard pendingDirectorySizeRefresh else { return }
-        pendingDirectorySizeRefresh = false
-        refreshVisibleItemAppearance()
+        applyDirectorySizeDisplayUpdates()
     }
     
     private func applyGridLayout(to collectionView: NSCollectionView, cellSize: CGFloat) {
@@ -362,7 +265,17 @@ public final class FileListThumbnailController: NSObject {
         }
         
         cancelRenameIfNeededForDataUpdate()
-        collectionView.reloadData()
+        if pendingCollectionReloadFull {
+            collectionView.reloadData()
+        } else {
+            let indexPaths = Set(displayRows.indices.map { IndexPath(item: $0, section: 0) })
+            if indexPaths.isEmpty {
+                collectionView.reloadData()
+            } else {
+                collectionView.reloadItems(at: indexPaths)
+            }
+        }
+        pendingCollectionReloadFull = false
         syncSelectionIndexPathsOnly()
         
         if pendingScrollToTop {
@@ -371,7 +284,7 @@ public final class FileListThumbnailController: NSObject {
         }
         
         scheduleVisibleThumbnailLoad()
-        scheduleVisibleDirectoryPathsNotify()
+        scheduleVisibleDirectoryPathsNotify(debounce: 0.08)
     }
     
     // MARK: - Thumbnails
@@ -411,30 +324,24 @@ public final class FileListThumbnailController: NSObject {
         }
     }
     
-    /// 仅配置占位与选中态，不做磁盘 I/O 或 QL 生成。
+    /// 仅配置占位与选中态；磁盘缓存命中由 `enqueueThumbnailLoad` 异步回填。
     private func prepareThumbnailItem(_ item: FileListThumbnailItem, row: FileListRow) {
         _ = item.beginLoad(for: row.id)
         
-        if let cached = thumbnailGenerator.cachedImage(for: row, cellSize: cellSize) {
-            let displayImage = cached.isThumbnail
+        let memoryCached = thumbnailGenerator.memoryCachedImage(for: row, cellSize: cellSize)
+        let placeholder: NSImage
+        if let cached = memoryCached {
+            placeholder = cached.isThumbnail
                 ? cached.image
                 : FileListThumbnailMetrics.scaledIcon(cached.image, cellSize: cellSize)
-            item.configure(
-                row: row,
-                isSelected: isRowSelected(row.id),
-                highlightText: highlightText,
-                placeholderImage: displayImage,
-                cellSize: cellSize
+        } else {
+            placeholder = thumbnailGenerator.instantPlaceholder(
+                for: row,
+                cellSize: cellSize,
+                screenScale: screenScale
             )
-            item.applyLoadedImage(displayImage, isThumbnail: cached.isThumbnail, animated: false)
-            return
         }
         
-        let placeholder = thumbnailGenerator.instantPlaceholder(
-            for: row,
-            cellSize: cellSize,
-            screenScale: screenScale
-        )
         item.configure(
             row: row,
             isSelected: isRowSelected(row.id),
@@ -442,6 +349,13 @@ public final class FileListThumbnailController: NSObject {
             placeholderImage: placeholder,
             cellSize: cellSize
         )
+        
+        if let cached = memoryCached {
+            let displayImage = cached.isThumbnail
+                ? cached.image
+                : FileListThumbnailMetrics.scaledIcon(cached.image, cellSize: cellSize)
+            item.applyLoadedImage(displayImage, isThumbnail: cached.isThumbnail, animated: false)
+        }
     }
     
     private func enqueueThumbnailLoad(for item: FileListThumbnailItem, row: FileListRow) {
@@ -536,19 +450,7 @@ public final class FileListThumbnailController: NSObject {
     }
     
     private func scrollToFirstQuickSearchMatchIfNeeded() {
-        guard let collectionView else { return }
-        let keyword = interaction.quickSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !keyword.isEmpty else { return }
-        guard let index = displayRows.firstIndex(where: {
-            !$0.isParentDirectoryEntry &&
-            $0.name.range(
-                of: keyword,
-                options: [.caseInsensitive, .diacriticInsensitive],
-                range: nil,
-                locale: .current
-            ) != nil
-        }) else { return }
-        
+        guard let collectionView, let index = firstQuickSearchMatchIndex() else { return }
         let indexPath = IndexPath(item: index, section: 0)
         collectionView.scrollToItems(at: [indexPath], scrollPosition: .centeredVertically)
         collectionView.selectionIndexPaths = [indexPath]
@@ -556,16 +458,15 @@ public final class FileListThumbnailController: NSObject {
     }
     
     func effectiveSelectionIDs() -> Set<String> {
-        if let selectionGet {
-            let selected = selectionGet()
-            if !selected.isEmpty { return selected }
-        }
-        guard let collectionView else { return [] }
-        return Set(
-            collectionView.selectionIndexPaths.compactMap { indexPath -> String? in
+        let collectionSelectedIDs = Set(
+            (collectionView?.selectionIndexPaths ?? []).compactMap { indexPath -> String? in
                 guard indexPath.item >= 0, indexPath.item < displayRows.count else { return nil }
                 return displayRows[indexPath.item].id
             }
+        )
+        return FileListInteractionCoordinator.collectionEffectiveSelectionIDs(
+            selectionGet: selectionGet,
+            collectionSelectedIDs: collectionSelectedIDs
         )
     }
     
@@ -584,20 +485,8 @@ public final class FileListThumbnailController: NSObject {
         onOpenRow?(displayRows[indexPath.item])
     }
     
-    // MARK: - Visible directories
-    
-    private func scheduleVisibleDirectoryPathsNotify() {
-        visiblePathsNotifyWorkItem?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            self?.notifyVisibleDirectoryPathsIfNeeded()
-        }
-        visiblePathsNotifyWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: work)
-    }
-    
-    private func notifyVisibleDirectoryPathsIfNeeded() {
-        guard let onVisibleDirectoryPathsChanged else { return }
-        guard let collectionView else { return }
+    override func visibleDirectoryPaths() -> [String] {
+        guard let collectionView else { return [] }
         let paths = collectionView.indexPathsForVisibleItems()
             .compactMap { indexPath -> String? in
                 guard indexPath.item >= 0, indexPath.item < displayRows.count else { return nil }
@@ -605,10 +494,7 @@ public final class FileListThumbnailController: NSObject {
                 guard row.isDirectory, !row.isParentDirectoryEntry else { return nil }
                 return row.iconPath
             }
-        let unique = Array(Set(paths)).sorted()
-        guard unique != lastReportedVisibleDirectoryPaths else { return }
-        lastReportedVisibleDirectoryPaths = unique
-        onVisibleDirectoryPathsChanged(unique)
+        return Array(Set(paths)).sorted()
     }
     
     func indexPath(for rowID: String) -> IndexPath? {
@@ -649,6 +535,7 @@ public final class FileListThumbnailController: NSObject {
             self.applyGridLayout(to: collectionView, cellSize: next)
             DispatchQueue.main.async {
                 self.onCellSizeChange?(next)
+                self.pendingCollectionReloadFull = true
                 self.scheduleCollectionReload()
             }
             return nil
@@ -662,7 +549,7 @@ public final class FileListThumbnailController: NSObject {
             ) { [weak self] _ in
                 guard let self else { return }
                 self.scheduleVisibleThumbnailLoad()
-                self.scheduleVisibleDirectoryPathsNotify()
+                self.scheduleVisibleDirectoryPathsNotify(debounce: 0.08)
             }
             scrollView.contentView.postsBoundsChangedNotifications = true
         }

@@ -92,3 +92,6 @@ public struct FileListTableInteraction {
         self.onSpacePreview = onSpacePreview
     }
 }
+
+/// 列表与缩略图模式共用；保留 `FileListTableInteraction` 以兼容现有调用方。
+public typealias FileListContentInteraction = FileListTableInteraction

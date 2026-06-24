@@ -9,7 +9,7 @@ enum SnippetsContextMenuBuilder {
         selectedItems: [FileItem],
         showHiddenFiles: Bool
     ) {
-        let snippets = visibleSnippets(
+        let snippets = SnippetStore.shared.visibleSnippets(
             cwd: cwd,
             selectedItems: selectedItems,
             showHiddenFiles: showHiddenFiles
@@ -25,23 +25,6 @@ enum SnippetsContextMenuBuilder {
         item.submenu = submenu
         menu.addItem(.separator())
         menu.addItem(item)
-    }
-
-    private static func visibleSnippets(
-        cwd: String,
-        selectedItems: [FileItem],
-        showHiddenFiles: Bool
-    ) -> [Snippet] {
-        let visibilityContext = SnippetVisibilityContext(
-            cwd: cwd,
-            selectedItems: selectedItems.filter { !$0.isParentDirectoryEntry },
-            showHiddenFiles: showHiddenFiles
-        )
-        return SnippetStore.shared.sortedVisible(
-            context: visibilityContext,
-            searchQuery: "",
-            pinRecentlyExecuted: SnippetsSettings.shared.pinRecentlyExecutedSnippets
-        )
     }
 
     private static func makeSubmenu(

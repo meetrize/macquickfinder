@@ -32,27 +32,6 @@ final class ThumbnailCache {
     private let maxEntryCount = 500
     private let maxTotalCost = 150 * 1024 * 1024
     
-    /// 内存 + 磁盘同步查找；命中时回填内存 LRU。供 Cell 配置快速展示已缓存缩略图。
-    func entry(for key: Key) -> Entry? {
-        lock.lock()
-        if let entry = storage[key] {
-            touchLocked(key)
-            lock.unlock()
-            return entry
-        }
-        lock.unlock()
-        
-        guard let diskEntry = diskCache.loadSync(for: key) else { return nil }
-        
-        lock.lock()
-        storage[key] = diskEntry
-        accessOrder.append(key)
-        totalCost += diskEntry.cost
-        evictIfNeededLocked()
-        lock.unlock()
-        return diskEntry
-    }
-    
     /// 仅查内存 LRU，主线程安全且不做磁盘 I/O。
     func memoryEntry(for key: Key) -> Entry? {
         lock.lock()
@@ -85,7 +64,7 @@ final class ThumbnailCache {
     }
     
     func store(_ image: NSImage, isThumbnail: Bool, for key: Key) {
-        let cost = estimatedCost(of: image)
+        let cost = ThumbnailImageCost.estimatedBytes(of: image)
         lock.lock()
         if let existing = storage[key] {
             totalCost -= existing.cost
@@ -130,12 +109,5 @@ final class ThumbnailCache {
                 totalCost -= removed.cost
             }
         }
-    }
-    
-    private func estimatedCost(of image: NSImage) -> Int {
-        let size = image.size
-        let scale = image.recommendedLayerContentsScale(0)
-        let pixels = Int(size.width * scale) * Int(size.height * scale)
-        return max(pixels * 4, 16_384)
     }
 }

@@ -30,7 +30,7 @@ enum SnippetExpander {
         func pathForScript(_ path: String) -> String {
             let standardized = standardize(path)
             if scriptType == .shell {
-                return shellQuote(standardized)
+                return ShellQuoting.singleQuote(standardized)
             }
             return standardized
         }
@@ -81,11 +81,11 @@ enum SnippetExpander {
                 guard allSelected.count == 1, let item = allSelected.first else {
                     throw SnippetExpansionError.requiresSingleSelection
                 }
-                return shellQuote(standardize(item.url.path))
+                return ShellQuoting.singleQuote(standardize(item.url.path))
             }),
             ("%Q", {
                 guard !allSelected.isEmpty else { throw SnippetExpansionError.requiresSelection }
-                return allSelected.map { shellQuote(standardize($0.url.path)) }.joined(separator: " ")
+                return allSelected.map { ShellQuoting.singleQuote(standardize($0.url.path)) }.joined(separator: " ")
             }),
             ("%h", { standardize(FileManager.default.homeDirectoryForCurrentUser.path) }),
             ("%u", { NSUserName() }),
@@ -114,7 +114,4 @@ enum SnippetExpander {
         (path as NSString).standardizingPath
     }
 
-    static func shellQuote(_ string: String) -> String {
-        "'" + string.replacingOccurrences(of: "'", with: "'\\''") + "'"
-    }
 }

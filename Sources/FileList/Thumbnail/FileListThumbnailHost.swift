@@ -40,9 +40,12 @@ public struct FileListThumbnailHost: NSViewRepresentable {
     
     public func makeCoordinator() -> FileListThumbnailController {
         let controller = FileListThumbnailController()
-        controller.onOpenRow = onOpenRow
+        FileListContentHostSupport.wireCallbacks(
+            controller,
+            onOpenRow: onOpenRow,
+            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged
+        )
         controller.onCellSizeChange = onCellSizeChange
-        controller.onVisibleDirectoryPathsChanged = onVisibleDirectoryPathsChanged
         return controller
     }
     
@@ -52,9 +55,12 @@ public struct FileListThumbnailHost: NSViewRepresentable {
     
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let controller = context.coordinator
-        controller.onOpenRow = onOpenRow
+        FileListContentHostSupport.wireCallbacks(
+            controller,
+            onOpenRow: onOpenRow,
+            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged
+        )
         controller.onCellSizeChange = onCellSizeChange
-        controller.onVisibleDirectoryPathsChanged = onVisibleDirectoryPathsChanged
         controller.update(
             rows: rows,
             interaction: interaction,

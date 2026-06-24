@@ -10,8 +10,7 @@ struct RightPanelStackView: View {
     let sortOrder: SortOrder
     let showHiddenFiles: Bool
     let autoCalculateDirectorySizes: Bool
-    let directorySizeOverlay: DirectorySizeOverlay
-    let directoryItemCountOverlay: DirectoryItemCountOverlay
+    let directoryMetadataOverlay: DirectoryMetadataOverlay
     let panelWidth: CGFloat
     let onNavigate: (String) -> Void
     let onOpenItem: (FileItem) -> Void
@@ -46,8 +45,7 @@ struct RightPanelStackView: View {
                         sortOrder: sortOrder,
                         showHiddenFiles: showHiddenFiles,
                         autoCalculateDirectorySizes: autoCalculateDirectorySizes,
-                        directorySizeOverlay: directorySizeOverlay,
-                        directoryItemCountOverlay: directoryItemCountOverlay,
+                        metadataOverlay: directoryMetadataOverlay,
                         onNavigate: onNavigate,
                         onOpenItem: onOpenItem,
                         onOpenTerminalAtPath: onOpenTerminalAtPath

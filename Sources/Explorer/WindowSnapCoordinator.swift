@@ -188,7 +188,10 @@ final class WindowSnapCoordinator {
     }
 
     var isEnabled: Bool {
-        UserDefaults.standard.object(forKey: ExplorerAppSettings.windowSnapEnabledKey) as? Bool ?? true
+        UserDefaultsStorage.bool(
+            forKey: AppPreferences.General.windowSnapEnabled,
+            default: true
+        )
     }
 
     // MARK: - Registration

@@ -19,7 +19,7 @@ enum ArchivePreviewLoader {
         maxEntries: Int = 1_000,
         timeoutSeconds: Int = 8
     ) async throws -> (entries: [ArchiveEntryPreview], truncated: Bool) {
-        let output = try await runTarList(url: url, maxLines: maxEntries * 2 + 60, timeoutSeconds: timeoutSeconds)
+        let output = try await runTarVerboseList(url: url, maxLines: maxEntries * 2 + 60, timeoutSeconds: timeoutSeconds)
         var entries: [ArchiveEntryPreview] = []
         for rawLine in output.split(whereSeparator: \.isNewline) {
             if entries.count >= maxEntries { break }
@@ -27,6 +27,49 @@ enum ArchivePreviewLoader {
             if line.hasPrefix("tar:") { continue }
             guard let entry = parseTarVerboseListingLine(line) else { continue }
             entries.append(entry)
+        }
+        guard !entries.isEmpty else { throw LoaderError.emptyListing }
+        return (entries, entries.count >= maxEntries)
+    }
+
+    static func isArchiveFileName(_ lowercasedName: String) -> Bool {
+        lowercasedName.hasSuffix(".zip")
+            || lowercasedName.hasSuffix(".tar")
+            || lowercasedName.hasSuffix(".tar.gz")
+            || lowercasedName.hasSuffix(".tgz")
+    }
+
+    static func listArchiveEntries(
+        at url: URL,
+        maxEntries: Int = 1_000,
+        timeoutSeconds: Int = 8
+    ) async throws -> (entries: [ArchiveEntryPreview], truncated: Bool) {
+        let lowerName = url.lastPathComponent.lowercased()
+        if lowerName.hasSuffix(".zip") {
+            return try await listZipEntries(at: url, maxEntries: maxEntries, timeoutSeconds: timeoutSeconds)
+        }
+        if lowerName.hasSuffix(".tar") || lowerName.hasSuffix(".tar.gz") || lowerName.hasSuffix(".tgz") {
+            return try await listPlainTarEntries(at: url, maxEntries: maxEntries, timeoutSeconds: timeoutSeconds)
+        }
+        throw LoaderError.emptyListing
+    }
+
+    static func listPlainTarEntries(
+        at url: URL,
+        maxEntries: Int = 1_000,
+        timeoutSeconds: Int = 8
+    ) async throws -> (entries: [ArchiveEntryPreview], truncated: Bool) {
+        let output = try await runPlainTarList(
+            url: url,
+            maxLines: maxEntries + 80,
+            timeoutSeconds: timeoutSeconds
+        )
+        var entries: [ArchiveEntryPreview] = []
+        for rawLine in output.split(whereSeparator: \.isNewline) {
+            if entries.count >= maxEntries { break }
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line.isEmpty || line.hasPrefix("tar:") { continue }
+            entries.append(.init(path: line, isDirectory: line.hasSuffix("/"), size: nil))
         }
         guard !entries.isEmpty else { throw LoaderError.emptyListing }
         return (entries, entries.count >= maxEntries)
@@ -84,40 +127,26 @@ enum ArchivePreviewLoader {
         return String(bytes: bytes, encoding: .utf8) ?? path
     }
 
-    private static func runTarList(url: URL, maxLines: Int, timeoutSeconds: Int) async throws -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = [
-            "-c",
-            "/usr/bin/tar -tvf \(shellEscape(url.path)) 2>&1 | /usr/bin/head -n \(maxLines)",
-        ]
-        var environment = ProcessInfo.processInfo.environment
-        environment["LANG"] = "en_US.UTF-8"
-        environment["LC_ALL"] = "en_US.UTF-8"
-        process.environment = environment
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        try process.run()
+    private static func runTarVerboseList(url: URL, maxLines: Int, timeoutSeconds: Int) async throws -> String {
+        try await runShellCommand(
+            "/usr/bin/tar -tvf \(ShellQuoting.singleQuote(url.path)) 2>&1 | /usr/bin/head -n \(maxLines)",
+            timeoutSeconds: timeoutSeconds
+        )
+    }
 
-        let start = Date()
-        while process.isRunning {
-            if Task.isCancelled {
-                process.terminate()
-                throw CancellationError()
-            }
-            if Date().timeIntervalSince(start) > Double(timeoutSeconds) {
-                process.terminate()
-                throw LoaderError.timedOut
-            }
-            try await Task.sleep(nanoseconds: 100_000_000)
+    private static func runPlainTarList(url: URL, maxLines: Int, timeoutSeconds: Int) async throws -> String {
+        try await runShellCommand(
+            "/usr/bin/tar -tf \(ShellQuoting.singleQuote(url.path)) 2>&1 | /usr/bin/head -n \(maxLines)",
+            timeoutSeconds: timeoutSeconds
+        )
+    }
+
+    private static func runShellCommand(_ command: String, timeoutSeconds: Int) async throws -> String {
+        do {
+            return try await ShellProcessRunner.runCommand(command, timeoutSeconds: timeoutSeconds)
+        } catch ShellProcessRunner.RunnerError.timedOut {
+            throw LoaderError.timedOut
         }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8) ?? ""
     }
 
-    private static func shellEscape(_ path: String) -> String {
-        "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
-    }
 }

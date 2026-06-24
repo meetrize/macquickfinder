@@ -29,19 +29,12 @@ struct SnippetsPanelView: View {
             .filter { !$0.isParentDirectoryEntry }
     }
 
-    private var visibilityContext: SnippetVisibilityContext {
-        SnippetVisibilityContext(
+    private var visibleSnippets: [Snippet] {
+        store.visibleSnippets(
             cwd: cwd,
             selectedItems: selectedItems,
-            showHiddenFiles: showHiddenFiles
-        )
-    }
-
-    private var visibleSnippets: [Snippet] {
-        store.sortedVisible(
-            context: visibilityContext,
-            searchQuery: searchText,
-            pinRecentlyExecuted: SnippetsSettings.shared.pinRecentlyExecutedSnippets
+            showHiddenFiles: showHiddenFiles,
+            searchQuery: searchText
         )
     }
 

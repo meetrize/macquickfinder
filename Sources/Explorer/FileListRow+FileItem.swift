@@ -61,3 +61,9 @@ extension FileListRow {
         )
     }
 }
+
+extension FileItem {
+    var isApplicationBundle: Bool {
+        isDirectory && FileListApplicationBundle.isBundle(path: url.path)
+    }
+}

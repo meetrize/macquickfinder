@@ -1,0 +1,659 @@
+import SwiftUI
+import AppKit
+import FileList
+
+private struct DirectorySizeTableBridge<Content: View>: View {
+    @ObservedObject var overlay: DirectoryMetadataOverlay
+    @ViewBuilder let content: (DirectorySizeColumnProvider) -> Content
+
+    var body: some View {
+        content(
+            DirectorySizeColumnProvider(
+                revision: overlay.sizeRevision,
+                display: { overlay.sizeDisplay(for: $0) }
+            )
+        )
+    }
+}
+
+/// 缩略图模式目录元数据（大小 + 子项数量）回填桥接。
+private struct ThumbnailMetadataBridge<Content: View>: View {
+    @ObservedObject var overlay: DirectoryMetadataOverlay
+    @ViewBuilder let content: (DirectorySizeColumnProvider, DirectoryItemCountColumnProvider) -> Content
+
+    var body: some View {
+        content(
+            DirectorySizeColumnProvider(
+                revision: overlay.sizeRevision,
+                display: { overlay.sizeDisplay(for: $0) }
+            ),
+            DirectoryItemCountColumnProvider(
+                revision: overlay.countRevision,
+                display: { overlay.countDisplay(for: $0) }
+            )
+        )
+    }
+}
+struct FileListView: View {
+    let items: [FileItem]
+    @Binding var selection: Set<FileItem.ID>
+    @Binding var showPreview: Bool
+    let searchText: String
+    @Binding var quickSearchText: String
+    @Binding var isQuickSearchVisible: Bool
+    @Binding var isFileListRenaming: Bool
+    let focusToken: UInt
+    let currentDirectoryPath: String
+    let canNavigateToParent: Bool
+    let showHiddenFiles: Bool
+    let directoryMetadataOverlay: DirectoryMetadataOverlay
+    let viewMode: FileListViewMode
+    let thumbnailCellSize: CGFloat
+    let isLoading: Bool
+    let onThumbnailCellSizeChange: (CGFloat) -> Void
+    let onItemOpen: (FileItem) -> Void
+    let onBlankDoubleClick: () -> Void
+    let onItemsChanged: ([String]) -> Void
+    let onScheduleVisibleDirectorySizes: ([String]) -> Void
+    let onScheduleVisibleDirectoryItemCounts: ([String]) -> Void
+    let contextActions: FileContextActions
+    let blankMenuActions: FileListBlankMenuActions
+    let canNavigateBack: Bool
+    let onNavigateBack: () -> Void
+    
+    @ObservedObject private var preferencesStore = FileListPreferencesStore.shared
+    @State private var isCurrentDirectoryDropTargeted = false
+    @FocusState private var isQuickSearchFieldFocused: Bool
+    @State private var quickSearchAutoCloseWorkItem: DispatchWorkItem?
+    @AppStorage("explorer.treeExpandEnabled") private var treeExpandEnabled = true
+    @State private var expandedDirectoryIDs: Set<String> = []
+    @State private var expandingDirectoryIDs: Set<String> = []
+    @State private var cachedChildrenByDirectoryID: [String: [FileItem]] = [:]
+    @State private var expandErrorByDirectoryID: [String: String] = [:]
+    @State private var directoryLoadGenerationByID: [String: UInt] = [:]
+    
+    private var showParentDirectoryRow: Bool {
+        canNavigateToParent && searchText.isEmpty
+    }
+    
+    private struct VisibleNode {
+        let item: FileItem
+        let depth: Int
+        let parentID: String?
+    }
+    
+    private var rootItemsByID: [String: FileItem] {
+        Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+    }
+    
+    private var treeEnabled: Bool {
+        viewMode == .list && treeExpandEnabled && searchText.isEmpty
+    }
+    
+    private var visibleTreeNodes: [VisibleNode] {
+        guard treeEnabled else {
+            return items.map { VisibleNode(item: $0, depth: 0, parentID: nil) }
+        }
+        var nodes: [VisibleNode] = []
+        nodes.reserveCapacity(items.count)
+        appendVisibleNodes(
+            from: items,
+            depth: 0,
+            parentID: nil,
+            result: &nodes
+        )
+        return nodes
+    }
+    
+    private var tableRowItems: [FileItem] {
+        var rows: [FileItem] = []
+        if showParentDirectoryRow {
+            rows.append(FileItem.parentDirectoryEntry())
+        }
+        rows.append(contentsOf: visibleTreeNodes.map(\.item))
+        return rows
+    }
+    
+    private var parentDirectoryURL: URL? {
+        FileItem.parentDirectoryURL(from: currentDirectoryPath)
+    }
+    
+    var body: some View {
+        FileListPanelLayout {
+            Group {
+                if isLoading {
+                    FileListLoadingPlaceholderView(
+                        viewMode: viewMode,
+                        thumbnailCellSize: thumbnailCellSize
+                    )
+                } else {
+                    switch viewMode {
+                    case .list:
+                        fileTable
+                    case .thumbnail:
+                        fileThumbnailGrid
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+        .background(FileListAutoFocusRequester(token: focusToken))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            if isCurrentDirectoryDropTargeted {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 2)
+                    .padding(4)
+                    .allowsHitTesting(false)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if isQuickSearchVisible {
+                quickSearchBar
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 6)
+                    .transition(.opacity)
+            }
+        }
+        .onChange(of: isQuickSearchVisible) { visible in
+            if !visible {
+                cancelQuickSearchAutoClose()
+                isQuickSearchFieldFocused = false
+                return
+            }
+            refreshQuickSearchAutoCloseTimer()
+        }
+        .onChange(of: isQuickSearchFieldFocused) { _ in
+            refreshQuickSearchAutoCloseTimer()
+        }
+        .onDisappear {
+            cancelQuickSearchAutoClose()
+        }
+        .onChange(of: currentDirectoryPath) { _ in
+            closeQuickSearch()
+            isFileListRenaming = false
+            FileListTableController.shared?.cancelRenameIfNeededForDataUpdate()
+            resetTreeState(keepExpanded: false)
+        }
+        .onChange(of: showHiddenFiles) { _ in
+            resetTreeState(keepExpanded: true)
+        }
+        .onChange(of: searchText) { newValue in
+            if !newValue.isEmpty {
+                expandingDirectoryIDs.removeAll()
+            }
+        }
+    }
+    
+    private var fileTable: some View {
+        let listRows = makeListRows()
+        let tableInteraction = makeFileListInteraction()
+        
+        return DirectorySizeTableBridge(overlay: directoryMetadataOverlay) { sizeProvider in
+            FileListTableHost(
+                rows: listRows,
+                interaction: tableInteraction,
+                selection: Binding(
+                    get: { selection },
+                    set: { selection = $0 }
+                ),
+                preferencesStore: preferencesStore,
+                onOpenRow: { row in
+                    guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
+                    onItemOpen(item)
+                },
+                onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
+                directorySizeProvider: sizeProvider
+            )
+            .onAppear {
+                preferencesStore.resetToDefaultIfNeeded()
+            }
+        }
+    }
+    
+    private var fileThumbnailGrid: some View {
+        let listRows = makeListRows()
+        let tableInteraction = makeFileListInteraction()
+        
+        return ThumbnailMetadataBridge(
+            overlay: directoryMetadataOverlay
+        ) { sizeProvider, countProvider in
+            FileListThumbnailHost(
+                rows: listRows,
+                interaction: tableInteraction,
+                selection: Binding(
+                    get: { selection },
+                    set: { selection = $0 }
+                ),
+                preferencesStore: preferencesStore,
+                cellSize: thumbnailCellSize,
+                onCellSizeChange: onThumbnailCellSizeChange,
+                onOpenRow: { row in
+                    guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
+                    onItemOpen(item)
+                },
+                onVisibleDirectoryPathsChanged: { paths in
+                    onScheduleVisibleDirectorySizes(paths)
+                    onScheduleVisibleDirectoryItemCounts(paths)
+                },
+                directorySizeProvider: sizeProvider,
+                directoryItemCountProvider: countProvider
+            )
+            .onAppear {
+                preferencesStore.resetToDefaultIfNeeded()
+            }
+        }
+    }
+    
+    private func makeFileListInteraction() -> FileListTableInteraction {
+        FileListTableInteraction(
+            searchText: searchText,
+            quickSearchText: quickSearchText,
+            blankMenuActions: blankMenuActions,
+            onBlankSingleClick: {
+                if !selection.isEmpty {
+                    selection.removeAll()
+                }
+            },
+            onBlankDoubleClick: onBlankDoubleClick,
+            canDelete: {
+                !selection.isEmpty && !selection.contains(FileItem.parentDirectoryID)
+            },
+            onDelete: {
+                let deletable = items(for: selection).filter { !$0.isParentDirectoryEntry }
+                contextActions.delete(deletable)
+            },
+            canNavigateBack: { canNavigateBack },
+            onNavigateBack: onNavigateBack,
+            onTableFocusChanged: { focused in
+                guard focused, isQuickSearchVisible else { return }
+                // AppKit 表格接管 firstResponder 时，显式让快速搜索框失焦并启动自动关闭计时。
+                isQuickSearchFieldFocused = false
+                refreshQuickSearchAutoCloseTimer()
+            },
+            onQuickSearchInput: { input in
+                appendQuickSearchText(input)
+            },
+            onQuickSearchBackspace: {
+                removeLastQuickSearchCharacter()
+            },
+            onQuickSearchEscape: {
+                closeQuickSearch()
+            },
+            onDragEnded: {
+                resetTreeState(keepExpanded: true)
+                onItemsChanged([])
+            },
+            onToggleExpand: { row in
+                guard row.isDirectory, !row.isParentDirectoryEntry else { return }
+                toggleExpansion(for: row.id)
+            },
+            canRename: { row in
+                !row.isParentDirectoryEntry && !contextActions.isInTrash
+            },
+            performRename: { row, newName, completion in
+                guard let item = tableRowItems.first(where: { $0.id == row.id }) else {
+                    completion(false)
+                    return
+                }
+                let oldPath = item.id
+                switch FileOperations.moveItem(item, toNewName: newName) {
+                case .success(let newURL):
+                    selection = [newURL.path]
+                    resetTreeState(keepExpanded: true)
+                    onItemsChanged([oldPath])
+                    completion(true)
+                case .failure(let error):
+                    NSAlert(error: error as NSError).runModal()
+                    completion(false)
+                }
+            },
+            onRenameEditingChanged: { isFileListRenaming = $0 },
+            makeContextMenu: { clickedRow, selectedIDs in
+                let selectedItems = tableRowItems.filter { selectedIDs.contains($0.id) }
+                return FileListRowContextMenuBuilder.makeMenu(
+                    clickedRow: clickedRow,
+                    selectedItems: selectedItems,
+                    currentDirectoryPath: currentDirectoryPath,
+                    showHiddenFiles: showHiddenFiles,
+                    actions: contextActions
+                )
+            },
+            popUpContextMenu: { menu, event, view, fileURLs in
+                FileServicesMenuSupport.popUpContextMenu(menu, with: event, for: view, fileURLs: fileURLs)
+            },
+            servicesRequestor: FileServicesMenuRequestor.shared,
+            dropDestinationPath: { row in
+                if row.isParentDirectoryEntry {
+                    return parentDirectoryURL?.path
+                }
+                guard row.isDirectory else { return nil }
+                return row.iconPath
+            },
+            currentDirectoryDropPath: currentDirectoryPath,
+            canAcceptDrop: { destinationPath, urls in
+                let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
+                return FileOperations.canMoveItems(urls, to: destination)
+            },
+            performDrop: { destinationPath, urls, copy in
+                let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
+                FileOperations.moveItems(urls, to: destination, copy: copy) {
+                    resetTreeState(keepExpanded: true)
+                    onItemsChanged(invalidationPaths(for: urls, destinationPath: destinationPath))
+                }
+            },
+            onCurrentDirectoryDropHighlightChanged: { isTargeted in
+                isCurrentDirectoryDropTargeted = isTargeted
+            },
+            onSpacePreview: {
+                guard !selection.isEmpty else { return }
+                showPreview = true
+            }
+        )
+    }
+    
+    private func items(for ids: Set<FileItem.ID>) -> [FileItem] {
+        tableRowItems.filter { ids.contains($0.id) }
+    }
+    
+    private func makeListRows() -> [FileListRow] {
+        var rows: [FileListRow] = []
+        rows.reserveCapacity(tableRowItems.count)
+        
+        if showParentDirectoryRow {
+            rows.append(FileListRow(item: FileItem.parentDirectoryEntry()))
+        }
+        
+        for node in visibleTreeNodes {
+            let item = node.item
+            rows.append(
+                FileListRow(
+                    item: item,
+                    directorySizeDisplay: nil,
+                    depth: node.depth,
+                    parentID: node.parentID,
+                    isExpandable: item.isDirectory && !item.isParentDirectoryEntry,
+                    isExpanded: expandedDirectoryIDs.contains(item.id),
+                    isExpanding: expandingDirectoryIDs.contains(item.id),
+                    expandErrorMessage: expandErrorByDirectoryID[item.id]
+                )
+            )
+        }
+        return rows
+    }
+    
+    private func appendVisibleNodes(
+        from sourceItems: [FileItem],
+        depth: Int,
+        parentID: String?,
+        result: inout [VisibleNode]
+    ) {
+        for item in sourceItems {
+            result.append(VisibleNode(item: item, depth: depth, parentID: parentID))
+            guard treeEnabled,
+                  item.isDirectory,
+                  expandedDirectoryIDs.contains(item.id),
+                  let children = cachedChildrenByDirectoryID[item.id]
+            else { continue }
+            appendVisibleNodes(
+                from: children,
+                depth: depth + 1,
+                parentID: item.id,
+                result: &result
+            )
+        }
+    }
+    
+    private func toggleExpansion(for directoryID: String) {
+        guard treeEnabled else { return }
+        if expandedDirectoryIDs.contains(directoryID) {
+            collapse(directoryID)
+            return
+        }
+        expandedDirectoryIDs.insert(directoryID)
+        expandErrorByDirectoryID[directoryID] = nil
+        if cachedChildrenByDirectoryID[directoryID] == nil {
+            loadChildren(for: directoryID)
+        }
+    }
+    
+    private func collapse(_ directoryID: String) {
+        expandedDirectoryIDs.remove(directoryID)
+        expandingDirectoryIDs.remove(directoryID)
+        expandErrorByDirectoryID[directoryID] = nil
+        
+        let descendantPrefix = directoryID.hasSuffix("/") ? directoryID : directoryID + "/"
+        expandedDirectoryIDs = expandedDirectoryIDs.filter { !$0.hasPrefix(descendantPrefix) }
+        expandingDirectoryIDs = expandingDirectoryIDs.filter { !$0.hasPrefix(descendantPrefix) }
+    }
+    
+    private func loadChildren(for directoryID: String) {
+        let currentGeneration = (directoryLoadGenerationByID[directoryID] ?? 0) + 1
+        directoryLoadGenerationByID[directoryID] = currentGeneration
+        expandingDirectoryIDs.insert(directoryID)
+        
+        let propertyKeys: Set<URLResourceKey> = [
+            .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
+        ]
+        let shouldShowHiddenFiles = showHiddenFiles
+        
+        Task {
+            do {
+                let canonicalPath = URL(fileURLWithPath: directoryID).resolvingSymlinksInPath().standardizedFileURL.path
+                let parentCanonical = URL(fileURLWithPath: currentDirectoryPath)
+                    .resolvingSymlinksInPath()
+                    .standardizedFileURL
+                    .path
+                if canonicalPath == parentCanonical {
+                    throw NSError(
+                        domain: "Explorer.FileTree",
+                        code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: "检测到循环链接"]
+                    )
+                }
+                
+                let url = URL(fileURLWithPath: directoryID)
+                let options: FileManager.DirectoryEnumerationOptions = shouldShowHiddenFiles
+                    ? [.skipsPackageDescendants]
+                    : [.skipsHiddenFiles, .skipsPackageDescendants]
+                let urls = try FileManager.default.contentsOfDirectory(
+                    at: url,
+                    includingPropertiesForKeys: Array(propertyKeys),
+                    options: options
+                )
+                var loaded: [FileItem] = []
+                loaded.reserveCapacity(urls.count)
+                for childURL in urls {
+                    if let item = TrashLoader.fileItem(from: childURL, propertyKeys: propertyKeys) {
+                        loaded.append(item)
+                    }
+                }
+                
+                await MainActor.run {
+                    guard directoryLoadGenerationByID[directoryID] == currentGeneration else { return }
+                    cachedChildrenByDirectoryID[directoryID] = loaded
+                    expandingDirectoryIDs.remove(directoryID)
+                    expandErrorByDirectoryID[directoryID] = nil
+                }
+            } catch {
+                await MainActor.run {
+                    guard directoryLoadGenerationByID[directoryID] == currentGeneration else { return }
+                    cachedChildrenByDirectoryID[directoryID] = []
+                    expandingDirectoryIDs.remove(directoryID)
+                    let nsError = error as NSError
+                    if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoPermissionError {
+                        expandErrorByDirectoryID[directoryID] = "无权限"
+                    } else if nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileNoSuchFileError {
+                        expandErrorByDirectoryID[directoryID] = "目录不存在"
+                    } else {
+                        expandErrorByDirectoryID[directoryID] = nsError.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+    
+    private func resetTreeState(keepExpanded: Bool) {
+        expandingDirectoryIDs.removeAll()
+        expandErrorByDirectoryID.removeAll()
+        directoryLoadGenerationByID.removeAll()
+        if keepExpanded {
+            cachedChildrenByDirectoryID.removeAll()
+        } else {
+            cachedChildrenByDirectoryID.removeAll()
+            expandedDirectoryIDs.removeAll()
+        }
+    }
+
+    private var quickSearchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("快速搜索", text: $quickSearchText)
+                .textFieldStyle(.plain)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .focused($isQuickSearchFieldFocused)
+                .onChange(of: quickSearchText) { newValue in
+                    let normalized = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if normalized != newValue {
+                        quickSearchText = normalized
+                        return
+                    }
+                    isQuickSearchVisible = !normalized.isEmpty
+                    if normalized.isEmpty {
+                        cancelQuickSearchAutoClose()
+                    } else {
+                        refreshQuickSearchAutoCloseTimer()
+                    }
+                }
+            Button {
+                closeQuickSearch()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .instantHoverTooltip("关闭快速搜索")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+        )
+    }
+
+    private func appendQuickSearchText(_ input: String) {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        quickSearchText += trimmed
+        isQuickSearchVisible = !quickSearchText.isEmpty
+        refreshQuickSearchAutoCloseTimer()
+    }
+
+    private func removeLastQuickSearchCharacter() {
+        guard !quickSearchText.isEmpty else { return }
+        quickSearchText.removeLast()
+        isQuickSearchVisible = !quickSearchText.isEmpty
+        refreshQuickSearchAutoCloseTimer()
+    }
+
+    private func closeQuickSearch() {
+        cancelQuickSearchAutoClose()
+        quickSearchText = ""
+        isQuickSearchVisible = false
+    }
+    
+    private func refreshQuickSearchAutoCloseTimer() {
+        guard isQuickSearchVisible else {
+            cancelQuickSearchAutoClose()
+            return
+        }
+        // Phase 2 语义：快速搜索框失焦后 5 秒自动关闭（与文件列表焦点无关）。
+        if isQuickSearchFieldFocused {
+            cancelQuickSearchAutoClose()
+            return
+        }
+        
+        cancelQuickSearchAutoClose()
+        let workItem = DispatchWorkItem {
+            closeQuickSearch()
+        }
+        quickSearchAutoCloseWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
+    }
+    
+    private func cancelQuickSearchAutoClose() {
+        quickSearchAutoCloseWorkItem?.cancel()
+        quickSearchAutoCloseWorkItem = nil
+    }
+    
+    private func invalidationPaths(for urls: [URL], destinationPath: String) -> [String] {
+        var paths = Set<String>()
+        paths.insert(destinationPath)
+        for url in urls {
+            paths.insert(url.path)
+        }
+        return Array(paths)
+    }
+}
+private struct FileListAutoFocusRequester: NSViewRepresentable {
+    let token: UInt
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.requestFocusIfNeeded(token: token, view: nsView)
+    }
+    
+    final class Coordinator {
+        private var lastToken: UInt = 0
+        
+        func requestFocusIfNeeded(token: UInt, view: NSView) {
+            guard token != lastToken else { return }
+            lastToken = token
+            
+            // 左侧点击切目录时，NSTableView 可能尚未完成挂载或 firstResponder 仍被侧栏占用；
+            // 这里做几次轻量重试（短延迟），不阻塞也不影响目录大小计算。
+            scheduleFocusAttempt(token: token, view: view, delay: 0)
+            scheduleFocusAttempt(token: token, view: view, delay: 0.03)
+            scheduleFocusAttempt(token: token, view: view, delay: 0.12)
+        }
+        
+        private func scheduleFocusAttempt(token: UInt, view: NSView, delay: TimeInterval) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak view] in
+                guard let self, let view else { return }
+                guard token == self.lastToken else { return }
+                guard let window = view.window,
+                      let contentView = window.contentView,
+                      let tableView = Self.findFileListTableView(in: contentView)
+                else { return }
+                
+                if window.firstResponder === tableView {
+                    return
+                }
+                window.makeFirstResponder(tableView)
+            }
+        }
+        
+        private static func findFileListTableView(in root: NSView) -> NSTableView? {
+            if let table = root as? NSTableView, table.delegate is FileListTableController {
+                return table
+            }
+            for subview in root.subviews {
+                if let found = findFileListTableView(in: subview) {
+                    return found
+                }
+            }
+            return nil
+        }
+    }
+}

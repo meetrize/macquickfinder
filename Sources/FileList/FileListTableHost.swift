@@ -31,7 +31,11 @@ public struct FileListTableHost: NSViewRepresentable {
     
     public func makeCoordinator() -> FileListTableController {
         let controller = FileListTableController()
-        controller.onOpenRow = onOpenRow
+        FileListContentHostSupport.wireCallbacks(
+            controller,
+            onOpenRow: onOpenRow,
+            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged
+        )
         return controller
     }
     
@@ -41,8 +45,11 @@ public struct FileListTableHost: NSViewRepresentable {
     
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let controller = context.coordinator
-        controller.onOpenRow = onOpenRow
-        controller.onVisibleDirectoryPathsChanged = onVisibleDirectoryPathsChanged
+        FileListContentHostSupport.wireCallbacks(
+            controller,
+            onOpenRow: onOpenRow,
+            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged
+        )
         controller.update(
             rows: rows,
             interaction: interaction,

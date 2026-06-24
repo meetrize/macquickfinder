@@ -6,31 +6,33 @@ import UniformTypeIdentifiers
 /// 限制 QL 并发；回调强引用 gate，避免生成器释放后信号量未归还。
 private final class QLConcurrencyGate {
     private let slots = DispatchSemaphore(value: 4)
-    private let lock = NSLock()
+    private let condition = NSCondition()
     private var inFlight = 0
     
     func acquire() {
         slots.wait()
-        lock.lock()
+        condition.lock()
         inFlight += 1
-        lock.unlock()
+        condition.unlock()
     }
     
     func release() {
-        lock.lock()
+        condition.lock()
         inFlight -= 1
-        lock.unlock()
+        let idle = inFlight == 0
+        if idle {
+            condition.broadcast()
+        }
+        condition.unlock()
         slots.signal()
     }
     
     func waitUntilIdle() {
-        while true {
-            lock.lock()
-            let count = inFlight
-            lock.unlock()
-            if count == 0 { return }
-            Thread.sleep(forTimeInterval: 0.005)
+        condition.lock()
+        while inFlight > 0 {
+            condition.wait()
         }
+        condition.unlock()
     }
 }
 
@@ -50,8 +52,6 @@ public final class ThumbnailGenerator {
     
     private static let placeholderLock = NSLock()
     private static var genericPlaceholders: [String: NSImage] = [:]
-    private let iconCacheLock = NSLock()
-    private var workspaceIconCache: [String: NSImage] = [:]
 
     public init() {}
     
@@ -62,15 +62,14 @@ public final class ThumbnailGenerator {
         )
     }
     
-    /// 内存 + 磁盘缓存查找，供 Cell 即时展示已缓存内容。
+    /// 仅查内存 LRU，主线程安全且不做磁盘 I/O。
     func cachedImage(for row: FileListRow, cellSize: CGFloat) -> ThumbnailCache.Entry? {
-        if row.isParentDirectoryEntry { return nil }
-        return cache.entry(for: cacheKey(for: row, cellSize: cellSize))
+        memoryCachedImage(for: row, cellSize: cellSize)
     }
 
-    /// 供预览浏览条等外部模块使用的缓存查找。
+    /// 供预览浏览条等外部模块使用的缓存查找（仅内存，不阻塞主线程读盘）。
     public func cachedThumbnailImage(for row: FileListRow, cellSize: CGFloat) -> NSImage? {
-        guard let entry = cachedImage(for: row, cellSize: cellSize) else { return nil }
+        guard let entry = memoryCachedImage(for: row, cellSize: cellSize) else { return nil }
         return entry.isThumbnail
             ? entry.image
             : FileListThumbnailMetrics.scaledIcon(entry.image, cellSize: cellSize)
@@ -285,21 +284,10 @@ public final class ThumbnailGenerator {
     }
     
     private func workspaceIcon(for path: String, cellSize: CGFloat) -> NSImage {
-        iconCacheLock.lock()
-        if let cached = workspaceIconCache[path] {
-            iconCacheLock.unlock()
-            return FileListThumbnailMetrics.scaledIcon(cached, cellSize: cellSize)
-        }
-        iconCacheLock.unlock()
-        
-        let base = NSWorkspace.shared.icon(forFile: path)
-        iconCacheLock.lock()
-        workspaceIconCache[path] = base
-        if workspaceIconCache.count > 300 {
-            workspaceIconCache.removeAll(keepingCapacity: true)
-        }
-        iconCacheLock.unlock()
-        return FileListThumbnailMetrics.scaledIcon(base, cellSize: cellSize)
+        FileListThumbnailMetrics.scaledIcon(
+            FileListWorkspaceIconCache.icon(forPath: path),
+            cellSize: cellSize
+        )
     }
     
     private static func genericPlaceholder(isDirectory: Bool, cellSize: CGFloat) -> NSImage {

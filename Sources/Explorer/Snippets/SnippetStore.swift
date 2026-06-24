@@ -105,6 +105,28 @@ final class SnippetStore: ObservableObject {
         return result
     }
 
+    /// 面板与右键菜单共用的可见 Snippet 列表构建。
+    func visibleSnippets(
+        cwd: String,
+        selectedItems: [FileItem],
+        showHiddenFiles: Bool,
+        searchQuery: String = "",
+        pinRecentlyExecuted: Bool? = nil
+    ) -> [Snippet] {
+        let filteredItems = selectedItems.filter { !$0.isParentDirectoryEntry }
+        let context = SnippetVisibilityContext(
+            cwd: cwd,
+            selectedItems: filteredItems,
+            showHiddenFiles: showHiddenFiles
+        )
+        let pin = pinRecentlyExecuted ?? SnippetsSettings.shared.pinRecentlyExecutedSnippets
+        return sortedVisible(
+            context: context,
+            searchQuery: searchQuery,
+            pinRecentlyExecuted: pin
+        )
+    }
+
     func importItems(_ items: [SnippetImportItem], strategy: SnippetImportStrategy) -> (imported: Int, skipped: Int) {
         var imported = 0
         var skipped = 0

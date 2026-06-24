@@ -8,13 +8,13 @@ final class FileListTableView: NSTableView {
         forSendType sendType: NSPasteboard.PasteboardType?,
         returnType: NSPasteboard.PasteboardType?
     ) -> Any? {
-        if let requestor = servicesRequestor?.validRequestor(
-            forSendType: sendType,
+        FileListDraggingDestinationSupport.validRequestor(
+            servicesRequestor: servicesRequestor,
+            sendType: sendType,
             returnType: returnType
         ) {
-            return requestor
+            super.validRequestor(forSendType: sendType, returnType: returnType)
         }
-        return super.validRequestor(forSendType: sendType, returnType: returnType)
     }
 
     override func becomeFirstResponder() -> Bool {
@@ -93,11 +93,15 @@ final class FileListTableView: NSTableView {
     // MARK: - NSDraggingDestination（比仅依赖 delegate 更可靠，跨窗口拖放尤其需要）
     
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        interactionController?.handleDraggingUpdated(sender) ?? []
+        FileListDraggingDestinationSupport.standardDraggingUpdated {
+            interactionController?.handleDraggingUpdated(sender) ?? []
+        }
     }
     
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        interactionController?.handleDraggingUpdated(sender) ?? []
+        FileListDraggingDestinationSupport.standardDraggingUpdated {
+            interactionController?.handleDraggingUpdated(sender) ?? []
+        }
     }
     
     override func draggingExited(_ sender: NSDraggingInfo?) {
@@ -105,11 +109,15 @@ final class FileListTableView: NSTableView {
     }
     
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        interactionController?.handleDraggingUpdated(sender) != []
+        FileListDraggingDestinationSupport.standardPrepareForDragOperation {
+            interactionController?.handleDraggingUpdated(sender) ?? []
+        }
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        interactionController?.performDragOperation(sender) ?? false
+        FileListDraggingDestinationSupport.standardPerformDragOperation {
+            interactionController?.performDragOperation(sender) ?? false
+        }
     }
     
     override func concludeDragOperation(_ sender: NSDraggingInfo?) {
