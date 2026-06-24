@@ -114,5 +114,7 @@ enum PanelTopBarMetrics {
 }
 
 enum OutputPanelMetrics {
-    static let titleBarHeight: CGFloat = 32
+    static let titleBarHeight: CGFloat = 26
+    static let titleBarChipHeight: CGFloat = 18
+    static let titleBarIconWidth: CGFloat = 22
 }

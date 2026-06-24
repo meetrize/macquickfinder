@@ -9,7 +9,9 @@ private enum OutputPanelFocusField: Hashable {
 
 struct OutputPanelView: View {
     @ObservedObject var layout: ExplorerWindowLayoutState
+    var containerHeight: CGFloat = 800
     var maxPanelHeight: CGFloat = 800
+    var hostWindow: NSWindow?
     let executionContext: OutputExecutionContext
     var onNavigateToDirectory: (String) -> Void = { _ in }
     @ObservedObject private var jobStore = JobStore.shared
@@ -25,11 +27,26 @@ struct OutputPanelView: View {
     @State private var dragPanelHeight: CGFloat?
     @FocusState private var focusedField: OutputPanelFocusField?
 
-    private var effectivePanelHeight: CGFloat {
+    private var desiredPanelHeight: CGFloat {
         if layout.isOutputPanelContentCollapsed {
             return OutputPanelMetrics.titleBarHeight
         }
         return dragPanelHeight ?? CGFloat(layout.outputPanelHeight)
+    }
+
+    private var clampedPanelHeight: CGFloat {
+        OutputPanelMetrics.clampedPanelHeight(
+            desired: desiredPanelHeight,
+            containerHeight: containerHeight,
+            isContentCollapsed: layout.isOutputPanelContentCollapsed
+        )
+    }
+
+    private var totalOverlayHeight: CGFloat {
+        OutputPanelMetrics.totalOverlayHeight(
+            panelHeight: clampedPanelHeight,
+            isContentCollapsed: layout.isOutputPanelContentCollapsed
+        )
     }
 
     private var isOutputContextActive: Bool {
@@ -38,31 +55,34 @@ struct OutputPanelView: View {
 
     var body: some View {
         if layout.isOutputPanelVisible {
-            VStack(spacing: 0) {
-                if layout.isOutputPanelContentCollapsed {
-                    Divider()
-                } else {
-                    OutputPanelResizeHandle(
-                        panelHeight: dragPanelHeight ?? CGFloat(layout.outputPanelHeight),
-                        minHeight: 80,
-                        maxHeight: maxPanelHeight,
-                        onHeightChange: { dragPanelHeight = $0 },
-                        onDragEnded: { finalHeight in
-                            layout.outputPanelHeight = Double(finalHeight)
-                            dragPanelHeight = nil
-                        }
-                    )
-                    .frame(height: 14)
+            panelContent
+                .frame(height: clampedPanelHeight)
+                .overlay(alignment: .top) {
+                    if layout.isOutputPanelContentCollapsed {
+                        Divider()
+                    } else {
+                        OutputPanelResizeHandle(
+                            panelHeight: desiredPanelHeight,
+                            minHeight: OutputPanelMetrics.minimumExpandedChromeHeight,
+                            maxHeight: maxPanelHeight,
+                            onHeightChange: { dragPanelHeight = $0 },
+                            onDragEnded: { finalHeight in
+                                layout.outputPanelHeight = Double(finalHeight)
+                                dragPanelHeight = nil
+                            }
+                        )
+                        .frame(height: OutputPanelMetrics.resizeHandleHeight)
+                        .offset(y: -OutputPanelMetrics.resizeHandleHeight)
+                    }
                 }
-
-                panelContent
-                    .frame(height: effectivePanelHeight)
-            }
-            .animation(nil, value: effectivePanelHeight)
+                .background(Color(nsColor: .windowBackgroundColor))
+                .background(OutputPanelWindowLayerInstaller())
+                .animation(nil, value: clampedPanelHeight)
             .onAppear {
                 if layout.isOutputPanelVisible {
                     jobStore.ensureShellSessionIfNeeded()
                 }
+                syncToolbarVisibility()
             }
             .onChange(of: layout.isOutputPanelVisible) { visible in
                 if visible {
@@ -71,21 +91,37 @@ struct OutputPanelView: View {
                     focusedField = nil
                     OutputPanelTextEditingCenter.shared.setActive(false)
                 }
+                syncToolbarVisibility()
             }
+            .onChange(of: containerHeight) { _ in syncToolbarVisibility() }
+            .onChange(of: clampedPanelHeight) { _ in syncToolbarVisibility() }
+            .onChange(of: layout.isOutputPanelContentCollapsed) { _ in syncToolbarVisibility() }
         }
+    }
+
+    private func syncToolbarVisibility() {
+        OutputPanelToolbarVisibility.sync(
+            hostWindow: hostWindow,
+            isPanelVisible: layout.isOutputPanelVisible,
+            overlayHeight: totalOverlayHeight,
+            containerHeight: containerHeight
+        )
     }
 
     private var panelContent: some View {
         VStack(spacing: 0) {
-            jobTabBar
-            if !layout.isOutputPanelContentCollapsed {
-                if let job = jobStore.selectedJob {
-                    VStack(spacing: 0) {
-                        outputArea(job: job)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if !layout.isOutputPanelContentCollapsed, let job = jobStore.selectedJob {
+                VStack(spacing: 0) {
+                    jobTabBar
+                    outputArea(job: job)
+                        .frame(minHeight: 0, maxHeight: .infinity)
+                }
+                .frame(minHeight: 0, maxHeight: .infinity)
+                .clipped()
 
-                        bottomBar(job: job)
-                    }
+                bottomBar(job: job)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                     .onAppear { syncCommandDraft(for: job) }
                     .onChange(of: jobStore.selectedJobID) { _ in
                         if let job = jobStore.selectedJob {
@@ -93,7 +129,9 @@ struct OutputPanelView: View {
                             resetHistoryBrowsing(for: job.id)
                         }
                     }
-                } else {
+            } else {
+                jobTabBar
+                if !layout.isOutputPanelContentCollapsed {
                     Text(L10n.Snippets.Output.emptyHint)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -112,74 +150,90 @@ struct OutputPanelView: View {
     }
 
     private var jobTabBar: some View {
-        HStack(spacing: 0) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
+        HStack(alignment: .center, spacing: 0) {
+            CenteredHorizontalScrollView(height: OutputPanelMetrics.titleBarHeight) {
+                HStack(alignment: .center, spacing: 4) {
                     ForEach(jobStore.jobs) { job in
-                        HStack(spacing: 4) {
-                            Button {
-                                jobStore.selectedJobID = job.id
-                            } label: {
-                                Text(job.snippetName)
-                                    .lineLimit(1)
-                                    .font(.caption)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(jobStore.selectedJobID == job.id ? Color.accentColor.opacity(0.2) : Color.clear)
-                            .cornerRadius(4)
-
-                            Button {
-                                jobStore.removeJob(id: job.id)
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(.caption2)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        .padding(.trailing, 4)
-                        .contextMenu {
-                            Button(L10n.Snippets.Output.closeCurrent) {
-                                jobStore.removeJob(id: job.id)
-                            }
-
-                            Button(L10n.Snippets.Output.closeOthers) {
-                                jobStore.removeOtherJobs(keeping: job.id)
-                            }
-
-                            Button(L10n.Snippets.Output.closeAll) {
-                                jobStore.removeAllJobs()
-                            }
-                        }
+                        jobTabChip(job: job)
                     }
                 }
                 .padding(.horizontal, 8)
-                .padding(.vertical, 4)
             }
+            .frame(height: OutputPanelMetrics.titleBarHeight)
 
-            Button {
+            titleBarIconButton(
+                systemName: layout.isOutputPanelContentCollapsed ? "chevron.up" : "chevron.down",
+                tooltip: layout.isOutputPanelContentCollapsed ? L10n.Snippets.Output.expand : L10n.Snippets.Output.collapse
+            ) {
                 layout.isOutputPanelContentCollapsed.toggle()
-            } label: {
-                Image(systemName: layout.isOutputPanelContentCollapsed ? "chevron.up" : "chevron.down")
             }
-            .buttonStyle(.borderless)
-            .instantHoverTooltip(layout.isOutputPanelContentCollapsed ? L10n.Snippets.Output.expand : L10n.Snippets.Output.collapse)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
 
-            Button {
+            titleBarIconButton(
+                systemName: "xmark",
+                tooltip: L10n.Snippets.Output.closePanel
+            ) {
                 jobStore.closeOutputPanel()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.caption)
             }
-            .buttonStyle(.borderless)
-            .instantHoverTooltip(L10n.Snippets.Output.closePanel)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
         }
+        .frame(height: OutputPanelMetrics.titleBarHeight)
         .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    private func jobTabChip(job: JobRecord) -> some View {
+        HStack(alignment: .center, spacing: 4) {
+            Text(job.snippetName)
+                .lineLimit(1)
+                .font(.system(size: 11))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    jobStore.selectedJobID = job.id
+                }
+
+            Image(systemName: "xmark")
+                .font(.system(size: 9, weight: .bold))
+                .frame(width: 14, height: 14)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    jobStore.removeJob(id: job.id)
+                }
+        }
+        .padding(.horizontal, 6)
+        .frame(height: OutputPanelMetrics.titleBarChipHeight, alignment: .center)
+        .background(jobStore.selectedJobID == job.id ? Color.accentColor.opacity(0.2) : Color.clear)
+        .cornerRadius(4)
+        .padding(.trailing, 4)
+        .frame(height: OutputPanelMetrics.titleBarHeight, alignment: .center)
+        .contextMenu {
+            Button(L10n.Snippets.Output.closeCurrent) {
+                jobStore.removeJob(id: job.id)
+            }
+
+            Button(L10n.Snippets.Output.closeOthers) {
+                jobStore.removeOtherJobs(keeping: job.id)
+            }
+
+            Button(L10n.Snippets.Output.closeAll) {
+                jobStore.removeAllJobs()
+            }
+        }
+    }
+
+    private func titleBarIconButton(
+        systemName: String,
+        tooltip: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 11, weight: .semibold))
+            .frame(
+                width: OutputPanelMetrics.titleBarIconWidth,
+                height: OutputPanelMetrics.titleBarHeight,
+                alignment: .center
+            )
+            .contentShape(Rectangle())
+            .onTapGesture(perform: action)
+            .instantHoverTooltip(tooltip)
     }
 
     private func outputArea(job: JobRecord) -> some View {

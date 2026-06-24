@@ -76,7 +76,7 @@ struct OutputPanelResizeHandle: NSViewRepresentable {
             guard let contentHeight = window?.contentView?.bounds.height, contentHeight > 0 else {
                 return requested
             }
-            return min(requested, contentHeight * 0.85)
+            return min(requested, OutputPanelMetrics.maxPanelHeight(forContainerHeight: contentHeight))
         }
     }
 }
@@ -90,21 +90,20 @@ final class OutputPanelResizeHandleNSView: NSView {
     var dragStartMouseYWindow: CGFloat?
     var dragStartPanelHeight: CGFloat?
 
-    /// 视觉分隔线高度
-    private let lineThickness: CGFloat = 1
-    /// 可点击/拖拽的命中区域（大于视觉线宽）
-    private let hitHeight: CGFloat = 14
+    /// 可点击/拖拽的命中区域（大于视觉高度）
+    private var hitHeight: CGFloat { OutputPanelMetrics.resizeHandleHitHeight }
 
     override var isOpaque: Bool { false }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        let expanded = bounds.insetBy(dx: 0, dy: -(hitHeight - lineThickness) / 2)
+        let expanded = bounds.insetBy(dx: 0, dy: -(hitHeight - bounds.height) / 2)
         return expanded.contains(point) ? self : nil
     }
 
     override func resetCursorRects() {
         discardCursorRects()
-        addCursorRect(bounds, cursor: .resizeUpDown)
+        let expanded = bounds.insetBy(dx: 0, dy: -(hitHeight - bounds.height) / 2)
+        addCursorRect(expanded, cursor: .resizeUpDown)
     }
 
     override func updateTrackingAreas() {
@@ -112,8 +111,9 @@ final class OutputPanelResizeHandleNSView: NSView {
         for area in trackingAreas where area.owner as AnyObject === self {
             removeTrackingArea(area)
         }
+        let expanded = bounds.insetBy(dx: 0, dy: -(hitHeight - bounds.height) / 2)
         let area = NSTrackingArea(
-            rect: bounds,
+            rect: expanded,
             options: [.activeInKeyWindow, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect],
             owner: self
         )
@@ -138,9 +138,10 @@ final class OutputPanelResizeHandleNSView: NSView {
         onDragEnd?(event.locationInWindow.y)
     }
 
+    override var isFlipped: Bool { true }
+
     override func draw(_ dirtyRect: NSRect) {
         NSColor.separatorColor.setFill()
-        let lineY = floor((bounds.height - lineThickness) / 2)
-        NSRect(x: 0, y: lineY, width: bounds.width, height: lineThickness).fill()
+        NSRect(x: 0, y: 0, width: bounds.width, height: bounds.height).fill()
     }
 }

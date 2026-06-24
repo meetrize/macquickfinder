@@ -158,8 +158,9 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { outer in
-            let outputMaxHeight = max(400, outer.size.height * 0.85)
-            VStack(spacing: 0) {
+            let containerHeight = outer.size.height
+            let outputMaxHeight = OutputPanelMetrics.maxPanelHeight(forContainerHeight: containerHeight)
+            ZStack(alignment: .bottom) {
                 GeometryReader { geometry in
                 let maxPreviewWidth = max(
                     minPreviewPanelWidth,
@@ -238,11 +239,12 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             OutputPanelView(
                 layout: layout,
+                containerHeight: containerHeight,
                 maxPanelHeight: outputMaxHeight,
+                hostWindow: hostWindow,
                 executionContext: OutputExecutionContext(
                     cwd: path,
                     selectedItems: FileItem.resolveSelection(ids: selection, from: items),
@@ -253,6 +255,7 @@ struct ContentView: View {
                     path = newPath
                 }
             )
+            .zIndex(1)
             }
             .frame(width: outer.size.width, height: outer.size.height)
             .focusedValue(\.textFieldEditing, isAnyTextFieldEditing)
