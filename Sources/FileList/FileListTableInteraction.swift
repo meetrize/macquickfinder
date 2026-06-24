@@ -31,6 +31,7 @@ public struct FileListTableInteraction {
     public var performDrop: (_ destinationPath: String, _ urls: [URL], _ copy: Bool) -> Void
     public var onCurrentDirectoryDropHighlightChanged: (_ isTargeted: Bool) -> Void
     public var onSpacePreview: () -> Void
+    public var onQuickSearchMatchSelected: (_ rowID: String) -> Void
     
     public init(
         searchText: String = "",
@@ -61,7 +62,8 @@ public struct FileListTableInteraction {
         canAcceptDrop: @escaping (_ destinationPath: String, _ urls: [URL]) -> Bool = { _, _ in false },
         performDrop: @escaping (_ destinationPath: String, _ urls: [URL], _ copy: Bool) -> Void = { _, _, _ in },
         onCurrentDirectoryDropHighlightChanged: @escaping (_ isTargeted: Bool) -> Void = { _ in },
-        onSpacePreview: @escaping () -> Void = {}
+        onSpacePreview: @escaping () -> Void = {},
+        onQuickSearchMatchSelected: @escaping (_ rowID: String) -> Void = { _ in }
     ) {
         self.searchText = searchText
         self.quickSearchText = quickSearchText
@@ -90,6 +92,7 @@ public struct FileListTableInteraction {
         self.performDrop = performDrop
         self.onCurrentDirectoryDropHighlightChanged = onCurrentDirectoryDropHighlightChanged
         self.onSpacePreview = onSpacePreview
+        self.onQuickSearchMatchSelected = onQuickSearchMatchSelected
     }
 }
 

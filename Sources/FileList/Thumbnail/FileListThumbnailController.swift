@@ -453,10 +453,12 @@ public final class FileListThumbnailController: FileListContentController {
     
     private func scrollToFirstQuickSearchMatchIfNeeded() {
         guard let collectionView, let index = firstQuickSearchMatchIndex() else { return }
+        let matchedRowID = displayRows[index].id
         let indexPath = IndexPath(item: index, section: 0)
         collectionView.scrollToItems(at: [indexPath], scrollPosition: .centeredVertically)
         collectionView.selectionIndexPaths = [indexPath]
         syncSelectionFromCollection()
+        interaction.onQuickSearchMatchSelected(matchedRowID)
     }
     
     func effectiveSelectionIDs() -> Set<String> {

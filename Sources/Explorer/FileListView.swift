@@ -348,6 +348,9 @@ struct FileListView: View {
             onSpacePreview: {
                 guard !selection.isEmpty else { return }
                 showPreview = true
+            },
+            onQuickSearchMatchSelected: { _ in
+                showPreview = true
             }
         )
     }

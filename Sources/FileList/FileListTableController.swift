@@ -165,7 +165,8 @@ public final class FileListTableController: FileListContentController {
         }
         if plan.quickSearchChanged {
             refreshVisibleNameLabels()
-            scrollToFirstQuickSearchMatchIfNeeded()
+            // 须在 updateNSView 之外同步选中，否则 SwiftUI 可能忽略 selection 更新，预览面板不刷新。
+            scheduleQuickSearchMatchFocus()
         }
         scheduleVisibleDirectoryPathsNotify(debounce: 0.15)
     }
@@ -309,13 +310,24 @@ public final class FileListTableController: FileListContentController {
         }
     }
 
+    private func scheduleQuickSearchMatchFocus() {
+        DispatchQueue.main.async { [weak self] in
+            self?.scrollToFirstQuickSearchMatchIfNeeded()
+        }
+    }
+
     func scrollToFirstQuickSearchMatchIfNeeded() {
         guard let tableView, let row = firstQuickSearchMatchIndex() else { return }
+        let matchedRowID = displayRows[row].id
         FileListTableAnimations.performWithoutAnimation {
-            tableView.scrollRowToVisible(row)
+            // 快速搜索条位于列表底部：额外让“命中行后两行”进入可视区，
+            // 使命中行默认上移两行，避免被底部浮层遮挡。
+            let anchorRow = min(row + 2, max(0, displayRows.count - 1))
+            tableView.scrollRowToVisible(anchorRow)
             tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         }
         syncSelectionFromTable()
+        interaction.onQuickSearchMatchSelected(matchedRowID)
     }
 
     func syncSelectionFromTable() {
