@@ -28,11 +28,6 @@ struct SettingsView: View {
             }
             .tag(SettingsTab.preview)
 
-            AdvancedSettingsTab()
-                .tabItem {
-                    Label("高级", systemImage: "slider.horizontal.3")
-                }
-                .tag(SettingsTab.advanced)
         }
         .frame(width: 520, height: 460)
         .onAppear {
@@ -96,7 +91,7 @@ private struct GeneralSettingsTab: View {
                 Toggle("启用窗口吸附与联动移动", isOn: $windowSnapEnabled)
             }
 
-            DefaultFileViewerSettingsSection(model: defaultFileViewerSettings, style: .compact)
+            DefaultFileViewerSettingsSection(model: defaultFileViewerSettings)
         }
         .formStyle(.grouped)
         .padding()
@@ -104,31 +99,10 @@ private struct GeneralSettingsTab: View {
             defaultFileViewerSettings.refresh()
         }
     }
-}
-
-private struct AdvancedSettingsTab: View {
-    @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
-
-    var body: some View {
-        Form {
-            DefaultFileViewerSettingsSection(model: defaultFileViewerSettings, style: .detailed)
-        }
-        .formStyle(.grouped)
-        .padding()
-        .onAppear {
-            defaultFileViewerSettings.refresh()
-        }
-    }
-}
-
-private enum DefaultFileViewerSettingsSectionStyle {
-    case compact
-    case detailed
 }
 
 private struct DefaultFileViewerSettingsSection: View {
     @ObservedObject var model: DefaultFileViewerSettingsModel
-    let style: DefaultFileViewerSettingsSectionStyle
 
     var body: some View {
         Section {
@@ -159,11 +133,6 @@ private struct DefaultFileViewerSettingsSection: View {
                     .foregroundStyle(.secondary)
             }
 
-            if style == .detailed {
-                Text("可将 MeoFind 设为系统默认文件夹查看器，使多数应用中的「在 Finder 中显示」等操作打开本应用。无法替代桌面图标、Dock 中的 Finder，以及系统自带的打开/保存对话框。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         } header: {
             Text("默认文件夹查看器")
         }
