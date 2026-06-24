@@ -37,6 +37,7 @@ final class FolderPreviewItemCountDisplayTests: XCTestCase {
         )
     }
 
+    @MainActor
     func testTruncationCaptionWithoutTotal() {
         XCTAssertEqual(
             FolderPreviewItemCountDisplay.truncationCaption(maxChildren: 200, totalCount: nil),

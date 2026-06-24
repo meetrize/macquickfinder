@@ -1021,12 +1021,15 @@ private enum PathSubdirectoryCache {
     }
     
     private static var storage: [String: Entry] = [:]
+    private static var accessOrder: [String] = []
     private static let lock = NSLock()
     private static let ttl: TimeInterval = 60
+    private static let maxEntries = 50
     
     static func invalidate() {
         lock.lock()
         storage.removeAll()
+        accessOrder.removeAll()
         lock.unlock()
     }
     
@@ -1055,6 +1058,7 @@ private enum PathSubdirectoryCache {
         
         lock.lock()
         if let entry = storage[key], Date().timeIntervalSince(entry.timestamp) < ttl {
+            touchLocked(key)
             let cached = entry.subdirectories
             lock.unlock()
             return cached
@@ -1068,8 +1072,22 @@ private enum PathSubdirectoryCache {
         
         lock.lock()
         storage[key] = Entry(subdirectories: subdirectories, timestamp: Date())
+        touchLocked(key)
+        evictIfNeededLocked()
         lock.unlock()
         return subdirectories
+    }
+    
+    private static func touchLocked(_ key: String) {
+        accessOrder.removeAll { $0 == key }
+        accessOrder.append(key)
+    }
+    
+    private static func evictIfNeededLocked() {
+        while storage.count > maxEntries, let oldest = accessOrder.first {
+            accessOrder.removeFirst()
+            storage.removeValue(forKey: oldest)
+        }
     }
     
     private static func cacheKey(parentPath: String, showHiddenFiles: Bool) -> String {
@@ -1224,6 +1242,9 @@ struct PathBarView: View {
         .onChange(of: showHiddenFiles) { _ in
             PathSubdirectoryCache.invalidate()
             PathSubdirectoryCache.preloadBreadcrumbPaths(path, showHiddenFiles: showHiddenFiles)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .meoFindMemoryPressure)) { _ in
+            PathSubdirectoryCache.invalidate()
         }
         .onChange(of: mode) { newMode in
             isTextMode = newMode == .text

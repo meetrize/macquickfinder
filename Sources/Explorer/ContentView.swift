@@ -592,11 +592,13 @@ struct ContentView: View {
                 loadedItems = await TrashLoader.loadItems(showHiddenFiles: shouldShowHiddenFiles)
             } else {
                 do {
-                    loadedItems = try DirectoryListingLoader.loadFileItems(
-                        at: currentPath,
-                        showHiddenFiles: shouldShowHiddenFiles,
-                        onEachURL: { _ in try Task.checkCancellation() }
-                    )
+                    loadedItems = try await Task.detached(priority: .userInitiated) {
+                        try DirectoryListingLoader.loadFileItems(
+                            at: currentPath,
+                            showHiddenFiles: shouldShowHiddenFiles,
+                            onEachURL: { _ in try Task.checkCancellation() }
+                        )
+                    }.value
                 } catch is CancellationError {
                     return
                 } catch {

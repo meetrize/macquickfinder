@@ -67,6 +67,15 @@ final class PreviewBrowserStripThumbnailLoader: ObservableObject {
         imageByItemID.removeAll()
     }
 
+    /// 系统内存压力：释放生成器与条带内已解码图像，保留占位后可重新加载。
+    func respondToMemoryPressure() {
+        loadGeneration &+= 1
+        generator.cancelInFlightRequests()
+        generator.clearMemoryCache()
+        generator.trimDiskCache()
+        imageByItemID.removeAll()
+    }
+
     deinit {
         generator.shutdown()
     }

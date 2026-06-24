@@ -18,6 +18,21 @@ final class PreviewSessionStoreTests: XCTestCase {
         )
     }
 
+    func testRemoveClearsLoadedPreviewContent() {
+        let store = PreviewSessionStore.shared
+        let hostID = UUID()
+        let session = PreviewSession(hostWindowID: hostID, file: makeFileItem())
+        session.content.textContent = "preview body"
+        session.content.loadPhase = .loaded
+
+        store.register(session)
+        store.remove(session.id)
+
+        XCTAssertNil(store.session(for: session.id))
+        XCTAssertEqual(session.content.textContent, "")
+        XCTAssertEqual(session.content.loadPhase, .idle)
+    }
+
     func testRegisterAndRemoveSession() {
         let store = PreviewSessionStore.shared
         let hostID = UUID()

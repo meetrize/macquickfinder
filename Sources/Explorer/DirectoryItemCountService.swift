@@ -13,6 +13,7 @@ extension DirectoryMetadataServiceConfiguration where Entry == Int {
         maxCacheEntries: 500,
         clearsEntireCacheWhenFull: false,
         invalidateDescendants: false,
+        sessionResetCacheRetention: 100,
         scheduleEnabled: { true },
         shouldSchedulePath: { path in
             DirectorySizeVolumeFilter.shouldAutoCalculate(path: path)

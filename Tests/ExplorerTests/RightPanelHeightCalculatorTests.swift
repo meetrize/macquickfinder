@@ -58,7 +58,7 @@ final class RightPanelHeightCalculatorTests: XCTestCase {
         let input = baseInput(snippetsCollapsed: true)
         XCTAssertEqual(
             RightPanelHeightCalculator.previewHeight(for: input),
-            total - titleBar
+            total - input.snippetsMinHeight
         )
     }
 

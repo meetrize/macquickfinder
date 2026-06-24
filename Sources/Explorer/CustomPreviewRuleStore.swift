@@ -215,12 +215,26 @@ final class CustomPreviewRuleStore: ObservableObject {
 
     private(set) var extensionIndex: [String: CustomPreviewRule] = [:]
 
+    private var didLoad = false
+
     private init() {
+        rebuildIndex()
+    }
+
+    private func ensureLoaded() {
+        guard !didLoad else { return }
+        didLoad = true
         load()
         rebuildIndex()
     }
 
+    /// 设置页等 UI 首次展示时加载持久化规则。
+    func loadIfNeeded() {
+        ensureLoaded()
+    }
+
     func activeMode(for ext: String) -> CustomPreviewMode? {
+        ensureLoaded()
         let key = CustomPreviewRule.storageKey(forPathExtension: ext)
         guard let rule = extensionIndex[key], rule.enabled else { return nil }
         if rule.overridesBuiltIn { return rule.mode }
@@ -232,6 +246,7 @@ final class CustomPreviewRuleStore: ObservableObject {
     }
 
     func overridingRule(for ext: String) -> CustomPreviewRule? {
+        ensureLoaded()
         let key = CustomPreviewRule.storageKey(forPathExtension: ext)
         guard let rule = extensionIndex[key], rule.enabled, rule.overridesBuiltIn else {
             return nil
@@ -240,10 +255,12 @@ final class CustomPreviewRuleStore: ObservableObject {
     }
 
     func rule(forExtension ext: String) -> CustomPreviewRule? {
-        extensionIndex[CustomPreviewRule.storageKey(forPathExtension: ext)]
+        ensureLoaded()
+        return extensionIndex[CustomPreviewRule.storageKey(forPathExtension: ext)]
     }
 
     func upsertRule(forExtension ext: String, mode: CustomPreviewMode, overridesBuiltIn: Bool = false) {
+        ensureLoaded()
         let normalized = CustomPreviewRule.normalizeExtension(ext)
         guard !normalized.isEmpty else { return }
 
@@ -269,6 +286,7 @@ final class CustomPreviewRuleStore: ObservableObject {
     }
 
     func addRule(_ rule: CustomPreviewRule) {
+        ensureLoaded()
         rules.append(rule)
         persist()
         bumpRevision()
@@ -288,10 +306,12 @@ final class CustomPreviewRuleStore: ObservableObject {
     }
 
     func exportJSON() throws -> Data {
-        try JSONEncoder().encode(rules)
+        ensureLoaded()
+        return try JSONEncoder().encode(rules)
     }
 
     func importJSON(_ data: Data, merge: Bool) throws {
+        ensureLoaded()
         let decoded = try JSONDecoder().decode([CustomPreviewRule].self, from: data)
         if merge {
             for rule in decoded {

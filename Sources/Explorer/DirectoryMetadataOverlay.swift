@@ -31,6 +31,7 @@ final class DirectoryMetadataOverlay: ObservableObject {
     /// 关闭「自动计算目录大小」等场景：仅重置大小会话，保留子项数量缓存。
     func beginSizeSession(generation: UInt) {
         sizeSessionGeneration = generation
+        countSessionGeneration = generation
         clearSizes()
     }
 

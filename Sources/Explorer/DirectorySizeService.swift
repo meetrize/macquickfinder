@@ -13,6 +13,7 @@ extension DirectoryMetadataServiceConfiguration where Entry == DirectorySizeComp
         maxCacheEntries: 300,
         clearsEntireCacheWhenFull: true,
         invalidateDescendants: true,
+        sessionResetCacheRetention: nil,
         scheduleEnabled: {
             DirectorySizePreferences.autoCalculateDirectorySizes
         },

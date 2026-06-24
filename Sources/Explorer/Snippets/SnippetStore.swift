@@ -11,6 +11,7 @@ final class SnippetStore: ObservableObject {
 
     @Published private(set) var snippets: [Snippet] = []
 
+    private var didLoad = false
     private let fileManager = FileManager.default
 
     private var storageURL: URL {
@@ -22,11 +23,16 @@ final class SnippetStore: ObservableObject {
         return dir.appendingPathComponent("snippets.json")
     }
 
-    private init() {
+    private init() {}
+
+    func ensureLoaded() {
+        guard !didLoad else { return }
+        didLoad = true
         load()
     }
 
     func load() {
+        didLoad = true
         if let data = try? Data(contentsOf: storageURL),
            let file = try? JSONDecoder().decode(SnippetsPersistenceFile.self, from: data) {
             snippets = file.snippets.sorted { $0.sortOrder < $1.sortOrder }
@@ -63,7 +69,8 @@ final class SnippetStore: ObservableObject {
     }
 
     func snippet(id: UUID) -> Snippet? {
-        snippets.first { $0.id == id }
+        ensureLoaded()
+        return snippets.first { $0.id == id }
     }
 
     func recordExecution(id: UUID) {
@@ -113,6 +120,7 @@ final class SnippetStore: ObservableObject {
         searchQuery: String = "",
         pinRecentlyExecuted: Bool? = nil
     ) -> [Snippet] {
+        ensureLoaded()
         let filteredItems = selectedItems.filter { !$0.isParentDirectoryEntry }
         let context = SnippetVisibilityContext(
             cwd: cwd,

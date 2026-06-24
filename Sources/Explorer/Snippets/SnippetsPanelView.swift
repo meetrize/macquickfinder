@@ -89,6 +89,9 @@ struct SnippetsPanelView: View {
         .onReceive(NotificationCenter.default.publisher(for: .snippetsExportAllRequested)) { _ in
             exportAll()
         }
+        .onAppear {
+            store.ensureLoaded()
+        }
         .focusedValue(\.textFieldEditing, searchFocused)
         .background(TextEditingKeyMonitor(isActive: searchFocused))
     }

@@ -10,6 +10,7 @@ public final class FileListThumbnailController: FileListContentController {
     
     private var scrollWheelMonitor: Any?
     private var scrollBoundsObserver: NSObjectProtocol?
+    private var memoryPressureObserver: NSObjectProtocol?
     private var visibleThumbnailLoadWorkItem: DispatchWorkItem?
     private var pendingDisplayRows: [FileListRow]?
     private var pendingCollectionUpdateWorkItem: DispatchWorkItem?
@@ -112,6 +113,7 @@ public final class FileListThumbnailController: FileListContentController {
         )
         if plan.listingChanged {
             thumbnailGenerator.cancelInFlightRequests()
+            thumbnailGenerator.clearMemoryCache()
             if renamingRowID != nil {
                 cancelRenameIfNeededForDataUpdate()
             }
@@ -553,9 +555,22 @@ public final class FileListThumbnailController: FileListContentController {
             }
             scrollView.contentView.postsBoundsChangedNotifications = true
         }
+
+        memoryPressureObserver = NotificationCenter.default.addObserver(
+            forName: .meoFindMemoryPressure,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.thumbnailGenerator.clearMemoryCache()
+            self?.thumbnailGenerator.trimDiskCache()
+        }
     }
     
     private func tearDownObservers() {
+        if let memoryPressureObserver {
+            NotificationCenter.default.removeObserver(memoryPressureObserver)
+            self.memoryPressureObserver = nil
+        }
         if let scrollWheelMonitor {
             NSEvent.removeMonitor(scrollWheelMonitor)
             self.scrollWheelMonitor = nil

@@ -7,12 +7,30 @@ final class ThumbnailDiskCache {
     private let directoryURL: URL
     private let fileManager = FileManager.default
     private let ioQueue = DispatchQueue(label: "FileList.ThumbnailDiskCache", qos: .utility)
+
+    /// 磁盘缓存总容量上限；超出时按文件修改时间淘汰最久未访问项。
+    private static let defaultMaxTotalBytes = 500 * 1024 * 1024
+
+    private let maxTotalBytesLimit: Int
     
     init() {
         let base = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
         directoryURL = base.appendingPathComponent("MeoFind/ThumbnailCache", isDirectory: true)
+        maxTotalBytesLimit = Self.defaultMaxTotalBytes
         try? fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    }
+
+    /// 测试专用：独立目录与更小容量上限。
+    init(testRoot: URL, maxTotalBytes: Int) {
+        directoryURL = testRoot
+        maxTotalBytesLimit = maxTotalBytes
+        try? fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    }
+
+    /// 等待 I/O 队列空闲（测试同步用）。
+    func waitForIdle() {
+        ioQueue.sync {}
     }
     
     /// 在调用方线程同步读取磁盘缓存（经 I/O 队列），用于 Cell 配置阶段的快速命中。
@@ -41,6 +59,7 @@ final class ThumbnailDiskCache {
         }
         let isThumbnail = (try? fileURL.extendedAttribute(name: "com.meofind.thumb.isThumbnail")) == Data([1])
         let cost = ThumbnailImageCost.estimatedBytes(of: image)
+        touchAccessUnsafe(fileURL)
         return ThumbnailCache.Entry(image: image, isThumbnail: isThumbnail, cost: cost)
     }
     
@@ -52,12 +71,22 @@ final class ThumbnailDiskCache {
         }
         let fileURL = fileURL(for: key)
         let isThumbnailByte = isThumbnail ? UInt8(1) : UInt8(0)
-        ioQueue.async {
+        ioQueue.async { [weak self] in
+            guard let self else { return }
             try? png.write(to: fileURL, options: .atomic)
             try? fileURL.setExtendedAttribute(
                 name: "com.meofind.thumb.isThumbnail",
                 data: Data([isThumbnailByte])
             )
+            self.touchAccessUnsafe(fileURL)
+            self.trimToBudgetUnsafe()
+        }
+    }
+
+    /// 将磁盘占用裁剪到预算内（内存压力或手动清理时调用）。
+    func trimToBudget() {
+        ioQueue.async { [weak self] in
+            self?.trimToBudgetUnsafe()
         }
     }
     
@@ -77,6 +106,48 @@ final class ThumbnailDiskCache {
         let digest = SHA256.hash(data: cacheKeyData(for: key))
         let name = digest.map { String(format: "%02x", $0) }.joined() + ".png"
         return directoryURL.appendingPathComponent(name)
+    }
+
+    private func touchAccessUnsafe(_ fileURL: URL) {
+        try? fileManager.setAttributes(
+            [.modificationDate: Date()],
+            ofItemAtPath: fileURL.path
+        )
+    }
+
+    private func trimToBudgetUnsafe() {
+        guard let urls = try? fileManager.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        struct FileInfo {
+            let url: URL
+            let size: Int64
+            let date: Date
+        }
+
+        var files: [FileInfo] = []
+        var total: Int64 = 0
+        for url in urls {
+            guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]),
+                  let size = values.fileSize else { continue }
+            let date = values.contentModificationDate ?? .distantPast
+            let entry = FileInfo(url: url, size: Int64(size), date: date)
+            files.append(entry)
+            total += entry.size
+        }
+
+        guard total > maxTotalBytesLimit else { return }
+
+        files.sort { $0.date < $1.date }
+        for file in files {
+            guard total > maxTotalBytesLimit else { break }
+            if (try? fileManager.removeItem(at: file.url)) != nil {
+                total -= file.size
+            }
+        }
     }
     
     private func cacheKeyData(for key: ThumbnailCache.Key) -> Data {

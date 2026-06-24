@@ -94,7 +94,7 @@ final class PreviewCapabilityTests: XCTestCase {
         let session = PreviewSession(hostWindowID: UUID(), file: file)
         XCTAssertTrue(PreviewCapability.canDetach(session: session, selectedItem: file))
 
-        session.location = .detached
+        session.location = .detached(windowNumber: nil)
         XCTAssertFalse(PreviewCapability.canDetach(session: session, selectedItem: file))
     }
 

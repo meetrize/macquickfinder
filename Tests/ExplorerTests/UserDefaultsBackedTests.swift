@@ -35,12 +35,12 @@ final class UserDefaultsBackedTests: XCTestCase {
     }
 
     func testPropertyWrapperRoundTrip() {
-        var flag = UserDefaultsBool(false, "test.wrapper.bool", store: defaults)
+        var flag = UserDefaultsBool(wrappedValue: false, "test.wrapper.bool", store: defaults)
         XCTAssertFalse(flag.wrappedValue)
         flag.wrappedValue = true
         XCTAssertTrue(flag.wrappedValue)
 
-        var count = UserDefaultsInt(2, "test.wrapper.int", store: defaults)
+        var count = UserDefaultsInt(wrappedValue: 2, "test.wrapper.int", store: defaults)
         count.wrappedValue = 5
         XCTAssertEqual(count.wrappedValue, 5)
     }

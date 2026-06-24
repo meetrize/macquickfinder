@@ -146,14 +146,16 @@ final class PreviewBrowserContextTests: XCTestCase {
             items: items,
             sortOrder: .nameAscending,
             showHiddenFiles: true,
-            currentFileID: "b"
+            currentFileID: "a"
         ) else {
             return XCTFail("expected context")
         }
 
         XCTAssertFalse(context.selectPrevious())
-        XCTAssertEqual(context.currentIndex, 1)
+        XCTAssertEqual(context.currentIndex, 0)
 
+        XCTAssertTrue(context.selectNext())
+        XCTAssertEqual(context.currentItem.id, "b")
         XCTAssertTrue(context.selectNext())
         XCTAssertEqual(context.currentItem.id, "c")
         XCTAssertFalse(context.selectNext())

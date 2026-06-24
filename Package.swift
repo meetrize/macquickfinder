@@ -13,12 +13,18 @@ let package = Package(
         .target(
             name: "FileList",
             dependencies: [],
-            resources: [.process("Resources")]
+            resources: [.process("Resources")],
+            swiftSettings: [
+                .unsafeFlags(["-O"], .when(configuration: .release))
+            ]
         ),
         .executableTarget(
             name: "Explorer",
             dependencies: ["FileList"],
-            resources: [.process("Resources")]
+            resources: [.process("Resources")],
+            swiftSettings: [
+                .unsafeFlags(["-O"], .when(configuration: .release))
+            ]
         ),
         .testTarget(
             name: "FileListTests",

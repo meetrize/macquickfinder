@@ -394,6 +394,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         FileServicesMenuSupport.registerIfNeeded()
+        AppMemoryPressure.installHandler()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

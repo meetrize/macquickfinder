@@ -1,4 +1,5 @@
 import AppKit
+import FileList
 import SwiftUI
 
 struct PreviewBrowserStripView: View {
@@ -43,6 +44,10 @@ struct PreviewBrowserStripView: View {
                 }
                 .onDisappear {
                     thumbnailLoader.shutdown()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .meoFindMemoryPressure)) { _ in
+                    thumbnailLoader.respondToMemoryPressure()
+                    refreshThumbnails()
                 }
             }
         }

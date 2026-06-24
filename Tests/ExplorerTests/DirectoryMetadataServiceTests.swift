@@ -108,6 +108,24 @@ final class DirectoryMetadataServiceTests: XCTestCase {
         XCTAssertEqual(harness.recorder.records.map(\.path), [path, path])
     }
 
+    func testResetSessionTrimsCacheWhenRetentionConfigured() async throws {
+        let harness = makeHarness(sessionResetCacheRetention: 2)
+        let paths = try (0..<4).map { _ in try makeTemporaryDirectoryPath() }
+
+        for path in paths {
+            await harness.service.schedule(paths: [path], showHiddenFiles: false)
+        }
+        try await waitUntil { harness.counter.value == 4 }
+
+        var snapshot = await harness.service.testingSnapshot()
+        XCTAssertEqual(snapshot.cacheCount, 4)
+
+        await harness.service.resetSession(generation: 10)
+        snapshot = await harness.service.testingSnapshot()
+        XCTAssertEqual(snapshot.cacheCount, 2)
+        XCTAssertEqual(snapshot.activeGeneration, 10)
+    }
+
     func testResetSessionIgnoresStaleGenerationResults() async throws {
         let gate = ComputeGate()
         let harness = makeHarness(
@@ -121,7 +139,7 @@ final class DirectoryMetadataServiceTests: XCTestCase {
         await harness.service.resetSession(generation: 1)
         await harness.service.schedule(paths: [path], showHiddenFiles: false, priority: .normal)
         await harness.service.resetSession(generation: 2)
-        gate.release()
+        await gate.release()
 
         try await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertTrue(harness.recorder.records.isEmpty)
@@ -177,7 +195,7 @@ final class DirectoryMetadataServiceTests: XCTestCase {
             paths: ["/tmp/skipped", "/tmp/allowed-folder"],
             showHiddenFiles: false
         )
-        try await waitUntil { harness.counter.value == 1 }
+        try await waitUntil { harness.recorder.records.count == 1 }
 
         XCTAssertEqual(harness.recorder.records.map(\.path), ["/tmp/allowed-folder"])
     }
@@ -208,7 +226,7 @@ final class DirectoryMetadataServiceTests: XCTestCase {
             .visible
         )
 
-        gate.release()
+        await gate.release()
         try await waitUntil { harness.recorder.records.count == 2 }
     }
 
@@ -218,6 +236,7 @@ final class DirectoryMetadataServiceTests: XCTestCase {
         shouldSchedulePath: @escaping @Sendable (String) -> Bool = { _ in true },
         invalidateDescendants: Bool = false,
         isCacheValid: @escaping @Sendable (Date?, String) -> Bool = { _, _ in true },
+        sessionResetCacheRetention: Int? = nil,
         compute: (@Sendable (String, Bool) async throws -> Int)? = nil
     ) -> MetadataTestHarness {
         MetadataTestHarness(
@@ -226,6 +245,7 @@ final class DirectoryMetadataServiceTests: XCTestCase {
             shouldSchedulePath: shouldSchedulePath,
             invalidateDescendants: invalidateDescendants,
             isCacheValid: isCacheValid,
+            sessionResetCacheRetention: sessionResetCacheRetention,
             compute: compute
         )
     }
@@ -257,7 +277,9 @@ private final class MetadataTestHarness {
     let service: DirectoryMetadataService<Int>
     let counter = ComputeCounter()
     let recorder = MetadataApplyRecorder()
-    private(set) var removedPaths: [String] = []
+    private let removedPathsRecorder = RemovedPathsRecorder()
+
+    var removedPaths: [String] { removedPathsRecorder.all }
 
     init(
         maxConcurrent: Int,
@@ -265,16 +287,19 @@ private final class MetadataTestHarness {
         shouldSchedulePath: @escaping @Sendable (String) -> Bool,
         invalidateDescendants: Bool,
         isCacheValid: @escaping @Sendable (Date?, String) -> Bool,
+        sessionResetCacheRetention: Int?,
         compute: (@Sendable (String, Bool) async throws -> Int)?
     ) {
         let counter = self.counter
         let recorder = self.recorder
+        let removedPathsRecorder = self.removedPathsRecorder
         service = DirectoryMetadataService(
             configuration: DirectoryMetadataServiceConfiguration(
                 maxConcurrent: maxConcurrent,
                 maxCacheEntries: 32,
                 clearsEntireCacheWhenFull: false,
                 invalidateDescendants: invalidateDescendants,
+                sessionResetCacheRetention: sessionResetCacheRetention,
                 scheduleEnabled: scheduleEnabled,
                 shouldSchedulePath: shouldSchedulePath,
                 isCacheValid: isCacheValid,
@@ -285,11 +310,29 @@ private final class MetadataTestHarness {
                 apply: { path, value, generation in
                     recorder.record(path: path, value: value, generation: generation)
                 },
-                remove: { [weak self] paths in
-                    self?.removedPaths.append(contentsOf: paths)
+                remove: { paths in
+                    removedPathsRecorder.append(contentsOf: paths)
                 }
             )
         )
+    }
+}
+
+@MainActor
+private final class RemovedPathsRecorder: @unchecked Sendable {
+    private var paths: [String] = []
+    private let lock = NSLock()
+
+    var all: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return paths
+    }
+
+    func append(contentsOf newPaths: [String]) {
+        lock.lock()
+        paths.append(contentsOf: newPaths)
+        lock.unlock()
     }
 }
 

@@ -47,6 +47,8 @@ struct DirectoryMetadataServiceConfiguration<Entry: Sendable> {
     let maxCacheEntries: Int
     let clearsEntireCacheWhenFull: Bool
     let invalidateDescendants: Bool
+    /// 路径切换 `resetSession` 后将缓存裁剪到此条数；`nil` 表示不裁剪。
+    let sessionResetCacheRetention: Int?
     let scheduleEnabled: @Sendable () -> Bool
     let shouldSchedulePath: @Sendable (String) -> Bool
     let isCacheValid: @Sendable (Date?, String) -> Bool
@@ -81,6 +83,14 @@ actor DirectoryMetadataService<Entry: Sendable> {
         }
         runningTasks.removeAll()
         runningCount = 0
+        if let retention = configuration.sessionResetCacheRetention {
+            trimCacheTo(maxEntries: retention)
+        }
+    }
+
+    /// 内存压力等场景下裁剪 Actor 内缓存。
+    func trimCache(retainingAtMost maxEntries: Int) {
+        trimCacheTo(maxEntries: maxEntries)
     }
 
     func invalidate(paths: [String]) {
@@ -202,13 +212,24 @@ actor DirectoryMetadataService<Entry: Sendable> {
     }
 
     private func invalidatePath(_ path: String) {
+        let descendantPrefix = path + "/"
         if configuration.invalidateDescendants {
-            let descendantPrefix = path + "/"
             cache = cache.filter { key, _ in
                 let cachedPath = DirectoryMetadataCache.path(fromCacheKey: key)
                 if cachedPath == path { return false }
                 if cachedPath.hasPrefix(descendantPrefix) { return false }
                 return true
+            }
+
+            for key in runningTasks.keys {
+                let cachedPath = DirectoryMetadataCache.path(fromCacheKey: key)
+                guard cachedPath == path || cachedPath.hasPrefix(descendantPrefix) else { continue }
+                runningTasks[key]?.cancel()
+                runningTasks.removeValue(forKey: key)
+            }
+
+            queue.removeAll { item in
+                item.path == path || item.path.hasPrefix(descendantPrefix)
             }
         }
 
@@ -251,8 +272,12 @@ actor DirectoryMetadataService<Entry: Sendable> {
     }
 
     private func trimCacheIfNeeded() {
-        guard cache.count > configuration.maxCacheEntries else { return }
-        let overflow = cache.count - configuration.maxCacheEntries
+        trimCacheTo(maxEntries: configuration.maxCacheEntries)
+    }
+
+    private func trimCacheTo(maxEntries: Int) {
+        guard cache.count > maxEntries else { return }
+        let overflow = cache.count - maxEntries
         for key in cache.keys.prefix(overflow) {
             cache.removeValue(forKey: key)
         }

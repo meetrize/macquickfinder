@@ -36,4 +36,11 @@ public enum FileListWorkspaceIconCache {
             cache.removeValue(forKey: oldest)
         }
     }
+
+    public static func clearAll() {
+        lock.lock()
+        cache.removeAll()
+        accessOrder.removeAll()
+        lock.unlock()
+    }
 }

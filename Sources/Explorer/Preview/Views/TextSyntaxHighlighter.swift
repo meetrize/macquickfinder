@@ -21,7 +21,12 @@ enum TextSyntaxHighlighter {
         let key: NSColor
     }
 
-    private static let cache = NSCache<NSString, NSAttributedString>()
+    private static let cache: NSCache<NSString, NSAttributedString> = {
+        let cache = NSCache<NSString, NSAttributedString>()
+        cache.countLimit = 20
+        cache.totalCostLimit = 32 * 1024 * 1024
+        return cache
+    }()
     private static let maxHighlightCharacters = 18_000
     private static let maxHighlightLines = 1_200
 
@@ -55,6 +60,10 @@ enum TextSyntaxHighlighter {
         let result = highlight(text: text, language: language, fontSize: fontSize, palette: palette)
         cache.setObject(result, forKey: key as NSString)
         return result
+    }
+
+    static func clearCache() {
+        cache.removeAllObjects()
     }
 
     private static func shouldHighlight(text: String) -> Bool {

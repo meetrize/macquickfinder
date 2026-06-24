@@ -30,6 +30,7 @@ extension PreviewSession {
         content.officeRichText = nil
         content.archiveEntries = []
         content.archiveTruncated = false
+        content.loadPhase = .idle
     }
 
     func loadTextContentIfNeeded() async {

@@ -118,6 +118,9 @@ struct PreviewSettingsTab: View {
         } message: {
             Text(importExportMessage ?? "")
         }
+        .onAppear {
+            store.loadIfNeeded()
+        }
     }
 
     private func exportRules() {

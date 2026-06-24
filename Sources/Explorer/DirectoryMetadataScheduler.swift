@@ -20,6 +20,12 @@ enum DirectoryMetadataScheduler {
         await DirectoryItemCountService.shared.resetSession(generation: generation)
     }
 
+    /// 系统内存压力时裁剪目录元数据 Actor 缓存。
+    static func trimCachesOnMemoryPressure() async {
+        await DirectorySizeService.shared.trimCache(retainingAtMost: 50)
+        await DirectoryItemCountService.shared.trimCache(retainingAtMost: 50)
+    }
+
     static func invalidate(paths: [String]) async {
         guard !paths.isEmpty else { return }
         await DirectorySizeService.shared.invalidate(paths: paths)

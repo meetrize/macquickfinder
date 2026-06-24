@@ -117,6 +117,16 @@ public final class ThumbnailGenerator {
         activeGeneration &+= 1
     }
     
+    /// 仅清空内存 LRU；目录切换时调用，磁盘缓存保留供快速回填。
+    public func clearMemoryCache() {
+        cache.clearMemory()
+    }
+
+    /// 将磁盘缩略图缓存裁剪到预算内（内存压力等场景）。
+    public func trimDiskCache() {
+        cache.trimDiskCache()
+    }
+    
     /// 清除全部缓存（含磁盘）；目录切换不应调用此方法。
     func purgeAllCaches() {
         activeGeneration &+= 1

@@ -17,7 +17,11 @@ final class PreviewSessionStore: ObservableObject {
     }
 
     func remove(_ id: PreviewSessionID) {
-        sessions[id]?.cancelLoad()
+        if let session = sessions[id] {
+            session.cancelLoad()
+            session.clearBrowserContext()
+            session.clearLoadedContent()
+        }
         sessions[id] = nil
     }
 

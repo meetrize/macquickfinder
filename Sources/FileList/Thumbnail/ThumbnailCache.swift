@@ -15,6 +15,13 @@ final class ThumbnailCache {
             fileSize = row.size
             self.sizeBucket = sizeBucket
         }
+
+        init(path: String, modificationTimestamp: TimeInterval, fileSize: Int64, sizeBucket: Int) {
+            self.path = path
+            self.modificationTimestamp = modificationTimestamp
+            self.fileSize = fileSize
+            self.sizeBucket = sizeBucket
+        }
     }
     
     struct Entry {
@@ -95,6 +102,11 @@ final class ThumbnailCache {
     func purgeAll() {
         clearMemory()
         diskCache.removeAll()
+    }
+
+    /// 将磁盘缓存裁剪到预算内，保留最近访问项。
+    func trimDiskCache() {
+        diskCache.trimToBudget()
     }
     
     private func touchLocked(_ key: Key) {
