@@ -16,6 +16,9 @@ public struct FileListTableInteraction {
     public var onQuickSearchInput: (_ input: String) -> Void
     public var onQuickSearchBackspace: () -> Void
     public var onQuickSearchEscape: () -> Void
+    public var onQuickSearchCycleMatch: (_ forward: Bool) -> Void
+    public var onQuickSearchTabKeyDown: () -> Void
+    public var onQuickSearchTabKeyUp: () -> Void
     public var onDragEnded: () -> Void
     public var onToggleExpand: (FileListRow) -> Void
     public var canRename: (FileListRow) -> Bool
@@ -47,6 +50,9 @@ public struct FileListTableInteraction {
         onQuickSearchInput: @escaping (_ input: String) -> Void = { _ in },
         onQuickSearchBackspace: @escaping () -> Void = {},
         onQuickSearchEscape: @escaping () -> Void = {},
+        onQuickSearchCycleMatch: @escaping (_ forward: Bool) -> Void = { _ in },
+        onQuickSearchTabKeyDown: @escaping () -> Void = {},
+        onQuickSearchTabKeyUp: @escaping () -> Void = {},
         onDragEnded: @escaping () -> Void = {},
         onToggleExpand: @escaping (FileListRow) -> Void = { _ in },
         canRename: @escaping (FileListRow) -> Bool = { _ in false },
@@ -78,6 +84,9 @@ public struct FileListTableInteraction {
         self.onQuickSearchInput = onQuickSearchInput
         self.onQuickSearchBackspace = onQuickSearchBackspace
         self.onQuickSearchEscape = onQuickSearchEscape
+        self.onQuickSearchCycleMatch = onQuickSearchCycleMatch
+        self.onQuickSearchTabKeyDown = onQuickSearchTabKeyDown
+        self.onQuickSearchTabKeyUp = onQuickSearchTabKeyUp
         self.onDragEnded = onDragEnded
         self.onToggleExpand = onToggleExpand
         self.canRename = canRename

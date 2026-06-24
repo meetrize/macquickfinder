@@ -84,6 +84,13 @@ final class FileListTableView: NSTableView {
         }
         super.keyDown(with: event)
     }
+
+    override func keyUp(with event: NSEvent) {
+        if interactionController?.handleKeyUp(event) == true {
+            return
+        }
+        super.keyUp(with: event)
+    }
     
     override func resize(withOldSuperviewSize oldSize: NSSize) {
         super.resize(withOldSuperviewSize: oldSize)

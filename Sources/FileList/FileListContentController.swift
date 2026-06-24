@@ -140,18 +140,61 @@ public class FileListContentController: NSObject {
 
     // MARK: - Quick search
 
-    func firstQuickSearchMatchIndex() -> Int? {
+    func quickSearchKeyword() -> String? {
         let keyword = interaction.quickSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !keyword.isEmpty else { return nil }
-        return displayRows.firstIndex(where: {
-            !$0.isParentDirectoryEntry
-                && $0.name.range(
-                    of: keyword,
-                    options: [.caseInsensitive, .diacriticInsensitive],
-                    range: nil,
-                    locale: .current
-                ) != nil
-        })
+        return keyword
+    }
+
+    func rowMatchesQuickSearch(_ row: FileListRow, keyword: String) -> Bool {
+        !row.isParentDirectoryEntry
+            && row.name.range(
+                of: keyword,
+                options: [.caseInsensitive, .diacriticInsensitive],
+                range: nil,
+                locale: .current
+            ) != nil
+    }
+
+    func quickSearchMatchIndices() -> [Int] {
+        guard let keyword = quickSearchKeyword() else { return [] }
+        return displayRows.indices.filter { rowMatchesQuickSearch(displayRows[$0], keyword: keyword) }
+    }
+
+    func firstQuickSearchMatchIndex() -> Int? {
+        quickSearchMatchIndices().first
+    }
+
+    func currentSelectedDisplayRowIndex() -> Int? {
+        guard let selectionGet else { return nil }
+        let selected = selectionGet()
+        for id in selected {
+            if let index = displayRows.firstIndex(where: { $0.id == id }) {
+                return index
+            }
+        }
+        return nil
+    }
+
+    public func cycleQuickSearchMatch(forward: Bool) {
+        let matches = quickSearchMatchIndices()
+        guard matches.count > 1 else { return }
+        let current = currentSelectedDisplayRowIndex()
+        guard let row = FileListInteractionCoordinator.nextQuickSearchMatchIndex(
+            in: matches,
+            from: current,
+            forward: forward
+        ) else { return }
+        applyQuickSearchMatchFocus(at: row)
+    }
+
+    func scrollToFirstQuickSearchMatchIfNeeded() {
+        guard let row = firstQuickSearchMatchIndex() else { return }
+        applyQuickSearchMatchFocus(at: row)
+    }
+
+    func applyQuickSearchMatchFocus(at row: Int) {
+        _ = row
     }
 
     // MARK: - Visible directory paths

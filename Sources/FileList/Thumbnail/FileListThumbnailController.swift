@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 
 /// 缩略图网格的数据源、布局与选择控制器。
 public final class FileListThumbnailController: FileListContentController {
+    public static weak var shared: FileListThumbnailController?
+
     private(set) var collectionView: FileListThumbnailCollectionView?
     
     private var cellSize: CGFloat = FileListThumbnailMetrics.defaultCellSize
@@ -35,6 +37,7 @@ public final class FileListThumbnailController: FileListContentController {
     
     public override init() {
         super.init()
+        FileListThumbnailController.shared = self
     }
     
     deinit {
@@ -451,10 +454,10 @@ public final class FileListThumbnailController: FileListContentController {
         refreshVisibleItemAppearance()
     }
     
-    private func scrollToFirstQuickSearchMatchIfNeeded() {
-        guard let collectionView, let index = firstQuickSearchMatchIndex() else { return }
-        let matchedRowID = displayRows[index].id
-        let indexPath = IndexPath(item: index, section: 0)
+    override func applyQuickSearchMatchFocus(at row: Int) {
+        guard let collectionView, row >= 0, row < displayRows.count else { return }
+        let matchedRowID = displayRows[row].id
+        let indexPath = IndexPath(item: row, section: 0)
         collectionView.scrollToItems(at: [indexPath], scrollPosition: .centeredVertically)
         collectionView.selectionIndexPaths = [indexPath]
         syncSelectionFromCollection()

@@ -121,6 +121,13 @@ final class FileListThumbnailCollectionView: NSCollectionView {
         }
         super.keyDown(with: event)
     }
+
+    override func keyUp(with event: NSEvent) {
+        if interactionController?.handleKeyUp(event) == true {
+            return
+        }
+        super.keyUp(with: event)
+    }
     
     func handleItemMouseDown(_ event: NSEvent, indexPath: IndexPath) {
         interactionController?.clearBlankDragState()

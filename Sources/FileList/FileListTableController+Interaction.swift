@@ -229,6 +229,11 @@ extension FileListTableController {
         return FileListInteractionCoordinator.handleDeleteKey(event: event, interaction: interaction)
     }
 
+    func handleKeyUp(_ event: NSEvent) -> Bool {
+        if isRenaming { return false }
+        return FileListInteractionCoordinator.handleQuickSearchKeyUp(event: event, interaction: interaction)
+    }
+
     func handleRightMouseDown(_ event: NSEvent) {
         guard let tableView else { return }
         let point = tableView.convert(event.locationInWindow, from: nil)

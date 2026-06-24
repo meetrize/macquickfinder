@@ -63,8 +63,9 @@ struct FileListView: View {
     
     @ObservedObject private var preferencesStore = FileListPreferencesStore.shared
     @State private var isCurrentDirectoryDropTargeted = false
-    @FocusState private var isQuickSearchFieldFocused: Bool
+    @State private var isQuickSearchFieldFocused = false
     @State private var quickSearchAutoCloseWorkItem: DispatchWorkItem?
+    @State private var isQuickSearchTabKeyDown = false
     @AppStorage("explorer.treeExpandEnabled") private var treeExpandEnabled = true
     @State private var expandedDirectoryIDs: Set<String> = []
     @State private var expandingDirectoryIDs: Set<String> = []
@@ -279,6 +280,15 @@ struct FileListView: View {
             },
             onQuickSearchEscape: {
                 closeQuickSearch()
+            },
+            onQuickSearchCycleMatch: { forward in
+                cycleQuickSearchMatch(forward: forward)
+            },
+            onQuickSearchTabKeyDown: {
+                noteQuickSearchTabKeyDown()
+            },
+            onQuickSearchTabKeyUp: {
+                noteQuickSearchTabKeyUp()
             },
             onDragEnded: {
                 resetTreeState(keepExpanded: true)
@@ -512,11 +522,21 @@ struct FileListView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField(L10n.Search.quickSearch, text: $quickSearchText)
-                .textFieldStyle(.plain)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .focused($isQuickSearchFieldFocused)
+            QuickSearchTextField(
+                placeholder: L10n.Search.quickSearch,
+                text: $quickSearchText,
+                isFocused: $isQuickSearchFieldFocused,
+                onTabKeyDown: {
+                    noteQuickSearchTabKeyDown()
+                },
+                onTabKeyUp: {
+                    noteQuickSearchTabKeyUp()
+                },
+                onTab: { reverse in
+                    guard isQuickSearchVisible, !quickSearchText.isEmpty else { return }
+                    cycleQuickSearchMatch(forward: !reverse)
+                }
+            )
                 .onChange(of: quickSearchText) { newValue in
                     let normalized = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
                     if normalized != newValue {
@@ -565,8 +585,28 @@ struct FileListView: View {
 
     private func closeQuickSearch() {
         cancelQuickSearchAutoClose()
+        isQuickSearchTabKeyDown = false
         quickSearchText = ""
         isQuickSearchVisible = false
+    }
+
+    private func cycleQuickSearchMatch(forward: Bool) {
+        switch viewMode {
+        case .list:
+            FileListTableController.shared?.cycleQuickSearchMatch(forward: forward)
+        case .thumbnail:
+            FileListThumbnailController.shared?.cycleQuickSearchMatch(forward: forward)
+        }
+    }
+
+    private func noteQuickSearchTabKeyDown() {
+        isQuickSearchTabKeyDown = true
+        cancelQuickSearchAutoClose()
+    }
+
+    private func noteQuickSearchTabKeyUp() {
+        isQuickSearchTabKeyDown = false
+        refreshQuickSearchAutoCloseTimer()
     }
     
     private func refreshQuickSearchAutoCloseTimer() {
@@ -574,8 +614,8 @@ struct FileListView: View {
             cancelQuickSearchAutoClose()
             return
         }
-        // Phase 2 语义：快速搜索框失焦后 5 秒自动关闭（与文件列表焦点无关）。
-        if isQuickSearchFieldFocused {
+        // 快速搜索框聚焦或 Tab 跳转进行中时不自动关闭；松键且无输入后再计时。
+        if isQuickSearchFieldFocused || isQuickSearchTabKeyDown {
             cancelQuickSearchAutoClose()
             return
         }
@@ -602,6 +642,113 @@ struct FileListView: View {
         return Array(paths)
     }
 }
+private struct QuickSearchTextField: NSViewRepresentable {
+    let placeholder: String
+    @Binding var text: String
+    @Binding var isFocused: Bool
+    let onTabKeyDown: () -> Void
+    let onTabKeyUp: () -> Void
+    let onTab: (_ reverse: Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> QuickSearchNSTextField {
+        let field = QuickSearchNSTextField()
+        field.isBordered = false
+        field.drawsBackground = false
+        field.focusRingType = .none
+        field.font = .systemFont(ofSize: NSFont.systemFontSize)
+        field.placeholderString = placeholder
+        field.lineBreakMode = .byTruncatingTail
+        field.cell?.truncatesLastVisibleLine = true
+        field.delegate = context.coordinator
+        field.onFocusChanged = { focused in
+            context.coordinator.isFocused = focused
+        }
+        field.onTabKeyUp = {
+            context.coordinator.onTabKeyUp()
+        }
+        return field
+    }
+
+    func updateNSView(_ nsView: QuickSearchNSTextField, context: Context) {
+        context.coordinator.onTextChange = { text = $0 }
+        context.coordinator.onTabKeyDown = onTabKeyDown
+        context.coordinator.onTabKeyUp = onTabKeyUp
+        context.coordinator.onTab = onTab
+        context.coordinator.isFocusedBinding = $isFocused
+        nsView.onTabKeyUp = onTabKeyUp
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+        if nsView.placeholderString != placeholder {
+            nsView.placeholderString = placeholder
+        }
+        if isFocused, nsView.window?.firstResponder !== nsView.currentEditor() {
+            nsView.window?.makeFirstResponder(nsView)
+        }
+    }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var onTextChange: (String) -> Void = { _ in }
+        var onTabKeyDown: () -> Void = {}
+        var onTabKeyUp: () -> Void = {}
+        var onTab: (_ reverse: Bool) -> Void = { _ in }
+        var isFocusedBinding: Binding<Bool>?
+        var isFocused = false {
+            didSet {
+                guard isFocused != oldValue else { return }
+                isFocusedBinding?.wrappedValue = isFocused
+            }
+        }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let field = obj.object as? NSTextField else { return }
+            onTextChange(field.stringValue)
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if commandSelector == #selector(NSResponder.insertTab(_:)) {
+                onTabKeyDown()
+                onTab(false)
+                return true
+            }
+            if commandSelector == #selector(NSResponder.insertBacktab(_:)) {
+                onTabKeyDown()
+                onTab(true)
+                return true
+            }
+            return false
+        }
+    }
+}
+
+private final class QuickSearchNSTextField: NSTextField {
+    var onFocusChanged: ((Bool) -> Void)?
+    var onTabKeyUp: (() -> Void)?
+
+    override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        if became { onFocusChanged?(true) }
+        return became
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let resigned = super.resignFirstResponder()
+        if resigned { onFocusChanged?(false) }
+        return resigned
+    }
+
+    override func keyUp(with event: NSEvent) {
+        if event.keyCode == 48 {
+            onTabKeyUp?()
+        }
+        super.keyUp(with: event)
+    }
+}
+
 private struct FileListAutoFocusRequester: NSViewRepresentable {
     let token: UInt
     

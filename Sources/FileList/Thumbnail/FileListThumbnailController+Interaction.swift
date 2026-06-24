@@ -266,6 +266,11 @@ extension FileListThumbnailController {
         return FileListInteractionCoordinator.handleDeleteKey(event: event, interaction: interaction)
     }
 
+    func handleKeyUp(_ event: NSEvent) -> Bool {
+        if isRenaming { return true }
+        return FileListInteractionCoordinator.handleQuickSearchKeyUp(event: event, interaction: interaction)
+    }
+
     private func handleArrowKeyNavigation(_ event: NSEvent) -> Bool {
         guard let collectionView else { return false }
         let columns = gridColumnCount()

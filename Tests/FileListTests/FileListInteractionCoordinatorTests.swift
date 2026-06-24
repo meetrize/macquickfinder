@@ -19,6 +19,22 @@ final class FileListInteractionCoordinatorTests: XCTestCase {
         XCTAssertEqual(FileListInteractionCoordinator.quickSearchInputCharacter(from: event!), "a")
     }
 
+    func testQuickSearchAcceptsPeriod() {
+        let event = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: ".",
+            charactersIgnoringModifiers: ".",
+            isARepeat: false,
+            keyCode: 47
+        )
+        XCTAssertEqual(FileListInteractionCoordinator.quickSearchInputCharacter(from: event!), ".")
+    }
+
     func testQuickSearchRejectsWhitespace() {
         let event = NSEvent.keyEvent(
             with: .keyDown,
@@ -49,5 +65,41 @@ final class FileListInteractionCoordinatorTests: XCTestCase {
             keyCode: 122
         )
         XCTAssertNil(FileListInteractionCoordinator.quickSearchInputCharacter(from: event!))
+    }
+
+    func testNextQuickSearchMatchIndexCyclesForward() {
+        let matches = [2, 5, 9]
+        XCTAssertEqual(
+            FileListInteractionCoordinator.nextQuickSearchMatchIndex(in: matches, from: 2, forward: true),
+            5
+        )
+        XCTAssertEqual(
+            FileListInteractionCoordinator.nextQuickSearchMatchIndex(in: matches, from: 9, forward: true),
+            2
+        )
+    }
+
+    func testNextQuickSearchMatchIndexCyclesBackward() {
+        let matches = [2, 5, 9]
+        XCTAssertEqual(
+            FileListInteractionCoordinator.nextQuickSearchMatchIndex(in: matches, from: 5, forward: false),
+            2
+        )
+        XCTAssertEqual(
+            FileListInteractionCoordinator.nextQuickSearchMatchIndex(in: matches, from: 2, forward: false),
+            9
+        )
+    }
+
+    func testNextQuickSearchMatchIndexStartsFromEndsWhenCurrentNotInMatches() {
+        let matches = [2, 5, 9]
+        XCTAssertEqual(
+            FileListInteractionCoordinator.nextQuickSearchMatchIndex(in: matches, from: 3, forward: true),
+            2
+        )
+        XCTAssertEqual(
+            FileListInteractionCoordinator.nextQuickSearchMatchIndex(in: matches, from: 3, forward: false),
+            9
+        )
     }
 }

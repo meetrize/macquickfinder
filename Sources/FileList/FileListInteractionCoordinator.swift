@@ -17,6 +17,9 @@ enum FileListInteractionCoordinator {
         if CharacterSet.letters.contains(scalar) || CharacterSet.decimalDigits.contains(scalar) {
             return input
         }
+        if input == "." {
+            return input
+        }
         return nil
     }
 
@@ -53,6 +56,15 @@ enum FileListInteractionCoordinator {
             return true
         }
 
+        if event.keyCode == 48 {
+            guard !interaction.quickSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return false
+            }
+            interaction.onQuickSearchTabKeyDown()
+            interaction.onQuickSearchCycleMatch(!flags.contains(.shift))
+            return true
+        }
+
         if event.keyCode == 51 || event.keyCode == 117 {
             if !interaction.quickSearchText.isEmpty {
                 interaction.onQuickSearchBackspace()
@@ -72,6 +84,32 @@ enum FileListInteractionCoordinator {
         }
 
         return false
+    }
+
+    static func handleQuickSearchKeyUp(event: NSEvent, interaction: FileListTableInteraction) -> Bool {
+        guard event.keyCode == 48 else { return false }
+        guard !interaction.quickSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+        interaction.onQuickSearchTabKeyUp()
+        return true
+    }
+
+    static func nextQuickSearchMatchIndex(
+        in matches: [Int],
+        from currentRow: Int?,
+        forward: Bool
+    ) -> Int? {
+        guard !matches.isEmpty else { return nil }
+        guard matches.count > 1 else { return matches[0] }
+
+        if let currentRow, let currentIndex = matches.firstIndex(of: currentRow) {
+            let nextIndex = forward
+                ? (currentIndex + 1) % matches.count
+                : (currentIndex + matches.count - 1) % matches.count
+            return matches[nextIndex]
+        }
+        return forward ? matches[0] : matches[matches.count - 1]
     }
 
     static func handleDeleteKey(event: NSEvent, interaction: FileListTableInteraction) -> Bool {

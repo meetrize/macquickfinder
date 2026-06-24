@@ -316,8 +316,8 @@ public final class FileListTableController: FileListContentController {
         }
     }
 
-    func scrollToFirstQuickSearchMatchIfNeeded() {
-        guard let tableView, let row = firstQuickSearchMatchIndex() else { return }
+    override func applyQuickSearchMatchFocus(at row: Int) {
+        guard let tableView, row >= 0, row < displayRows.count else { return }
         let matchedRowID = displayRows[row].id
         FileListTableAnimations.performWithoutAnimation {
             // 快速搜索条位于列表底部：额外让“命中行后两行”进入可视区，
