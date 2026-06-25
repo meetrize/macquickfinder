@@ -97,6 +97,11 @@ final class PreviewDetachCoordinator: ObservableObject {
         closeDetachedWindowIfNeeded()
     }
 
+    func updateDetachedFileID(sessionID: PreviewSessionID, fileID: FileItem.ID) {
+        guard case .detached(let detachedID, _) = placement, detachedID == sessionID else { return }
+        placement = .detached(sessionID: sessionID, fileID: fileID)
+    }
+
     func focusDetachedWindow() {
         if let detachedWindow {
             detachedWindow.makeKeyAndOrderFront(nil)

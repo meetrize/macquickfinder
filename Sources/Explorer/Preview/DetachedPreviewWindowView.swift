@@ -86,7 +86,9 @@ private struct DetachedPreviewWindowContent: View {
         .navigationTitle(session.browseTarget.name)
         .previewSessionInteractions(session)
         .focusedValue(\.previewBrowseCommands, browseCommands)
-        .background(PreviewBrowserKeyboardMonitor(session: session))
+        .background(
+            PreviewDetachedKeyboardMonitor(session: session, onCloseWindow: closeDetachedWindow)
+        )
         .background(DetachedPreviewWindowTracker(sessionID: session.id))
         .background(
             Button(action: closeDetachedWindow) {

@@ -9,7 +9,7 @@ final class PreviewBrowserContext: ObservableObject {
     let showHiddenFiles: Bool
 
     /// detach 时捕获的全部可预览项（未做同类型过滤）。
-    let sourceItems: [FileItem]
+    private(set) var sourceItems: [FileItem]
 
     @Published var sameTypeOnly: Bool
     @Published private(set) var orderedItems: [FileItem]
@@ -73,6 +73,31 @@ final class PreviewBrowserContext: ObservableObject {
     func selectNext() -> Bool {
         guard currentIndex + 1 < orderedItems.count else { return false }
         currentIndex += 1
+        return true
+    }
+
+    /// 从浏览列表移除已删除项；若移除的是当前项则选中下一项（或前一项）。
+    @discardableResult
+    func removeItem(withID id: String) -> Bool {
+        guard let index = orderedItems.firstIndex(where: { $0.id == id }) else { return false }
+
+        let wasCurrent = index == currentIndex
+        let wasLast = index == orderedItems.count - 1
+
+        sourceItems.removeAll { $0.id == id }
+        orderedItems.removeAll { $0.id == id }
+
+        guard !orderedItems.isEmpty else {
+            currentIndex = 0
+            return true
+        }
+
+        if index < currentIndex {
+            currentIndex -= 1
+        } else if wasCurrent, wasLast {
+            currentIndex = orderedItems.count - 1
+        }
+
         return true
     }
 

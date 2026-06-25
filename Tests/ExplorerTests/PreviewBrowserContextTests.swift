@@ -200,4 +200,46 @@ final class PreviewBrowserContextTests: XCTestCase {
         XCTAssertEqual(hiddenFiltered?.count, 1)
         XCTAssertEqual(hiddenFiltered?.orderedItems.first?.id, "v")
     }
+
+    func testRemoveCurrentItemSelectsNext() {
+        let items = [
+            makeFileItem(id: "a", name: "a.png"),
+            makeFileItem(id: "b", name: "b.png"),
+            makeFileItem(id: "c", name: "c.png"),
+        ]
+        guard let context = PreviewBrowserContext.makeSnapshot(
+            directoryPath: "/tmp",
+            items: items,
+            sortOrder: .nameAscending,
+            showHiddenFiles: true,
+            currentFileID: "b"
+        ) else {
+            return XCTFail("expected context")
+        }
+
+        XCTAssertTrue(context.removeItem(withID: "b"))
+        XCTAssertEqual(context.orderedItems.map(\.id), ["a", "c"])
+        XCTAssertEqual(context.currentItem.id, "c")
+    }
+
+    func testRemoveLastCurrentItemSelectsPrevious() {
+        let items = [
+            makeFileItem(id: "a", name: "a.png"),
+            makeFileItem(id: "b", name: "b.png"),
+            makeFileItem(id: "c", name: "c.png"),
+        ]
+        guard let context = PreviewBrowserContext.makeSnapshot(
+            directoryPath: "/tmp",
+            items: items,
+            sortOrder: .nameAscending,
+            showHiddenFiles: true,
+            currentFileID: "c"
+        ) else {
+            return XCTFail("expected context")
+        }
+
+        XCTAssertTrue(context.removeItem(withID: "c"))
+        XCTAssertEqual(context.orderedItems.map(\.id), ["a", "b"])
+        XCTAssertEqual(context.currentItem.id, "b")
+    }
 }
