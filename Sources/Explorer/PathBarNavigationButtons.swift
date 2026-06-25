@@ -6,10 +6,10 @@ struct PathBarNavigationButtons: View {
     let onBack: () -> Void
     let onForward: () -> Void
 
-    private let buttonSize: CGFloat = 28
+    private let buttonSize: CGFloat = 18
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 0) {
             navigationButton(
                 systemName: "chevron.left",
                 isEnabled: canGoBack,

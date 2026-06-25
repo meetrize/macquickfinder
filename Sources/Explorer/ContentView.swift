@@ -336,7 +336,7 @@ struct ContentView: View {
     @ViewBuilder
     private var explorerBrowserColumn: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 PathBarNavigationButtons(
                     canGoBack: canNavigateBack,
                     canGoForward: canNavigateForward,
@@ -356,7 +356,7 @@ struct ContentView: View {
                 )
             }
             .frame(height: PanelTopBarMetrics.contentHeight)
-            .padding(.leading, 16)
+            .padding(.leading, 0)
             .padding(.trailing, 8)
             .padding(.vertical, PanelTopBarMetrics.verticalPadding)
             
