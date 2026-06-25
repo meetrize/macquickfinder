@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-/// 使用 macOS 内置 Office 导入（与 TextEdit 相同）加载 docx 为富文本。
+/// 使用 macOS 内置 Office 导入（与 TextEdit 相同）加载 docx / doc 为富文本。
 enum OfficeDocumentPreviewLoader {
     static func loadDOCX(from url: URL) throws -> NSAttributedString {
         do {
@@ -11,9 +11,25 @@ enum OfficeDocumentPreviewLoader {
         }
     }
 
+    static func loadDOC(from url: URL) throws -> NSAttributedString {
+        do {
+            return try loadDocFormat(from: url)
+        } catch {
+            return try loadViaTextUtil(from: url)
+        }
+    }
+
     /// 后台线程加载 docx 并导出 RTF `Data`，便于跨并发边界传递。
     static func loadDOCXRTFData(from url: URL) throws -> Data {
-        let attributed = try loadDOCX(from: url)
+        try exportRTFData(from: try loadDOCX(from: url))
+    }
+
+    /// 后台线程加载 doc 并导出 RTF `Data`，便于跨并发边界传递。
+    static func loadDOCRTFData(from url: URL) throws -> Data {
+        try exportRTFData(from: try loadDOC(from: url))
+    }
+
+    private static func exportRTFData(from attributed: NSAttributedString) throws -> Data {
         let data = try attributed.data(
             from: NSRange(location: 0, length: attributed.length),
             documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]
@@ -29,6 +45,23 @@ enum OfficeDocumentPreviewLoader {
         var documentAttributes: NSDictionary?
         let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
             .documentType: NSAttributedString.DocumentType.officeOpenXML,
+        ]
+        let attributed = try NSAttributedString(
+            data: data,
+            options: options,
+            documentAttributes: &documentAttributes
+        )
+        guard attributed.length > 0 else {
+            throw LoaderError.emptyDocument
+        }
+        return attributed
+    }
+
+    private static func loadDocFormat(from url: URL) throws -> NSAttributedString {
+        let data = try Data(contentsOf: url, options: [.mappedIfSafe])
+        var documentAttributes: NSDictionary?
+        let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
+            .documentType: NSAttributedString.DocumentType.docFormat,
         ]
         let attributed = try NSAttributedString(
             data: data,

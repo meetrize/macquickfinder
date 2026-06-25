@@ -248,9 +248,7 @@ struct TextFilePreview: NSViewRepresentable {
                 previewTextSelectionActive?.wrappedValue = false
                 return
             }
-            let isFocused = textView.window?.firstResponder === textView
-            let hasSelection = textView.selectedRange().length > 0
-            previewTextSelectionActive?.wrappedValue = isFocused && hasSelection
+            previewTextSelectionActive?.wrappedValue = textView.window?.firstResponder === textView
         }
 
         func applySearchHighlightsInPlace(textView: NSTextView, scrollToCurrent: Bool) {

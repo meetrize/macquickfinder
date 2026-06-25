@@ -28,6 +28,7 @@ final class PreviewLoadDispatchTests: XCTestCase {
 
     func testResolveOfficeAndDocx() {
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "docx")), .docx)
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "doc")), .doc)
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "pptx")), .builtInOffice)
     }
 

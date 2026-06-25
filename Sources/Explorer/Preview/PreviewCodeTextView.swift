@@ -1,8 +1,13 @@
 import AppKit
 
-/// 只读代码预览文本视图，支持选区复制。
+/// 只读文本预览视图，支持点击获焦、全选与复制。
 final class PreviewCodeTextView: NSTextView {
     var onInteractionStateChanged: (() -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        super.mouseDown(with: event)
+    }
 
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder()
@@ -14,6 +19,11 @@ final class PreviewCodeTextView: NSTextView {
         let resigned = super.resignFirstResponder()
         if resigned { onInteractionStateChanged?() }
         return resigned
+    }
+
+    override func selectAll(_ sender: Any?) {
+        guard !string.isEmpty else { return }
+        setSelectedRange(NSRange(location: 0, length: (string as NSString).length))
     }
 
     override func copy(_ sender: Any?) {

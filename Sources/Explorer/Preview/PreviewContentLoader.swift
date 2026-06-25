@@ -15,8 +15,20 @@ enum PreviewContentLoader {
     }
 
     static func loadDOCXRichText(from url: URL) async -> NSAttributedString? {
-        let rtfData = try? await Task.detached(priority: .userInitiated) {
+        await loadOfficeRichText {
             try OfficeDocumentPreviewLoader.loadDOCXRTFData(from: url)
+        }
+    }
+
+    static func loadDOCRichText(from url: URL) async -> NSAttributedString? {
+        await loadOfficeRichText {
+            try OfficeDocumentPreviewLoader.loadDOCRTFData(from: url)
+        }
+    }
+
+    private static func loadOfficeRichText(rtfDataProvider: @escaping () throws -> Data) async -> NSAttributedString? {
+        let rtfData = try? await Task.detached(priority: .userInitiated) {
+            try rtfDataProvider()
         }.value
         guard let rtfData,
               let richText = NSAttributedString(rtf: rtfData, documentAttributes: nil),

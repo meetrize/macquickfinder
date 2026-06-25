@@ -30,6 +30,8 @@ extension PreviewSession {
             applyLoadPayload(.media(url: url), expectedItemID: itemID)
         case .docx:
             await loadDOCXPreview(url: url, itemID: itemID)
+        case .doc:
+            await loadDOCPreview(url: url, itemID: itemID)
         case .builtInOffice:
             guard !Task.isCancelled else { return }
             applyLoadPayload(.office(url: url), expectedItemID: itemID)
@@ -84,6 +86,15 @@ extension PreviewSession {
     private func loadDOCXPreview(url: URL, itemID: String) async {
         guard !Task.isCancelled else { return }
         if let richText = await PreviewContentLoader.loadDOCXRichText(from: url) {
+            applyLoadPayload(.officeRichText(richText), expectedItemID: itemID)
+        } else {
+            applyLoadPayload(.office(url: url), expectedItemID: itemID)
+        }
+    }
+
+    private func loadDOCPreview(url: URL, itemID: String) async {
+        guard !Task.isCancelled else { return }
+        if let richText = await PreviewContentLoader.loadDOCRichText(from: url) {
             applyLoadPayload(.officeRichText(richText), expectedItemID: itemID)
         } else {
             applyLoadPayload(.office(url: url), expectedItemID: itemID)

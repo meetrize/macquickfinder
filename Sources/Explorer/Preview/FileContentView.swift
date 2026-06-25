@@ -81,7 +81,8 @@ struct FileContentView: View {
             } else if let pdfDoc = session.content.pdfDocument {
                 PDFPreview(
                     document: pdfDoc,
-                    navigationAction: $session.pdf.navigateAction
+                    navigationAction: $session.pdf.navigateAction,
+                    previewTextSelectionActive: $previewTextSelectionActive
                 ) { currentPage, pageCount, scalePercent in
                     session.pdf.currentPage = currentPage
                     session.pdf.pageCount = pageCount
@@ -101,7 +102,8 @@ struct FileContentView: View {
                 OfficeRichTextPreview(
                     attributedText: officeRichText,
                     wrapLines: session.text.wrapEnabled,
-                    zoomScale: session.office.zoomScale
+                    zoomScale: session.office.zoomScale,
+                    previewTextSelectionActive: $previewTextSelectionActive
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let officeURL = session.content.officeURL {
@@ -139,7 +141,8 @@ struct FileContentView: View {
                     MarkdownFilePreview(
                         markdown: session.content.textContent,
                         wrapLines: session.text.wrapEnabled,
-                        zoomScale: $session.text.markdownPreviewScale
+                        zoomScale: $session.text.markdownPreviewScale,
+                        previewTextSelectionActive: $previewTextSelectionActive
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -176,6 +179,7 @@ struct FileContentView: View {
         .opacity(contentOpacity)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .focusedValue(\.previewTextSelectionActive, previewTextSelectionActive)
+        .background(TextEditingKeyMonitor(isActive: previewTextSelectionActive))
         .task(id: loadTaskID) {
             await applyLoadTaskIfNeeded()
         }
@@ -186,6 +190,9 @@ struct FileContentView: View {
             withAnimation(.easeInOut(duration: PreviewBrowserStripMetrics.contentCrossfadeDuration)) {
                 contentOpacity = 1
             }
+        }
+        .onChange(of: session.text.markdownMode) { _ in
+            previewTextSelectionActive = false
         }
         .onChange(of: session.text.htmlMode) { newMode in
             guard PreviewTypeClassifier.isHtmlFile(item.url.pathExtension) else { return }

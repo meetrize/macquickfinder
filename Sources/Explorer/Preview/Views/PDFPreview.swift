@@ -5,6 +5,7 @@ import PDFKit
 struct PDFPreview: NSViewRepresentable {
     let document: PDFDocument
     @Binding var navigationAction: PDFNavigationAction?
+    @Binding var previewTextSelectionActive: Bool
     var onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -12,11 +13,16 @@ struct PDFPreview: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> PDFView {
-        let pdfView = PDFView()
+        let pdfView = PreviewPDFView()
         pdfView.document = document
         pdfView.autoScales = true
         pdfView.displayMode = .singlePage
         pdfView.displayDirection = .vertical
+        context.coordinator.previewTextSelectionActive = $previewTextSelectionActive
+        pdfView.onInteractionStateChanged = { [weak coordinator = context.coordinator] in
+            coordinator?.updatePreviewTextSelectionActive(pdfView)
+        }
+        context.coordinator.installFocusTracking(for: pdfView)
         context.coordinator.onStateChanged = onStateChanged
         context.coordinator.startObserving(pdfView)
         context.coordinator.emitState(from: pdfView)
@@ -25,6 +31,13 @@ struct PDFPreview: NSViewRepresentable {
 
     func updateNSView(_ nsView: PDFView, context: Context) {
         context.coordinator.onStateChanged = onStateChanged
+        context.coordinator.previewTextSelectionActive = $previewTextSelectionActive
+        if let pdfView = nsView as? PreviewPDFView {
+            pdfView.onInteractionStateChanged = { [weak coordinator = context.coordinator] in
+                coordinator?.updatePreviewTextSelectionActive(pdfView)
+            }
+            context.coordinator.installFocusTracking(for: pdfView)
+        }
         if nsView.document !== document {
             nsView.document = document
             nsView.autoScales = true
@@ -66,8 +79,10 @@ struct PDFPreview: NSViewRepresentable {
 
     final class Coordinator: NSObject, PDFViewDelegate {
         var onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
+        var previewTextSelectionActive: Binding<Bool>?
         private var pageChangedObserver: NSObjectProtocol?
         private var scaleChangedObserver: NSObjectProtocol?
+        private var firstResponderObserver: NSObjectProtocol?
         private weak var observedView: PDFView?
 
         init(onStateChanged: @escaping (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void) {
@@ -76,6 +91,27 @@ struct PDFPreview: NSViewRepresentable {
 
         deinit {
             stopObserving()
+            if let firstResponderObserver {
+                NotificationCenter.default.removeObserver(firstResponderObserver)
+            }
+        }
+
+        func installFocusTracking(for pdfView: PDFView) {
+            if firstResponderObserver == nil {
+                firstResponderObserver = NotificationCenter.default.addObserver(
+                    forName: NSWindow.didBecomeKeyNotification,
+                    object: nil,
+                    queue: .main
+                ) { [weak self, weak pdfView] _ in
+                    guard let pdfView else { return }
+                    self?.updatePreviewTextSelectionActive(pdfView)
+                }
+            }
+            updatePreviewTextSelectionActive(pdfView)
+        }
+
+        func updatePreviewTextSelectionActive(_ pdfView: PDFView) {
+            previewTextSelectionActive?.wrappedValue = pdfView.window?.firstResponder === pdfView
         }
 
         func startObserving(_ pdfView: PDFView) {

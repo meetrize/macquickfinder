@@ -5,6 +5,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
     let markdown: String
     let wrapLines: Bool
     @Binding var zoomScale: CGFloat
+    @Binding var previewTextSelectionActive: Bool
 
     private static let tableSeparatorRegex: NSRegularExpression? = {
         try? NSRegularExpression(
@@ -25,7 +26,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
 
-        let textView = NSTextView()
+        let textView = PreviewCodeTextView()
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
@@ -51,6 +52,11 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
         scrollView.documentView = textView
         context.coordinator.textView = textView
+        context.coordinator.previewTextSelectionActive = $previewTextSelectionActive
+        textView.onInteractionStateChanged = { [weak coordinator = context.coordinator] in
+            coordinator?.updatePreviewTextSelectionActive()
+        }
+        context.coordinator.installFocusTracking(for: textView)
         context.coordinator.currentScale = 1.0
         context.coordinator.lastMarkdown = markdown
 
@@ -515,7 +521,37 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
     final class Coordinator {
         weak var textView: NSTextView?
+        var previewTextSelectionActive: Binding<Bool>?
         var lastMarkdown: String = ""
         var currentScale: CGFloat = 1.0
+        private var firstResponderObserver: NSObjectProtocol?
+
+        deinit {
+            if let firstResponderObserver {
+                NotificationCenter.default.removeObserver(firstResponderObserver)
+            }
+        }
+
+        func installFocusTracking(for textView: NSTextView) {
+            if let firstResponderObserver {
+                NotificationCenter.default.removeObserver(firstResponderObserver)
+            }
+            firstResponderObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.updatePreviewTextSelectionActive()
+            }
+            updatePreviewTextSelectionActive()
+        }
+
+        func updatePreviewTextSelectionActive() {
+            guard let textView else {
+                previewTextSelectionActive?.wrappedValue = false
+                return
+            }
+            previewTextSelectionActive?.wrappedValue = textView.window?.firstResponder === textView
+        }
     }
 }
