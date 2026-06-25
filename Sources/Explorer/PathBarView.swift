@@ -1185,6 +1185,7 @@ struct PathBarView: View {
                 retainHighlight: mode == .text,
                 onSubmit: commitPath
             )
+            .allowsHitTesting(mode == .text)
             .padding(.trailing, pendingNavigablePath == nil ? 0 : 22)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             
@@ -1195,6 +1196,7 @@ struct PathBarView: View {
                     onNavigate: { path = $0 },
                     onRequestEdit: enterTextMode
                 )
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.horizontal, 8)
@@ -1521,6 +1523,13 @@ private struct PathBarBlankClickArea: NSViewRepresentable {
     final class ClickView: NSView {
         weak var coordinator: Coordinator?
         
+        override var isFlipped: Bool { true }
+        
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            guard bounds.width > 0, bounds.height > 0, bounds.contains(point) else { return nil }
+            return self
+        }
+        
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             registerIfNeeded()
@@ -1547,6 +1556,27 @@ private struct PathBarBlankClickArea: NSViewRepresentable {
     }
 }
 
+private struct BreadcrumbTrailingEdgeKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct BreadcrumbTrailingClickArea: View {
+    let height: CGFloat
+    let onRequestEdit: () -> Void
+    
+    var body: some View {
+        PathBarBlankClickArea(onClick: onRequestEdit)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(height: height)
+            .contentShape(Rectangle())
+            .instantHoverTooltip(L10n.Pathbar.edit)
+    }
+}
+
 private struct PathBreadcrumbView: View {
     let path: String
     let showHiddenFiles: Bool
@@ -1554,6 +1584,7 @@ private struct PathBreadcrumbView: View {
     let onRequestEdit: () -> Void
     
     @State private var hoveredSegmentID: Int?
+    @State private var contentTrailingEdge: CGFloat = 0
     
     private let fieldHeight: CGFloat = 28
     
@@ -1572,115 +1603,156 @@ private struct PathBreadcrumbView: View {
                 availableWidth: geometry.size.width,
                 showsLeadingRootSlash: showsLeadingRootSlash
             )
-            let displayedWidth = layout.estimatedDisplayWidth(
+            let barWidth = geometry.size.width
+            let estimatedWidth = layout.estimatedDisplayWidth(
                 allSegments: segments,
                 showsLeadingRootSlash: showsLeadingRootSlash
             )
-            let trailingClickWidth = max(0, geometry.size.width - displayedWidth)
+            let fitsInBar = contentTrailingEdge > 0
+                ? contentTrailingEdge < barWidth
+                : estimatedWidth < barWidth
             
-            ZStack(alignment: .leading) {
-                PathBarBlankClickArea(onClick: onRequestEdit)
-                    .frame(width: trailingClickWidth, height: fieldHeight)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                    .instantHoverTooltip(L10n.Pathbar.edit)
-                
-                ScrollViewReader { scrollProxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .center, spacing: 0) {
-                            if showsLeadingRootSlash {
-                                PathRootSlashButton(
-                                    onNavigate: { onNavigate("/") }
-                                )
-                            }
-                            
-                            if let leadingSegment = layout.fixedLeadingSegment {
-                                PathSegmentButton(
-                                    segment: leadingSegment,
-                                    isHighlighted: isSegmentHighlighted(leadingSegment),
-                                    onNavigate: onNavigate
-                                )
-                                .id(leadingSegment.id)
-                                .onHover { hovering in
-                                    if hovering {
-                                        hoveredSegmentID = leadingSegment.id
-                                    }
-                                }
-                                
-                                if layout.showsLeadingEllipsis || !layout.visibleSegments.isEmpty {
-                                    PathSeparatorMenu(
-                                        parentPath: leadingSegment.path,
-                                        showHiddenFiles: showHiddenFiles,
-                                        onNavigate: onNavigate
-                                    )
-                                }
-                            }
-                            
-                            if layout.showsLeadingEllipsis {
-                                PathBreadcrumbEllipsisMenu(
-                                    hiddenSegments: layout.hiddenSegments,
-                                    onNavigate: onNavigate
-                                )
-                                
-                                if layout.visibleSegments.first != nil,
-                                   let separatorParent = layout.hiddenSegments.last?.path {
-                                    PathSeparatorMenu(
-                                        parentPath: separatorParent,
-                                        showHiddenFiles: showHiddenFiles,
-                                        onNavigate: onNavigate
-                                    )
-                                }
-                            }
-                            
-                            ForEach(layout.visibleSegments) { segment in
-                                let isLast = segment.id == segments.last?.id
-                                
-                                PathSegmentButton(
-                                    segment: segment,
-                                    isHighlighted: isSegmentHighlighted(segment),
-                                    onNavigate: onNavigate
-                                )
-                                .id(segment.id)
-                                .onHover { hovering in
-                                    if hovering {
-                                        hoveredSegmentID = segment.id
-                                    }
-                                }
-                                
-                                if !isLast {
-                                    PathSeparatorMenu(
-                                        parentPath: segment.path,
-                                        showHiddenFiles: showHiddenFiles,
-                                        onNavigate: onNavigate
-                                    )
-                                }
+            Group {
+                if fitsInBar {
+                    HStack(spacing: 0) {
+                        breadcrumbContent(layout: layout)
+                            .fixedSize(horizontal: true, vertical: false)
+                        
+                        BreadcrumbTrailingClickArea(
+                            height: fieldHeight,
+                            onRequestEdit: onRequestEdit
+                        )
+                        .layoutPriority(-1)
+                    }
+                } else {
+                    ScrollViewReader { scrollProxy in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            breadcrumbContent(layout: layout)
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
+                        .frame(width: barWidth, height: fieldHeight, alignment: .leading)
+                        .onChange(of: path) { _ in
+                            contentTrailingEdge = 0
+                            if let lastID = segments.last?.id {
+                                scrollProxy.scrollTo(lastID, anchor: .trailing)
                             }
                         }
-                        .frame(height: fieldHeight)
-                    }
-                    .frame(
-                        width: max(0, geometry.size.width - trailingClickWidth),
-                        height: fieldHeight,
-                        alignment: .leading
-                    )
-                    .onChange(of: path) { _ in
-                        if let lastID = segments.last?.id {
-                            scrollProxy.scrollTo(lastID, anchor: .trailing)
-                        }
-                    }
-                    .onAppear {
-                        if let lastID = segments.last?.id {
-                            scrollProxy.scrollTo(lastID, anchor: .trailing)
+                        .onAppear {
+                            if let lastID = segments.last?.id {
+                                scrollProxy.scrollTo(lastID, anchor: .trailing)
+                            }
                         }
                     }
                 }
             }
+            .coordinateSpace(name: "pathBreadcrumb")
+            .frame(width: barWidth, height: fieldHeight, alignment: .leading)
+            .onPreferenceChange(BreadcrumbTrailingEdgeKey.self) { edge in
+                guard edge > 0, abs(edge - contentTrailingEdge) > 0.5 else { return }
+                contentTrailingEdge = edge
+            }
+            .onChange(of: path) { _ in
+                contentTrailingEdge = 0
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: fieldHeight)
         .onHover { hovering in
             if !hovering {
                 hoveredSegmentID = nil
             }
         }
+    }
+    
+    @ViewBuilder
+    private func breadcrumbContent(layout: PathBreadcrumbLayout) -> some View {
+        HStack(alignment: .center, spacing: 0) {
+            if showsLeadingRootSlash {
+                PathRootSlashButton(
+                    onNavigate: { onNavigate("/") }
+                )
+            }
+            
+            if let leadingSegment = layout.fixedLeadingSegment {
+                PathSegmentButton(
+                    segment: leadingSegment,
+                    isHighlighted: isSegmentHighlighted(leadingSegment),
+                    onNavigate: onNavigate
+                )
+                .id(leadingSegment.id)
+                .onHover { hovering in
+                    if hovering {
+                        hoveredSegmentID = leadingSegment.id
+                    }
+                }
+                
+                if layout.showsLeadingEllipsis || !layout.visibleSegments.isEmpty {
+                    PathSeparatorMenu(
+                        parentPath: leadingSegment.path,
+                        showHiddenFiles: showHiddenFiles,
+                        onNavigate: onNavigate
+                    )
+                }
+            }
+            
+            if layout.showsLeadingEllipsis {
+                PathBreadcrumbEllipsisMenu(
+                    hiddenSegments: layout.hiddenSegments,
+                    onNavigate: onNavigate
+                )
+                
+                if layout.visibleSegments.first != nil,
+                   let separatorParent = layout.hiddenSegments.last?.path {
+                    PathSeparatorMenu(
+                        parentPath: separatorParent,
+                        showHiddenFiles: showHiddenFiles,
+                        onNavigate: onNavigate
+                    )
+                }
+            }
+            
+            ForEach(layout.visibleSegments) { segment in
+                let isLast = segment.id == segments.last?.id
+                
+                PathSegmentButton(
+                    segment: segment,
+                    isHighlighted: isSegmentHighlighted(segment),
+                    onNavigate: onNavigate
+                )
+                .id(segment.id)
+                .onHover { hovering in
+                    if hovering {
+                        hoveredSegmentID = segment.id
+                    }
+                }
+                
+                if !isLast {
+                    PathSeparatorMenu(
+                        parentPath: segment.path,
+                        showHiddenFiles: showHiddenFiles,
+                        onNavigate: onNavigate
+                    )
+                }
+            }
+            
+            breadcrumbTrailingMarker()
+        }
+        .frame(height: fieldHeight)
+    }
+    
+    @ViewBuilder
+    private func breadcrumbTrailingMarker() -> some View {
+        Color.clear
+            .frame(width: 0, height: fieldHeight)
+            .background {
+                GeometryReader { contentGeometry in
+                    Color.clear
+                        .preference(
+                            key: BreadcrumbTrailingEdgeKey.self,
+                            value: contentGeometry.frame(in: .named("pathBreadcrumb")).maxX
+                        )
+                }
+            }
     }
     
     private func isSegmentHighlighted(_ segment: PathSegment) -> Bool {
@@ -1714,7 +1786,7 @@ private struct PathBreadcrumbLayout {
             tailCount: visibleSegments.count,
             showsLeadingRootSlash: showsLeadingRootSlash,
             showsEllipsis: showsLeadingEllipsis,
-            ellipsisWidth: 28
+            ellipsisWidth: Self.ellipsisWidth
         )
     }
     
@@ -1733,7 +1805,7 @@ private struct PathBreadcrumbLayout {
         }
         
         let usableWidth = max(0, availableWidth)
-        let ellipsisWidth: CGFloat = 28
+        let ellipsisWidth = Self.ellipsisWidth
         let segmentWidths = segments.map(estimatedWidth(for:))
         let totalWidth = estimatedBreadcrumbWidth(
             for: segments,
@@ -1816,6 +1888,7 @@ private struct PathBreadcrumbLayout {
     }
     
     static let separatorWidth: CGFloat = 14
+    static let ellipsisWidth: CGFloat = 20
     
     static func estimatedBreadcrumbWidth(
         for segments: [PathSegment],
@@ -1837,8 +1910,8 @@ private struct PathBreadcrumbLayout {
     
     private static func estimatedWidth(for segment: PathSegment) -> CGFloat {
         let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
-        let textWidth = (segment.name as NSString).size(withAttributes: [.font: font]).width
-        return textWidth + 12
+        let textWidth = ceil((segment.name as NSString).size(withAttributes: [.font: font]).width)
+        return textWidth + 8
     }
 }
 
