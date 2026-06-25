@@ -70,6 +70,7 @@ public final class FileListTableController: FileListContentController {
         for columnID in FileListColumnID.allCases {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(columnID.rawValue))
             column.title = columnID.headerTitle
+            column.headerCell = FileListSortableHeaderCell(title: columnID.headerTitle)
             column.minWidth = columnID.minWidth
             column.maxWidth = columnID.maxWidth
             column.resizingMask = userResizing
@@ -272,7 +273,13 @@ public final class FileListTableController: FileListContentController {
         for column in tableView.tableColumns {
             guard let columnID = FileListColumnID.from(column: column) else { continue }
             let title = columnID.headerTitle
-            if columnID == sort.column {
+            if let sortableHeaderCell = column.headerCell as? FileListSortableHeaderCell {
+                sortableHeaderCell.baseTitle = title
+                sortableHeaderCell.sortIndicator = (columnID == sort.column)
+                    ? (sort.ascending ? "↑" : "↓")
+                    : nil
+                sortableHeaderCell.title = title
+            } else if columnID == sort.column {
                 column.headerCell.title = title + (sort.ascending ? " ↑" : " ↓")
             } else {
                 column.headerCell.title = title
