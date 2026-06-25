@@ -107,8 +107,12 @@ struct CustomPreviewRule: Codable, Identifiable, Equatable {
 /// 内置预览扩展名集合，与 `FileContentView.loadContent` 保持一致。
 enum BuiltinPreviewExtensions {
     static let image: Set<String> = ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"]
-    /// 基于 Quick Look 的图片类预览（避免直接解码超大源文件带来的内存峰值）。
-    static let quickLookImage: Set<String> = ["psd"]
+    /// 基于 Quick Look 的矢量/设计类预览（避免直接解码超大源文件带来的内存峰值）。
+    static let quickLookImage: Set<String> = [
+        "psd",
+        "ai", "eps", "svg",
+        "dxf",
+    ]
     static let media: Set<String> = ["mp4", "mov", "mp3", "wav"]
     static let office: Set<String> = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"]
     /// 电子表格：优先文本表格预览（可选中复制），失败时回退 Quick Look。
@@ -148,7 +152,7 @@ enum BuiltinPreviewExtensions {
     static var catalogByMode: [(mode: String, extensions: [String])] {
         [
             ("图片", image.sorted()),
-            ("图片 (QuickLook)", quickLookImage.sorted()),
+            ("图片/矢量 (QuickLook)", quickLookImage.sorted()),
             ("PDF", pdf.sorted()),
             ("媒体", media.sorted()),
             ("Office (QuickLook)", office.sorted()),
