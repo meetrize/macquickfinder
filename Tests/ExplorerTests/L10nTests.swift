@@ -46,6 +46,25 @@ final class ExplorerL10nTests: XCTestCase {
         )
     }
 
+    func testHelpStringsResolveFromStringsTable() {
+        let defaults = UserDefaults.standard
+        let previous = defaults.string(forKey: ModuleLocalization.preferenceKey)
+        defer {
+            if let previous {
+                defaults.set(previous, forKey: ModuleLocalization.preferenceKey)
+            } else {
+                defaults.removeObject(forKey: ModuleLocalization.preferenceKey)
+            }
+            _ = ModuleLocalization.setLanguage(InterfaceLanguage(rawValue: previous ?? "") ?? .system)
+        }
+
+        XCTAssertTrue(ModuleLocalization.setLanguage(.zhHans))
+        XCTAssertEqual(L10n.Help.windowTitle, "MeoFind 功能速查表")
+        XCTAssertEqual(L10n.Help.cheatSheetMenu, "功能速查表")
+        XCTAssertEqual(L10n.Help.entryName("file_list"), "文件列表")
+        XCTAssertNotEqual(L10n.Help.entryName("file_list"), "help.entry.file_list.name")
+    }
+
     private func localizedBundle(language: String, parent: Bundle) -> Bundle? {
         guard let path = parent.path(forResource: language, ofType: "lproj") else {
             return nil

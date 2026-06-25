@@ -256,6 +256,12 @@ struct ExplorerApp: App {
         let _ = languageSettings.revision
         let keyLayout = activeWindowLayout.keyWindowLayout
         FileCommands()
+        CommandGroup(after: .help) {
+            Button(L10n.Help.cheatSheetMenu) {
+                HelpWindowPresenter.shared.show()
+            }
+            .keyboardShortcut("?", modifiers: .command)
+        }
         CommandGroup(after: .sidebar) {
             Button(L10n.Menu.toggleLeftPanel) {
                 performWindowLayoutAction(

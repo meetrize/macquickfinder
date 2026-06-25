@@ -630,4 +630,34 @@ enum L10n {
             ModuleLocalization.localized("info.bullet_item \(name) \(kind) \(size)", bundle: .module)
         }
     }
+
+    enum Help {
+        static var windowTitle: String { localizedFromTable("help.window_title") }
+        static var cheatSheetMenu: String { localizedFromTable("help.cheat_sheet_menu") }
+        static var subtitle: String { localizedFromTable("help.subtitle") }
+        static var columnFeature: String { localizedFromTable("help.column.feature") }
+        static var columnDescription: String { localizedFromTable("help.column.description") }
+        static var columnShortcut: String { localizedFromTable("help.column.shortcut") }
+        static var noShortcut: String { localizedFromTable("help.no_shortcut") }
+
+        static func sectionTitle(_ sectionID: String) -> String {
+            localizedFromTable("help.section.\(sectionID)")
+        }
+
+        static func entryName(_ entryID: String) -> String {
+            localizedFromTable("help.entry.\(entryID).name")
+        }
+
+        static func entryDescription(_ entryID: String) -> String {
+            localizedFromTable("help.entry.\(entryID).desc")
+        }
+
+        static func entryShortcut(_ entryID: String) -> String {
+            localizedFromTable("help.entry.\(entryID).shortcut")
+        }
+
+        private static func localizedFromTable(_ key: String) -> String {
+            ModuleLocalization.localizedFromTable(key, bundle: .module)
+        }
+    }
 }

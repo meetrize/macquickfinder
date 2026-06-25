@@ -154,6 +154,464 @@
 	<string>Downloads</string>
 	<key>folder.home</key>
 	<string>Home</string>
+	<key>help.cheat_sheet_menu</key>
+	<string>Cheat Sheet</string>
+	<key>help.column.description</key>
+	<string>Description</string>
+	<key>help.column.feature</key>
+	<string>Feature</string>
+	<key>help.column.shortcut</key>
+	<string>Shortcut</string>
+	<key>help.entry.add_favorite.desc</key>
+	<string>Add a folder to sidebar Favorites</string>
+	<key>help.entry.add_favorite.name</key>
+	<string>Add to Favorites</string>
+	<key>help.entry.add_favorite.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.archive.desc</key>
+	<string>Browse file listings inside ZIP, TAR, and similar archives</string>
+	<key>help.entry.archive.name</key>
+	<string>Archives</string>
+	<key>help.entry.archive.shortcut</key>
+	<string></string>
+	<key>help.entry.automation.desc</key>
+	<string>Needed to read Trash and control Terminal</string>
+	<key>help.entry.automation.name</key>
+	<string>Automation</string>
+	<key>help.entry.automation.shortcut</key>
+	<string></string>
+	<key>help.entry.back_forward.desc</key>
+	<string>Navigate through browsing history</string>
+	<key>help.entry.back_forward.name</key>
+	<string>Back / Forward</string>
+	<key>help.entry.back_forward.shortcut</key>
+	<string>⌘[ / ⌘]</string>
+	<key>help.entry.blank_double_click.desc</key>
+	<string>Go to parent folder or open Terminal here (Settings)</string>
+	<key>help.entry.blank_double_click.name</key>
+	<string>Blank Double-Click</string>
+	<key>help.entry.blank_double_click.shortcut</key>
+	<string>Settings</string>
+	<key>help.entry.builtin_snippets.desc</key>
+	<string>List directory, copy path, open Terminal, and more out of the box</string>
+	<key>help.entry.builtin_snippets.name</key>
+	<string>Built-in Snippets</string>
+	<key>help.entry.builtin_snippets.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.command_box.desc</key>
+	<string>Run zsh commands in the current directory synced to the path bar</string>
+	<key>help.entry.command_box.name</key>
+	<string>Command Box</string>
+	<key>help.entry.command_box.shortcut</key>
+	<string>Return</string>
+	<key>help.entry.command_history.desc</key>
+	<string>Up arrow recalls previous commands</string>
+	<key>help.entry.command_history.name</key>
+	<string>Command History</string>
+	<key>help.entry.command_history.shortcut</key>
+	<string>↑</string>
+	<key>help.entry.copy_clear.desc</key>
+	<string>Copy all output or clear the current tab</string>
+	<key>help.entry.copy_clear.name</key>
+	<string>Copy / Clear</string>
+	<key>help.entry.copy_clear.shortcut</key>
+	<string></string>
+	<key>help.entry.copy_name_path.desc</key>
+	<string>Copy filename or full path to the clipboard</string>
+	<key>help.entry.copy_name_path.name</key>
+	<string>Copy Name / Path</string>
+	<key>help.entry.copy_name_path.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.create_edit.desc</key>
+	<string>Shell, Python, AppleScript, and other script types</string>
+	<key>help.entry.create_edit.name</key>
+	<string>Create / Edit</string>
+	<key>help.entry.create_edit.shortcut</key>
+	<string></string>
+	<key>help.entry.custom_preview_rules.desc</key>
+	<string>Assign preview modes by extension; import and export rules</string>
+	<key>help.entry.custom_preview_rules.name</key>
+	<string>Custom Preview Rules</string>
+	<key>help.entry.custom_preview_rules.shortcut</key>
+	<string>Settings</string>
+	<key>help.entry.cut_copy_paste.desc</key>
+	<string>Standard file clipboard operations</string>
+	<key>help.entry.cut_copy_paste.name</key>
+	<string>Cut / Copy / Paste</string>
+	<key>help.entry.cut_copy_paste.shortcut</key>
+	<string>⌘X / ⌘C / ⌘V</string>
+	<key>help.entry.default_file_manager.desc</key>
+	<string>Set MeoFind as the system default for opening folders</string>
+	<key>help.entry.default_file_manager.name</key>
+	<string>Default File Manager</string>
+	<key>help.entry.default_file_manager.shortcut</key>
+	<string>Settings</string>
+	<key>help.entry.delete.desc</key>
+	<string>Move selected items to Trash</string>
+	<key>help.entry.delete.name</key>
+	<string>Delete</string>
+	<key>help.entry.delete.shortcut</key>
+	<string>Delete</string>
+	<key>help.entry.delete_immediately.desc</key>
+	<string>Permanently delete from Trash, bypassing Trash</string>
+	<key>help.entry.delete_immediately.name</key>
+	<string>Delete Immediately</string>
+	<key>help.entry.delete_immediately.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.detach_preview.desc</key>
+	<string>Pop preview into its own window; list stays in the main window</string>
+	<key>help.entry.detach_preview.name</key>
+	<string>Detached Preview</string>
+	<key>help.entry.detach_preview.shortcut</key>
+	<string>⌘⌥P</string>
+	<key>help.entry.devices.desc</key>
+	<string>Shows mounted disks and removable drives; eject supported</string>
+	<key>help.entry.devices.name</key>
+	<string>Devices</string>
+	<key>help.entry.devices.shortcut</key>
+	<string></string>
+	<key>help.entry.double_click_open.desc</key>
+	<string>Open folders or files with the default app</string>
+	<key>help.entry.double_click_open.name</key>
+	<string>Double-Click Open</string>
+	<key>help.entry.double_click_open.shortcut</key>
+	<string>Double-click</string>
+	<key>help.entry.drag_drop_open.desc</key>
+	<string>Drop files or folders into the window to navigate</string>
+	<key>help.entry.drag_drop_open.name</key>
+	<string>Drag &amp; Drop</string>
+	<key>help.entry.drag_drop_open.shortcut</key>
+	<string></string>
+	<key>help.entry.empty_trash.desc</key>
+	<string>Permanently erase all items in Trash</string>
+	<key>help.entry.empty_trash.name</key>
+	<string>Empty Trash</string>
+	<key>help.entry.empty_trash.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.external_open.desc</key>
+	<string>Open from Finder or as the default file manager</string>
+	<key>help.entry.external_open.name</key>
+	<string>Open Externally</string>
+	<key>help.entry.external_open.shortcut</key>
+	<string></string>
+	<key>help.entry.favorites.desc</key>
+	<string>Pin frequent folders; add or remove via context menu</string>
+	<key>help.entry.favorites.name</key>
+	<string>Favorites</string>
+	<key>help.entry.favorites.shortcut</key>
+	<string></string>
+	<key>help.entry.file_list.desc</key>
+	<string>Browse files and folders in list or thumbnail view</string>
+	<key>help.entry.file_list.name</key>
+	<string>File List</string>
+	<key>help.entry.file_list.shortcut</key>
+	<string></string>
+	<key>help.entry.file_preview.desc</key>
+	<string>Live preview in the right panel without leaving the browser</string>
+	<key>help.entry.file_preview.name</key>
+	<string>File Preview</string>
+	<key>help.entry.file_preview.shortcut</key>
+	<string></string>
+	<key>help.entry.full_disk_access.desc</key>
+	<string>Required in System Settings to browse protected locations</string>
+	<key>help.entry.full_disk_access.name</key>
+	<string>Full Disk Access</string>
+	<key>help.entry.full_disk_access.shortcut</key>
+	<string></string>
+	<key>help.entry.global_search.desc</key>
+	<string>Focus toolbar search to filter by filename</string>
+	<key>help.entry.global_search.name</key>
+	<string>Search Field</string>
+	<key>help.entry.global_search.shortcut</key>
+	<string>⌘F</string>
+	<key>help.entry.image.desc</key>
+	<string>Zoom, rotate, flip, eyedropper, basic edit and save</string>
+	<key>help.entry.image.name</key>
+	<string>Images</string>
+	<key>help.entry.image.shortcut</key>
+	<string>Preview toolbar</string>
+	<key>help.entry.import_export.desc</key>
+	<string>Back up or restore single snippets or the full JSON library</string>
+	<key>help.entry.import_export.name</key>
+	<string>Import / Export</string>
+	<key>help.entry.import_export.shortcut</key>
+	<string>Menu</string>
+	<key>help.entry.in_preview_search.desc</key>
+	<string>Find and highlight matches inside preview content</string>
+	<key>help.entry.in_preview_search.name</key>
+	<string>In-Preview Search</string>
+	<key>help.entry.in_preview_search.shortcut</key>
+	<string>Preview toolbar</string>
+	<key>help.entry.job_tabs.desc</key>
+	<string>Each run gets a tab; multiple jobs can run in parallel</string>
+	<key>help.entry.job_tabs.name</key>
+	<string>Job Tabs</string>
+	<key>help.entry.job_tabs.shortcut</key>
+	<string></string>
+	<key>help.entry.list_view.desc</key>
+	<string>Table with name, type, size, dates; click headers to sort</string>
+	<key>help.entry.list_view.name</key>
+	<string>List View</string>
+	<key>help.entry.list_view.shortcut</key>
+	<string>Toolbar</string>
+	<key>help.entry.locations.desc</key>
+	<string>Quick access to Home, Desktop, Documents, Downloads, etc.</string>
+	<key>help.entry.locations.name</key>
+	<string>Locations</string>
+	<key>help.entry.locations.shortcut</key>
+	<string></string>
+	<key>help.entry.markdown_html.desc</key>
+	<string>Switch between source and rendered modes</string>
+	<key>help.entry.markdown_html.name</key>
+	<string>Markdown / HTML</string>
+	<key>help.entry.markdown_html.shortcut</key>
+	<string>Preview toolbar</string>
+	<key>help.entry.media.desc</key>
+	<string>Play, pause, mute</string>
+	<key>help.entry.media.name</key>
+	<string>Audio / Video</string>
+	<key>help.entry.media.shortcut</key>
+	<string>Preview toolbar</string>
+	<key>help.entry.multi_window.desc</key>
+	<string>Open folders in separate windows</string>
+	<key>help.entry.multi_window.name</key>
+	<string>Multiple Windows</string>
+	<key>help.entry.multi_window.shortcut</key>
+	<string></string>
+	<key>help.entry.new_folder_file.desc</key>
+	<string>Create a new folder or file in the current directory</string>
+	<key>help.entry.new_folder_file.name</key>
+	<string>New Folder / File</string>
+	<key>help.entry.new_folder_file.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.open.desc</key>
+	<string>Open files or enter folders with the default handler</string>
+	<key>help.entry.open.name</key>
+	<string>Open</string>
+	<key>help.entry.open.shortcut</key>
+	<string>Return</string>
+	<key>help.entry.open_new_window.desc</key>
+	<string>Open a folder in a separate window</string>
+	<key>help.entry.open_new_window.name</key>
+	<string>Open in New Window</string>
+	<key>help.entry.open_new_window.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.open_terminal.desc</key>
+	<string>Launch the system Terminal in the selected folder</string>
+	<key>help.entry.open_terminal.name</key>
+	<string>Open Terminal Here</string>
+	<key>help.entry.open_terminal.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.open_with.desc</key>
+	<string>Choose another app to open a file</string>
+	<key>help.entry.open_with.name</key>
+	<string>Open With</string>
+	<key>help.entry.open_with.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.output_find.desc</key>
+	<string>Search and highlight matches in output text</string>
+	<key>help.entry.output_find.name</key>
+	<string>Find in Output</string>
+	<key>help.entry.output_find.shortcut</key>
+	<string></string>
+	<key>help.entry.output_panel.desc</key>
+	<string>Script output and an interactive command line at the bottom</string>
+	<key>help.entry.output_panel.name</key>
+	<string>Output Panel</string>
+	<key>help.entry.output_panel.shortcut</key>
+	<string>⌘J</string>
+	<key>help.entry.panel_height.desc</key>
+	<string>Drag the splitter between Preview and Snippets</string>
+	<key>help.entry.panel_height.name</key>
+	<string>Panel Height</string>
+	<key>help.entry.panel_height.shortcut</key>
+	<string>Drag</string>
+	<key>help.entry.panel_width.desc</key>
+	<string>Drag the splitter between the file list and right panel</string>
+	<key>help.entry.panel_width.name</key>
+	<string>Panel Width</string>
+	<key>help.entry.panel_width.shortcut</key>
+	<string>Drag</string>
+	<key>help.entry.path_breadcrumb.desc</key>
+	<string>Click segments to jump; middle segments collapse when space is tight</string>
+	<key>help.entry.path_breadcrumb.name</key>
+	<string>Path Breadcrumb</string>
+	<key>help.entry.path_breadcrumb.shortcut</key>
+	<string></string>
+	<key>help.entry.path_edit.desc</key>
+	<string>Click the path bar to type or paste a full path</string>
+	<key>help.entry.path_edit.name</key>
+	<string>Path Editing</string>
+	<key>help.entry.path_edit.shortcut</key>
+	<string></string>
+	<key>help.entry.path_history.desc</key>
+	<string>Drop down to see recently visited folders</string>
+	<key>help.entry.path_history.name</key>
+	<string>Path History</string>
+	<key>help.entry.path_history.shortcut</key>
+	<string></string>
+	<key>help.entry.pdf.desc</key>
+	<string>Page through, zoom, fit width or page</string>
+	<key>help.entry.pdf.name</key>
+	<string>PDF</string>
+	<key>help.entry.pdf.shortcut</key>
+	<string>Preview toolbar</string>
+	<key>help.entry.preview_browser.desc</key>
+	<string>Filmstrip at the bottom to browse files in the current folder</string>
+	<key>help.entry.preview_browser.name</key>
+	<string>Preview Browser</string>
+	<key>help.entry.preview_browser.shortcut</key>
+	<string>⌘⌥B</string>
+	<key>help.entry.put_back.desc</key>
+	<string>Restore items from Trash to their original location</string>
+	<key>help.entry.put_back.name</key>
+	<string>Put Back</string>
+	<key>help.entry.put_back.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.quick_look.desc</key>
+	<string>Fall back to system Quick Look for unsupported types</string>
+	<key>help.entry.quick_look.name</key>
+	<string>Quick Look</string>
+	<key>help.entry.quick_look.shortcut</key>
+	<string></string>
+	<key>help.entry.quick_search.desc</key>
+	<string>Type to filter the list; Tab cycles matches and syncs preview</string>
+	<key>help.entry.quick_search.name</key>
+	<string>Quick Search</string>
+	<key>help.entry.quick_search.shortcut</key>
+	<string>Type</string>
+	<key>help.entry.rename.desc</key>
+	<string>Click the name again or use the context menu</string>
+	<key>help.entry.rename.name</key>
+	<string>Rename</string>
+	<key>help.entry.rename.shortcut</key>
+	<string></string>
+	<key>help.entry.run_snippet.desc</key>
+	<string>Search, arrow keys, Return or double-click to run</string>
+	<key>help.entry.run_snippet.name</key>
+	<string>Run Snippet</string>
+	<key>help.entry.run_snippet.shortcut</key>
+	<string></string>
+	<key>help.entry.scope.desc</key>
+	<string>Limit when a snippet appears by context, type, or path</string>
+	<key>help.entry.scope.name</key>
+	<string>Scope</string>
+	<key>help.entry.scope.shortcut</key>
+	<string></string>
+	<key>help.entry.services.desc</key>
+	<string>Invoke macOS Services menu actions</string>
+	<key>help.entry.services.name</key>
+	<string>Services</string>
+	<key>help.entry.services.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.settings_general.desc</key>
+	<string>Blank double-click, window snap, interface language</string>
+	<key>help.entry.settings_general.name</key>
+	<string>General</string>
+	<key>help.entry.settings_general.shortcut</key>
+	<string>⌘,</string>
+	<key>help.entry.settings_preview.desc</key>
+	<string>Line numbers, detached browsing, custom file-type rules</string>
+	<key>help.entry.settings_preview.name</key>
+	<string>Preview</string>
+	<key>help.entry.settings_preview.shortcut</key>
+	<string>Settings</string>
+	<key>help.entry.settings_snippets.desc</key>
+	<string>Display mode, pin recent, auto-show output, concurrency limit</string>
+	<key>help.entry.settings_snippets.name</key>
+	<string>Snippets</string>
+	<key>help.entry.settings_snippets.shortcut</key>
+	<string>Settings</string>
+	<key>help.entry.show_info.desc</key>
+	<string>Separate window with size, permissions, tags, comments, etc.</string>
+	<key>help.entry.show_info.name</key>
+	<string>Get Info</string>
+	<key>help.entry.show_info.shortcut</key>
+	<string>Right-click</string>
+	<key>help.entry.snippets_panel.desc</key>
+	<string>Reusable scripts in the right panel, filtered by context</string>
+	<key>help.entry.snippets_panel.name</key>
+	<string>Snippets Panel</string>
+	<key>help.entry.snippets_panel.shortcut</key>
+	<string>⌘⇧S</string>
+	<key>help.entry.spreadsheet.desc</key>
+	<string>Switch between text mode and Quick Look preview</string>
+	<key>help.entry.spreadsheet.name</key>
+	<string>Spreadsheets</string>
+	<key>help.entry.spreadsheet.shortcut</key>
+	<string>Preview toolbar</string>
+	<key>help.entry.stop_task.desc</key>
+	<string>Press Ctrl+C or click Stop while a job is running</string>
+	<key>help.entry.stop_task.name</key>
+	<string>Stop Task</string>
+	<key>help.entry.stop_task.shortcut</key>
+	<string>⌃C</string>
+	<key>help.entry.text_code.desc</key>
+	<string>Syntax highlighting, line numbers, wrap, zoom, in-preview search</string>
+	<key>help.entry.text_code.name</key>
+	<string>Text / Code</string>
+	<key>help.entry.text_code.shortcut</key>
+	<string>Preview toolbar</string>
+	<key>help.entry.thumbnail_view.desc</key>
+	<string>Icon grid; drag slider to resize thumbnails</string>
+	<key>help.entry.thumbnail_view.name</key>
+	<string>Thumbnail View</string>
+	<key>help.entry.thumbnail_view.shortcut</key>
+	<string>Toolbar</string>
+	<key>help.entry.toggle_left_panel.desc</key>
+	<string>Show or hide the sidebar</string>
+	<key>help.entry.toggle_left_panel.name</key>
+	<string>Left Panel</string>
+	<key>help.entry.toggle_left_panel.shortcut</key>
+	<string>⌘B</string>
+	<key>help.entry.toggle_right_panel.desc</key>
+	<string>Show or hide the preview and Snippets column</string>
+	<key>help.entry.toggle_right_panel.name</key>
+	<string>Right Panel</string>
+	<key>help.entry.toggle_right_panel.shortcut</key>
+	<string>⌘⇧B</string>
+	<key>help.entry.trash.desc</key>
+	<string>Browse deleted items; put back or empty trash</string>
+	<key>help.entry.trash.name</key>
+	<string>Trash</string>
+	<key>help.entry.trash.shortcut</key>
+	<string></string>
+	<key>help.entry.variables.desc</key>
+	<string>%p (path), %d (directory), and more are expanded at run time</string>
+	<key>help.entry.variables.name</key>
+	<string>Variable Expansion</string>
+	<key>help.entry.variables.shortcut</key>
+	<string></string>
+	<key>help.entry.window_snap.desc</key>
+	<string>Drag a window to the screen edge to snap half or full screen</string>
+	<key>help.entry.window_snap.name</key>
+	<string>Window Snap</string>
+	<key>help.entry.window_snap.shortcut</key>
+	<string>Settings</string>
+	<key>help.no_shortcut</key>
+	<string>—</string>
+	<key>help.section.files</key>
+	<string>File Actions</string>
+	<key>help.section.layout</key>
+	<string>Window &amp; Layout</string>
+	<key>help.section.navigation</key>
+	<string>Browse &amp; Navigate</string>
+	<key>help.section.output</key>
+	<string>Output Panel</string>
+	<key>help.section.permissions</key>
+	<string>Permissions</string>
+	<key>help.section.preview</key>
+	<string>Preview</string>
+	<key>help.section.settings</key>
+	<string>Settings</string>
+	<key>help.section.sidebar</key>
+	<string>Sidebar</string>
+	<key>help.section.snippets</key>
+	<string>Snippets</string>
+	<key>help.subtitle</key>
+	<string>A quick overview of what MeoFind can do</string>
+	<key>help.window_title</key>
+	<string>MeoFind Cheat Sheet</string>
 	<key>info.access.executable</key>
 	<string>executable</string>
 	<key>info.access.label</key>

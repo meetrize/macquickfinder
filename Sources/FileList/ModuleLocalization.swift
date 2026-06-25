@@ -74,6 +74,12 @@ public enum ModuleLocalization {
         return String(localized: key, bundle: target)
     }
 
+    /// 从 `.lproj/Localizable.strings` 读取；用于动态键或尚未写入 xcstrings 的条目。
+    public static func localizedFromTable(_ key: String, bundle: Bundle) -> String {
+        let target = resolvedLanguageBundle(containing: bundle) ?? bundle
+        return target.localizedString(forKey: key, value: nil, table: nil)
+    }
+
     /// 按当前语言在 SPM bundle 内查找对应 `.lproj` 子 bundle。
     private static func resolvedLanguageBundle(containing bundle: Bundle) -> Bundle? {
         for languageID in activeBundleLanguageIDs() {
