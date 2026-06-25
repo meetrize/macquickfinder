@@ -60,12 +60,42 @@ enum FullDiskAccessPermission {
 
     @MainActor
     static func restartApplication() {
-        let bundlePath = Bundle.main.bundleURL.path
+        let bundleURL = Bundle.main.bundleURL
+        let bundlePath = bundleURL.path
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let quotedPath = ShellQuoting.singleQuote(bundlePath)
+        // 等当前进程完全退出后再 open，避免 terminate 时杀掉未 detached 的子 shell。
+        let relaunchCommand =
+            "while /bin/kill -0 \(pid) 2>/dev/null; do /bin/sleep 0.05; done; /usr/bin/open \(quotedPath)"
+
+        if launchDetachedRelaunchWatcher(relaunchCommand) {
+            NSApp.terminate(nil)
+            return
+        }
+
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(at: bundleURL, configuration: configuration) { _, _ in
+            Task { @MainActor in
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
+    /// 通过 nohup 启动独立 watcher，在宿主进程退出后重新打开应用。
+    private static func launchDetachedRelaunchWatcher(_ shellCommand: String) -> Bool {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = ["-c", "sleep 0.25; open \(ShellQuoting.singleQuote(bundlePath))"]
-        try? process.run()
-        NSApp.terminate(nil)
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/nohup")
+        process.arguments = ["/bin/sh", "-c", shellCommand]
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            return true
+        } catch {
+            return false
+        }
     }
 
     static var appDisplayName: String {
@@ -214,7 +244,11 @@ private struct FullDiskAccessPromptView: View {
                 .keyboardShortcut("o", modifiers: [.command, .shift])
 
                 Button(L10n.Permission.FullDiskAccess.restartApp) {
-                    prompt.restartApplication()
+                    prompt.dismissForNow()
+                    dismiss()
+                    Task { @MainActor in
+                        prompt.restartApplication()
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
