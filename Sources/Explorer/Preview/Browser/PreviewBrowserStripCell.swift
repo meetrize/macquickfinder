@@ -20,20 +20,25 @@ struct PreviewBrowserStripCell: View {
     }
 
     private var defaultCellBackground: Color {
-        colorScheme == .dark ? Color(white: 0.22) : Color(white: 0.90)
+        // 让白色缩略图/图标也能和背景明显区分
+        colorScheme == .dark ? Color(white: 0.16) : Color(white: 0.84)
     }
 
     private var cellBackground: Color {
         let row = FileListRow(item: item)
         let isDark = colorScheme == .dark
         if let tint = FileListThumbnailTypeTint.backgroundColor(for: row, isDark: isDark) {
-            return Color(nsColor: tint)
+            // 加深一点以便在胶片条里更容易区分相邻项
+            return Color(nsColor: tint).opacity(isDark ? 0.92 : 0.88)
         }
         return defaultCellBackground
     }
 
     private var cellBorderColor: Color {
-        isSelected ? Color.accentColor : Color(nsColor: .separatorColor)
+        if isSelected { return Color.accentColor }
+        return colorScheme == .dark
+            ? Color.white.opacity(0.18)
+            : Color.black.opacity(0.18)
     }
 
     private var cellBorderWidth: CGFloat {
@@ -59,8 +64,13 @@ struct PreviewBrowserStripCell: View {
                             .aspectRatio(contentMode: .fit)
                     } else {
                         Image(systemName: "doc")
-                            .font(.title2)
-                            .foregroundStyle(.tertiary)
+                            .symbolRenderingMode(.hierarchical)
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundStyle(
+                                colorScheme == .dark
+                                    ? Color.white.opacity(0.78)
+                                    : Color.black.opacity(0.55)
+                            )
                     }
                 }
                 .padding(PreviewBrowserStripMetrics.thumbnailContentInset)
@@ -76,7 +86,7 @@ struct PreviewBrowserStripCell: View {
                 )
                 .strokeBorder(cellBorderColor, lineWidth: cellBorderWidth)
             }
-            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.08), radius: 1, y: 1)
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.10), radius: 1.5, y: 1)
             .scaleEffect(scale)
             .opacity(cellOpacity)
         }

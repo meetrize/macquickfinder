@@ -11,6 +11,8 @@ struct PreviewBrowserStripView: View {
         NSScreen.main?.backingScaleFactor ?? 2.0
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         GeometryReader { geometry in
             ScrollViewReader { proxy in
@@ -32,9 +34,14 @@ struct PreviewBrowserStripView: View {
                         }
                     }
                     .padding(.horizontal, horizontalPadding(for: geometry.size.width))
+                    .padding(.vertical, 8)
                 }
                 .frame(height: PreviewBrowserStripMetrics.stripHeight)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(
+                    colorScheme == .dark
+                        ? Color(white: 0.11)
+                        : Color(white: 0.95)
+                )
                 .onAppear {
                     scrollToCurrentItem(using: proxy, animated: false)
                     refreshThumbnails()

@@ -2,14 +2,14 @@ import CoreGraphics
 import Foundation
 
 enum PreviewBrowserStripMetrics {
-    static let stripHeight: CGFloat = 88
+    static let stripHeight: CGFloat = 104
     static let navBarHeight: CGFloat = 32
-    static let thumbnailSize: CGFloat = 72
-    static let cellSpacing: CGFloat = 12
-    static let thumbnailContentInset: CGFloat = 6
-    static let cellCornerRadius: CGFloat = 6
-    static let cellBorderWidth: CGFloat = 1
-    static let cellSelectedBorderWidth: CGFloat = 2
+    static let thumbnailSize: CGFloat = 84
+    static let cellSpacing: CGFloat = 14
+    static let thumbnailContentInset: CGFloat = 8
+    static let cellCornerRadius: CGFloat = 8
+    static let cellBorderWidth: CGFloat = 1.5
+    static let cellSelectedBorderWidth: CGFloat = 3
     static let thumbnailPrefetchRadius = 3
 
     static let centerScale: CGFloat = 1.0
