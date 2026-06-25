@@ -13,7 +13,6 @@ struct PreviewFocuslessIconButton: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = PreviewFocuslessIconNSView()
-        view.toolTip = accessibilityLabel
         view.setAccessibilityLabel(accessibilityLabel)
         view.updateImage(systemImageName, accessibilityLabel: accessibilityLabel, isEnabled: isEnabled)
         view.onClick = isEnabled ? { context.coordinator.didTap() } : nil
@@ -23,7 +22,6 @@ struct PreviewFocuslessIconButton: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         context.coordinator.action = action
         guard let iconView = nsView as? PreviewFocuslessIconNSView else { return }
-        iconView.toolTip = accessibilityLabel
         iconView.setAccessibilityLabel(accessibilityLabel)
         iconView.updateImage(systemImageName, accessibilityLabel: accessibilityLabel, isEnabled: isEnabled)
         iconView.onClick = isEnabled ? { context.coordinator.didTap() } : nil

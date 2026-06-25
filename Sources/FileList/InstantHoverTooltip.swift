@@ -22,6 +22,8 @@ private final class RailTooltipPanel: NSPanel {
     private let maxLabelWidth: CGFloat = 360
     private let maxLabelHeight: CGFloat = 280
     private let backgroundOpacity: CGFloat = 0.9
+    private let screenInset: CGFloat = 8
+    private let anchorGap: CGFloat = 8
 
     fileprivate init() {
         textLabel = NSTextField(wrappingLabelWithString: "")
@@ -94,14 +96,33 @@ private final class RailTooltipPanel: NSPanel {
         let screenRect = window.convertToScreen(anchorRect)
         let screen = window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
 
-        var originX = screenRect.maxX + 6
-        if originX + width > screen.maxX {
-            originX = screenRect.minX - width - 6
-        }
-        originX = max(screen.minX, min(originX, screen.maxX - width))
+        // Tooltip positioning strategy:
+        // 1) Prefer below the anchor (closer to cursor reading flow)
+        // 2) If no space, place above
+        // 3) If both are tight, pick the side with more free space and clamp to visible frame
+        let clampedMinX = screen.minX + screenInset
+        let clampedMaxX = screen.maxX - width - screenInset
+        let preferredX = screenRect.midX - width / 2
+        let originX = max(clampedMinX, min(preferredX, clampedMaxX))
 
-        var originY = screenRect.midY - height / 2
-        originY = max(screen.minY, min(originY, screen.maxY - height))
+        let requiredVerticalSpace = height + anchorGap
+        let spaceBelow = screenRect.minY - screen.minY
+        let spaceAbove = screen.maxY - screenRect.maxY
+        let belowY = screenRect.minY - height - anchorGap
+        let aboveY = screenRect.maxY + anchorGap
+        let clampedMinY = screen.minY + screenInset
+        let clampedMaxY = screen.maxY - height - screenInset
+
+        let originY: CGFloat
+        if spaceBelow >= requiredVerticalSpace {
+            originY = max(clampedMinY, min(belowY, clampedMaxY))
+        } else if spaceAbove >= requiredVerticalSpace {
+            originY = max(clampedMinY, min(aboveY, clampedMaxY))
+        } else if spaceAbove >= spaceBelow {
+            originY = max(clampedMinY, min(aboveY, clampedMaxY))
+        } else {
+            originY = max(clampedMinY, min(belowY, clampedMaxY))
+        }
 
         setFrame(NSRect(origin: NSPoint(x: originX, y: originY), size: NSSize(width: width, height: height)), display: true)
         orderFront(nil)
