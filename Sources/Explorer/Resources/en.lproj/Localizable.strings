@@ -1250,6 +1250,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Calculate All Folder Sizes</string>
 	<key>toolbar.browse_settings</key>
 	<string>Browse Settings</string>
+	<key>toolbar.delete</key>
+	<string>Delete</string>
 	<key>toolbar.hide_left_panel</key>
 	<string>Hide Left Panel</string>
 	<key>toolbar.list_view</key>

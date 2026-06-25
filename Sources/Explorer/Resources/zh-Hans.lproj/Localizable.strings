@@ -1250,6 +1250,8 @@
 	<string>自动计算文件夹大小</string>
 	<key>toolbar.browse_settings</key>
 	<string>浏览设置</string>
+	<key>toolbar.delete</key>
+	<string>删除</string>
 	<key>toolbar.hide_left_panel</key>
 	<string>隐藏左侧面板</string>
 	<key>toolbar.list_view</key>

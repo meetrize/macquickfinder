@@ -461,6 +461,13 @@ struct ContentView: View {
             .buttonStyle(.borderless)
             .instantHoverTooltip(L10n.Toolbar.newFolder)
 
+            Button(action: deleteSelectedItems) {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+            .disabled(deletableSelectedItems.isEmpty)
+            .instantHoverTooltip(L10n.Toolbar.delete)
+
             Button(action: {
                 showHiddenFiles.toggle()
                 loadItems()
@@ -858,6 +865,27 @@ struct ContentView: View {
     private var selectedItems: [FileItem] {
         filteredItems.filter { selection.contains($0.id) }
     }
+
+    private var deletableSelectedItems: [FileItem] {
+        selectedItems.filter { !$0.isParentDirectoryEntry }
+    }
+
+    private func deleteSelectedItems() {
+        let items = deletableSelectedItems
+        guard !items.isEmpty else { return }
+        let paths = items.map(\.id)
+        if TrashLoader.isTrashPath(path) {
+            FileOperations.deleteImmediately(items) {
+                selection.removeAll()
+                loadItems(invalidatingPaths: paths)
+            }
+        } else {
+            FileOperations.delete(items) {
+                selection.removeAll()
+                loadItems(invalidatingPaths: paths)
+            }
+        }
+    }
     
     private var fileCommandHandlers: FileCommandHandlers {
         let selected = selectedItems
@@ -874,17 +902,11 @@ struct ContentView: View {
                     loadItems()
                 }
             },
-            delete: {
-                let paths = selected.map(\.id)
-                FileOperations.delete(selected) {
-                    selection.removeAll()
-                    loadItems(invalidatingPaths: paths)
-                }
-            },
+            delete: deleteSelectedItems,
             canCopy: !selected.isEmpty,
             canCut: !selected.isEmpty,
             canPaste: FileOperations.canPaste(to: URL(fileURLWithPath: destPath)),
-            canDelete: !selected.isEmpty
+            canDelete: !deletableSelectedItems.isEmpty
         )
     }
     
