@@ -4,13 +4,13 @@ import XCTest
 final class LeftPanelStateMachineTests: XCTestCase {
     func testSidebarToRailToHiddenByDraggingLeft() {
         var constants = LeftPanelLayoutConstants()
-        constants.sidebarMinWidth = 200
+        constants.sidebarMinWidth = 80
         constants.hideThreshold = 28
         constants.sidebarToRailHysteresis = 4
         
         // 从 sidebar 开始，向左拖到略小于 minWidth - hysteresis 应进入 rail
         let toRail = LeftPanelStateMachine.applyDrag(
-            proposedWidth: 195,
+            proposedWidth: 75,
             currentMode: .sidebar,
             lastVisible: .sidebar,
             sidebarWidth: 240,
@@ -33,11 +33,11 @@ final class LeftPanelStateMachineTests: XCTestCase {
     
     func testRailToSidebarByDraggingRightBeyondMinWidth() {
         var constants = LeftPanelLayoutConstants()
-        constants.sidebarMinWidth = 200
+        constants.sidebarMinWidth = 80
         constants.railToSidebarHysteresis = 8
         
         let result = LeftPanelStateMachine.applyDrag(
-            proposedWidth: 210,
+            proposedWidth: 90,
             currentMode: .rail,
             lastVisible: .rail,
             sidebarWidth: 240,
@@ -50,19 +50,34 @@ final class LeftPanelStateMachineTests: XCTestCase {
     
     func testSidebarStaysSidebarWhenAtMinWidthBand() {
         var constants = LeftPanelLayoutConstants()
-        constants.sidebarMinWidth = 200
+        constants.sidebarMinWidth = 80
         constants.sidebarToRailHysteresis = 4
         
-        // proposed 198 在 minWidth - 4 之上，不应切 rail，但宽度应 clamp 到 minWidth
+        // proposed 77 在 minWidth - 4 之上，不应切 rail，但宽度应 clamp 到 minWidth
         let result = LeftPanelStateMachine.applyDrag(
-            proposedWidth: 198,
+            proposedWidth: 77,
             currentMode: .sidebar,
             lastVisible: .sidebar,
             sidebarWidth: 240,
             constants: constants
         )
         XCTAssertEqual(result.mode, .sidebar)
-        XCTAssertEqual(result.sidebarWidth, 200, accuracy: 0.001)
+        XCTAssertEqual(result.sidebarWidth, 80, accuracy: 0.001)
+    }
+    
+    func testSidebarKeepsTextAtModerateWidth() {
+        var constants = LeftPanelLayoutConstants()
+        constants.sidebarMinWidth = 80
+        
+        let result = LeftPanelStateMachine.applyDrag(
+            proposedWidth: 195,
+            currentMode: .sidebar,
+            lastVisible: .sidebar,
+            sidebarWidth: 240,
+            constants: constants
+        )
+        XCTAssertEqual(result.mode, .sidebar)
+        XCTAssertEqual(result.sidebarWidth, 195, accuracy: 0.001)
     }
     
     func testRailDisplayWidthDoesNotGoBelowRailWidth() {

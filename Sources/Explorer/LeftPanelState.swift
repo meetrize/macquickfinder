@@ -23,7 +23,8 @@ enum LeftPanelVisibleMode: String, CaseIterable, Sendable {
 }
 
 struct LeftPanelLayoutConstants: Sendable {
-    var sidebarMinWidth: CGFloat = 200
+    /// 侧栏（显示文字）可缩窄到的最小宽度；约为 `railWidth` 的两倍，再窄则进入仅图标模式。
+    var sidebarMinWidth: CGFloat = 80
     var sidebarMaxWidth: CGFloat = 420
     var railWidth: CGFloat = 44
     
