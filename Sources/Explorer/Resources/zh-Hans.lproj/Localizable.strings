@@ -232,12 +232,18 @@
 	<string>切换左侧面板</string>
 	<key>menu.toggle_right_panel</key>
 	<string>切换右侧面板</string>
+	<key>pathbar.back</key>
+	<string>后退</string>
 	<key>pathbar.clear</key>
 	<string>清除</string>
 	<key>pathbar.commit</key>
 	<string>进入新路径</string>
 	<key>pathbar.edit</key>
 	<string>点击编辑完整路径</string>
+	<key>pathbar.forward</key>
+	<string>前进</string>
+	<key>pathbar.history</key>
+	<string>最近访问的路径</string>
 	<key>pathbar.no_subdirs</key>
 	<string>无子文件夹</string>
 	<key>pathbar.parent</key>

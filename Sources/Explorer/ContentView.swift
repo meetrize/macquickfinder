@@ -50,7 +50,7 @@ struct ContentView: View {
     @State private var fileListFocusToken: UInt = 0
     @State private var showHiddenFiles = false
     @State private var loadGeneration: UInt = 0
-    @State private var navigationBackStack: [String] = []
+    @State private var pathNavigation = PathNavigationHistory()
     @State private var isApplyingHistoryNavigation = false
     @State private var lastRecordedPath: String?
     @AppStorage(AppPreferences.Directory.autoCalculateDirectorySizes) private var autoCalculateDirectorySizes = true
@@ -304,7 +304,7 @@ struct ContentView: View {
         }
         .onChange(of: path) { newPath in
             if let oldPath = lastRecordedPath, oldPath != newPath, !isApplyingHistoryNavigation {
-                navigationBackStack.append(oldPath)
+                pathNavigation.recordNavigation(from: oldPath, to: newPath)
             }
             lastRecordedPath = newPath
             layout.recordLastOpenedPath(newPath)
@@ -336,16 +336,28 @@ struct ContentView: View {
     @ViewBuilder
     private var explorerBrowserColumn: some View {
         VStack(spacing: 0) {
-            PathBarView(
-                path: $path,
-                activeField: $activeBarField,
-                isTextMode: $isPathBarTextMode,
-                hostWindow: hostWindow,
-                showHiddenFiles: showHiddenFiles,
-                onSubmit: { loadItems() }
-            )
+            HStack(spacing: 6) {
+                PathBarNavigationButtons(
+                    canGoBack: canNavigateBack,
+                    canGoForward: canNavigateForward,
+                    onBack: navigateBack,
+                    onForward: navigateForward
+                )
+
+                PathBarView(
+                    path: $path,
+                    activeField: $activeBarField,
+                    isTextMode: $isPathBarTextMode,
+                    hostWindow: hostWindow,
+                    showHiddenFiles: showHiddenFiles,
+                    historyEntries: pathNavigation.recentEntries(currentPath: path),
+                    onSelectHistory: navigateToHistoryPath,
+                    onSubmit: { loadItems() }
+                )
+            }
             .frame(height: PanelTopBarMetrics.contentHeight)
-            .padding(.horizontal)
+            .padding(.leading, 16)
+            .padding(.trailing, 8)
             .padding(.vertical, PanelTopBarMetrics.verticalPadding)
             
             Divider()
@@ -499,6 +511,26 @@ struct ContentView: View {
             .opacity(0)
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
+
+            Button(L10n.Pathbar.back) {
+                navigateBack()
+            }
+            .keyboardShortcut("[", modifiers: .command)
+            .labelsHidden()
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .disabled(!canNavigateBack)
+
+            Button(L10n.Pathbar.forward) {
+                navigateForward()
+            }
+            .keyboardShortcut("]", modifiers: .command)
+            .labelsHidden()
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .disabled(!canNavigateForward)
         }
     }
     
@@ -753,14 +785,41 @@ struct ContentView: View {
     }
     
     private var canNavigateBack: Bool {
-        !navigationBackStack.isEmpty
+        pathNavigation.canGoBack
     }
-    
+
+    private var canNavigateForward: Bool {
+        pathNavigation.canGoForward
+    }
+
     private func navigateBack() {
-        guard let previous = navigationBackStack.popLast() else { return }
+        guard let previous = pathNavigation.goBack(from: path) else { return }
         isApplyingHistoryNavigation = true
         path = previous
         isApplyingHistoryNavigation = false
+    }
+
+    private func navigateForward() {
+        guard let next = pathNavigation.goForward(from: path) else { return }
+        isApplyingHistoryNavigation = true
+        path = next
+        isApplyingHistoryNavigation = false
+    }
+
+    private func navigateToHistoryPath(_ targetPath: String) {
+        let standardizedTarget = (targetPath as NSString).standardizingPath
+        let standardizedCurrent = (path as NSString).standardizingPath
+        guard standardizedTarget != standardizedCurrent else { return }
+
+        let trail = pathNavigation.trail(currentPath: path)
+        if trail.contains(where: { ($0 as NSString).standardizingPath == standardizedTarget }) {
+            isApplyingHistoryNavigation = true
+            pathNavigation.jump(to: targetPath, from: path)
+            path = targetPath
+            isApplyingHistoryNavigation = false
+        } else {
+            path = targetPath
+        }
     }
     
     private func navigateUp() {

@@ -772,6 +772,7 @@ final class PathBarTextField: NSTextField {
     var onTextChange: ((String) -> Void)?
     var onEditingBegan: (() -> Void)?
     var onEditingEnded: (() -> Void)?
+    var onHistoryNavigate: ((PathBarHistoryDirection) -> String?)?
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -864,7 +865,26 @@ extension PathBarTextField: NSTextFieldDelegate {
             onCommit?()
             return true
         }
+        if commandSelector == #selector(NSResponder.moveUp(_:)) {
+            return applyHistoryNavigation(.up)
+        }
+        if commandSelector == #selector(NSResponder.moveDown(_:)) {
+            return applyHistoryNavigation(.down)
+        }
         return false
+    }
+
+    @discardableResult
+    private func applyHistoryNavigation(_ direction: PathBarHistoryDirection) -> Bool {
+        guard let onHistoryNavigate, let value = onHistoryNavigate(direction) else { return false }
+        stringValue = value
+        onTextChange?(value)
+        if let editor = currentEditor() {
+            window?.makeFirstResponder(editor)
+            let length = (value as NSString).length
+            editor.selectedRange = NSRange(location: length, length: 0)
+        }
+        return true
     }
 }
 
@@ -874,6 +894,7 @@ struct PathBarTextFieldRepresentable: NSViewRepresentable {
     var isVisible: Bool
     var retainHighlight: Bool
     var onSubmit: () -> Void
+    var onHistoryNavigate: ((PathBarHistoryDirection) -> String?)?
     
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text, activeField: $activeField)
@@ -894,6 +915,7 @@ struct PathBarTextFieldRepresentable: NSViewRepresentable {
         field.onEditingEnded = { [weak coordinator = context.coordinator] in
             coordinator?.handleEditingEnded()
         }
+        field.onHistoryNavigate = onHistoryNavigate
         context.coordinator.field = field
         return field
     }
@@ -904,6 +926,7 @@ struct PathBarTextFieldRepresentable: NSViewRepresentable {
         context.coordinator.activeField = $activeField
         context.coordinator.onSubmit = onSubmit
         context.coordinator.retainHighlight = retainHighlight
+        nsView.onHistoryNavigate = onHistoryNavigate
         
         let wasVisible = context.coordinator.wasVisible
         context.coordinator.wasVisible = isVisible
@@ -1135,16 +1158,20 @@ struct PathBarView: View {
     @Binding var isTextMode: Bool
     var hostWindow: NSWindow?
     var showHiddenFiles: Bool
+    var historyEntries: [String] = []
+    var onSelectHistory: ((String) -> Void)?
     var onSubmit: () -> Void
     
     @State private var mode: PathBarMode = .breadcrumb
     @State private var editingText = ""
     @State private var committedViaSubmit = false
     @State private var previousActiveField: BarTextFieldID?
+    @State private var historyBrowsing = PathBarHistoryBrowsing()
     
     private let cornerRadius: CGFloat = 7
     private let fieldHeight: CGFloat = 28
     private let pathBarTrailingClickWidth: CGFloat = 40
+    private let pathBarHistoryButtonWidth: CGFloat = 24
     
     private var showsFocusBorder: Bool {
         mode == .text || activeField == .path
@@ -1156,6 +1183,24 @@ struct PathBarView: View {
     
     private var displayPath: String {
         path
+    }
+
+    private var showsHistoryMenu: Bool {
+        !historyEntries.isEmpty && onSelectHistory != nil
+    }
+
+    private var pathBarContentTrailingInset: CGFloat {
+        var inset: CGFloat = 0
+        if mode == .text {
+            inset += pathBarTrailingClickWidth
+        }
+        if showsHistoryMenu {
+            inset += pathBarHistoryButtonWidth
+        }
+        if pendingNavigablePath != nil {
+            inset += 24
+        }
+        return inset
     }
 
     private var pendingNavigablePath: String? {
@@ -1183,10 +1228,11 @@ struct PathBarView: View {
                 activeField: $activeField,
                 isVisible: mode == .text,
                 retainHighlight: mode == .text,
-                onSubmit: commitPath
+                onSubmit: commitPath,
+                onHistoryNavigate: browsePathHistory
             )
             .allowsHitTesting(mode == .text)
-            .padding(.trailing, pendingNavigablePath == nil ? 0 : 22)
+            .padding(.trailing, pathBarContentTrailingInset)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             
             if mode == .breadcrumb {
@@ -1196,6 +1242,7 @@ struct PathBarView: View {
                     onNavigate: { path = $0 },
                     onRequestEdit: enterTextMode
                 )
+                .padding(.trailing, showsHistoryMenu ? pathBarHistoryButtonWidth : 0)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -1225,6 +1272,17 @@ struct PathBarView: View {
                     navigateToPendingPath(target)
                 }
                 .frame(width: 24, height: fieldHeight)
+                .padding(.trailing, showsHistoryMenu ? pathBarHistoryButtonWidth + 2 : 2)
+            }
+        }
+        .overlay(alignment: .trailing) {
+            if showsHistoryMenu {
+                PathBarHistoryMenuButton(
+                    entries: historyEntries,
+                    currentPath: path,
+                    onSelect: { onSelectHistory?($0) }
+                )
+                .frame(width: pathBarHistoryButtonWidth, height: fieldHeight)
                 .padding(.trailing, 2)
             }
         }
@@ -1236,6 +1294,7 @@ struct PathBarView: View {
             PathSubdirectoryCache.preloadBreadcrumbPaths(path, showHiddenFiles: showHiddenFiles)
         }
         .onChange(of: path) { _ in
+            historyBrowsing.reset()
             if mode == .breadcrumb || activeField != .path {
                 editingText = displayPath
             }
@@ -1333,6 +1392,7 @@ struct PathBarView: View {
     
     private func commitPath() {
         committedViaSubmit = true
+        historyBrowsing.reset()
         if let window = resolvedHostWindow {
             BarTextFieldFocusRegistry.clearPendingSelectAll(in: window)
         }
@@ -1356,6 +1416,7 @@ struct PathBarView: View {
 
     private func navigateToPendingPath(_ targetPath: String) {
         committedViaSubmit = true
+        historyBrowsing.reset()
         if let window = resolvedHostWindow {
             BarTextFieldFocusRegistry.clearPendingSelectAll(in: window)
         }
@@ -1369,6 +1430,55 @@ struct PathBarView: View {
             activeField = nil
         }
         mode = .breadcrumb
+    }
+
+    private func browsePathHistory(_ direction: PathBarHistoryDirection) -> String? {
+        historyBrowsing.step(direction, currentDraft: editingText, entries: historyEntries)
+    }
+}
+
+private struct PathBarHistoryMenuButton: View {
+    let entries: [String]
+    let currentPath: String
+    let onSelect: (String) -> Void
+
+    var body: some View {
+        Menu {
+            ForEach(entries, id: \.self) { entry in
+                let isCurrent = (entry as NSString).standardizingPath
+                    == (currentPath as NSString).standardizingPath
+                Button {
+                    onSelect(entry)
+                } label: {
+                    if isCurrent {
+                        Label(displayName(for: entry), systemImage: "checkmark")
+                    } else {
+                        Text(displayName(for: entry))
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .instantHoverTooltip(L10n.Pathbar.history)
+    }
+
+    private func displayName(for path: String) -> String {
+        let standardized = (path as NSString).standardizingPath
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        if standardized == home {
+            return "~"
+        }
+        if standardized.hasPrefix(home + "/") {
+            return "~" + String(standardized.dropFirst(home.count))
+        }
+        return standardized
     }
 }
 

@@ -201,6 +201,9 @@ enum L10n {
         static var subdirs: String { ModuleLocalization.localized("pathbar.subdirs", bundle: .module) }
         static var noSubdirs: String { ModuleLocalization.localized("pathbar.no_subdirs", bundle: .module) }
         static var parent: String { ModuleLocalization.localized("pathbar.parent", bundle: .module) }
+        static var back: String { ModuleLocalization.localized("pathbar.back", bundle: .module) }
+        static var forward: String { ModuleLocalization.localized("pathbar.forward", bundle: .module) }
+        static var history: String { ModuleLocalization.localized("pathbar.history", bundle: .module) }
     }
 
     enum Dialog {
