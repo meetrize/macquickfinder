@@ -88,6 +88,14 @@ private struct DetachedPreviewWindowContent: View {
         .focusedValue(\.previewBrowseCommands, browseCommands)
         .background(PreviewBrowserKeyboardMonitor(session: session))
         .background(DetachedPreviewWindowTracker(sessionID: session.id))
+        .background(
+            Button(action: closeDetachedWindow) {
+                EmptyView()
+            }
+            .keyboardShortcut(.cancelAction)
+            .hidden()
+            .accessibilityHidden(true)
+        )
         .onAppear {
             session.browseContext?.setSameTypeOnly(previewBrowserSameTypeOnly)
         }
@@ -107,6 +115,11 @@ private struct DetachedPreviewWindowContent: View {
             )
             if docked { dismiss() }
         }
+    }
+
+    private func closeDetachedWindow() {
+        PreviewDetachCoordinator.shared.onDetachedWindowWillClose(sessionID: session.id)
+        dismiss()
     }
 }
 
