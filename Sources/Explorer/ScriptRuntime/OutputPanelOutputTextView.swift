@@ -66,6 +66,8 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         coordinator.jobID = jobID
         let trimmedFindText = findText.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasActiveFind = !trimmedFindText.isEmpty
+        let findJustCleared = coordinator.lastHadActiveFind && !hasActiveFind
+        coordinator.lastHadActiveFind = hasActiveFind
         let shouldAutoScroll = coordinator.shouldAutoScrollBeforeUpdate(isRunning: isRunning)
         let statusTabLocation = coordinator.currentStatusTabLocation()
         var didRebuildContent = false
@@ -131,6 +133,9 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
             )
         } else {
             coordinator.clearFindNavigation(findMatchCount: $findMatchCount)
+            if findJustCleared {
+                coordinator.resumeAutoFollowAfterFindCleared()
+            }
         }
 
         if (shouldAutoScroll || coordinator.shouldForceScrollToBottomAfterRebuild()) && !hasActiveFind {
@@ -154,6 +159,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         var lastFindNextToken: UInt = 0
         var findCurrentIndex = 0
         var findMatchRanges: [NSRange] = []
+        var lastHadActiveFind = false
         private var forceScrollToBottomAfterRebuild = false
         /// 运行中默认跟随最新输出；用户主动上滚后暂停，滚回底部后恢复。
         private var followRunningOutput = true
@@ -308,6 +314,11 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         func shouldForceScrollToBottomAfterRebuild() -> Bool {
             defer { forceScrollToBottomAfterRebuild = false }
             return forceScrollToBottomAfterRebuild
+        }
+
+        func resumeAutoFollowAfterFindCleared() {
+            followRunningOutput = true
+            forceScrollToBottomAfterRebuild = true
         }
 
         func clearFindNavigation(findMatchCount: Binding<Int>) {
