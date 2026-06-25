@@ -100,7 +100,7 @@ struct PreviewTextSearchToolbarControls: View {
             TextField(L10n.Preview.Toolbar.searchPrompt, text: $session.text.searchQuery)
                 .textFieldStyle(.roundedBorder)
                 .font(.caption)
-                .frame(width: 96)
+                .frame(minWidth: 88, maxWidth: 120)
                 .onSubmit {
                     session.text.findNextSearchMatch()
                 }

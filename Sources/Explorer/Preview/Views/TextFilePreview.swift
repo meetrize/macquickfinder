@@ -254,18 +254,19 @@ struct TextFilePreview: NSViewRepresentable {
         func applySearchHighlightsInPlace(textView: NSTextView, scrollToCurrent: Bool) {
             guard let storage = textView.textStorage else { return }
 
-            if !lastHighlightedSearchRanges.isEmpty {
-                storage.beginEditing()
-                for range in lastHighlightedSearchRanges {
-                    guard range.location != NSNotFound, NSMaxRange(range) <= storage.length else { continue }
-                    storage.removeAttribute(.backgroundColor, range: range)
-                }
-                storage.endEditing()
-                lastHighlightedSearchRanges = []
-            }
+            PreviewTextSearchHighlighter.clearHighlights(in: storage, ranges: lastHighlightedSearchRanges)
+            lastHighlightedSearchRanges = []
 
             let query = lastSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-            searchMatchRanges = Self.findMatchRanges(of: query, in: storage.string)
+            guard !query.isEmpty else {
+                searchMatchRanges = []
+                searchCurrentIndex = 0
+                if searchMatchCount != 0 { searchMatchCount = 0 }
+                lineNumberRuler?.needsDisplay = true
+                return
+            }
+
+            searchMatchRanges = PreviewTextSearchHighlighter.findMatchRanges(of: query, in: storage.string)
             if searchMatchRanges.isEmpty {
                 searchCurrentIndex = 0
             } else {
@@ -281,29 +282,15 @@ struct TextFilePreview: NSViewRepresentable {
                 return
             }
 
-            let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            let allMatchColor = isDark
-                ? NSColor.systemYellow.withAlphaComponent(0.35)
-                : NSColor.systemYellow.withAlphaComponent(0.45)
-            let currentMatchColor = isDark
-                ? NSColor.systemOrange.withAlphaComponent(0.55)
-                : NSColor.systemOrange.withAlphaComponent(0.65)
-
-            storage.beginEditing()
-            var applied: [NSRange] = []
-            for (index, range) in searchMatchRanges.enumerated() {
-                guard range.location != NSNotFound, NSMaxRange(range) <= storage.length else { continue }
-                let color = index == searchCurrentIndex ? currentMatchColor : allMatchColor
-                storage.addAttribute(.backgroundColor, value: color, range: range)
-                applied.append(range)
-            }
-            storage.endEditing()
-            lastHighlightedSearchRanges = applied
+            let result = PreviewTextSearchHighlighter.applyHighlights(
+                in: storage,
+                query: query,
+                currentIndex: searchCurrentIndex,
+                textView: textView,
+                scrollToCurrent: scrollToCurrent
+            )
+            lastHighlightedSearchRanges = result.applied
             lineNumberRuler?.needsDisplay = true
-
-            if scrollToCurrent, searchCurrentIndex < searchMatchRanges.count {
-                Self.scrollToRange(searchMatchRanges[searchCurrentIndex], in: textView)
-            }
         }
 
         func applyHighlight(
@@ -355,25 +342,6 @@ struct TextFilePreview: NSViewRepresentable {
             }
             renderWorkItem = workItem
             DispatchQueue.global(qos: .userInitiated).async(execute: workItem)
-        }
-
-        private static func findMatchRanges(of query: String, in text: String) -> [NSRange] {
-            guard !query.isEmpty else { return [] }
-            let nsText = text as NSString
-            var ranges: [NSRange] = []
-            var searchRange = NSRange(location: 0, length: nsText.length)
-            while searchRange.location < nsText.length {
-                let found = nsText.range(of: query, options: [.caseInsensitive], range: searchRange)
-                if found.location == NSNotFound { break }
-                ranges.append(found)
-                let nextLocation = found.location + max(found.length, 1)
-                searchRange = NSRange(location: nextLocation, length: nsText.length - nextLocation)
-            }
-            return ranges
-        }
-
-        private static func scrollToRange(_ range: NSRange, in textView: NSTextView) {
-            textView.scrollRangeToVisible(range)
         }
     }
 

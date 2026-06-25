@@ -120,19 +120,7 @@ extension PreviewSession {
             )
         }
 
-        if showsCodeTextSearch(for: ext) {
-            items.append(
-                PreviewToolbarOverflowModel(
-                    id: "text-search",
-                    menuTitle: L10n.Preview.Toolbar.searchPrompt,
-                    menuSystemImage: "magnifyingglass",
-                    isDisabled: false,
-                    estimatedWidth: 148,
-                    menuAction: {},
-                    content: AnyView(PreviewTextSearchToolbarControls(session: self))
-                )
-            )
-        } else if !PreviewTypeClassifier.isMarkdownFile(ext) {
+        if !showsPreviewTextSearch(for: item), !PreviewTypeClassifier.isMarkdownFile(ext) {
             items.append(
                 previewToolbarIconItem(
                     id: "text-copy",
@@ -160,11 +148,5 @@ extension PreviewSession {
         }
 
         return items
-    }
-
-    private func showsCodeTextSearch(for ext: String) -> Bool {
-        guard PreviewTypeClassifier.isCodeFile(ext) else { return false }
-        if PreviewTypeClassifier.isHtmlFile(ext), text.htmlMode == .preview { return false }
-        return true
     }
 }

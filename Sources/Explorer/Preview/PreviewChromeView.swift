@@ -60,6 +60,13 @@ struct PreviewChromeView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(-1)
 
+            if showsToolbarItems,
+               let item = session.toolbarFileItem,
+               session.showsPreviewTextSearch(for: item) {
+                PreviewTextSearchToolbarControls(session: session)
+                    .layoutPriority(3)
+            }
+
             if showsToolbarItems, let item = session.toolbarFileItem {
                 PreviewToolbarOverflowLayout(
                     spacing: 4,

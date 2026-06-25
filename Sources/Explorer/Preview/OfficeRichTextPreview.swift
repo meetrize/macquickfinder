@@ -7,8 +7,11 @@ struct OfficeRichTextPreview: NSViewRepresentable {
     let wrapLines: Bool
     let zoomScale: CGFloat
     @Binding var previewTextSelectionActive: Bool
+    @Binding var searchQuery: String
+    @Binding var searchNextToken: UInt
+    @Binding var searchMatchCount: Int
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeCoordinator() -> Coordinator { Coordinator(searchMatchCount: $searchMatchCount) }
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -53,6 +56,8 @@ struct OfficeRichTextPreview: NSViewRepresentable {
         if context.coordinator.contentSignature != signature {
             context.coordinator.contentSignature = signature
             textView.textStorage?.setAttributedString(attributedText)
+            context.coordinator.searchCurrentIndex = 0
+            context.coordinator.lastHighlightedSearchRanges = []
             let current = context.coordinator.currentScale
             if abs(current - 1.0) > 0.0001 {
                 textView.scaleUnitSquare(to: NSSize(width: 1.0 / current, height: 1.0 / current))
@@ -62,6 +67,11 @@ struct OfficeRichTextPreview: NSViewRepresentable {
         }
 
         applyScale(zoomScale, to: textView, context: context)
+        context.coordinator.updateSearchIfNeeded(
+            textView: textView,
+            searchQuery: searchQuery,
+            searchNextToken: searchNextToken
+        )
     }
 
     private func configureLayout(textView: NSTextView, scrollView: NSScrollView, wrapLines: Bool) {
@@ -97,11 +107,74 @@ struct OfficeRichTextPreview: NSViewRepresentable {
     }
 
     final class Coordinator {
+        @Binding var searchMatchCount: Int
         weak var textView: NSTextView?
         var previewTextSelectionActive: Binding<Bool>?
         var currentScale: CGFloat = 1.0
         var contentSignature: Int = 0
+        var lastSearchQuery: String = ""
+        var lastSearchNextToken: UInt = 0
+        var searchCurrentIndex: Int = 0
+        var searchMatchRanges: [NSRange] = []
+        var lastHighlightedSearchRanges: [NSRange] = []
         private var firstResponderObserver: NSObjectProtocol?
+
+        init(searchMatchCount: Binding<Int>) {
+            _searchMatchCount = searchMatchCount
+        }
+
+        func updateSearchIfNeeded(textView: NSTextView, searchQuery: String, searchNextToken: UInt) {
+            if lastSearchQuery != searchQuery {
+                lastSearchQuery = searchQuery
+                searchCurrentIndex = 0
+                applySearchHighlightsInPlace(
+                    textView: textView,
+                    scrollToCurrent: !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
+            } else if lastSearchNextToken != searchNextToken {
+                lastSearchNextToken = searchNextToken
+                guard !searchMatchRanges.isEmpty else { return }
+                searchCurrentIndex = (searchCurrentIndex + 1) % searchMatchRanges.count
+                applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
+            }
+        }
+
+        func applySearchHighlightsInPlace(textView: NSTextView, scrollToCurrent: Bool) {
+            guard let storage = textView.textStorage else { return }
+
+            PreviewTextSearchHighlighter.clearHighlights(in: storage, ranges: lastHighlightedSearchRanges)
+            lastHighlightedSearchRanges = []
+
+            let query = lastSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty else {
+                searchMatchRanges = []
+                searchCurrentIndex = 0
+                if searchMatchCount != 0 { searchMatchCount = 0 }
+                return
+            }
+
+            searchMatchRanges = PreviewTextSearchHighlighter.findMatchRanges(of: query, in: storage.string)
+            if searchMatchRanges.isEmpty {
+                searchCurrentIndex = 0
+            } else {
+                searchCurrentIndex = min(searchCurrentIndex, searchMatchRanges.count - 1)
+            }
+
+            if searchMatchCount != searchMatchRanges.count {
+                searchMatchCount = searchMatchRanges.count
+            }
+
+            guard !searchMatchRanges.isEmpty else { return }
+
+            let result = PreviewTextSearchHighlighter.applyHighlights(
+                in: storage,
+                query: query,
+                currentIndex: searchCurrentIndex,
+                textView: textView,
+                scrollToCurrent: scrollToCurrent
+            )
+            lastHighlightedSearchRanges = result.applied
+        }
 
         deinit {
             if let firstResponderObserver {

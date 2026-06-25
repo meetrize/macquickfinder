@@ -1,4 +1,5 @@
 import CoreGraphics
+import PDFKit
 import XCTest
 @testable import Explorer
 
@@ -93,6 +94,66 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertFalse(ids.contains("office-pan"))
         XCTAssertFalse(ids.contains("office-prev"))
         XCTAssertFalse(ids.contains("office-next"))
+    }
+
+    func testShowsPreviewTextSearchForSupportedTypes() {
+        let pdfSession = PreviewSession(
+            hostWindowID: UUID(),
+            file: FileItem(
+                id: "pdf",
+                url: URL(fileURLWithPath: "/tmp/sample.pdf"),
+                name: "sample.pdf",
+                isDirectory: false,
+                modificationDate: .distantPast,
+                size: 1024,
+                isHidden: false,
+                fileType: "pdf",
+                sizeDisplay: "1 KB",
+                dateDisplay: ""
+            )
+        )
+        XCTAssertFalse(pdfSession.showsPreviewTextSearch(for: pdfSession.file))
+        pdfSession.content.pdfDocument = PDFDocument()
+        XCTAssertTrue(pdfSession.showsPreviewTextSearch(for: pdfSession.file))
+
+        let mdSession = PreviewSession(
+            hostWindowID: UUID(),
+            file: FileItem(
+                id: "md",
+                url: URL(fileURLWithPath: "/tmp/readme.md"),
+                name: "readme.md",
+                isDirectory: false,
+                modificationDate: .distantPast,
+                size: 128,
+                isHidden: false,
+                fileType: "md",
+                sizeDisplay: "128 B",
+                dateDisplay: ""
+            )
+        )
+        mdSession.content.textContent = "# Title"
+        XCTAssertTrue(mdSession.showsPreviewTextSearch(for: mdSession.file))
+
+        let xlsxSession = PreviewSession(
+            hostWindowID: UUID(),
+            file: FileItem(
+                id: "xlsx",
+                url: URL(fileURLWithPath: "/tmp/data.xlsx"),
+                name: "data.xlsx",
+                isDirectory: false,
+                modificationDate: .distantPast,
+                size: 1024,
+                isHidden: false,
+                fileType: "xlsx",
+                sizeDisplay: "1 KB",
+                dateDisplay: ""
+            )
+        )
+        xlsxSession.content.textContent = "A\tB"
+        xlsxSession.office.spreadsheetMode = .text
+        XCTAssertTrue(xlsxSession.showsPreviewTextSearch(for: xlsxSession.file))
+        xlsxSession.office.spreadsheetMode = .quickLook
+        XCTAssertFalse(xlsxSession.showsPreviewTextSearch(for: xlsxSession.file))
     }
 
     func testQuickLookOfficeToolbarIncludesPageControlsWhenMultiplePages() {

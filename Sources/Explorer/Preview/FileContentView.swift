@@ -97,7 +97,10 @@ struct FileContentView: View {
                 PDFPreview(
                     document: pdfDoc,
                     navigationAction: $session.pdf.navigateAction,
-                    previewTextSelectionActive: $previewTextSelectionActive
+                    previewTextSelectionActive: $previewTextSelectionActive,
+                    searchQuery: $session.text.searchQuery,
+                    searchNextToken: $session.text.searchNextToken,
+                    searchMatchCount: $session.text.searchMatchCount
                 ) { currentPage, pageCount, scalePercent in
                     session.pdf.currentPage = currentPage
                     session.pdf.pageCount = pageCount
@@ -118,7 +121,10 @@ struct FileContentView: View {
                     attributedText: officeRichText,
                     wrapLines: session.text.wrapEnabled,
                     zoomScale: session.office.zoomScale,
-                    previewTextSelectionActive: $previewTextSelectionActive
+                    previewTextSelectionActive: $previewTextSelectionActive,
+                    searchQuery: $session.text.searchQuery,
+                    searchNextToken: $session.text.searchNextToken,
+                    searchMatchCount: $session.text.searchMatchCount
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if usesSpreadsheetQuickLook {
@@ -176,7 +182,10 @@ struct FileContentView: View {
                         markdown: session.content.textContent,
                         wrapLines: session.text.wrapEnabled,
                         zoomScale: $session.text.markdownPreviewScale,
-                        previewTextSelectionActive: $previewTextSelectionActive
+                        previewTextSelectionActive: $previewTextSelectionActive,
+                        searchQuery: $session.text.searchQuery,
+                        searchNextToken: $session.text.searchNextToken,
+                        searchMatchCount: $session.text.searchMatchCount
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {

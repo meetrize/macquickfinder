@@ -6,10 +6,13 @@ struct PDFPreview: NSViewRepresentable {
     let document: PDFDocument
     @Binding var navigationAction: PDFNavigationAction?
     @Binding var previewTextSelectionActive: Bool
+    @Binding var searchQuery: String
+    @Binding var searchNextToken: UInt
+    @Binding var searchMatchCount: Int
     var onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onStateChanged: onStateChanged)
+        Coordinator(searchMatchCount: $searchMatchCount, onStateChanged: onStateChanged)
     }
 
     func makeNSView(context: Context) -> PDFView {
@@ -41,6 +44,7 @@ struct PDFPreview: NSViewRepresentable {
         if nsView.document !== document {
             nsView.document = document
             nsView.autoScales = true
+            context.coordinator.clearSearchState()
             context.coordinator.emitState(from: nsView)
         }
 
@@ -75,17 +79,32 @@ struct PDFPreview: NSViewRepresentable {
                 context.coordinator.emitState(from: nsView)
             }
         }
+
+        context.coordinator.updateSearchIfNeeded(
+            pdfView: nsView,
+            searchQuery: searchQuery,
+            searchNextToken: searchNextToken
+        )
     }
 
     final class Coordinator: NSObject, PDFViewDelegate {
+        @Binding var searchMatchCount: Int
         var onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
         var previewTextSelectionActive: Binding<Bool>?
         private var pageChangedObserver: NSObjectProtocol?
         private var scaleChangedObserver: NSObjectProtocol?
         private var firstResponderObserver: NSObjectProtocol?
         private weak var observedView: PDFView?
+        private var lastSearchQuery: String = ""
+        private var lastSearchNextToken: UInt = 0
+        private var searchCurrentIndex: Int = 0
+        private var searchSelections: [PDFSelection] = []
 
-        init(onStateChanged: @escaping (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void) {
+        init(
+            searchMatchCount: Binding<Int>,
+            onStateChanged: @escaping (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
+        ) {
+            _searchMatchCount = searchMatchCount
             self.onStateChanged = onStateChanged
         }
 
@@ -165,6 +184,92 @@ struct PDFPreview: NSViewRepresentable {
             let availableWidth = max(pdfView.bounds.width - 24, 1)
             let targetScale = availableWidth / max(pageBounds.width, 1)
             pdfView.scaleFactor = max(0.25, min(targetScale, 5.0))
+        }
+
+        func clearSearchState() {
+            lastSearchQuery = ""
+            lastSearchNextToken = 0
+            searchCurrentIndex = 0
+            searchSelections = []
+            if searchMatchCount != 0 { searchMatchCount = 0 }
+        }
+
+        func updateSearchIfNeeded(pdfView: PDFView, searchQuery: String, searchNextToken: UInt) {
+            if lastSearchQuery != searchQuery {
+                lastSearchQuery = searchQuery
+                searchCurrentIndex = 0
+                applySearch(in: pdfView, scrollToCurrent: !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } else if lastSearchNextToken != searchNextToken {
+                lastSearchNextToken = searchNextToken
+                guard !searchSelections.isEmpty else { return }
+                searchCurrentIndex = (searchCurrentIndex + 1) % searchSelections.count
+                applySearch(in: pdfView, scrollToCurrent: true)
+            }
+        }
+
+        private func applySearch(in pdfView: PDFView, scrollToCurrent: Bool) {
+            guard let document = pdfView.document else { return }
+
+            let query = lastSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty else {
+                pdfView.highlightedSelections = nil
+                searchSelections = []
+                searchCurrentIndex = 0
+                if searchMatchCount != 0 { searchMatchCount = 0 }
+                return
+            }
+
+            var selections = document.findString(query, withOptions: .caseInsensitive)
+            if selections.isEmpty {
+                var fromSelection: PDFSelection?
+                while true {
+                    let found: PDFSelection?
+                    if let fromSelection {
+                        found = document.findString(query, fromSelection: fromSelection, withOptions: .caseInsensitive)
+                    } else {
+                        break
+                    }
+                    guard let found else { break }
+                    if let last = selections.last, last.isEqual(to: found) { break }
+                    selections.append(found)
+                    fromSelection = found
+                }
+            }
+
+            searchSelections = selections
+            if searchSelections.isEmpty {
+                searchCurrentIndex = 0
+            } else {
+                searchCurrentIndex = min(searchCurrentIndex, searchSelections.count - 1)
+            }
+
+            if searchMatchCount != searchSelections.count {
+                searchMatchCount = searchSelections.count
+            }
+
+            guard !searchSelections.isEmpty else {
+                pdfView.highlightedSelections = nil
+                return
+            }
+
+            let isDark = pdfView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let allColor = isDark
+                ? NSColor.systemYellow.withAlphaComponent(0.35)
+                : NSColor.systemYellow.withAlphaComponent(0.45)
+            let currentColor = isDark
+                ? NSColor.systemOrange.withAlphaComponent(0.55)
+                : NSColor.systemOrange.withAlphaComponent(0.65)
+
+            for (index, selection) in searchSelections.enumerated() {
+                selection.color = index == searchCurrentIndex ? currentColor : allColor
+            }
+            pdfView.highlightedSelections = searchSelections
+
+            if scrollToCurrent {
+                let current = searchSelections[searchCurrentIndex]
+                pdfView.setCurrentSelection(current, animate: false)
+                pdfView.go(to: current)
+            }
         }
     }
 }
