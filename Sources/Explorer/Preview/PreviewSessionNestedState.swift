@@ -160,7 +160,7 @@ final class PreviewSessionPDFState: ObservableObject {
 
 @MainActor
 final class PreviewSessionTextState: ObservableObject {
-    @Published var wrapEnabled = true
+    @Published var wrapEnabled = false
     @Published var previewAction: TextPreviewAction?
     @Published var searchQuery = ""
     @Published var searchNextToken: UInt = 0
@@ -171,7 +171,7 @@ final class PreviewSessionTextState: ObservableObject {
     @Published var htmlMode: HtmlDisplayMode = .preview
 
     func resetToolbar() {
-        wrapEnabled = true
+        wrapEnabled = false
         previewAction = nil
         searchQuery = ""
         searchNextToken = 0
@@ -213,6 +213,7 @@ final class PreviewSessionOfficeState: ObservableObject {
     @Published var navigateAction: OfficePreviewNavigateAction?
     @Published var navigateRevision: UInt = 0
     @Published var panMode = false
+    @Published var spreadsheetMode: SpreadsheetDisplayMode = .text
 
     func resetToolbar() {
         reloadToken = 0
@@ -222,6 +223,7 @@ final class PreviewSessionOfficeState: ObservableObject {
         navigateAction = nil
         navigateRevision = 0
         panMode = false
+        spreadsheetMode = .text
     }
 
     func sendNavigate(_ action: OfficePreviewNavigateAction) {

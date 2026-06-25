@@ -27,6 +27,21 @@ struct FileContentView: View {
         PreviewTypeClassifier.isMarkdownFile(fileExtension) && session.text.markdownMode == .preview
     }
 
+    private var usesSpreadsheetQuickLook: Bool {
+        PreviewTypeClassifier.isSpreadsheetFile(fileExtension)
+            && session.office.spreadsheetMode == .quickLook
+    }
+
+    private var isSpreadsheetTextMode: Bool {
+        PreviewTypeClassifier.isSpreadsheetFile(fileExtension)
+            && session.office.spreadsheetMode == .text
+            && !session.content.textContent.isEmpty
+    }
+
+    private var spreadsheetQuickLookURL: URL {
+        session.content.officeURL ?? item.url
+    }
+
     private var showsCodeLineNumbers: Bool {
         codePreviewShowLineNumbers && PreviewTypeClassifier.isCodeFile(fileExtension)
     }
@@ -106,7 +121,26 @@ struct FileContentView: View {
                     previewTextSelectionActive: $previewTextSelectionActive
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let officeURL = session.content.officeURL {
+            } else if usesSpreadsheetQuickLook {
+                QuickLookPreview(
+                    url: spreadsheetQuickLookURL,
+                    reloadToken: session.office.reloadToken,
+                    navigateRevision: session.office.navigateRevision,
+                    navigateAction: session.office.navigateAction,
+                    onStateChanged: { currentPage, pageCount, zoomScale in
+                        if session.office.currentPage != currentPage {
+                            session.office.currentPage = currentPage
+                        }
+                        if session.office.pageCount != pageCount {
+                            session.office.pageCount = pageCount
+                        }
+                        if abs(session.office.zoomScale - zoomScale) > 0.001 {
+                            session.office.zoomScale = zoomScale
+                        }
+                    }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let officeURL = session.content.officeURL, !isSpreadsheetTextMode {
                 QuickLookPreview(
                     url: officeURL,
                     reloadToken: session.office.reloadToken,
@@ -192,6 +226,9 @@ struct FileContentView: View {
             }
         }
         .onChange(of: session.text.markdownMode) { _ in
+            previewTextSelectionActive = false
+        }
+        .onChange(of: session.office.spreadsheetMode) { _ in
             previewTextSelectionActive = false
         }
         .onChange(of: session.text.htmlMode) { newMode in

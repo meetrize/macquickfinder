@@ -108,7 +108,9 @@ struct CustomPreviewRule: Codable, Identifiable, Equatable {
 enum BuiltinPreviewExtensions {
     static let image: Set<String> = ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"]
     static let media: Set<String> = ["mp4", "mov", "mp3", "wav"]
-    static let office: Set<String> = ["doc", "docx", "xlsx", "ppt", "pptx"]
+    static let office: Set<String> = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"]
+    /// 电子表格：优先文本表格预览（可选中复制），失败时回退 Quick Look。
+    static let spreadsheet: Set<String> = ["xls", "xlsx"]
     /// 幻灯片类 Office 文件（Quick Look 多页预览）。
     static let presentation: Set<String> = ["ppt", "pptx"]
     static let pdf: Set<String> = ["pdf"]
@@ -191,6 +193,10 @@ enum PreviewTypeClassifier {
     static func isOfficeFile(_ ext: String) -> Bool {
         if BuiltinPreviewExtensions.office.contains(ext.lowercased()) { return true }
         return customMode(forExtension: ext) == .quickLook
+    }
+
+    static func isSpreadsheetFile(_ ext: String) -> Bool {
+        BuiltinPreviewExtensions.spreadsheet.contains(ext.lowercased())
     }
 
     /// 代码类文本预览（语法高亮场景）；用于标题栏搜索框，替代复制/跳转按钮。

@@ -26,6 +26,12 @@ enum PreviewContentLoader {
         }
     }
 
+    static func loadSpreadsheetText(from url: URL) async -> String? {
+        try? await Task.detached(priority: .userInitiated) {
+            try SpreadsheetPreviewLoader.loadText(from: url)
+        }.value
+    }
+
     private static func loadOfficeRichText(rtfDataProvider: @escaping () throws -> Data) async -> NSAttributedString? {
         let rtfData = try? await Task.detached(priority: .userInitiated) {
             try rtfDataProvider()

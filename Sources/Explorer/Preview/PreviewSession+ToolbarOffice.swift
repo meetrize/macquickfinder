@@ -10,6 +10,64 @@ extension PreviewSession {
         return previewOfficeRichTextToolbarItems()
     }
 
+    func previewSpreadsheetToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
+        var items: [PreviewToolbarOverflowModel] = []
+
+        if !content.textContent.isEmpty {
+            items.append(
+                previewToolbarIconItem(
+                    id: "spreadsheet-toggle-mode",
+                    title: office.spreadsheetMode == .text
+                        ? L10n.Preview.Toolbar.spreadsheetToQuickLook
+                        : L10n.Preview.Toolbar.spreadsheetToText,
+                    systemImage: office.spreadsheetMode == .text ? "tablecells" : "doc.plaintext",
+                    action: { [self] in
+                        office.spreadsheetMode = office.spreadsheetMode == .text ? .quickLook : .text
+                    }
+                )
+            )
+        }
+
+        if office.spreadsheetMode == .quickLook {
+            items.append(contentsOf: previewQuickLookOfficeToolbarItems(for: item))
+        } else {
+            items.append(
+                previewToolbarIconItem(
+                    id: "spreadsheet-wrap",
+                    title: text.wrapEnabled ? L10n.Preview.Toolbar.wrapDisable : L10n.Preview.Toolbar.wrapEnable,
+                    systemImage: text.wrapEnabled ? "text.justify.left" : "arrow.left.and.right.text.vertical",
+                    action: { [self] in text.wrapEnabled.toggle() }
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "spreadsheet-copy",
+                    title: L10n.Preview.Toolbar.copyAll,
+                    systemImage: "doc.on.doc",
+                    action: { [self] in text.previewAction = .copyAll }
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "spreadsheet-top",
+                    title: L10n.Preview.Toolbar.jumpTop,
+                    systemImage: "arrow.up.to.line",
+                    action: { [self] in text.previewAction = .scrollTop }
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "spreadsheet-bottom",
+                    title: L10n.Preview.Toolbar.jumpBottom,
+                    systemImage: "arrow.down.to.line",
+                    action: { [self] in text.previewAction = .scrollBottom }
+                )
+            )
+        }
+
+        return items
+    }
+
     private func previewQuickLookOfficeToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
         let ext = item.url.pathExtension.lowercased()
         let showsPageControls = BuiltinPreviewExtensions.presentation.contains(ext) || office.pageCount > 1

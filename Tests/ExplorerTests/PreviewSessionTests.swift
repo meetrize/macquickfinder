@@ -26,7 +26,7 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertNil(session.image.zoomAction)
         XCTAssertEqual(session.image.effectiveZoomPercent, 0)
         XCTAssertEqual(session.pdf.currentPage, 0)
-        XCTAssertTrue(session.text.wrapEnabled)
+        XCTAssertFalse(session.text.wrapEnabled)
         XCTAssertEqual(session.text.markdownMode, .preview)
         XCTAssertEqual(session.text.htmlMode, .preview)
         XCTAssertEqual(session.location, .inline)

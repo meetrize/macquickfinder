@@ -17,6 +17,9 @@ extension PreviewSession {
         if PreviewTypeClassifier.isMediaFile(ext) {
             return previewMediaToolbarItems()
         }
+        if PreviewTypeClassifier.isSpreadsheetFile(ext) {
+            return previewSpreadsheetToolbarItems(for: item)
+        }
         if PreviewTypeClassifier.isOfficeFile(ext) {
             return previewOfficeToolbarItems(for: item)
         }

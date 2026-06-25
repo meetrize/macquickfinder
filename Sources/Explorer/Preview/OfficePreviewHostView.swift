@@ -125,10 +125,26 @@ final class OfficePreviewHostView: NSView {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.layoutGeneration == generation, let qlView = self.qlPreviewView else { return }
                 self.resolveZoomBackend(in: qlView)
+                self.enableQuickLookTextSelection(in: qlView)
                 self.applyCurrentZoom()
                 self.publishStateIfNeeded(force: false)
             }
         }
+    }
+
+    /// xlsx Quick Look 使用 QLWeb2View，注入样式以允许鼠标选中单元格文本。
+    private func enableQuickLookTextSelection(in qlView: QLPreviewView) {
+        guard let webView = findWKWebView(in: qlView) else { return }
+        let script = """
+        (function() {
+          if (document.getElementById('mqf-enable-select')) { return; }
+          var style = document.createElement('style');
+          style.id = 'mqf-enable-select';
+          style.textContent = 'html,body,*{user-select:text !important;-webkit-user-select:text !important;cursor:auto !important;}';
+          (document.head || document.documentElement).appendChild(style);
+        })();
+        """
+        webView.evaluateJavaScript(script, completionHandler: nil)
     }
 
     private func resolveZoomBackend(in qlView: QLPreviewView) {

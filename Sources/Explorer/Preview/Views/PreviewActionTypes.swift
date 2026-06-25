@@ -43,3 +43,8 @@ enum HtmlDisplayMode: Equatable {
     case preview
     case source
 }
+
+enum SpreadsheetDisplayMode: Equatable {
+    case text
+    case quickLook
+}

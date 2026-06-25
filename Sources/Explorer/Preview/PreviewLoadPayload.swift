@@ -37,6 +37,10 @@ struct PreviewLoadPayload {
         PreviewLoadPayload(textContent: content)
     }
 
+    static func spreadsheetText(_ content: String, officeURL: URL) -> PreviewLoadPayload {
+        PreviewLoadPayload(officeURL: officeURL, textContent: content)
+    }
+
     static func failure(_ message: String) -> PreviewLoadPayload {
         PreviewLoadPayload(error: message)
     }

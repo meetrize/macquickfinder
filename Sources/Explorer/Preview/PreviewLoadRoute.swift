@@ -7,6 +7,8 @@ enum PreviewLoadRoute: Equatable {
     case builtInMedia
     case docx
     case doc
+    case xlsx
+    case xls
     case builtInOffice
     case builtInPDF
     case archive
@@ -42,6 +44,12 @@ enum PreviewLoadDispatch {
         }
         if ext == "doc" {
             return .doc
+        }
+        if ext == "xlsx" {
+            return .xlsx
+        }
+        if ext == "xls" {
+            return .xls
         }
         if BuiltinPreviewExtensions.office.contains(ext) {
             return .builtInOffice

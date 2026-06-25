@@ -365,6 +365,8 @@ enum L10n {
             static var wrapEnable: String { ModuleLocalization.localized("preview.toolbar.wrap_enable", bundle: .module) }
             static var markdownToSource: String { ModuleLocalization.localized("preview.toolbar.markdown_to_source", bundle: .module) }
             static var markdownToPreview: String { ModuleLocalization.localized("preview.toolbar.markdown_to_preview", bundle: .module) }
+            static var spreadsheetToQuickLook: String { ModuleLocalization.localized("preview.toolbar.spreadsheet_to_quicklook", bundle: .module) }
+            static var spreadsheetToText: String { ModuleLocalization.localized("preview.toolbar.spreadsheet_to_text", bundle: .module) }
             static var zoom: String { ModuleLocalization.localized("preview.toolbar.zoom", bundle: .module) }
             static var eyedropper: String { ModuleLocalization.localized("preview.toolbar.eyedropper", bundle: .module) }
 
