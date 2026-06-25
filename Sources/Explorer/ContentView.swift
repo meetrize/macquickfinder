@@ -397,6 +397,24 @@ struct ContentView: View {
                 .instantHoverTooltip(leftPanelMode == .hidden ? L10n.Toolbar.showLeftPanel : L10n.Toolbar.hideLeftPanel)
             }
             .hideSharedBackgroundIfAvailable()
+
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { layout.showPreview.toggle() }) {
+                    Image(systemName: layout.showPreview ? "doc.text.image.fill" : "doc.text.image")
+                }
+                .buttonStyle(.borderless)
+                .instantHoverTooltip(layout.showPreview ? L10n.Menu.hidePreview : L10n.Menu.showPreview)
+            }
+            .hideSharedBackgroundIfAvailable()
+
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { layout.showSnippets.toggle() }) {
+                    Image(systemName: layout.showSnippets ? "curlybraces.square.fill" : "curlybraces.square")
+                }
+                .buttonStyle(.borderless)
+                .instantHoverTooltip(layout.showSnippets ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets)
+            }
+            .hideSharedBackgroundIfAvailable()
             
             ToolbarItem(placement: .primaryAction) {
                 Button(action: createNewFolder) {
