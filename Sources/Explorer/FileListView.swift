@@ -782,6 +782,7 @@ private struct FileListAutoFocusRequester: NSViewRepresentable {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak view] in
                 guard let self, let view else { return }
                 guard token == self.lastToken else { return }
+                guard !OutputPanelTextEditingCenter.shared.isActive else { return }
                 guard let window = view.window,
                       let contentView = window.contentView,
                       let tableView = Self.findFileListTableView(in: contentView)

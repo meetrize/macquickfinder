@@ -292,6 +292,7 @@ extension OutputCommandTextField: NSTextFieldDelegate {
 struct OutputCommandField: NSViewRepresentable {
     @Binding var text: String
     var isEnabled: Bool
+    var refocusToken: UInt = 0
     var onFocusChange: (Bool) -> Void
     var onSubmit: () -> Void
     var onHistoryNavigate: (OutputCommandHistoryDirection) -> String?
@@ -313,7 +314,8 @@ struct OutputCommandField: NSViewRepresentable {
         wire(nsView, context: context)
         nsView.isEnabled = isEnabled
         let shouldRefocus = context.coordinator.syncIfNeeded(field: nsView, text: text)
-        if shouldRefocus {
+        if shouldRefocus || context.coordinator.lastRefocusToken != refocusToken {
+            context.coordinator.lastRefocusToken = refocusToken
             nsView.refocusFieldEditor()
         }
     }
@@ -329,6 +331,7 @@ struct OutputCommandField: NSViewRepresentable {
 
     final class Coordinator {
         @Binding var text: String
+        var lastRefocusToken: UInt = 0
 
         init(text: Binding<String>) {
             _text = text

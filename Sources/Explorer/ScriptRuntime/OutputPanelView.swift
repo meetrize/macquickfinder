@@ -26,6 +26,8 @@ struct OutputPanelView: View {
     /// 拖拽过程中的临时高度，避免每帧写 UserDefaults 导致抖动
     @State private var dragPanelHeight: CGFloat?
     @FocusState private var focusedField: OutputPanelFocusField?
+    @State private var prefersCommandFieldFocus = false
+    @State private var commandRefocusToken: UInt = 0
 
     private var desiredPanelHeight: CGFloat {
         if layout.isOutputPanelContentCollapsed {
@@ -127,6 +129,15 @@ struct OutputPanelView: View {
                         if let job = jobStore.selectedJob {
                             syncCommandDraft(for: job)
                             resetHistoryBrowsing(for: job.id)
+                        }
+                    }
+                    .onChange(of: job.status) { status in
+                        guard prefersCommandFieldFocus else { return }
+                        switch status {
+                        case .succeeded, .failed, .cancelled:
+                            scheduleCommandFieldRefocus()
+                        default:
+                            break
                         }
                     }
             } else {
@@ -247,6 +258,7 @@ struct OutputPanelView: View {
         .onTapGesture {
             isOutputAreaActive = true
             focusedField = nil
+            prefersCommandFieldFocus = false
         }
     }
 
@@ -278,12 +290,15 @@ struct OutputPanelView: View {
         OutputCommandField(
             text: $commandDraft,
             isEnabled: true,
+            refocusToken: commandRefocusToken,
             onFocusChange: { focused in
                 if focused {
                     focusedField = .command
                     isOutputAreaActive = false
+                    prefersCommandFieldFocus = true
                 } else if focusedField == .command {
                     focusedField = nil
+                    prefersCommandFieldFocus = false
                 }
             },
             onSubmit: {
@@ -452,6 +467,7 @@ struct OutputPanelView: View {
                     if focused {
                         focusedField = .find
                         isOutputAreaActive = false
+                        prefersCommandFieldFocus = false
                     } else if focusedField == .find {
                         focusedField = nil
                     }
@@ -503,6 +519,7 @@ struct OutputPanelView: View {
         guard !trimmed.isEmpty else { return }
         guard job.status != .running else { return }
 
+        prefersCommandFieldFocus = true
         let currentDirectory = executionContext.cwd
         jobStore.rerunEditedCommand(
             fromJobID: job.id,
@@ -574,6 +591,17 @@ struct OutputPanelView: View {
     private func resetCompletionSession(for jobID: UUID) {
         completionSessions[jobID] = OutputCommandCompletionSession()
         completionListHint = nil
+    }
+
+    private func scheduleCommandFieldRefocus() {
+        commandRefocusToken &+= 1
+        focusedField = .command
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            guard prefersCommandFieldFocus else { return }
+            commandRefocusToken &+= 1
+            focusedField = .command
+        }
     }
 }
 
