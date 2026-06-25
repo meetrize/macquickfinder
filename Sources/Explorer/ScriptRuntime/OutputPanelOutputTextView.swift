@@ -339,7 +339,11 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         ) {
             let trimmed = findText.trimmingCharacters(in: .whitespacesAndNewlines)
             let findTextChanged = lastFindText != findText
-            let pendingAdvanceCount = findTextChanged ? 0 : Int(findNextToken &- lastFindNextToken)
+            let pendingAdvanceCount: Int = {
+                guard !findTextChanged else { return 0 }
+                guard findNextToken >= lastFindNextToken else { return 0 }
+                return Int(findNextToken - lastFindNextToken)
+            }()
 
             if findTextChanged {
                 lastFindText = findText
