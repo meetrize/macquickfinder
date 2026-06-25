@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 输出面板底部命令输入框。
 final class OutputCommandTextField: NSTextField {
@@ -15,6 +16,16 @@ final class OutputCommandTextField: NSTextField {
     private var suppressFocusEndNotification = false
     private var suppressCompletionReset = false
     private var keyMonitor: Any?
+    private var selectionObserver: NSObjectProtocol?
+    /// 失焦后仍用于拖放插入的光标位置；未编辑过时为 `nil`（插入到行尾）。
+    private var lastCursorIndex: Int?
+
+    private static let fileDragTypes: [NSPasteboard.PasteboardType] = [
+        .fileURL,
+        NSPasteboard.PasteboardType(UTType.fileURL.identifier),
+        NSPasteboard.PasteboardType("public.file-url"),
+        NSPasteboard.PasteboardType("NSFilenamesPboardType"),
+    ]
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -28,6 +39,9 @@ final class OutputCommandTextField: NSTextField {
 
     deinit {
         removeKeyMonitor()
+        if let selectionObserver {
+            NotificationCenter.default.removeObserver(selectionObserver)
+        }
     }
 
     private func configure() {
@@ -45,14 +59,17 @@ final class OutputCommandTextField: NSTextField {
         cell?.isScrollable = true
         cell?.truncatesLastVisibleLine = true
         delegate = self
+        registerForDraggedTypes(Self.fileDragTypes)
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if window != nil {
             installKeyMonitorIfNeeded()
+            installSelectionObserverIfNeeded()
         } else {
             removeKeyMonitor()
+            removeSelectionObserver()
         }
     }
 
@@ -131,9 +148,91 @@ final class OutputCommandTextField: NSTextField {
             } else if let cursor {
                 let clamped = min(max(cursor, 0), (editor.string as NSString).length)
                 editor.setSelectedRange(NSRange(location: clamped, length: 0))
+                self.lastCursorIndex = clamped
             } else {
                 editor.moveToEndOfLine(nil)
+                self.lastCursorIndex = editor.selectedRange.location
             }
+        }
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        dragOperation(for: sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        dragOperation(for: sender)
+    }
+
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        canAcceptFileDrag(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let paths = FileDragDrop.fileURLs(from: sender.draggingPasteboard).map(\.path)
+        guard !paths.isEmpty else { return false }
+        insertDroppedFilePaths(paths)
+        return true
+    }
+
+    private func canAcceptFileDrag(_ sender: NSDraggingInfo) -> Bool {
+        guard isEnabled, isEditable else { return false }
+        return !FileDragDrop.fileURLs(from: sender.draggingPasteboard).isEmpty
+    }
+
+    private func dragOperation(for sender: NSDraggingInfo) -> NSDragOperation {
+        guard canAcceptFileDrag(sender) else { return [] }
+        let mask = sender.draggingSourceOperationMask
+        if mask.contains(.copy) { return .copy }
+        if mask.contains(.move) { return .move }
+        return .copy
+    }
+
+    private func currentCursorIndex() -> Int {
+        if let editor = currentEditor() {
+            return editor.selectedRange.location
+        }
+        let length = (stringValue as NSString).length
+        return min(max(lastCursorIndex ?? length, 0), length)
+    }
+
+    private func insertDroppedFilePaths(_ paths: [String]) {
+        let insertion = paths.joined(separator: " ")
+        guard !insertion.isEmpty else { return }
+
+        let cursor = currentCursorIndex()
+        let ns = stringValue as NSString
+        let newValue = ns.replacingCharacters(in: NSRange(location: cursor, length: 0), with: insertion)
+        let newCursor = cursor + (insertion as NSString).length
+
+        suppressTextSync = true
+        stringValue = newValue
+        suppressTextSync = false
+        lastCursorIndex = newCursor
+        onCompletionSessionReset?()
+        onTextChange?(newValue)
+        refocusFieldEditor(cursor: newCursor)
+    }
+
+    private func installSelectionObserverIfNeeded() {
+        guard selectionObserver == nil else { return }
+        selectionObserver = NotificationCenter.default.addObserver(
+            forName: NSTextView.didChangeSelectionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let textView = notification.object as? NSTextView,
+                  textView.isFieldEditor,
+                  (textView.delegate as AnyObject?) === self else { return }
+            self.lastCursorIndex = textView.selectedRange.location
+        }
+    }
+
+    private func removeSelectionObserver() {
+        if let selectionObserver {
+            NotificationCenter.default.removeObserver(selectionObserver)
+            self.selectionObserver = nil
         }
     }
 
@@ -254,16 +353,29 @@ extension OutputCommandTextField: NSTextFieldDelegate {
     }
 
     func controlTextDidEndEditing(_ obj: Notification) {
+        if let editor = currentEditor() {
+            lastCursorIndex = editor.selectedRange.location
+        }
         guard !suppressFocusEndNotification else { return }
         notifyFocusChanged(false)
     }
 
     func controlTextDidChange(_ obj: Notification) {
         guard !suppressTextSync else { return }
+        if let editor = currentEditor() {
+            lastCursorIndex = editor.selectedRange.location
+        }
         if !suppressCompletionReset {
             onCompletionSessionReset?()
         }
         onTextChange?(stringValue)
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
+        if let replacementString {
+            lastCursorIndex = affectedCharRange.location + (replacementString as NSString).length
+        }
+        return true
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
