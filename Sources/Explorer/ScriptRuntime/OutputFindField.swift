@@ -4,6 +4,7 @@ import SwiftUI
 /// 输出面板搜索框；回车仅消费按键，不结束编辑、不全选文字。
 final class OutputFindTextField: NSTextField {
     var onFocusChanged: ((Bool) -> Void)?
+    var onSubmit: (() -> Void)?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -19,8 +20,8 @@ final class OutputFindTextField: NSTextField {
         isEditable = true
         isSelectable = true
         isBordered = false
-        drawsBackground = true
-        backgroundColor = OutputPanelStyle.commandFieldBackground
+        drawsBackground = false
+        backgroundColor = .clear
         textColor = OutputPanelStyle.commandFieldText
         font = OutputPanelStyle.commandFieldFont
         focusRingType = .none
@@ -72,6 +73,7 @@ final class OutputFindTextField: NSTextField {
         guard isEnabled, isEditable else { return false }
         switch event.keyCode {
         case 36, 76:
+            onSubmit?()
             return true
         default:
             return false
@@ -83,6 +85,7 @@ final class OutputFindTextField: NSTextField {
 struct OutputFindField: NSViewRepresentable {
     @Binding var text: String
     @Binding var isFocused: Bool
+    var onSubmit: () -> Void = {}
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -100,9 +103,11 @@ struct OutputFindField: NSViewRepresentable {
     func updateNSView(_ nsView: OutputFindTextField, context: Context) {
         context.coordinator.onTextChange = { text = $0 }
         context.coordinator.isFocusedBinding = $isFocused
+        context.coordinator.onSubmit = onSubmit
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
+        nsView.onSubmit = context.coordinator.onSubmit
         if isFocused, nsView.window?.firstResponder !== nsView.currentEditor() {
             nsView.window?.makeFirstResponder(nsView)
         }
@@ -110,6 +115,7 @@ struct OutputFindField: NSViewRepresentable {
 
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var onTextChange: (String) -> Void = { _ in }
+        var onSubmit: () -> Void = {}
         var isFocusedBinding: Binding<Bool>?
         var isFocused = false {
             didSet {
@@ -124,7 +130,11 @@ struct OutputFindField: NSViewRepresentable {
         }
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-            commandSelector == #selector(NSResponder.insertNewline(_:))
+            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+                onSubmit()
+                return true
+            }
+            return false
         }
     }
 }

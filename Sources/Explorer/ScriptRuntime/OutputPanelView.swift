@@ -465,26 +465,7 @@ struct OutputPanelView: View {
     }
 
     private var findTextField: some View {
-        OutputFindField(
-            text: $findText,
-            isFocused: Binding(
-                get: { focusedField == .find },
-                set: { focused in
-                    if focused {
-                        focusedField = .find
-                        isOutputAreaActive = false
-                        prefersCommandFieldFocus = false
-                    } else if focusedField == .find {
-                        focusedField = nil
-                    }
-                }
-            )
-        )
-        .padding(.leading, focusedField == .find ? 2 : 14)
-        .padding(.trailing, findMatchCount > 1 ? 32 : 0)
-        .frame(width: 156)
-        .modifier(OutputCommandCapsuleFieldStyle())
-        .overlay(alignment: .leading) {
+        HStack(spacing: 4) {
             if focusedField != .find {
                 Button {
                     focusedField = .find
@@ -495,25 +476,46 @@ struct OutputPanelView: View {
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.plain)
-                .padding(.leading, 10)
                 .help(L10n.Snippets.Output.find)
             }
-        }
-        .overlay(alignment: .trailing) {
-            if findMatchCount > 1 {
+
+            OutputFindField(
+                text: $findText,
+                isFocused: Binding(
+                    get: { focusedField == .find },
+                    set: { focused in
+                        if focused {
+                            focusedField = .find
+                            isOutputAreaActive = false
+                            prefersCommandFieldFocus = false
+                        } else if focusedField == .find {
+                            focusedField = nil
+                        }
+                    }
+                ),
+                onSubmit: {
+                    findNextToken &+= 1
+                }
+            )
+            .frame(minWidth: 72, maxWidth: .infinity)
+
+            if !findText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Button {
                     findNextToken &+= 1
                 } label: {
                     Image(systemName: "chevron.down")
                         .font(.system(size: NSFont.systemFontSize, weight: .regular))
                         .foregroundStyle(OutputPanelStyle.commandFieldTextColor.opacity(0.85))
-                        .frame(width: 22, height: 22)
+                        .frame(width: 30, height: 26)
                 }
                 .buttonStyle(.plain)
-                .padding(.trailing, 10)
+                .contentShape(Rectangle())
                 .help(L10n.Preview.Toolbar.nextMatch)
             }
         }
+        .padding(.horizontal, 10)
+        .frame(width: 176)
+        .modifier(OutputCommandCapsuleFieldStyle())
         .onChange(of: findText) { _ in
             findNextToken = 0
         }
