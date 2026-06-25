@@ -5,37 +5,33 @@ struct PreviewImageZoomToolbarControls: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            Button {
-                session.image.zoomScale = max(session.image.zoomScale - 0.25, 0.1)
-            } label: {
-                Image(systemName: "minus.magnifyingglass")
-            }
-            .buttonStyle(.borderless)
-            .instantHoverTooltip(L10n.Preview.Toolbar.zoomOut)
+            PreviewFocuslessIconButton(
+                systemImageName: "minus.magnifyingglass",
+                accessibilityLabel: L10n.Preview.Toolbar.zoomOut,
+                action: { session.image.zoomScale = max(session.image.zoomScale - 0.25, 0.1) }
+            )
             .disabled(session.image.zoomScale <= 0.1)
+            .instantHoverTooltip(L10n.Preview.Toolbar.zoomOut)
 
-            Button {
-                session.image.zoomScale = min(session.image.zoomScale + 0.25, 5.0)
-            } label: {
-                Image(systemName: "plus.magnifyingglass")
-            }
-            .buttonStyle(.borderless)
+            PreviewFocuslessIconButton(
+                systemImageName: "plus.magnifyingglass",
+                accessibilityLabel: L10n.Preview.Toolbar.zoomIn,
+                action: { session.image.zoomScale = min(session.image.zoomScale + 0.25, 5.0) }
+            )
             .instantHoverTooltip(L10n.Preview.Toolbar.zoomIn)
 
-            Button {
-                session.image.zoomAction = .fit
-            } label: {
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
-            }
-            .buttonStyle(.borderless)
+            PreviewFocuslessIconButton(
+                systemImageName: "arrow.up.left.and.arrow.down.right",
+                accessibilityLabel: L10n.Preview.Toolbar.fitWindow,
+                action: { session.image.zoomAction = .fit }
+            )
             .instantHoverTooltip(L10n.Preview.Toolbar.fitWindow)
 
-            Button {
-                session.image.zoomAction = .actualSize
-            } label: {
-                Image(systemName: "1.magnifyingglass")
-            }
-            .buttonStyle(.borderless)
+            PreviewFocuslessIconButton(
+                systemImageName: "1.magnifyingglass",
+                accessibilityLabel: L10n.Preview.Toolbar.actualSize,
+                action: { session.image.zoomAction = .actualSize }
+            )
             .instantHoverTooltip(L10n.Preview.Toolbar.actualSize)
 
             Text(session.image.effectiveZoomPercent > 0 ? "\(session.image.effectiveZoomPercent)%" : "--")
@@ -51,17 +47,12 @@ struct PreviewImageEyedropperToolbarButton: View {
     @ObservedObject var session: PreviewSession
 
     var body: some View {
-        Button {
-            session.image.eyedropperActive.toggle()
-        } label: {
-            Image(systemName: "eyedropper")
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(
-                    session.image.eyedropperActive ? Color.accentColor : Color.primary,
-                    Color.primary
-                )
-        }
-        .buttonStyle(.borderless)
+        PreviewFocuslessIconButton(
+            systemImageName: "eyedropper",
+            accessibilityLabel: L10n.Preview.Toolbar.colorPicker,
+            isActive: session.image.eyedropperActive,
+            action: { session.image.eyedropperActive.toggle() }
+        )
         .instantHoverTooltip(L10n.Preview.Toolbar.colorPicker)
     }
 }
@@ -97,21 +88,20 @@ struct PreviewTextSearchToolbarControls: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            TextField(L10n.Preview.Toolbar.searchPrompt, text: $session.text.searchQuery)
-                .textFieldStyle(.roundedBorder)
-                .font(.caption)
-                .frame(minWidth: 88, maxWidth: 120)
-                .onSubmit {
-                    session.text.findNextSearchMatch()
-                }
+            PreviewFocuslessTextField(
+                text: $session.text.searchQuery,
+                placeholder: L10n.Preview.Toolbar.searchPrompt,
+                width: 120,
+                onSubmit: { session.text.findNextSearchMatch() }
+            )
+            .frame(minWidth: 88, maxWidth: 120)
 
             if session.text.searchMatchCount > 1 {
-                Button {
-                    session.text.findNextSearchMatch()
-                } label: {
-                    Image(systemName: "chevron.down")
-                }
-                .buttonStyle(.borderless)
+                PreviewFocuslessIconButton(
+                    systemImageName: "chevron.down",
+                    accessibilityLabel: L10n.Preview.Toolbar.nextMatch,
+                    action: { session.text.findNextSearchMatch() }
+                )
                 .instantHoverTooltip(L10n.Preview.Toolbar.nextMatch)
             }
         }
@@ -125,11 +115,11 @@ struct PreviewPDFPageInputField: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            TextField("", text: $session.pdf.pageInput)
-                .textFieldStyle(.roundedBorder)
-                .font(.caption)
-                .frame(width: 44)
-                .onSubmit {
+            PreviewFocuslessTextField(
+                text: $session.pdf.pageInput,
+                placeholder: "",
+                width: 44,
+                onSubmit: {
                     let trimmed = session.pdf.pageInput.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard let page = Int(trimmed), session.pdf.pageCount > 0 else {
                         session.pdf.pageInput = session.pdf.currentPage > 0 ? "\(session.pdf.currentPage)" : ""
@@ -138,6 +128,7 @@ struct PreviewPDFPageInputField: View {
                     let clamped = min(max(page, 1), session.pdf.pageCount)
                     session.pdf.navigateAction = .goToPage(clamped)
                 }
+            )
 
             Text("/\(session.pdf.pageCount > 0 ? "\(session.pdf.pageCount)" : "--")")
                 .font(.caption)

@@ -99,6 +99,7 @@ struct PreviewToolbarOverflowLayout: View {
                     }
                     .menuIndicator(.hidden)
                     .buttonStyle(.borderless)
+                    .focusable(false)
                     .instantHoverTooltip(L10n.Preview.Toolbar.moreActions)
                     .fixedSize()
                 }

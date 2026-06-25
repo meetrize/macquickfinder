@@ -4,6 +4,7 @@ import SwiftUI
 struct PreviewFocuslessIconButton: NSViewRepresentable {
     let systemImageName: String
     let accessibilityLabel: String
+    var isActive: Bool = false
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
 
@@ -14,7 +15,12 @@ struct PreviewFocuslessIconButton: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = PreviewFocuslessIconNSView()
         view.setAccessibilityLabel(accessibilityLabel)
-        view.updateImage(systemImageName, accessibilityLabel: accessibilityLabel, isEnabled: isEnabled)
+        view.updateImage(
+            systemImageName,
+            accessibilityLabel: accessibilityLabel,
+            isEnabled: isEnabled,
+            isActive: isActive
+        )
         view.onClick = isEnabled ? { context.coordinator.didTap() } : nil
         return view
     }
@@ -23,7 +29,12 @@ struct PreviewFocuslessIconButton: NSViewRepresentable {
         context.coordinator.action = action
         guard let iconView = nsView as? PreviewFocuslessIconNSView else { return }
         iconView.setAccessibilityLabel(accessibilityLabel)
-        iconView.updateImage(systemImageName, accessibilityLabel: accessibilityLabel, isEnabled: isEnabled)
+        iconView.updateImage(
+            systemImageName,
+            accessibilityLabel: accessibilityLabel,
+            isEnabled: isEnabled,
+            isActive: isActive
+        )
         iconView.onClick = isEnabled ? { context.coordinator.didTap() } : nil
     }
 
@@ -71,10 +82,20 @@ private final class PreviewFocuslessIconNSView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func updateImage(_ systemImageName: String, accessibilityLabel: String, isEnabled: Bool) {
+    func updateImage(
+        _ systemImageName: String,
+        accessibilityLabel: String,
+        isEnabled: Bool,
+        isActive: Bool = false
+    ) {
         imageView.image = NSImage(systemSymbolName: systemImageName, accessibilityDescription: accessibilityLabel)
-        imageView.contentTintColor = isEnabled ? .labelColor : .disabledControlTextColor
-        alphaValue = isEnabled ? 1 : 0.6
+        if !isEnabled {
+            imageView.contentTintColor = .disabledControlTextColor
+            alphaValue = 0.6
+        } else {
+            imageView.contentTintColor = isActive ? .controlAccentColor : .labelColor
+            alphaValue = 1
+        }
     }
 
     @objc private func handleClick() {
