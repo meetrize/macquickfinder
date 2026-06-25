@@ -40,6 +40,8 @@ private enum FavoriteSidebarMetrics {
     static let railRowHeight: CGFloat = rowHeight
     static let rowContentInset: CGFloat = 8
     static let selectionCornerRadius: CGFloat = 6
+    /// 选中背景相对内容区向左偏移（左右边缘同步左移）。
+    static let selectionBackgroundLeadingOffset: CGFloat = -5
     /// 侧栏模式下图标左边距（相对 `SidebarRow` 内容区再向左 5pt）。
     static let sidebarIconLeadingInset: CGFloat = 3
 }
@@ -626,7 +628,12 @@ private final class FavoriteSidebarCellView: NSTableCellView {
             
             selectionBackgroundView.isHidden = !isFavoriteSelected
             if isFavoriteSelected, radius > 0 {
-                selectionBackgroundView.frame = NSRect(x: 0, y: 0, width: contentWidth, height: height)
+                selectionBackgroundView.frame = NSRect(
+                    x: FavoriteSidebarMetrics.selectionBackgroundLeadingOffset,
+                    y: 0,
+                    width: contentWidth,
+                    height: height
+                )
                 selectionBackgroundView.layer?.cornerRadius = radius
                 selectionBackgroundView.layer?.backgroundColor = NSColor
                     .unemphasizedSelectedContentBackgroundColor
