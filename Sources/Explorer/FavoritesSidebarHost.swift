@@ -24,7 +24,7 @@ enum FavoriteSidebarRailLayout {
     /// 侧栏模式：收藏列表与 `SidebarView` 水平 padding 对齐，选中背景左缘距面板 8pt。
     static let sidebarContentLeadingBleed: CGFloat = 0
     /// 侧栏模式：收藏列表向右外扩。
-    static let sidebarContentTrailingBleed: CGFloat = 4
+    static let sidebarContentTrailingBleed: CGFloat = 0
     /// 工具栏模式：收藏列表向左外扩。
     static let railContentLeadingBleed: CGFloat = 3
     /// 工具栏模式：收藏列表向右外扩。
@@ -40,8 +40,8 @@ private enum FavoriteSidebarMetrics {
     static let railRowHeight: CGFloat = rowHeight
     static let rowContentInset: CGFloat = 8
     static let selectionCornerRadius: CGFloat = 6
-    /// 侧栏模式下图标左边距（与 `SidebarRow` 高亮内 `.padding(.horizontal, 8)` 对齐）。
-    static let sidebarIconLeadingInset: CGFloat = 8
+    /// 侧栏模式下图标左边距（相对 `SidebarRow` 内容区再向左 5pt）。
+    static let sidebarIconLeadingInset: CGFloat = 3
 }
 
 // MARK: - Controller
@@ -483,12 +483,50 @@ private final class FavoriteDropInsertionLineView: NSView {
 
 // MARK: - Views
 
+/// 自绘单行尾部省略标题，比 `NSTextField` 在 `NSTableCellView` 中更可靠。
+private final class FavoriteSidebarTruncatingTitleView: NSView {
+    var text: String = "" {
+        didSet { guard text != oldValue else { return }; needsDisplay = true }
+    }
+    var textColor: NSColor = .labelColor {
+        didSet { needsDisplay = true }
+    }
+    var font: NSFont = .systemFont(ofSize: NSFont.systemFontSize) {
+        didSet { needsDisplay = true }
+    }
+    
+    override func draw(_ dirtyRect: NSRect) {
+        guard !text.isEmpty, bounds.width > 1 else { return }
+        
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byTruncatingTail
+        
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: textColor,
+            .paragraphStyle: paragraph,
+        ]
+        
+        let lineHeight = ceil(font.boundingRectForFont.height)
+        let drawRect = NSRect(
+            x: 0,
+            y: floor((bounds.height - lineHeight) / 2),
+            width: bounds.width,
+            height: lineHeight
+        )
+        
+        (text as NSString).draw(
+            with: drawRect,
+            options: [.usesLineFragmentOrigin, .usesFontLeading, .truncatesLastVisibleLine],
+            attributes: attrs
+        )
+    }
+}
+
 private final class FavoriteSidebarCellView: NSTableCellView {
     private let iconView = NSImageView()
-    private let titleField = NSTextField(labelWithString: "")
-    private var iconLeadingConstraint: NSLayoutConstraint?
-    private var iconRailCenterConstraint: NSLayoutConstraint?
-    private var titleLeadingConstraint: NSLayoutConstraint?
+    private let titleView = FavoriteSidebarTruncatingTitleView()
+    private var showsSidebarTitle = true
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -501,44 +539,10 @@ private final class FavoriteSidebarCellView: NSTableCellView {
     }
     
     private func setup() {
-        clipsToBounds = false
-        
-        iconView.translatesAutoresizingMaskIntoConstraints = false
+        clipsToBounds = true
         iconView.imageScaling = .scaleProportionallyDown
-        
-        titleField.translatesAutoresizingMaskIntoConstraints = false
-        titleField.lineBreakMode = .byTruncatingTail
-        titleField.maximumNumberOfLines = 1
-        titleField.font = .systemFont(ofSize: NSFont.systemFontSize)
-        titleField.textColor = .labelColor
-        if let cell = titleField.cell as? NSTextFieldCell {
-            cell.wraps = false
-            cell.truncatesLastVisibleLine = true
-        }
-        titleField.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        titleField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        
         addSubview(iconView)
-        addSubview(titleField)
-        
-        iconLeadingConstraint = iconView.leadingAnchor.constraint(
-            equalTo: leadingAnchor,
-            constant: FavoriteSidebarMetrics.sidebarIconLeadingInset
-        )
-        iconRailCenterConstraint = iconView.centerXAnchor.constraint(
-            equalTo: leadingAnchor,
-            constant: FavoriteSidebarMetrics.railContentWidth / 2
-        )
-        titleLeadingConstraint = titleField.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 8)
-        
-        NSLayoutConstraint.activate([
-            iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 16),
-            iconView.heightAnchor.constraint(equalToConstant: 16),
-            
-            titleField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -FavoriteSidebarMetrics.rowContentInset),
-            titleField.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
+        addSubview(titleView)
     }
     
     func configure(item: FavoriteItem, showsTitle: Bool, isSelected: Bool) {
@@ -547,21 +551,42 @@ private final class FavoriteSidebarCellView: NSTableCellView {
         iconView.image = image
         iconView.contentTintColor = isSelected ? .controlAccentColor : .labelColor
         
-        titleField.stringValue = showsTitle ? item.displayName : ""
-        titleField.isHidden = !showsTitle
-        titleField.alphaValue = showsTitle ? 1 : 0
-        titleField.textColor = isSelected ? .controlAccentColor : .labelColor
+        showsSidebarTitle = showsTitle
+        titleView.text = showsTitle ? item.displayName : ""
+        titleView.isHidden = !showsTitle
+        titleView.textColor = isSelected ? .controlAccentColor : .labelColor
         
-        iconLeadingConstraint?.isActive = showsTitle
-        iconRailCenterConstraint?.isActive = !showsTitle
-        titleLeadingConstraint?.isActive = showsTitle
+        needsLayout = true
     }
     
     override func layout() {
         super.layout()
-        guard iconRailCenterConstraint?.isActive == true else { return }
-        let trackWidth = min(bounds.width, FavoriteSidebarMetrics.railContentWidth)
-        iconRailCenterConstraint?.constant = max(trackWidth / 2, 8)
+        let height = bounds.height
+        let width = bounds.width
+        let iconSize: CGFloat = 16
+        
+        if showsSidebarTitle {
+            let leading = FavoriteSidebarMetrics.sidebarIconLeadingInset
+            iconView.frame = NSRect(
+                x: leading,
+                y: (height - iconSize) / 2,
+                width: iconSize,
+                height: iconSize
+            )
+            let titleX = leading + iconSize + 8
+            let titleWidth = max(0, width - titleX - FavoriteSidebarMetrics.rowContentInset)
+            titleView.frame = NSRect(x: titleX, y: 0, width: titleWidth, height: height)
+        } else {
+            let trackWidth = min(width, FavoriteSidebarMetrics.railContentWidth)
+            let iconX = max(trackWidth / 2 - iconSize / 2, 0)
+            iconView.frame = NSRect(
+                x: iconX,
+                y: (height - iconSize) / 2,
+                width: iconSize,
+                height: iconSize
+            )
+            titleView.frame = .zero
+        }
     }
 }
 
@@ -750,7 +775,12 @@ final class FavoritesTableView: NSTableView {
     override func resize(withOldSuperviewSize oldSize: NSSize) {
         super.resize(withOldSuperviewSize: oldSize)
         guard abs(oldSize.width - frame.width) > 0.5 else { return }
-        redisplayVisibleRowSelections()
+        if configuredShowsTitle,
+           let column = tableColumns.first,
+           bounds.width > 0,
+           abs(column.width - bounds.width) > 0.5 {
+            column.width = bounds.width
+        }
         if !configuredShowsTitle {
             controller?.refreshRowHighlighting()
         }
@@ -797,14 +827,16 @@ final class FavoritesTableView: NSTableView {
         columnAutoresizingStyle = showsTitle
             ? .uniformColumnAutoresizingStyle
             : .noColumnAutoresizing
-        clipsToBounds = false
+        clipsToBounds = showsTitle
         
         guard let column = tableColumns.first else { return }
         if showsTitle {
             column.resizingMask = .autoresizingMask
-            column.minWidth = 100
+            column.minWidth = 0
             column.maxWidth = 10_000
-            column.width = FavoriteSidebarMetrics.sidebarColumnWidth
+            if bounds.width > 0 {
+                column.width = bounds.width
+            }
         } else {
             column.resizingMask = []
             column.minWidth = FavoriteSidebarMetrics.railContentWidth
@@ -827,7 +859,7 @@ final class FavoritesTableView: NSTableView {
         allowsMultipleSelection = false
         usesAlternatingRowBackgroundColors = false
         intercellSpacing = .zero
-        clipsToBounds = false
+        clipsToBounds = true
         
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("FavoriteColumn"))
         addTableColumn(column)
