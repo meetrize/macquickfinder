@@ -25,7 +25,7 @@ final class PreviewSession: ObservableObject, Identifiable {
 
     /// 独立窗口内目录浏览上下文；弹出时附加，收回时清除。
     @Published var browseContext: PreviewBrowserContext?
-    /// 独立窗口底部胶片条是否展开（默认收起）。
+    /// 独立窗口底部胶片条是否展开（弹出时默认展开，收回侧栏后重置）。
     @Published var isBrowserStripExpanded = false
 
     var loadTask: Task<Void, Never>?

@@ -34,6 +34,7 @@ final class PreviewDetachCoordinator: ObservableObject {
 
         PreviewSessionStore.shared.register(session)
         session.location = .detached(windowNumber: nil)
+        session.isBrowserStripExpanded = true
         if let currentID = session.previewContentItem?.id,
            let context = PreviewBrowserContext.makeSnapshot(
                directoryPath: directoryPath,
