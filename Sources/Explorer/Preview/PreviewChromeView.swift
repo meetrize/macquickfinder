@@ -39,16 +39,18 @@ struct PreviewChromeView: View {
                     Image(systemName: isContentCollapsed ? "chevron.up" : "chevron.down")
                 }
                 .buttonStyle(.borderless)
+                .focusable(false)
                 .frame(width: 22, height: PanelTopBarMetrics.contentHeight)
                 .contentShape(Rectangle())
                 .instantHoverTooltip(isContentCollapsed ? L10n.Preview.Chrome.expand : L10n.Preview.Chrome.collapse)
             }
 
             if session.isShowingFolderChildPreview {
-                Button(action: actions.onBackFromFolderChild) {
-                    Image(systemName: "arrow.uturn.backward")
-                }
-                .buttonStyle(.borderless)
+                PreviewFocuslessIconButton(
+                    systemImageName: "arrow.uturn.backward",
+                    accessibilityLabel: L10n.Preview.Chrome.backToFolder,
+                    action: actions.onBackFromFolderChild
+                )
                 .instantHoverTooltip(L10n.Preview.Chrome.backToFolder)
             }
 
@@ -79,32 +81,46 @@ struct PreviewChromeView: View {
             }
 
             if placement == .inlinePanel, let onDetach = actions.onDetach {
-                Button(action: onDetach) {
-                    Image(systemName: "macwindow.badge.plus")
-                }
-                .buttonStyle(.borderless)
+                PreviewFocuslessIconButton(
+                    systemImageName: "macwindow.badge.plus",
+                    accessibilityLabel: L10n.Preview.Chrome.detach,
+                    action: onDetach
+                )
                 .instantHoverTooltip(L10n.Preview.Chrome.detach)
                 .fixedSize()
                 .layoutPriority(2)
             }
 
             if placement == .detachedWindow, let onDock = actions.onDock {
-                Button(action: onDock) {
-                    Image(systemName: "sidebar.right")
-                }
-                .buttonStyle(.borderless)
+                PreviewFocuslessIconButton(
+                    systemImageName: "sidebar.right",
+                    accessibilityLabel: L10n.Preview.Chrome.dockBack,
+                    action: onDock
+                )
                 .instantHoverTooltip(L10n.Preview.Chrome.dockBack)
                 .fixedSize()
                 .layoutPriority(2)
             }
 
-            Button(action: actions.onClose) {
-                Image(systemName: "xmark")
+            if placement == .detachedWindow {
+                PreviewFocuslessIconButton(
+                    systemImageName: "xmark",
+                    accessibilityLabel: L10n.Preview.Chrome.closeWindow,
+                    action: actions.onClose
+                )
+                .instantHoverTooltip(L10n.Preview.Chrome.closeWindow)
+                .fixedSize()
+                .layoutPriority(2)
+            } else {
+                PreviewFocuslessIconButton(
+                    systemImageName: "xmark",
+                    accessibilityLabel: L10n.Preview.Chrome.closePreview,
+                    action: actions.onClose
+                )
+                .instantHoverTooltip(L10n.Preview.Chrome.closePreview)
+                .fixedSize()
+                .layoutPriority(2)
             }
-            .buttonStyle(.borderless)
-            .instantHoverTooltip(placement == .detachedWindow ? L10n.Preview.Chrome.closeWindow : L10n.Preview.Chrome.closePreview)
-            .fixedSize()
-            .layoutPriority(2)
         }
         .frame(height: PanelTopBarMetrics.contentHeight)
         .frame(maxWidth: .infinity)

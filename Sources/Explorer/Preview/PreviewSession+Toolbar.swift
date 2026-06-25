@@ -44,10 +44,11 @@ extension PreviewSession {
             estimatedWidth: 20,
             menuAction: action,
             content: AnyView(
-                Button(action: action) {
-                    Image(systemName: systemImage)
-                }
-                .buttonStyle(.borderless)
+                PreviewFocuslessIconButton(
+                    systemImageName: systemImage,
+                    accessibilityLabel: title,
+                    action: action
+                )
                 .disabled(isDisabled)
                 .instantHoverTooltip(title)
             )
