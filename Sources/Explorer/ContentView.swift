@@ -303,10 +303,16 @@ struct ContentView: View {
             applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
         }
         .onChange(of: path) { newPath in
-            if let oldPath = lastRecordedPath, oldPath != newPath, !isApplyingHistoryNavigation {
-                pathNavigation.recordNavigation(from: oldPath, to: newPath)
+            let wasHistoryNavigation = isApplyingHistoryNavigation
+            if let oldPath = lastRecordedPath, oldPath != newPath, !wasHistoryNavigation {
+                var history = pathNavigation
+                history.recordNavigation(from: oldPath, to: newPath)
+                pathNavigation = history
             }
             lastRecordedPath = newPath
+            if wasHistoryNavigation {
+                isApplyingHistoryNavigation = false
+            }
             layout.recordLastOpenedPath(newPath)
             loadItems()
         }
@@ -793,17 +799,19 @@ struct ContentView: View {
     }
 
     private func navigateBack() {
-        guard let previous = pathNavigation.goBack(from: path) else { return }
+        var history = pathNavigation
+        guard let previous = history.goBack(from: path) else { return }
+        pathNavigation = history
         isApplyingHistoryNavigation = true
         path = previous
-        isApplyingHistoryNavigation = false
     }
 
     private func navigateForward() {
-        guard let next = pathNavigation.goForward(from: path) else { return }
+        var history = pathNavigation
+        guard let next = history.goForward(from: path) else { return }
+        pathNavigation = history
         isApplyingHistoryNavigation = true
         path = next
-        isApplyingHistoryNavigation = false
     }
 
     private func navigateToHistoryPath(_ targetPath: String) {
@@ -813,10 +821,11 @@ struct ContentView: View {
 
         let trail = pathNavigation.trail(currentPath: path)
         if trail.contains(where: { ($0 as NSString).standardizingPath == standardizedTarget }) {
+            var history = pathNavigation
+            history.jump(to: targetPath, from: path)
+            pathNavigation = history
             isApplyingHistoryNavigation = true
-            pathNavigation.jump(to: targetPath, from: path)
             path = targetPath
-            isApplyingHistoryNavigation = false
         } else {
             path = targetPath
         }
