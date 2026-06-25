@@ -1588,7 +1588,6 @@ private struct PathBreadcrumbView: View {
     
     private let clickGap: CGFloat = 8
     private let clickReserve: CGFloat = 40
-    private let minTailCount = 2
     private let fieldHeight: CGFloat = 28
     
     private var segments: [PathSegment] {
@@ -1612,7 +1611,6 @@ private struct PathBreadcrumbView: View {
                 segments: segments,
                 availableWidth: geometry.size.width,
                 reservedTrailingWidth: metrics.isOverflowing ? clickReserve : 0,
-                minTailCount: minTailCount,
                 showsLeadingRootSlash: showsLeadingRootSlash
             )
             
@@ -1631,11 +1629,42 @@ private struct PathBreadcrumbView: View {
                                 )
                             }
                             
+                            if let leadingSegment = layout.fixedLeadingSegment {
+                                PathSegmentButton(
+                                    segment: leadingSegment,
+                                    isHighlighted: isSegmentHighlighted(leadingSegment),
+                                    onNavigate: onNavigate
+                                )
+                                .id(leadingSegment.id)
+                                .onHover { hovering in
+                                    if hovering {
+                                        hoveredSegmentID = leadingSegment.id
+                                    }
+                                }
+                                
+                                if layout.showsLeadingEllipsis || !layout.visibleSegments.isEmpty {
+                                    PathSeparatorMenu(
+                                        parentPath: leadingSegment.path,
+                                        showHiddenFiles: showHiddenFiles,
+                                        onNavigate: onNavigate
+                                    )
+                                }
+                            }
+                            
                             if layout.showsLeadingEllipsis {
                                 PathBreadcrumbEllipsisMenu(
                                     hiddenSegments: layout.hiddenSegments,
                                     onNavigate: onNavigate
                                 )
+                                
+                                if layout.visibleSegments.first != nil,
+                                   let separatorParent = layout.hiddenSegments.last?.path {
+                                    PathSeparatorMenu(
+                                        parentPath: separatorParent,
+                                        showHiddenFiles: showHiddenFiles,
+                                        onNavigate: onNavigate
+                                    )
+                                }
                             }
                             
                             ForEach(layout.visibleSegments) { segment in
@@ -1698,6 +1727,7 @@ private struct PathBreadcrumbView: View {
 
 private struct PathBreadcrumbLayout {
     let showsLeadingEllipsis: Bool
+    let fixedLeadingSegment: PathSegment?
     let hiddenSegments: [PathSegment]
     let visibleSegments: [PathSegment]
     
@@ -1705,19 +1735,18 @@ private struct PathBreadcrumbLayout {
         segments: [PathSegment],
         availableWidth: CGFloat,
         reservedTrailingWidth: CGFloat,
-        minTailCount: Int,
         showsLeadingRootSlash: Bool
     ) -> PathBreadcrumbLayout {
         guard !segments.isEmpty || showsLeadingRootSlash else {
             return PathBreadcrumbLayout(
                 showsLeadingEllipsis: false,
+                fixedLeadingSegment: nil,
                 hiddenSegments: [],
                 visibleSegments: []
             )
         }
         
-        let rootPrefixWidth = showsLeadingRootSlash ? estimatedRootSlashWidth() : 0
-        let usableWidth = max(0, availableWidth - reservedTrailingWidth - rootPrefixWidth)
+        let usableWidth = max(0, availableWidth - reservedTrailingWidth)
         let ellipsisWidth: CGFloat = 28
         let segmentWidths = segments.map(estimatedWidth(for:))
         let totalWidth = estimatedBreadcrumbWidth(
@@ -1725,54 +1754,79 @@ private struct PathBreadcrumbLayout {
             showsLeadingRootSlash: showsLeadingRootSlash
         )
         
-        if totalWidth <= usableWidth + rootPrefixWidth {
+        if totalWidth <= usableWidth {
             return PathBreadcrumbLayout(
                 showsLeadingEllipsis: false,
+                fixedLeadingSegment: nil,
                 hiddenSegments: [],
                 visibleSegments: segments
             )
         }
         
-        let tailCount = min(minTailCount, segments.count)
-        var startIndex = 0
-        let maxStart = segments.count - tailCount
+        guard let firstSegment = segments.first else {
+            return PathBreadcrumbLayout(
+                showsLeadingEllipsis: false,
+                fixedLeadingSegment: nil,
+                hiddenSegments: [],
+                visibleSegments: []
+            )
+        }
         
-        while startIndex < maxStart {
-            let nextStart = startIndex + 1
-            let visibleWidth = segmentWidths[nextStart...].reduce(0, +)
-                + separatorWidth * CGFloat(max(0, segmentWidths[nextStart...].count - 1))
-                + ellipsisWidth
-            if visibleWidth <= usableWidth {
-                startIndex = nextStart
-            } else {
-                break
+        var tailStart = max(1, segments.count - 1)
+        if segments.count > 1 {
+            for candidate in 1..<segments.count {
+                let showsEllipsis = candidate > 1
+                let width = estimatedTruncatedWidth(
+                    segmentWidths: segmentWidths,
+                    tailStart: candidate,
+                    tailCount: segments.count - candidate,
+                    showsLeadingRootSlash: showsLeadingRootSlash,
+                    showsEllipsis: showsEllipsis,
+                    ellipsisWidth: ellipsisWidth
+                )
+                if width <= usableWidth {
+                    tailStart = candidate
+                    break
+                }
             }
         }
         
-        if startIndex == 0, segments.count > tailCount {
-            startIndex = max(0, segments.count - tailCount)
-            while startIndex > 0 {
-                let visibleWidth = segmentWidths[startIndex...].reduce(0, +)
-                    + separatorWidth * CGFloat(max(0, segmentWidths[startIndex...].count - 1))
-                    + ellipsisWidth
-                if visibleWidth <= usableWidth { break }
-                startIndex -= 1
-            }
-            let fallbackWidth = segmentWidths[startIndex...].reduce(0, +)
-                + separatorWidth * CGFloat(max(0, segmentWidths[startIndex...].count - 1))
-                + ellipsisWidth
-            if fallbackWidth > usableWidth {
-                startIndex = max(0, segments.count - 1)
-            }
-        }
-        
-        let hidden = startIndex > 0 ? Array(segments.prefix(startIndex)) : []
-        let visible = Array(segments.suffix(from: startIndex))
+        let hidden = tailStart > 1 ? Array(segments[1..<tailStart]) : []
+        let visible = tailStart < segments.count ? Array(segments[tailStart...]) : []
         return PathBreadcrumbLayout(
             showsLeadingEllipsis: !hidden.isEmpty,
+            fixedLeadingSegment: firstSegment,
             hiddenSegments: hidden,
             visibleSegments: visible
         )
+    }
+    
+    private static func estimatedTruncatedWidth(
+        segmentWidths: [CGFloat],
+        tailStart: Int,
+        tailCount: Int,
+        showsLeadingRootSlash: Bool,
+        showsEllipsis: Bool,
+        ellipsisWidth: CGFloat
+    ) -> CGFloat {
+        let rootPrefixWidth = showsLeadingRootSlash ? estimatedRootSlashWidth() : 0
+        guard !segmentWidths.isEmpty else { return rootPrefixWidth }
+        
+        var width = rootPrefixWidth + segmentWidths[0]
+        guard tailCount > 0 || showsEllipsis else { return width }
+        
+        width += separatorWidth
+        
+        if showsEllipsis {
+            width += ellipsisWidth + separatorWidth
+        }
+        
+        guard tailCount > 0 else { return width }
+        
+        let tailWidths = segmentWidths[tailStart...]
+        width += tailWidths.reduce(0, +)
+        width += separatorWidth * CGFloat(max(0, tailCount - 1))
+        return width
     }
     
     static let separatorWidth: CGFloat = 14
