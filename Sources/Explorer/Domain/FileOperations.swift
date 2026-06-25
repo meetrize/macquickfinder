@@ -428,25 +428,9 @@ enum FileOperations {
     }
     
     static func showInfo(_ items: [FileItem]) {
-        guard !items.isEmpty else { return }
-        
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        
-        if items.count == 1, let item = items.first {
-            alert.messageText = item.name
-            alert.informativeText = buildInfoText(for: item)
-        } else {
-            alert.messageText = L10n.Alert.selectedItems(items.count)
-            let preview = items.prefix(20).map { item in
-                let kind = item.isDirectory ? L10n.Info.kindFolderShort : L10n.Info.kindFileShort
-                return L10n.Info.bulletItem(item.name, kind, item.sizeDisplay)
-            }.joined(separator: "\n")
-            alert.informativeText = items.count > 20 ? preview + "\n" + L10n.Info.ellipsis : preview
+        Task { @MainActor in
+            FilePropertiesWindowController.show(items: items)
         }
-        
-        alert.addButton(withTitle: L10n.Action.ok)
-        alert.runModal()
     }
     
     private static func buildInfoText(for item: FileItem) -> String {
