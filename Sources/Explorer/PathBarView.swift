@@ -1465,6 +1465,7 @@ private struct PathBarHistoryMenuButton: View {
                 .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .instantHoverTooltip(L10n.Pathbar.history)
     }
