@@ -202,6 +202,7 @@ struct LucideIcon: View {
 struct ExplorerApp: App {
     @NSApplicationDelegateAdaptor(ExplorerAppDelegate.self) private var appDelegate
     @StateObject private var languageSettings = InterfaceLanguageSettings.shared
+    @ObservedObject private var activeWindowLayout = ActiveWindowLayoutCenter.shared
     @FocusedValue(\.windowLayoutCommands) private var windowLayoutCommands
     @FocusedValue(\.previewDetachCommands) private var previewDetachCommands
     @FocusedValue(\.previewBrowseCommands) private var previewBrowseCommands
@@ -253,28 +254,44 @@ struct ExplorerApp: App {
     @CommandsBuilder
     private var explorerCommands: some Commands {
         let _ = languageSettings.revision
+        let keyLayout = activeWindowLayout.keyWindowLayout
         FileCommands()
         CommandGroup(after: .sidebar) {
             Button(L10n.Menu.toggleLeftPanel) {
-                windowLayoutCommands?.toggleLeftPanel()
+                performWindowLayoutAction(
+                    onKeyLayout: { $0.toggleLeftPanelVisibility() },
+                    fallback: { windowLayoutCommands?.toggleLeftPanel() }
+                )
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.toggleLeftPanel)
 
             Button(L10n.Menu.toggleRightPanel) {
-                windowLayoutCommands?.toggleRightPanel()
+                performWindowLayoutAction(
+                    onKeyLayout: { $0.toggleRightPanel() },
+                    fallback: { windowLayoutCommands?.toggleRightPanel() }
+                )
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.toggleRightPanel)
 
             Divider()
-            Button((windowLayoutCommands?.showPreview ?? true) ? L10n.Menu.hidePreview : L10n.Menu.showPreview) {
-                windowLayoutCommands?.togglePreview()
+            Button((keyLayout?.showPreview ?? true) ? L10n.Menu.hidePreview : L10n.Menu.showPreview) {
+                performWindowLayoutAction(
+                    onKeyLayout: { $0.showPreview.toggle() },
+                    fallback: { windowLayoutCommands?.togglePreview() }
+                )
             }
-            Button((windowLayoutCommands?.showSnippets ?? true) ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets) {
-                windowLayoutCommands?.toggleSnippets()
+            Button((keyLayout?.showSnippets ?? true) ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets) {
+                performWindowLayoutAction(
+                    onKeyLayout: { $0.showSnippets.toggle() },
+                    fallback: { windowLayoutCommands?.toggleSnippets() }
+                )
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.toggleSnippets)
-            Button((windowLayoutCommands?.isOutputPanelVisible ?? false) ? L10n.Menu.hideOutputPanel : L10n.Menu.showOutputPanel) {
-                windowLayoutCommands?.toggleOutputPanel()
+            Button((keyLayout?.isOutputPanelVisible ?? false) ? L10n.Menu.hideOutputPanel : L10n.Menu.showOutputPanel) {
+                performWindowLayoutAction(
+                    onKeyLayout: { $0.toggleOutputPanel() },
+                    fallback: { windowLayoutCommands?.toggleOutputPanel() }
+                )
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.toggleOutputPanel)
             Divider()
@@ -308,6 +325,17 @@ struct ExplorerApp: App {
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.togglePreviewBrowserStrip)
             .disabled(!(previewBrowseCommands?.canToggleStrip ?? false))
+        }
+    }
+
+    private func performWindowLayoutAction(
+        onKeyLayout action: (ExplorerWindowLayoutState) -> Void,
+        fallback: () -> Void
+    ) {
+        if let layout = activeWindowLayout.keyWindowLayout {
+            action(layout)
+        } else {
+            fallback()
         }
     }
 }

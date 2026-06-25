@@ -361,24 +361,10 @@ struct ContentView: View {
                 showSnippets: layout.showSnippets,
                 isOutputPanelVisible: layout.isOutputPanelVisible,
                 toggleLeftPanel: { layout.toggleLeftPanelVisibility() },
-                toggleRightPanel: {
-                    if layout.showPreview || layout.showSnippets {
-                        layout.showPreview = false
-                        layout.showSnippets = false
-                    } else {
-                        layout.showPreview = true
-                        layout.showSnippets = true
-                    }
-                },
+                toggleRightPanel: { layout.toggleRightPanel() },
                 togglePreview: { layout.showPreview.toggle() },
                 toggleSnippets: { layout.showSnippets.toggle() },
-                toggleOutputPanel: {
-                    if layout.isOutputPanelVisible {
-                        layout.isOutputPanelVisible = false
-                    } else {
-                        ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
-                    }
-                }
+                toggleOutputPanel: { layout.toggleOutputPanel() }
             )
         )
         .background(BarTextFieldFocusSync(activeField: $activeBarField))

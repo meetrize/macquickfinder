@@ -202,6 +202,24 @@ final class ExplorerWindowLayoutState: ObservableObject {
         setLeftPanelMode(.hidden)
     }
 
+    func toggleRightPanel() {
+        if showPreview || showSnippets {
+            showPreview = false
+            showSnippets = false
+        } else {
+            showPreview = true
+            showSnippets = true
+        }
+    }
+
+    func toggleOutputPanel() {
+        if isOutputPanelVisible {
+            isOutputPanelVisible = false
+        } else {
+            ActiveWindowLayoutCenter.shared.showOutputPanel(on: self)
+        }
+    }
+
     func recordLastOpenedPath(_ path: String) {
         let standardized = (path as NSString).standardizingPath
         UserDefaultsStorage.set(standardized, forKey: AppPreferences.Layout.lastOpenedPath, in: defaults)
@@ -311,11 +329,24 @@ final class ExplorerWindowLayoutState: ObservableObject {
 }
 
 @MainActor
-final class ActiveWindowLayoutCenter {
+final class ActiveWindowLayoutCenter: ObservableObject {
     static let shared = ActiveWindowLayoutCenter()
 
     private let layouts = NSHashTable<ExplorerWindowLayoutState>.weakObjects()
-    weak var keyWindowLayout: ExplorerWindowLayoutState?
+    private var keyLayoutObservation: AnyCancellable?
+
+    weak var keyWindowLayout: ExplorerWindowLayoutState? {
+        didSet {
+            guard keyWindowLayout !== oldValue else { return }
+            keyLayoutObservation?.cancel()
+            keyLayoutObservation = keyWindowLayout?.objectWillChange
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in
+                    self?.objectWillChange.send()
+                }
+            objectWillChange.send()
+        }
+    }
 
     private init() {}
 
