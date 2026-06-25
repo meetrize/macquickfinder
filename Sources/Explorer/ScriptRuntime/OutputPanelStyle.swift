@@ -28,7 +28,11 @@ enum OutputPanelStyle {
     static let promptPathColor = Color(red: 0.36, green: 0.75, blue: 0.85)
     static let promptCommandColor = Color(red: 0.95, green: 0.95, blue: 0.95)
     static let placeholderColor = Color(white: 0.55)
-    static let findHighlightColor = Color.yellow.opacity(0.35)
+    static let findHighlightColor = Color(red: 1.0, green: 1.0, blue: 0.0).opacity(0.85)
+
+    static var findHighlightNSColor: NSColor {
+        NSColor(red: 1.0, green: 1.0, blue: 0.0, alpha: 0.85)
+    }
     static let completionSuccessColor = Color(red: 0.45, green: 0.82, blue: 0.52)
     static let completionFailureColor = Color(red: 1.0, green: 0.55, blue: 0.55)
     static let completionCancelledColor = Color(white: 0.62)

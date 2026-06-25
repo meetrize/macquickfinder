@@ -72,4 +72,35 @@ final class OutputPanelAttributedTextTests: XCTestCase {
         XCTAssertTrue(nsAttr.string.contains("Cloning into 'KLineChart'..."))
         XCTAssertTrue(nsAttr.string.contains("remote: Enumerating objects: 57132, done."))
     }
+
+    func testFindMatchRangesAreCaseInsensitive() {
+        let ranges = OutputPanelAttributedText.findMatchRanges(of: "ERR", in: "ok\nERR one\nerr two")
+        XCTAssertEqual(ranges.count, 2)
+    }
+
+    func testFindHighlightUsesBrightYellow() {
+        let nsAttr = OutputPanelAttributedText.makeNSAttributedString(
+            stdout: "hello world hello",
+            stderr: "",
+            findText: "hello"
+        )
+        var highlightedCount = 0
+        var blackForegroundCount = 0
+        nsAttr.enumerateAttribute(.backgroundColor, in: NSRange(location: 0, length: nsAttr.length)) { value, _, _ in
+            guard let color = value as? NSColor else { return }
+            if color == OutputPanelStyle.findHighlightNSColor {
+                highlightedCount += 1
+            }
+        }
+        nsAttr.enumerateAttribute(.foregroundColor, in: NSRange(location: 0, length: nsAttr.length)) { value, range, _ in
+            guard let color = value as? NSColor else { return }
+            guard color == NSColor.black else { return }
+            let substring = (nsAttr.string as NSString).substring(with: range)
+            if substring == "hello" {
+                blackForegroundCount += 1
+            }
+        }
+        XCTAssertEqual(highlightedCount, 2)
+        XCTAssertEqual(blackForegroundCount, 2)
+    }
 }

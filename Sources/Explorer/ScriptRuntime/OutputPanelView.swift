@@ -16,6 +16,8 @@ struct OutputPanelView: View {
     var onNavigateToDirectory: (String) -> Void = { _ in }
     @ObservedObject private var jobStore = JobStore.shared
     @State private var findText = ""
+    @State private var findNextToken: UInt = 0
+    @State private var findMatchCount = 0
     @State private var commandDraft = ""
     @State private var commandHistories: [UUID: OutputCommandHistory] = [:]
     @State private var completionSessions: [UUID: OutputCommandCompletionSession] = [:]
@@ -479,7 +481,8 @@ struct OutputPanelView: View {
             )
         )
         .padding(.leading, focusedField == .find ? 2 : 14)
-        .frame(width: 128)
+        .padding(.trailing, findMatchCount > 1 ? 32 : 0)
+        .frame(width: 156)
         .modifier(OutputCommandCapsuleFieldStyle())
         .overlay(alignment: .leading) {
             if focusedField != .find {
@@ -496,6 +499,24 @@ struct OutputPanelView: View {
                 .help(L10n.Snippets.Output.find)
             }
         }
+        .overlay(alignment: .trailing) {
+            if findMatchCount > 1 {
+                Button {
+                    findNextToken &+= 1
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: NSFont.systemFontSize, weight: .regular))
+                        .foregroundStyle(OutputPanelStyle.commandFieldTextColor.opacity(0.85))
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 10)
+                .help(L10n.Preview.Toolbar.nextMatch)
+            }
+        }
+        .onChange(of: findText) { _ in
+            findNextToken = 0
+        }
     }
 
     private func failureBanner(job: JobRecord) -> some View {
@@ -510,7 +531,9 @@ struct OutputPanelView: View {
     private func outputText(job: JobRecord) -> some View {
         OutputPanelOutputScrollView(
             job: job,
-            findText: findText
+            findText: findText,
+            findNextToken: findNextToken,
+            findMatchCount: $findMatchCount
         )
     }
 
@@ -633,6 +656,8 @@ struct OutputPanelView: View {
 private struct OutputPanelOutputScrollView: View {
     let job: JobRecord
     let findText: String
+    let findNextToken: UInt
+    @Binding var findMatchCount: Int
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -641,6 +666,8 @@ private struct OutputPanelOutputScrollView: View {
                 stderr: job.stderr,
                 isRunning: job.status == .running,
                 findText: findText,
+                findNextToken: findNextToken,
+                findMatchCount: $findMatchCount,
                 emptyPlaceholder: L10n.Snippets.Output.noOutput
             )
 

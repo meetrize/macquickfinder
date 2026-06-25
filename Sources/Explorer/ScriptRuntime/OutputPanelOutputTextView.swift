@@ -7,6 +7,8 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
     let stderr: String
     let isRunning: Bool
     let findText: String
+    let findNextToken: UInt
+    @Binding var findMatchCount: Int
     let emptyPlaceholder: String
 
     func makeCoordinator() -> Coordinator {
@@ -54,8 +56,11 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         guard context.coordinator.textView != nil else { return }
 
         let coordinator = context.coordinator
+        let trimmedFindText = findText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasActiveFind = !trimmedFindText.isEmpty
         let shouldAutoScroll = coordinator.shouldAutoScrollBeforeUpdate(isRunning: isRunning)
         let statusTabLocation = coordinator.currentStatusTabLocation()
+        var didRebuildContent = false
 
         if stdout.isEmpty, stderr.isEmpty {
             if !coordinator.lastRenderedStdout.isEmpty || !coordinator.lastRenderedStderr.isEmpty {
@@ -63,7 +68,9 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
                 coordinator.lastRenderedStdout = ""
                 coordinator.lastRenderedStderr = ""
                 coordinator.resetScrollFollowing()
+                didRebuildContent = true
             }
+            coordinator.clearFindNavigation(findMatchCount: $findMatchCount)
             return
         }
 
@@ -75,7 +82,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
                 let attributed = OutputPanelAttributedText.makeNSAttributedString(
                     stdout: stdout,
                     stderr: stderr,
-                    findText: "",
+                    findText: hasActiveFind ? findText : "",
                     statusTabLocation: statusTabLocation
                 )
                 coordinator.replaceAll(with: attributed)
@@ -84,6 +91,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
                 coordinator.lastStatusTabLocation = statusTabLocation
                 coordinator.renderedStdoutLength = stdout.count
                 coordinator.renderedStderrLength = stderr.count
+                didRebuildContent = true
             }
         } else {
             let snapshotKey = "\(stdout.count)|\(stderr.count)|\(stdout.hashValue)|\(stderr.hashValue)|\(findText)|\(Int(statusTabLocation))"
@@ -102,10 +110,22 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
                 coordinator.lastStatusTabLocation = statusTabLocation
                 coordinator.renderedStdoutLength = stdout.count
                 coordinator.renderedStderrLength = stderr.count
+                didRebuildContent = true
             }
         }
 
-        if shouldAutoScroll {
+        if hasActiveFind {
+            coordinator.updateFindNavigation(
+                findText: findText,
+                findNextToken: findNextToken,
+                findMatchCount: $findMatchCount,
+                didRebuildContent: didRebuildContent
+            )
+        } else {
+            coordinator.clearFindNavigation(findMatchCount: $findMatchCount)
+        }
+
+        if (shouldAutoScroll || coordinator.shouldForceScrollToBottomAfterRebuild()) && !hasActiveFind {
             coordinator.scrollToBottom()
             coordinator.scheduleScrollToBottom()
         }
@@ -121,6 +141,11 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         var renderStyledSnapshot = false
         var styledSnapshotKey = ""
         var lastStatusTabLocation: CGFloat = 0
+        var lastFindText = ""
+        var lastFindNextToken: UInt = 0
+        var findCurrentIndex = 0
+        var findMatchRanges: [NSRange] = []
+        private var forceScrollToBottomAfterRebuild = false
         /// 运行中默认跟随最新输出；用户主动上滚后暂停，滚回底部后恢复。
         private var followRunningOutput = true
         private var pendingScroll = false
@@ -198,7 +223,13 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
 
         func replaceAll(with attributed: NSAttributedString) {
             guard let textView else { return }
+            let oldLength = (textView.string as NSString).length
             textView.textStorage?.setAttributedString(attributed)
+            let newLength = attributed.length
+            if newLength < oldLength || oldLength == 0 {
+                followRunningOutput = true
+                forceScrollToBottomAfterRebuild = true
+            }
             renderedStdoutLength = 0
             renderedStderrLength = 0
         }
@@ -242,6 +273,79 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         func resetScrollFollowing() {
             followRunningOutput = true
             lastClipMaxY = nil
+            forceScrollToBottomAfterRebuild = false
+        }
+
+        func shouldForceScrollToBottomAfterRebuild() -> Bool {
+            defer { forceScrollToBottomAfterRebuild = false }
+            return forceScrollToBottomAfterRebuild
+        }
+
+        func clearFindNavigation(findMatchCount: Binding<Int>) {
+            lastFindText = ""
+            lastFindNextToken = 0
+            findCurrentIndex = 0
+            findMatchRanges = []
+            if findMatchCount.wrappedValue != 0 {
+                findMatchCount.wrappedValue = 0
+            }
+        }
+
+        func updateFindNavigation(
+            findText: String,
+            findNextToken: UInt,
+            findMatchCount: Binding<Int>,
+            didRebuildContent: Bool
+        ) {
+            let trimmed = findText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let findTextChanged = lastFindText != findText
+            let nextTriggered = !findTextChanged && lastFindNextToken != findNextToken
+
+            if findTextChanged {
+                lastFindText = findText
+                findCurrentIndex = 0
+                lastFindNextToken = findNextToken
+            }
+
+            guard !trimmed.isEmpty else {
+                findMatchRanges = []
+                if findMatchCount.wrappedValue != 0 {
+                    findMatchCount.wrappedValue = 0
+                }
+                return
+            }
+
+            if findTextChanged || didRebuildContent {
+                findMatchRanges = OutputPanelAttributedText.findMatchRanges(
+                    of: trimmed,
+                    in: textView?.string ?? ""
+                )
+                if findMatchCount.wrappedValue != findMatchRanges.count {
+                    findMatchCount.wrappedValue = findMatchRanges.count
+                }
+                if findCurrentIndex >= findMatchRanges.count {
+                    findCurrentIndex = 0
+                }
+            }
+
+            if findTextChanged || (didRebuildContent && !findMatchRanges.isEmpty) {
+                scrollToFindMatch(at: findCurrentIndex)
+            } else if nextTriggered {
+                lastFindNextToken = findNextToken
+                guard !findMatchRanges.isEmpty else { return }
+                findCurrentIndex = (findCurrentIndex + 1) % findMatchRanges.count
+                scrollToFindMatch(at: findCurrentIndex)
+            }
+        }
+
+        func scrollToFindMatch(at index: Int) {
+            guard let textView, index < findMatchRanges.count else { return }
+            let range = findMatchRanges[index]
+            if let container = textView.textContainer {
+                textView.layoutManager?.ensureLayout(for: container)
+            }
+            textView.scrollRangeToVisible(range)
+            lastClipMaxY = scrollView?.contentView.bounds.maxY
         }
     }
 }

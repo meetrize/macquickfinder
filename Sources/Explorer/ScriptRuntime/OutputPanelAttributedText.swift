@@ -150,20 +150,28 @@ enum OutputPanelAttributedText {
         attr.addAttribute(.foregroundColor, value: color, range: nsRange)
     }
 
+    static func findMatchRanges(of query: String, in text: String) -> [NSRange] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let nsText = text as NSString
+        var ranges: [NSRange] = []
+        var searchRange = NSRange(location: 0, length: nsText.length)
+        while searchRange.location < nsText.length {
+            let found = nsText.range(of: trimmed, options: [.caseInsensitive], range: searchRange)
+            if found.location == NSNotFound { break }
+            ranges.append(found)
+            let nextLocation = found.location + max(found.length, 1)
+            searchRange = NSRange(location: nextLocation, length: nsText.length - nextLocation)
+        }
+        return ranges
+    }
+
     private static func applyFindHighlight(to attr: NSMutableAttributedString, findText: String) {
-        let source = attr.string as NSString
-        var searchRange = NSRange(location: 0, length: source.length)
-        let highlight = NSColor.systemYellow.withAlphaComponent(0.35)
-        while searchRange.length > 0 {
-            let found = source.range(
-                of: findText,
-                options: [.caseInsensitive],
-                range: searchRange
-            )
-            guard found.location != NSNotFound else { break }
-            attr.addAttribute(.backgroundColor, value: highlight, range: found)
-            let nextLocation = found.location + found.length
-            searchRange = NSRange(location: nextLocation, length: source.length - nextLocation)
+        let highlight = OutputPanelStyle.findHighlightNSColor
+        for range in findMatchRanges(of: findText, in: attr.string) {
+            guard range.location != NSNotFound, NSMaxRange(range) <= attr.length else { continue }
+            attr.addAttribute(.backgroundColor, value: highlight, range: range)
+            attr.addAttribute(.foregroundColor, value: NSColor.black, range: range)
         }
     }
 }
