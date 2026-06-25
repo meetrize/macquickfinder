@@ -162,7 +162,7 @@ final class JobStore: ObservableObject {
         jobs[idx].endedAt = Date()
         jobs[idx].process = nil
         jobs[idx].status = exitCode == 0 ? .succeeded : .failed
-        appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: exitCode))
+        OutputSessionFormatting.attachCompletionStatus(to: &jobs[idx].stdout, exitCode: exitCode)
         pumpQueue()
     }
 
@@ -171,7 +171,7 @@ final class JobStore: ObservableObject {
         flushStderrStreamTail(jobID: jobID)
         guard let idx = jobs.firstIndex(where: { $0.id == jobID }) else { return }
         appendOutput(jobID: jobID, stderr: message)
-        appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: 1))
+        OutputSessionFormatting.attachCompletionStatus(to: &jobs[idx].stdout, exitCode: 1)
         jobs[idx].endedAt = Date()
         jobs[idx].process = nil
         jobs[idx].status = .failed
@@ -192,7 +192,7 @@ final class JobStore: ObservableObject {
         jobs[idx].process = nil
         jobs[idx].status = .cancelled
         jobs[idx].endedAt = Date()
-        appendOutput(jobID: jobID, stdout: OutputSessionFormatting.cancelledStatus())
+        OutputSessionFormatting.attachCancelledStatus(to: &jobs[idx].stdout)
         pumpQueue()
     }
 
@@ -348,7 +348,7 @@ final class JobStore: ObservableObject {
                 stdout: OutputSessionFormatting.prompt(cwd: cwd, command: trimmed)
             )
             appendOutput(jobID: jobID, stderr: message + "\n")
-            appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: 1))
+            OutputSessionFormatting.attachCompletionStatus(to: &jobs[index].stdout, exitCode: 1)
             jobs[index].expandedContent = trimmed
             jobs[index].displayCommand = trimmed
             jobs[index].workingDirectory = cwd

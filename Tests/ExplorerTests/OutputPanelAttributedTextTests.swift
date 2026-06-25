@@ -24,7 +24,7 @@ final class OutputPanelAttributedTextTests: XCTestCase {
     }
 
     func testHighlightsPromptPathAndCommand() {
-        let stdout = "\n\nProjects $ ls -la\n"
+        let stdout = "Projects $ ls -la\t✓\n"
         let attr = OutputPanelAttributedText.make(
             stdout: stdout,
             stderr: "",
@@ -37,9 +37,11 @@ final class OutputPanelAttributedTextTests: XCTestCase {
     }
 
     func testInlineStderrRendersBeforeNextPrompt() {
-        let stdout = """
-        \n\nProjects $ cd bad\n\(OutputSessionFormatting.wrapStderr("cd: no such file\n"))\n✗\n\n\nProjects $ true\n\n✓\n
-        """
+        var stdout = OutputSessionFormatting.prompt(cwd: "/Users/me/Projects", command: "cd bad")
+        stdout += OutputSessionFormatting.wrapStderr("cd: no such file\n")
+        OutputSessionFormatting.attachCompletionStatus(to: &stdout, exitCode: 1)
+        stdout += OutputSessionFormatting.prompt(cwd: "/Users/me/Projects", command: "true")
+        OutputSessionFormatting.attachCompletionStatus(to: &stdout, exitCode: 0)
         let attr = OutputPanelAttributedText.make(
             stdout: stdout,
             stderr: "",

@@ -92,13 +92,23 @@ final class OutputPanelExecutionTests: XCTestCase {
 
     func testOutputSessionFormattingPrompt() {
         let prompt = OutputSessionFormatting.prompt(cwd: "/Users/me/Projects", command: "ls")
-        XCTAssertTrue(prompt.contains("Projects $ ls"))
+        XCTAssertEqual(prompt, "Projects $ ls\n")
     }
 
-    func testOutputSessionFormattingCompletionStatus() {
-        XCTAssertEqual(OutputSessionFormatting.completionStatus(exitCode: 0), "\n✓\n")
-        XCTAssertEqual(OutputSessionFormatting.completionStatus(exitCode: 2), "\n✗\n")
-        XCTAssertEqual(OutputSessionFormatting.cancelledStatus(), "\n⊘\n")
+    func testAttachCompletionStatusAppendsMarkerOnPromptLine() {
+        var stdout = OutputSessionFormatting.prompt(cwd: "/Users/me/Projects", command: "ls")
+        OutputSessionFormatting.attachCompletionStatus(to: &stdout, exitCode: 0)
+        XCTAssertEqual(stdout, "Projects $ ls\t✓\n")
+
+        var failed = OutputSessionFormatting.prompt(cwd: "/Users/me/Projects", command: "rm")
+        OutputSessionFormatting.attachCompletionStatus(to: &failed, exitCode: 2)
+        XCTAssertEqual(failed, "Projects $ rm\t✗\n")
+    }
+
+    func testAttachCancelledStatusAppendsMarkerOnPromptLine() {
+        var stdout = OutputSessionFormatting.prompt(cwd: "/tmp", command: "sleep")
+        OutputSessionFormatting.attachCancelledStatus(to: &stdout)
+        XCTAssertEqual(stdout, "tmp $ sleep\t⊘\n")
     }
 
     func testMarkFinishedAppendsStatusLine() {
@@ -110,12 +120,16 @@ final class OutputPanelExecutionTests: XCTestCase {
             displayCommand: "true",
             source: .snippet(id: UUID(), name: "Test")
         )
+        store.appendOutput(
+            jobID: jobID,
+            stdout: OutputSessionFormatting.prompt(cwd: "/tmp", command: "true")
+        )
         store.markRunning(jobID: jobID, process: Process())
         store.markFinished(jobID: jobID, exitCode: 0)
 
         let job = store.jobs.first { $0.id == jobID }
         XCTAssertEqual(job?.status, .succeeded)
-        XCTAssertTrue(job?.stdout.contains("\n✓\n") == true)
+        XCTAssertTrue(job?.stdout.contains("\t✓\n") == true)
     }
 
     func testMarkFinishedIgnoresWhenAlreadyCancelled() {
@@ -127,6 +141,10 @@ final class OutputPanelExecutionTests: XCTestCase {
             displayCommand: "sleep",
             source: .snippet(id: UUID(), name: "Test")
         )
+        store.appendOutput(
+            jobID: jobID,
+            stdout: OutputSessionFormatting.prompt(cwd: "/tmp", command: "sleep")
+        )
         store.markRunning(jobID: jobID, process: Process())
         store.cancel(jobID: jobID)
         let stdoutAfterCancel = store.jobs.first { $0.id == jobID }?.stdout ?? ""
@@ -136,7 +154,7 @@ final class OutputPanelExecutionTests: XCTestCase {
         let job = store.jobs.first { $0.id == jobID }
         XCTAssertEqual(job?.status, .cancelled)
         XCTAssertEqual(job?.stdout, stdoutAfterCancel)
-        XCTAssertTrue(job?.stdout.contains("\n⊘\n") == true)
+        XCTAssertTrue(job?.stdout.contains("\t⊘\n") == true)
     }
 
     func testCancelMarksJobCancelled() {
@@ -148,6 +166,10 @@ final class OutputPanelExecutionTests: XCTestCase {
             displayCommand: "sleep",
             source: .snippet(id: UUID(), name: "Running")
         )
+        store.appendOutput(
+            jobID: jobID,
+            stdout: OutputSessionFormatting.prompt(cwd: "/tmp", command: "sleep")
+        )
         store.markRunning(jobID: jobID, process: Process())
 
         store.cancel(jobID: jobID)
@@ -155,7 +177,7 @@ final class OutputPanelExecutionTests: XCTestCase {
         let job = store.jobs.first { $0.id == jobID }
         XCTAssertEqual(job?.status, .cancelled)
         XCTAssertNotNil(job?.endedAt)
-        XCTAssertTrue(job?.stdout.contains("\n⊘\n") == true)
+        XCTAssertTrue(job?.stdout.contains("\t⊘\n") == true)
     }
 
     func testAppendOutputInlinesStderrIntoStdout() {
@@ -169,9 +191,11 @@ final class OutputPanelExecutionTests: XCTestCase {
         )
         store.appendOutput(jobID: jobID, stdout: OutputSessionFormatting.prompt(cwd: "/tmp", command: "cd bad"))
         store.appendOutput(jobID: jobID, stderr: "cd: no such file\n")
-        store.appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: 1))
+        store.markRunning(jobID: jobID, process: Process())
+        store.markFinished(jobID: jobID, exitCode: 1)
         store.appendOutput(jobID: jobID, stdout: OutputSessionFormatting.prompt(cwd: "/tmp", command: "true"))
-        store.appendOutput(jobID: jobID, stdout: OutputSessionFormatting.completionStatus(exitCode: 0))
+        store.markRunning(jobID: jobID, process: Process())
+        store.markFinished(jobID: jobID, exitCode: 0)
 
         let job = store.jobs.first { $0.id == jobID }
         XCTAssertEqual(job?.stderr, "")

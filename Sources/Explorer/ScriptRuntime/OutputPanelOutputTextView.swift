@@ -22,6 +22,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.backgroundColor = .clear
         scrollView.contentView.drawsBackground = false
+        scrollView.contentView.postsFrameChangedNotifications = true
 
         let textView = NSTextView()
         textView.isEditable = false
@@ -45,6 +46,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         scrollView.documentView = textView
         context.coordinator.textView = textView
         context.coordinator.scrollView = scrollView
+        context.coordinator.installWidthObserver(on: scrollView.contentView)
         return scrollView
     }
 
@@ -53,6 +55,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
 
         let coordinator = context.coordinator
         let shouldAutoScroll = coordinator.shouldAutoScrollBeforeUpdate(isRunning: isRunning)
+        let statusTabLocation = coordinator.currentStatusTabLocation()
 
         if stdout.isEmpty, stderr.isEmpty {
             if !coordinator.lastRenderedStdout.isEmpty || !coordinator.lastRenderedStderr.isEmpty {
@@ -66,31 +69,37 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
 
         if isRunning {
             coordinator.renderStyledSnapshot = false
-            if stdout != coordinator.lastRenderedStdout || stderr != coordinator.lastRenderedStderr {
+            if stdout != coordinator.lastRenderedStdout
+                || stderr != coordinator.lastRenderedStderr
+                || coordinator.shouldRefreshStatusTabLocation(statusTabLocation) {
                 let attributed = OutputPanelAttributedText.makeNSAttributedString(
                     stdout: stdout,
                     stderr: stderr,
-                    findText: ""
+                    findText: "",
+                    statusTabLocation: statusTabLocation
                 )
                 coordinator.replaceAll(with: attributed)
                 coordinator.lastRenderedStdout = stdout
                 coordinator.lastRenderedStderr = stderr
+                coordinator.lastStatusTabLocation = statusTabLocation
                 coordinator.renderedStdoutLength = stdout.count
                 coordinator.renderedStderrLength = stderr.count
             }
         } else {
-            let snapshotKey = "\(stdout.count)|\(stderr.count)|\(stdout.hashValue)|\(stderr.hashValue)|\(findText)"
+            let snapshotKey = "\(stdout.count)|\(stderr.count)|\(stdout.hashValue)|\(stderr.hashValue)|\(findText)|\(Int(statusTabLocation))"
             if !coordinator.renderStyledSnapshot || coordinator.styledSnapshotKey != snapshotKey {
                 let attributed = OutputPanelAttributedText.makeNSAttributedString(
                     stdout: stdout,
                     stderr: stderr,
-                    findText: findText
+                    findText: findText,
+                    statusTabLocation: statusTabLocation
                 )
                 coordinator.replaceAll(with: attributed)
                 coordinator.renderStyledSnapshot = true
                 coordinator.styledSnapshotKey = snapshotKey
                 coordinator.lastRenderedStdout = stdout
                 coordinator.lastRenderedStderr = stderr
+                coordinator.lastStatusTabLocation = statusTabLocation
                 coordinator.renderedStdoutLength = stdout.count
                 coordinator.renderedStderrLength = stderr.count
             }
@@ -111,10 +120,58 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         var lastRenderedStderr = ""
         var renderStyledSnapshot = false
         var styledSnapshotKey = ""
+        var lastStatusTabLocation: CGFloat = 0
         /// 运行中默认跟随最新输出；用户主动上滚后暂停，滚回底部后恢复。
         private var followRunningOutput = true
         private var pendingScroll = false
         private var lastClipMaxY: CGFloat?
+        private var widthObserver: NSObjectProtocol?
+
+        deinit {
+            if let widthObserver {
+                NotificationCenter.default.removeObserver(widthObserver)
+            }
+        }
+
+        func installWidthObserver(on clipView: NSClipView) {
+            guard widthObserver == nil else { return }
+            widthObserver = NotificationCenter.default.addObserver(
+                forName: NSView.frameDidChangeNotification,
+                object: clipView,
+                queue: .main
+            ) { [weak self] _ in
+                self?.refreshStatusTabAlignmentIfNeeded()
+            }
+        }
+
+        func currentStatusTabLocation() -> CGFloat {
+            guard let textView, let scrollView else {
+                return OutputPanelAttributedText.defaultStatusTabLocation
+            }
+
+            let width = scrollView.contentView.bounds.width
+            guard width > 40 else {
+                return OutputPanelAttributedText.defaultStatusTabLocation
+            }
+
+            let inset = textView.textContainerInset
+            return max(120, width - inset.width * 2)
+        }
+
+        func shouldRefreshStatusTabLocation(_ location: CGFloat) -> Bool {
+            abs(location - lastStatusTabLocation) > 1
+        }
+
+        func refreshStatusTabAlignmentIfNeeded() {
+            guard let textView, let storage = textView.textStorage, storage.length > 0 else { return }
+            let location = currentStatusTabLocation()
+            guard shouldRefreshStatusTabLocation(location) else { return }
+            lastStatusTabLocation = location
+            storage.beginEditing()
+            OutputPanelAttributedText.refreshStatusTabLocations(in: storage, statusTabLocation: location)
+            storage.endEditing()
+            textView.layoutManager?.ensureLayout(for: textView.textContainer!)
+        }
 
         func shouldAutoScrollBeforeUpdate(isRunning: Bool) -> Bool {
             guard let scrollView else {
@@ -161,6 +218,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.pendingScroll = false
+                self.refreshStatusTabAlignmentIfNeeded()
                 if self.followRunningOutput || self.isScrolledNearBottom() {
                     self.scrollToBottom()
                 }

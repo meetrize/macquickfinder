@@ -3,24 +3,35 @@ import Foundation
 import SwiftUI
 
 enum OutputPanelAttributedText {
+    static let defaultStatusTabLocation: CGFloat = 600
+
     static func make(
         stdout: String,
         stderr: String,
         emptyPlaceholder: String,
-        findText: String
+        findText: String,
+        statusTabLocation: CGFloat = defaultStatusTabLocation
     ) -> AttributedString {
         guard !stdout.isEmpty || !stderr.isEmpty else {
             var empty = AttributedString(emptyPlaceholder)
             empty.foregroundColor = OutputPanelStyle.placeholderColor
             return empty
         }
-        return AttributedString(makeNSAttributedString(stdout: stdout, stderr: stderr, findText: findText))
+        return AttributedString(
+            makeNSAttributedString(
+                stdout: stdout,
+                stderr: stderr,
+                findText: findText,
+                statusTabLocation: statusTabLocation
+            )
+        )
     }
 
     static func makeNSAttributedString(
         stdout: String,
         stderr: String,
-        findText: String
+        findText: String,
+        statusTabLocation: CGFloat = defaultStatusTabLocation
     ) -> NSAttributedString {
         let baseFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         let result = NSMutableAttributedString()
@@ -31,8 +42,7 @@ enum OutputPanelAttributedText {
                 attributes: [.foregroundColor: color, .font: baseFont]
             )
             if !segment.isStderr {
-                applyPromptStyling(to: segmentAttr)
-                applyStatusStyling(to: segmentAttr)
+                applyPromptStyling(to: segmentAttr, statusTabLocation: statusTabLocation)
             }
             result.append(segmentAttr)
         }
@@ -54,40 +64,80 @@ enum OutputPanelAttributedText {
         return result
     }
 
-    private static func applyPromptStyling(to attr: NSMutableAttributedString) {
+    /// 面板宽度变化时，仅更新命令行状态图标的右对齐位置。
+    static func refreshStatusTabLocations(in attr: NSMutableAttributedString, statusTabLocation: CGFloat) {
         let source = attr.string
-        guard let regex = try? NSRegularExpression(pattern: #"\n\n([^\n]+) \$ ([^\n]+)\n"#) else {
+        guard let regex = try? NSRegularExpression(pattern: #"([^\n]+) \$ ([^\n\t]+)\t([✓✗⊘])\n"#) else {
+            return
+        }
+
+        let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
+        for match in regex.matches(in: source, range: fullRange) {
+            applyPromptLineTabStyle(to: attr, lineRange: match.range, statusTabLocation: statusTabLocation)
+        }
+    }
+
+    private static func applyPromptStyling(to attr: NSMutableAttributedString, statusTabLocation: CGFloat) {
+        styleCompletedPromptLines(in: attr, statusTabLocation: statusTabLocation)
+        styleIncompletePromptLines(in: attr)
+    }
+
+    private static func styleCompletedPromptLines(
+        in attr: NSMutableAttributedString,
+        statusTabLocation: CGFloat
+    ) {
+        let source = attr.string
+        guard let regex = try? NSRegularExpression(pattern: #"([^\n]+) \$ ([^\n\t]+)\t([✓✗⊘])\n"#) else {
+            return
+        }
+
+        let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
+        for match in regex.matches(in: source, range: fullRange) {
+            guard match.numberOfRanges == 4 else { continue }
+            colorMatchGroup(match.range(at: 1), color: OutputPanelStyle.promptPathNSColor, in: attr)
+            colorMatchGroup(match.range(at: 2), color: OutputPanelStyle.promptCommandNSColor, in: attr)
+            if let markerRange = Range(match.range(at: 3), in: source) {
+                let marker = String(source[markerRange])
+                colorMatchGroup(match.range(at: 3), color: statusColor(for: marker), in: attr)
+            }
+            applyPromptLineTabStyle(to: attr, lineRange: match.range, statusTabLocation: statusTabLocation)
+        }
+    }
+
+    private static func styleIncompletePromptLines(in attr: NSMutableAttributedString) {
+        let source = attr.string
+        guard let regex = try? NSRegularExpression(pattern: #"([^\n]+) \$ ([^\n\t]+)\n"#) else {
             return
         }
 
         let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
         for match in regex.matches(in: source, range: fullRange) {
             guard match.numberOfRanges == 3 else { continue }
+            let line = (source as NSString).substring(with: match.range)
+            guard !line.contains("\t") else { continue }
             colorMatchGroup(match.range(at: 1), color: OutputPanelStyle.promptPathNSColor, in: attr)
             colorMatchGroup(match.range(at: 2), color: OutputPanelStyle.promptCommandNSColor, in: attr)
         }
     }
 
-    private static func applyStatusStyling(to attr: NSMutableAttributedString) {
-        let source = attr.string
-        guard let regex = try? NSRegularExpression(pattern: #"\n([✓✗⊘])\n"#) else {
-            return
-        }
+    private static func applyPromptLineTabStyle(
+        to attr: NSMutableAttributedString,
+        lineRange: NSRange,
+        statusTabLocation: CGFloat
+    ) {
+        let style = NSMutableParagraphStyle()
+        style.tabStops = [
+            NSTextTab(textAlignment: .right, location: statusTabLocation, options: [:])
+        ]
+        attr.addAttribute(.paragraphStyle, value: style, range: lineRange)
+    }
 
-        let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
-        for match in regex.matches(in: source, range: fullRange) {
-            guard match.numberOfRanges == 2 else { continue }
-            let lineRange = match.range(at: 1)
-            guard let range = Range(lineRange, in: source) else { continue }
-            let marker = String(source[range])
-            let color: NSColor
-            switch marker {
-            case "✓": color = NSColor(red: 0.45, green: 0.82, blue: 0.52, alpha: 1)
-            case "✗": color = NSColor(red: 1.0, green: 0.55, blue: 0.55, alpha: 1)
-            case "⊘": color = NSColor(white: 0.62, alpha: 1)
-            default: continue
-            }
-            colorMatchGroup(lineRange, color: color, in: attr)
+    private static func statusColor(for marker: String) -> NSColor {
+        switch marker {
+        case "✓": return NSColor(red: 0.45, green: 0.82, blue: 0.52, alpha: 1)
+        case "✗": return NSColor(red: 1.0, green: 0.55, blue: 0.55, alpha: 1)
+        case "⊘": return NSColor(white: 0.62, alpha: 1)
+        default: return OutputPanelStyle.stdoutNSColor
         }
     }
 

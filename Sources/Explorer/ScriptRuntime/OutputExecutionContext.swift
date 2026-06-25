@@ -24,17 +24,35 @@ enum OutputSessionFormatting {
 
     static func prompt(cwd: String, command: String) -> String {
         let display = promptPath(for: cwd)
-        return "\n\n\(display) $ \(command)\n"
+        return "\(display) $ \(command)\n"
     }
 
-    /// 命令结束后追加到 stdout 的状态标识（单字符，一眼可辨成败）。
-    static func completionStatus(exitCode: Int32) -> String {
+    /// 将状态图标附到最近一条尚未结束的命令行末尾（与命令同一行，制表符右对齐）。
+    static func attachCompletionStatus(to stdout: inout String, exitCode: Int32) {
         let marker = exitCode == 0 ? "✓" : "✗"
-        return "\n\(marker)\n"
+        attachCompletionMarker(to: &stdout, marker: marker)
     }
 
-    static func cancelledStatus() -> String {
-        "\n⊘\n"
+    static func attachCancelledStatus(to stdout: inout String) {
+        attachCompletionMarker(to: &stdout, marker: "⊘")
+    }
+
+    private static let incompletePromptPattern = #"([^\n]+) \$ ([^\n\t]+)\n"#
+
+    private static func attachCompletionMarker(to stdout: inout String, marker: String) {
+        guard let regex = try? NSRegularExpression(pattern: incompletePromptPattern) else { return }
+        let ns = stdout as NSString
+        let range = NSRange(location: 0, length: ns.length)
+        let matches = regex.matches(in: stdout, range: range)
+
+        for match in matches.reversed() {
+            guard match.numberOfRanges == 3 else { continue }
+            let path = ns.substring(with: match.range(at: 1))
+            let command = ns.substring(with: match.range(at: 2))
+            let replacement = "\(path) $ \(command)\t\(marker)\n"
+            stdout = ns.replacingCharacters(in: match.range, with: replacement)
+            return
+        }
     }
 
     /// 将 stderr 块嵌入 stdout 时间线，渲染时按序插入并保持红色样式。
