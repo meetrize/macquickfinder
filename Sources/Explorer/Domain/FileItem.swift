@@ -1,4 +1,6 @@
 import Foundation
+import CoreServices
+import Darwin
 import FileList
 
 enum SortOrder: String, CaseIterable, Identifiable {
@@ -55,11 +57,15 @@ struct FileItem: Identifiable, Hashable {
     let name: String
     let isDirectory: Bool
     let modificationDate: Date
+    let creationDate: Date
     let size: Int64
     let isHidden: Bool
     let fileType: String
     let sizeDisplay: String
     let dateDisplay: String
+    let creationDateDisplay: String
+    let finderComment: String
+    let tags: [String]
     
     var isParentDirectoryEntry: Bool {
         id == Self.parentDirectoryID
@@ -72,11 +78,15 @@ struct FileItem: Identifiable, Hashable {
             name: "..",
             isDirectory: true,
             modificationDate: .distantPast,
+            creationDate: .distantPast,
             size: 0,
             isHidden: false,
             fileType: "",
             sizeDisplay: "",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
     }
     
@@ -128,13 +138,15 @@ struct FileItem: Identifiable, Hashable {
         let standardized = (path as NSString).standardizingPath
         let url = URL(fileURLWithPath: standardized)
         let keys: Set<URLResourceKey> = [
-            .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
+            .isDirectoryKey, .contentModificationDateKey, .creationDateKey,
+            .fileSizeKey, .isHiddenKey, .tagNamesKey
         ]
         
         do {
             let values = try url.resourceValues(forKeys: keys)
             guard let isDirectory = values.isDirectory else { return nil }
             let modificationDate = values.contentModificationDate ?? .distantPast
+            let creationDate = values.creationDate ?? modificationDate
             let fileSize = Int64(values.fileSize ?? 0)
             let isHidden = values.isHidden ?? false
             let name = url.lastPathComponent
@@ -145,11 +157,15 @@ struct FileItem: Identifiable, Hashable {
                 name: name,
                 isDirectory: isDirectory,
                 modificationDate: modificationDate,
+                creationDate: creationDate,
                 size: fileSize,
                 isHidden: isHidden,
                 fileType: fileType(for: name, isDirectory: isDirectory),
                 sizeDisplay: sizeDisplay,
-                dateDisplay: FileItemFormatters.formatDate(modificationDate)
+                dateDisplay: FileItemFormatters.formatDate(modificationDate),
+                creationDateDisplay: FileItemFormatters.formatDate(creationDate),
+                finderComment: finderComment(for: url),
+                tags: values.tagNames ?? []
             )
         } catch {
             return nil
@@ -162,5 +178,45 @@ struct FileItem: Identifiable, Hashable {
     
     static func == (lhs: FileItem, rhs: FileItem) -> Bool {
         lhs.id == rhs.id
+    }
+
+    static func finderComment(for url: URL) -> String {
+        if let item = MDItemCreate(nil, url.path as CFString),
+           let value = MDItemCopyAttribute(item, kMDItemFinderComment as CFString) {
+            if let comment = value as? String, !comment.isEmpty {
+                return comment
+            }
+            if let comments = value as? [String], !comments.isEmpty {
+                return comments.joined(separator: "\n")
+            }
+        }
+
+        // 回退：直接读取 Finder 注释 xattr，规避 Spotlight 未命中/未刷新场景。
+        let xattrName = "com.apple.metadata:kMDItemFinderComment"
+        let path = url.path
+        let length = getxattr(path, xattrName, nil, 0, 0, 0)
+        guard length > 0 else { return "" }
+
+        var bytes = [UInt8](repeating: 0, count: length)
+        let readLength = getxattr(path, xattrName, &bytes, length, 0, 0)
+        guard readLength > 0 else { return "" }
+
+        let data = Data(bytes.prefix(readLength))
+        guard let object = try? PropertyListSerialization.propertyList(
+            from: data,
+            options: [],
+            format: nil
+        ) else {
+            return ""
+        }
+
+        if let comment = object as? String {
+            return comment
+        }
+        if let comments = object as? [String] {
+            return comments.joined(separator: "\n")
+        }
+
+        return ""
     }
 }

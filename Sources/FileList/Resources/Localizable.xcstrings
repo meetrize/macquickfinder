@@ -137,6 +137,40 @@
         }
       }
     },
+    "column.date_created": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date Created"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建日期"
+          }
+        }
+      }
+    },
+    "column.comment": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comment"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "注释"
+          }
+        }
+      }
+    },
     "column.move_left": {
       "extractionState": "manual",
       "localizations": {
@@ -201,6 +235,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "大小"
+          }
+        }
+      }
+    },
+    "column.tags": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签"
           }
         }
       }

@@ -28,6 +28,8 @@ extension FileListSortState {
             return ascending ? .sizeSmallest : .sizeLargest
         case .type:
             return nil
+        case .dateCreated, .comment, .tags:
+            return nil
         }
     }
 }

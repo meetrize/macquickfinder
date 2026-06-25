@@ -215,6 +215,18 @@ extension FileListTableController {
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.dateDisplay
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
             cell.textField?.textColor = .labelColor
+        case .dateCreated:
+            cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.creationDateDisplay
+            cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
+            cell.textField?.textColor = .labelColor
+        case .comment:
+            cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.comment
+            cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
+            cell.textField?.textColor = .secondaryLabelColor
+        case .tags:
+            cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.tagsDisplay
+            cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
+            cell.textField?.textColor = .secondaryLabelColor
         }
     }
 

@@ -80,9 +80,9 @@ public enum FileListSortEngine {
     
     public static func defaultAscending(for column: FileListColumnID) -> Bool {
         switch column {
-        case .name, .type, .size:
+        case .name, .type, .size, .comment, .tags:
             return true
-        case .dateModified:
+        case .dateModified, .dateCreated:
             return false
         }
     }
@@ -107,6 +107,12 @@ public enum FileListSortEngine {
             return compareSize(lhs.size, rhs.size, ascending: true)
         case .dateModified:
             return lhs.modificationDate < rhs.modificationDate
+        case .dateCreated:
+            return lhs.creationDate < rhs.creationDate
+        case .comment:
+            return lhs.comment.localizedStandardCompare(rhs.comment) == .orderedAscending
+        case .tags:
+            return lhs.tagsDisplay.localizedStandardCompare(rhs.tagsDisplay) == .orderedAscending
         }
     }
 }

@@ -16,6 +16,10 @@
 	<string>在此处打开终端</string>
 	<key>action.paste</key>
 	<string>粘贴</string>
+	<key>column.comment</key>
+	<string>注释</string>
+	<key>column.date_created</key>
+	<string>创建日期</string>
 	<key>column.date_modified</key>
 	<string>修改日期</string>
 	<key>column.move_left</key>
@@ -26,6 +30,8 @@
 	<string>名称</string>
 	<key>column.size</key>
 	<string>大小</string>
+	<key>column.tags</key>
+	<string>标签</string>
 	<key>column.type</key>
 	<string>类型</string>
 	<key>settings.language.system</key>

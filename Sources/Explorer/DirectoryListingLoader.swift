@@ -3,7 +3,8 @@ import Foundation
 /// 统一的目录枚举与 `FileItem` 映射，供主列表、文件夹预览等复用。
 enum DirectoryListingLoader {
     static let propertyKeys: Set<URLResourceKey> = [
-        .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey,
+        .isDirectoryKey, .contentModificationDateKey, .creationDateKey,
+        .fileSizeKey, .isHiddenKey, .tagNamesKey
     ]
 
     static func enumerationOptions(showHiddenFiles: Bool) -> FileManager.DirectoryEnumerationOptions {

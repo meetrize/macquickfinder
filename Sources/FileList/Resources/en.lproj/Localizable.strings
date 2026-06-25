@@ -16,6 +16,10 @@
 	<string>Open Terminal Here</string>
 	<key>action.paste</key>
 	<string>Paste</string>
+	<key>column.comment</key>
+	<string>Comment</string>
+	<key>column.date_created</key>
+	<string>Date Created</string>
 	<key>column.date_modified</key>
 	<string>Date Modified</string>
 	<key>column.move_left</key>
@@ -26,6 +30,8 @@
 	<string>Name</string>
 	<key>column.size</key>
 	<string>Size</string>
+	<key>column.tags</key>
+	<string>Tags</string>
 	<key>column.type</key>
 	<string>Type</string>
 	<key>settings.language.system</key>

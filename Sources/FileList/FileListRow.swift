@@ -12,8 +12,12 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
     /// 文件夹子项数量角标文案（仅缩略图模式目录格使用）。
     public let childCountDisplay: String?
     public let dateDisplay: String
+    public let creationDateDisplay: String
+    public let comment: String
+    public let tagsDisplay: String
     public let size: Int64
     public let modificationDate: Date
+    public let creationDate: Date
     public let isDirectory: Bool
     public let isHidden: Bool
     public let isParentDirectoryEntry: Bool
@@ -39,8 +43,12 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         sizeDisplay: String,
         childCountDisplay: String? = nil,
         dateDisplay: String,
+        creationDateDisplay: String = "",
+        comment: String = "",
+        tagsDisplay: String = "",
         size: Int64,
         modificationDate: Date,
+        creationDate: Date = .distantPast,
         isDirectory: Bool,
         isHidden: Bool,
         isParentDirectoryEntry: Bool,
@@ -58,8 +66,12 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         self.sizeDisplay = sizeDisplay
         self.childCountDisplay = childCountDisplay
         self.dateDisplay = dateDisplay
+        self.creationDateDisplay = creationDateDisplay
+        self.comment = comment
+        self.tagsDisplay = tagsDisplay
         self.size = size
         self.modificationDate = modificationDate
+        self.creationDate = creationDate
         self.isDirectory = isDirectory
         self.isHidden = isHidden
         self.isParentDirectoryEntry = isParentDirectoryEntry
@@ -79,7 +91,11 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             && fileType == other.fileType
             && childCountDisplay == other.childCountDisplay
             && dateDisplay == other.dateDisplay
+            && creationDateDisplay == other.creationDateDisplay
+            && comment == other.comment
+            && tagsDisplay == other.tagsDisplay
             && modificationDate == other.modificationDate
+            && creationDate == other.creationDate
             && isDirectory == other.isDirectory
             && isHidden == other.isHidden
             && isParentDirectoryEntry == other.isParentDirectoryEntry
@@ -101,8 +117,12 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             sizeDisplay: info.text,
             childCountDisplay: childCountDisplay,
             dateDisplay: dateDisplay,
+            creationDateDisplay: creationDateDisplay,
+            comment: comment,
+            tagsDisplay: tagsDisplay,
             size: info.sortableSize,
             modificationDate: modificationDate,
+            creationDate: creationDate,
             isDirectory: isDirectory,
             isHidden: isHidden,
             isParentDirectoryEntry: isParentDirectoryEntry,
@@ -128,8 +148,12 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
                 sizeDisplay: sizeDisplay,
                 childCountDisplay: nil,
                 dateDisplay: dateDisplay,
+                creationDateDisplay: creationDateDisplay,
+                comment: comment,
+                tagsDisplay: tagsDisplay,
                 size: size,
                 modificationDate: modificationDate,
+                creationDate: creationDate,
                 isDirectory: isDirectory,
                 isHidden: isHidden,
                 isParentDirectoryEntry: isParentDirectoryEntry,
@@ -150,8 +174,12 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             sizeDisplay: sizeDisplay,
             childCountDisplay: info.text,
             dateDisplay: dateDisplay,
+            creationDateDisplay: creationDateDisplay,
+            comment: comment,
+            tagsDisplay: tagsDisplay,
             size: size,
             modificationDate: modificationDate,
+            creationDate: creationDate,
             isDirectory: isDirectory,
             isHidden: isHidden,
             isParentDirectoryEntry: isParentDirectoryEntry,
