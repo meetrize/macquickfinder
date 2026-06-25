@@ -310,7 +310,7 @@ struct OutputPanelView: View {
             }
         )
         .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
-        .modifier(OutputCommandCapsuleFieldStyle(isFocused: focusedField == .command))
+        .modifier(OutputCommandCapsuleFieldStyle())
     }
 
     private func commandHistoryButton(job: JobRecord) -> some View {
@@ -446,20 +446,20 @@ struct OutputPanelView: View {
 
     private var findTextField: some View {
         TextField(L10n.Snippets.Output.find, text: $findText)
-            .font(.system(.caption, design: .monospaced))
-            .foregroundStyle(OutputPanelStyle.commandTextColor)
-            .tint(OutputPanelStyle.commandFocusBorderColor)
+            .font(.system(.caption, design: .monospaced).weight(.regular))
+            .foregroundStyle(OutputPanelStyle.commandFieldTextColor)
+            .tint(OutputPanelStyle.commandFieldTextColor)
             .padding(.leading, focusedField == .find ? 2 : 14)
             .frame(width: 128)
-            .modifier(OutputCommandCapsuleFieldStyle(isFocused: focusedField == .find))
+            .modifier(OutputCommandCapsuleFieldStyle())
             .overlay(alignment: .leading) {
                 if focusedField != .find {
                     Button {
                         focusedField = .find
                     } label: {
                         Image(systemName: "magnifyingglass")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(OutputPanelStyle.commandTextColor.opacity(0.85))
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(OutputPanelStyle.commandFieldTextColor.opacity(0.85))
                             .frame(width: 22, height: 22)
                     }
                     .buttonStyle(.plain)
@@ -605,13 +605,10 @@ private struct OutputPanelOutputScrollView: View {
 private enum OutputCapsuleFieldMetrics {
     static let horizontalPadding: CGFloat = 14
     static let verticalPadding: CGFloat = 7
-    static let borderWidth: CGFloat = 1.5
     static let height: CGFloat = 30
 }
 
 private struct OutputCommandCapsuleFieldStyle: ViewModifier {
-    var isFocused: Bool
-
     func body(content: Content) -> some View {
         content
             .textFieldStyle(.plain)
@@ -620,16 +617,7 @@ private struct OutputCommandCapsuleFieldStyle: ViewModifier {
             .frame(height: OutputCapsuleFieldMetrics.height)
             .background(
                 Capsule(style: .continuous)
-                    .fill(OutputPanelStyle.commandBackgroundColor)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(
-                        isFocused
-                            ? OutputPanelStyle.commandFocusBorderColor
-                            : OutputPanelStyle.commandBorderColor,
-                        lineWidth: OutputCapsuleFieldMetrics.borderWidth
-                    )
+                    .fill(OutputPanelStyle.commandFieldBackgroundColor)
             )
     }
 }

@@ -34,9 +34,9 @@ final class OutputCommandTextField: NSTextField {
         isSelectable = true
         isBordered = false
         drawsBackground = true
-        backgroundColor = OutputPanelStyle.commandBackgroundNSColor
-        textColor = OutputPanelStyle.commandTextNSColor
-        font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        backgroundColor = OutputPanelStyle.commandFieldBackground
+        textColor = OutputPanelStyle.commandFieldText
+        font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         focusRingType = .none
         usesSingleLineMode = true
         lineBreakMode = .byTruncatingTail
