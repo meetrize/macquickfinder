@@ -445,36 +445,38 @@ struct OutputPanelView: View {
     }
 
     private var findTextField: some View {
-        TextField(L10n.Snippets.Output.find, text: $findText)
-            .font(.system(.caption, design: .monospaced).weight(.regular))
-            .foregroundStyle(OutputPanelStyle.commandFieldTextColor)
-            .tint(OutputPanelStyle.commandFieldTextColor)
-            .padding(.leading, focusedField == .find ? 2 : 14)
-            .frame(width: 128)
-            .modifier(OutputCommandCapsuleFieldStyle())
-            .overlay(alignment: .leading) {
-                if focusedField != .find {
-                    Button {
+        OutputFindField(
+            text: $findText,
+            isFocused: Binding(
+                get: { focusedField == .find },
+                set: { focused in
+                    if focused {
                         focusedField = .find
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(OutputPanelStyle.commandFieldTextColor.opacity(0.85))
-                            .frame(width: 22, height: 22)
+                        isOutputAreaActive = false
+                    } else if focusedField == .find {
+                        focusedField = nil
                     }
-                    .buttonStyle(.plain)
-                    .padding(.leading, 10)
-                    .help(L10n.Snippets.Output.find)
                 }
-            }
-            .focused($focusedField, equals: .find)
-            .onChange(of: focusedField) { field in
-                if field == .find {
-                    OutputPanelTextEditingCenter.shared.setActive(true)
-                } else if field != .command {
-                    OutputPanelTextEditingCenter.shared.setActive(false)
+            )
+        )
+        .padding(.leading, focusedField == .find ? 2 : 14)
+        .frame(width: 128)
+        .modifier(OutputCommandCapsuleFieldStyle())
+        .overlay(alignment: .leading) {
+            if focusedField != .find {
+                Button {
+                    focusedField = .find
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: NSFont.systemFontSize, weight: .regular))
+                        .foregroundStyle(OutputPanelStyle.commandFieldTextColor.opacity(0.85))
+                        .frame(width: 22, height: 22)
                 }
+                .buttonStyle(.plain)
+                .padding(.leading, 10)
+                .help(L10n.Snippets.Output.find)
             }
+        }
     }
 
     private func failureBanner(job: JobRecord) -> some View {
