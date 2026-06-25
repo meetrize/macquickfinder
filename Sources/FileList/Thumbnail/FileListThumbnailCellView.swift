@@ -92,6 +92,7 @@ final class FileListThumbnailCellView: NSView {
     }
     
     private var tooltipTrackingArea: NSTrackingArea?
+    private var hoverTooltipText: String = ""
     
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -111,9 +112,9 @@ final class FileListThumbnailCellView: NSView {
     
     override func mouseEntered(with event: NSEvent) {
         guard event.trackingArea === tooltipTrackingArea,
-              let tip = toolTip, !tip.isEmpty
+              !hoverTooltipText.isEmpty
         else { return }
-        RailTooltipPresenter.show(text: tip, anchor: self)
+        RailTooltipPresenter.show(text: hoverTooltipText, anchor: self)
     }
 
     override func mouseExited(with event: NSEvent) {
@@ -246,7 +247,8 @@ final class FileListThumbnailCellView: NSView {
         
         applyFolderItemCountLabel(for: row)
         
-        toolTip = thumbnailToolTip(for: row)
+        hoverTooltipText = thumbnailToolTip(for: row)
+        toolTip = nil
         selectionOverlay.isHidden = !isSelected
         updateAppearanceForCurrentTheme()
         needsLayout = true
@@ -275,7 +277,8 @@ final class FileListThumbnailCellView: NSView {
         
         applyFolderItemCountLabel(for: row)
         
-        toolTip = thumbnailToolTip(for: row)
+        hoverTooltipText = thumbnailToolTip(for: row)
+        toolTip = nil
         updateAppearanceForCurrentTheme()
         needsLayout = true
     }
