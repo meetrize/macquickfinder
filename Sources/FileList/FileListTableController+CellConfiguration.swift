@@ -241,6 +241,8 @@ extension FileListTableController {
         guard let nameCell = tableView.view(atColumn: column, row: row, makeIfNecessary: false) as? NSTableCellView,
               let label = nameLabel(in: nameCell)
         else { return false }
+        // 行处于重命名态时 label 会被隐藏；隐藏 label 不应继续作为“文件名文字点击”命中区。
+        guard !label.isHidden else { return false }
 
         let pointInLabel = label.convert(point, from: tableView)
         guard label.bounds.contains(pointInLabel) else { return false }

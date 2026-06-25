@@ -4,6 +4,28 @@ import Foundation
 // MARK: - Interaction state
 
 extension FileListTableController {
+    func cancelRenameIfNeededForClick(pointInTable: NSPoint, in tableView: NSTableView) {
+        guard isRenaming else { return }
+        guard let frame = activeRenameFieldFrame(in: tableView), frame.contains(pointInTable) else {
+            skipRenameArmOnCurrentMouseUp = true
+            cancelRename()
+            return
+        }
+    }
+
+    private func activeRenameFieldFrame(in tableView: NSTableView) -> NSRect? {
+        guard let rowID = renamingRowID,
+              let row = displayRows.firstIndex(where: { $0.id == rowID }),
+              let nameColumnIndex = tableView.tableColumns.firstIndex(where: {
+                  FileListColumnID.from(column: $0) == .name
+              }),
+              let cell = tableView.view(atColumn: nameColumnIndex, row: row, makeIfNecessary: false) as? NSTableCellView,
+              let field = renameField(in: cell),
+              !field.isHidden
+        else { return nil }
+        return field.convert(field.bounds, to: tableView)
+    }
+
     // MARK: - Mouse & keyboard
     
     func handleTableFocusChanged(_ isFocused: Bool) {
@@ -50,7 +72,7 @@ extension FileListTableController {
             blankDragSelecting = false
         }
     }
-    
+
     func shouldUseDefaultMouseDown(for row: Int, event: NSEvent) -> Bool {
         if mouseDownHandledByDisclosureToggle { return false }
         guard row >= 0, row < displayRows.count else { return true }

@@ -33,8 +33,8 @@ enum FileListRenamePresenter {
 
     static func cancelRename(adapter: FileListRenameUIAdapter) {
         guard let rowID = adapter.renamingRowID else { return }
-        adapter.renameDeactivateEditor(forRowID: rowID)
         adapter.renamingRowID = nil
+        adapter.renameDeactivateEditor(forRowID: rowID)
         adapter.renameClearPendingTarget()
         adapter.renameInteraction.onRenameEditingChanged(false)
     }

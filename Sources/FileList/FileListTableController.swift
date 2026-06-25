@@ -13,6 +13,7 @@ public final class FileListTableController: FileListContentController {
     var mouseDownHandledByDisclosureToggle = false
     var dropHighlightRow: Int?
     var pendingRenameRow = -1
+    var skipRenameArmOnCurrentMouseUp = false
 
     var columnResizeObserver: NSObjectProtocol?
     var columnMoveObserver: NSObjectProtocol?

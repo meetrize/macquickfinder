@@ -40,6 +40,8 @@ final class FileListTableView: NSTableView {
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         let row = row(at: point)
+        interactionController?.skipRenameArmOnCurrentMouseUp = false
+        interactionController?.cancelRenameIfNeededForClick(pointInTable: point, in: self)
         
         if interactionController?.isBlankInteractivePoint(point, in: self) == true {
             interactionController?.handleBlankMouseDown(event)
@@ -72,9 +74,10 @@ final class FileListTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil)
         let row = row(at: point)
         super.mouseUp(with: event)
-        if row >= 0 {
+        if row >= 0, interactionController?.skipRenameArmOnCurrentMouseUp == false {
             interactionController?.armRenameEligibleAfterClickIfNeeded(event, row: row, pointInTable: point)
         }
+        interactionController?.skipRenameArmOnCurrentMouseUp = false
         interactionController?.finishPointerInteractionIfNeeded()
     }
     
