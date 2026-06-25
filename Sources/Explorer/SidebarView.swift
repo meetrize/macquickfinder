@@ -82,20 +82,43 @@ private struct FavoritesSidebarRows: View {
     var isSelected: (String) -> Bool
     var onDropURLs: ([URL], String, Bool, Int?) -> Void
     
+    private var listHeight: CGFloat {
+        CGFloat(favoritesStore.items.count) * FavoriteSidebarRailLayout.rowHeight
+    }
+    
     var body: some View {
+        Group {
+            if showsTitle {
+                GeometryReader { geometry in
+                    favoritesHost(availableWidth: geometry.size.width)
+                        .frame(
+                            width: geometry.size.width,
+                            height: listHeight,
+                            alignment: .topLeading
+                        )
+                }
+                .frame(height: listHeight)
+            } else {
+                favoritesHost(availableWidth: FavoriteSidebarRailLayout.contentWidth)
+                    .frame(width: FavoriteSidebarRailLayout.contentWidth)
+                    .frame(
+                        maxWidth: FavoriteSidebarRailLayout.contentWidth,
+                        alignment: .center
+                    )
+            }
+        }
+    }
+    
+    private func favoritesHost(availableWidth: CGFloat) -> some View {
         FavoritesSidebarHost(
             favoritesStore: favoritesStore,
             path: $path,
             showsTitle: showsTitle,
+            availableWidth: availableWidth,
             isSelected: isSelected,
             onDropURLs: onDropURLs
         )
         .id(showsTitle)
-        .frame(width: showsTitle ? nil : FavoriteSidebarRailLayout.contentWidth)
-        .frame(
-            maxWidth: showsTitle ? .infinity : FavoriteSidebarRailLayout.contentWidth,
-            alignment: showsTitle ? .leading : .center
-        )
         .padding(.leading, showsTitle
             ? -FavoriteSidebarRailLayout.sidebarContentLeadingBleed
             : -FavoriteSidebarRailLayout.railContentLeadingBleed)
