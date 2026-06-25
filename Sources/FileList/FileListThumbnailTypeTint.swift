@@ -1,8 +1,8 @@
 import AppKit
 
 /// 按文件扩展名返回缩略图格子内容区淡色底（P3 创意增强）。
-enum FileListThumbnailTypeTint {
-    static func backgroundColor(for row: FileListRow, isDark: Bool) -> NSColor? {
+public enum FileListThumbnailTypeTint {
+    public static func backgroundColor(for row: FileListRow, isDark: Bool) -> NSColor? {
         guard !row.isDirectory, !row.isParentDirectoryEntry else { return nil }
         let ext = URL(fileURLWithPath: row.iconPath).pathExtension.lowercased()
         guard let category = category(for: ext) else { return nil }

@@ -34,6 +34,7 @@ struct PreviewBrowserStripView: View {
                     .padding(.horizontal, horizontalPadding(for: geometry.size.width))
                 }
                 .frame(height: PreviewBrowserStripMetrics.stripHeight)
+                .background(Color(nsColor: .controlBackgroundColor))
                 .onAppear {
                     scrollToCurrentItem(using: proxy, animated: false)
                     refreshThumbnails()
