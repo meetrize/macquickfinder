@@ -264,8 +264,7 @@ struct OutputPanelView: View {
             }
             HStack(alignment: .center, spacing: 10) {
                 commandTextField(for: job)
-
-                trailingControls(job: job)
+                findTextField
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
@@ -273,15 +272,6 @@ struct OutputPanelView: View {
         .background(Color(nsColor: .controlBackgroundColor))
         .focusedValue(\.textFieldEditing, focusedField != nil)
         .background(TextEditingKeyMonitor(isActive: focusedField != nil))
-    }
-
-    private func trailingControls(job: JobRecord) -> some View {
-        HStack(spacing: 8) {
-            commandHistoryButton(job: job)
-
-            findTextField
-        }
-        .font(.caption)
     }
 
     private func commandTextField(for job: JobRecord) -> some View {
@@ -309,20 +299,29 @@ struct OutputPanelView: View {
                 resetCompletionSession(for: job.id)
             }
         )
+        .padding(.trailing, 28)
         .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
         .modifier(OutputCommandCapsuleFieldStyle())
+        .overlay(alignment: .trailing) {
+            commandHistoryButton(job: job)
+        }
     }
 
     private func commandHistoryButton(job: JobRecord) -> some View {
-        Button {
+        let isDisabled = commandHistories[job.id]?.entries.isEmpty ?? true
+        return Button {
             isHistoryPopoverPresented.toggle()
         } label: {
             Image(systemName: "clock.arrow.circlepath")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: NSFont.systemFontSize, weight: .regular))
+                .foregroundStyle(
+                    OutputPanelStyle.commandFieldTextColor.opacity(isDisabled ? 0.35 : 1)
+                )
+                .frame(width: 22, height: 22)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .disabled(commandHistories[job.id]?.entries.isEmpty ?? true)
+        .buttonStyle(.plain)
+        .padding(.trailing, 10)
+        .disabled(isDisabled)
         .popover(isPresented: $isHistoryPopoverPresented, arrowEdge: .top) {
             commandHistoryPopoverContent(jobID: job.id)
         }
