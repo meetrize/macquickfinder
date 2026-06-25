@@ -1492,37 +1492,6 @@ private struct PathBarNavigateButton: NSViewRepresentable {
     }
 }
 
-private struct PathBreadcrumbMetrics {
-    let contentWidth: CGFloat
-    let isOverflowing: Bool
-    let trailingClickWidth: CGFloat
-    
-    static func compute(
-        segments: [PathSegment],
-        availableWidth: CGFloat,
-        clickGap: CGFloat,
-        clickReserve: CGFloat,
-        showsLeadingRootSlash: Bool
-    ) -> PathBreadcrumbMetrics {
-        let contentWidth = PathBreadcrumbLayout.estimatedBreadcrumbWidth(
-            for: segments,
-            showsLeadingRootSlash: showsLeadingRootSlash
-        )
-        let isOverflowing = contentWidth + clickGap > availableWidth
-        let trailingClickWidth: CGFloat
-        if isOverflowing {
-            trailingClickWidth = clickReserve
-        } else {
-            trailingClickWidth = max(clickReserve, availableWidth - contentWidth - clickGap)
-        }
-        return PathBreadcrumbMetrics(
-            contentWidth: contentWidth,
-            isOverflowing: isOverflowing,
-            trailingClickWidth: trailingClickWidth
-        )
-    }
-}
-
 private struct PathBarBlankClickArea: NSViewRepresentable {
     let onClick: () -> Void
     
@@ -1586,8 +1555,6 @@ private struct PathBreadcrumbView: View {
     
     @State private var hoveredSegmentID: Int?
     
-    private let clickGap: CGFloat = 8
-    private let clickReserve: CGFloat = 40
     private let fieldHeight: CGFloat = 28
     
     private var segments: [PathSegment] {
@@ -1600,23 +1567,20 @@ private struct PathBreadcrumbView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            let metrics = PathBreadcrumbMetrics.compute(
-                segments: segments,
-                availableWidth: geometry.size.width,
-                clickGap: clickGap,
-                clickReserve: clickReserve,
-                showsLeadingRootSlash: showsLeadingRootSlash
-            )
             let layout = PathBreadcrumbLayout.compute(
                 segments: segments,
                 availableWidth: geometry.size.width,
-                reservedTrailingWidth: metrics.isOverflowing ? clickReserve : 0,
                 showsLeadingRootSlash: showsLeadingRootSlash
             )
+            let displayedWidth = layout.estimatedDisplayWidth(
+                allSegments: segments,
+                showsLeadingRootSlash: showsLeadingRootSlash
+            )
+            let trailingClickWidth = max(0, geometry.size.width - displayedWidth)
             
             ZStack(alignment: .leading) {
                 PathBarBlankClickArea(onClick: onRequestEdit)
-                    .frame(width: metrics.trailingClickWidth, height: fieldHeight)
+                    .frame(width: trailingClickWidth, height: fieldHeight)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                     .instantHoverTooltip(L10n.Pathbar.edit)
                 
@@ -1694,7 +1658,7 @@ private struct PathBreadcrumbView: View {
                         .frame(height: fieldHeight)
                     }
                     .frame(
-                        width: max(0, geometry.size.width - metrics.trailingClickWidth),
+                        width: max(0, geometry.size.width - trailingClickWidth),
                         height: fieldHeight,
                         alignment: .leading
                     )
@@ -1731,10 +1695,32 @@ private struct PathBreadcrumbLayout {
     let hiddenSegments: [PathSegment]
     let visibleSegments: [PathSegment]
     
+    func estimatedDisplayWidth(
+        allSegments: [PathSegment],
+        showsLeadingRootSlash: Bool
+    ) -> CGFloat {
+        guard fixedLeadingSegment != nil else {
+            return Self.estimatedBreadcrumbWidth(
+                for: allSegments,
+                showsLeadingRootSlash: showsLeadingRootSlash
+            )
+        }
+        
+        let segmentWidths = allSegments.map(Self.estimatedWidth(for:))
+        let tailStart = hiddenSegments.count + 1
+        return Self.estimatedTruncatedWidth(
+            segmentWidths: segmentWidths,
+            tailStart: tailStart,
+            tailCount: visibleSegments.count,
+            showsLeadingRootSlash: showsLeadingRootSlash,
+            showsEllipsis: showsLeadingEllipsis,
+            ellipsisWidth: 28
+        )
+    }
+    
     static func compute(
         segments: [PathSegment],
         availableWidth: CGFloat,
-        reservedTrailingWidth: CGFloat,
         showsLeadingRootSlash: Bool
     ) -> PathBreadcrumbLayout {
         guard !segments.isEmpty || showsLeadingRootSlash else {
@@ -1746,7 +1732,7 @@ private struct PathBreadcrumbLayout {
             )
         }
         
-        let usableWidth = max(0, availableWidth - reservedTrailingWidth)
+        let usableWidth = max(0, availableWidth)
         let ellipsisWidth: CGFloat = 28
         let segmentWidths = segments.map(estimatedWidth(for:))
         let totalWidth = estimatedBreadcrumbWidth(
