@@ -21,8 +21,8 @@ enum FavoriteSidebarRailLayout {
     static let contentWidth: CGFloat = 36
     /// 与侧栏 `SidebarRow` 及收藏夹表格行高一致（body + vertical 4）。
     static let rowHeight: CGFloat = 24
-    /// 侧栏模式：收藏列表向左外扩，使选中背景更贴近面板左缘。
-    static let sidebarContentLeadingBleed: CGFloat = 7
+    /// 侧栏模式：收藏列表与 `SidebarView` 水平 padding 对齐，选中背景左缘距面板 8pt。
+    static let sidebarContentLeadingBleed: CGFloat = 0
     /// 侧栏模式：收藏列表向右外扩。
     static let sidebarContentTrailingBleed: CGFloat = 4
     /// 工具栏模式：收藏列表向左外扩。
@@ -41,7 +41,7 @@ private enum FavoriteSidebarMetrics {
     static let rowContentInset: CGFloat = 8
     static let selectionCornerRadius: CGFloat = 6
     /// 侧栏模式下图标左边距（与 `SidebarRow` 高亮内 `.padding(.horizontal, 8)` 对齐）。
-    static let sidebarIconLeadingInset: CGFloat = 10
+    static let sidebarIconLeadingInset: CGFloat = 8
 }
 
 // MARK: - Controller
@@ -508,8 +508,15 @@ private final class FavoriteSidebarCellView: NSTableCellView {
         
         titleField.translatesAutoresizingMaskIntoConstraints = false
         titleField.lineBreakMode = .byTruncatingTail
+        titleField.maximumNumberOfLines = 1
         titleField.font = .systemFont(ofSize: NSFont.systemFontSize)
         titleField.textColor = .labelColor
+        if let cell = titleField.cell as? NSTextFieldCell {
+            cell.wraps = false
+            cell.truncatesLastVisibleLine = true
+        }
+        titleField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        titleField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         
         addSubview(iconView)
         addSubview(titleField)
@@ -529,7 +536,7 @@ private final class FavoriteSidebarCellView: NSTableCellView {
             iconView.widthAnchor.constraint(equalToConstant: 16),
             iconView.heightAnchor.constraint(equalToConstant: 16),
             
-            titleField.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -FavoriteSidebarMetrics.rowContentInset),
+            titleField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -FavoriteSidebarMetrics.rowContentInset),
             titleField.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }

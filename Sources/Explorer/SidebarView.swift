@@ -394,6 +394,8 @@ struct SidebarRow: View {
                 HStack(spacing: 8) {
                     Image(systemName: icon)
                     Text(title)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Spacer(minLength: 0)
                     if let trailingAccessory {
                         trailingAccessory()
