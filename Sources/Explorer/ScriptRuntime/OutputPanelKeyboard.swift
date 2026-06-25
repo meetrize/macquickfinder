@@ -10,8 +10,12 @@ enum OutputPanelKeyboard {
     static func action(
         for event: NSEvent,
         isFindActive: Bool,
+        isCommandFieldFocused: Bool,
         isInterruptEnabled: Bool
     ) -> OutputPanelKeyboardAction? {
+        if isCommandFieldFocused, isControlC(event) {
+            return nil
+        }
         if isInterruptEnabled, isControlC(event) {
             return .interrupt
         }

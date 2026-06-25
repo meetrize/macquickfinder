@@ -9,6 +9,7 @@ final class OutputCommandTextField: NSTextField {
     var onHistoryNavigate: ((OutputCommandHistoryDirection) -> String?)?
     var onTabComplete: ((String, Int) -> OutputCommandCompletionResult?)?
     var onCompletionSessionReset: (() -> Void)?
+    var onControlC: ((OutputCommandControlCAction) -> Void)?
 
     private var suppressTextSync = false
     private var suppressFocusEndNotification = false
@@ -77,6 +78,9 @@ final class OutputCommandTextField: NSTextField {
     }
 
     override func keyDown(with event: NSEvent) {
+        if handleControlC(event) {
+            return
+        }
         if handlesReturn(event) {
             submitCommand()
             return
@@ -137,6 +141,9 @@ final class OutputCommandTextField: NSTextField {
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.isEditing else { return event }
+            if self.handleControlC(event) {
+                return nil
+            }
             return self.handleCommandShortcut(event) ? nil : event
         }
     }
@@ -154,6 +161,33 @@ final class OutputCommandTextField: NSTextField {
         if responder === self { return true }
         guard let textView = responder as? NSTextView, textView.isFieldEditor else { return false }
         return (textView.delegate as AnyObject?) === self
+    }
+
+    private func handleControlC(_ event: NSEvent) -> Bool {
+        guard isEnabled, isEditable, isEditing else { return false }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags.contains(.control), !flags.contains(.command) else { return false }
+        guard event.charactersIgnoringModifiers?.lowercased() == "c" else { return false }
+        performControlCAction()
+        return true
+    }
+
+    private func clearInput() {
+        suppressTextSync = true
+        stringValue = ""
+        suppressTextSync = false
+        onCompletionSessionReset?()
+        onTextChange?("")
+        refocusFieldEditor()
+    }
+
+    private func performControlCAction() {
+        if stringValue.isEmpty {
+            onControlC?(.closeCurrentJobTab)
+        } else {
+            clearInput()
+            onControlC?(.clearInput)
+        }
     }
 
     private func handleCommandShortcut(_ event: NSEvent) -> Bool {
@@ -233,6 +267,10 @@ extension OutputCommandTextField: NSTextFieldDelegate {
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            performControlCAction()
+            return true
+        }
         if commandSelector == #selector(NSResponder.insertNewline(_:)) {
             submitCommand()
             return true
@@ -288,6 +326,11 @@ extension OutputCommandTextField: NSTextFieldDelegate {
     }
 }
 
+enum OutputCommandControlCAction {
+    case clearInput
+    case closeCurrentJobTab
+}
+
 /// 输出面板底部命令输入框（NSTextField），支持 Cmd+A/C/V/X 与回车提交。
 struct OutputCommandField: NSViewRepresentable {
     @Binding var text: String
@@ -298,6 +341,7 @@ struct OutputCommandField: NSViewRepresentable {
     var onHistoryNavigate: (OutputCommandHistoryDirection) -> String?
     var onTabComplete: (String, Int) -> OutputCommandCompletionResult?
     var onCompletionSessionReset: () -> Void
+    var onControlC: (OutputCommandControlCAction) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(text: $text)
@@ -326,6 +370,7 @@ struct OutputCommandField: NSViewRepresentable {
         field.onHistoryNavigate = onHistoryNavigate
         field.onTabComplete = onTabComplete
         field.onCompletionSessionReset = onCompletionSessionReset
+        field.onControlC = onControlC
         field.onTextChange = { context.coordinator.updateText($0) }
     }
 

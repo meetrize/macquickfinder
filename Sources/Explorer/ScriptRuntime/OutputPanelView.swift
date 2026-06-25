@@ -151,6 +151,7 @@ struct OutputPanelView: View {
         }
         .background(OutputPanelKeyMonitor(
             isFindActive: isOutputContextActive,
+            isCommandFieldFocused: focusedField == .command,
             isInterruptEnabled: jobStore.selectedJob?.status == .running,
             onFind: { focusedField = .find },
             onInterrupt: {
@@ -312,6 +313,9 @@ struct OutputPanelView: View {
             },
             onCompletionSessionReset: {
                 resetCompletionSession(for: job.id)
+            },
+            onControlC: { action in
+                handleCommandControlC(action, jobID: job.id)
             }
         )
         .padding(.trailing, 28)
@@ -603,6 +607,27 @@ struct OutputPanelView: View {
             focusedField = .command
         }
     }
+
+    private func handleCommandControlC(_ action: OutputCommandControlCAction, jobID: UUID) {
+        switch action {
+        case .clearInput:
+            commandDraft = ""
+            resetCompletionSession(for: jobID)
+            completionListHint = nil
+        case .closeCurrentJobTab:
+            closeCurrentJobTab(jobID: jobID)
+        }
+    }
+
+    private func closeCurrentJobTab(jobID: UUID) {
+        commandHistories.removeValue(forKey: jobID)
+        completionSessions.removeValue(forKey: jobID)
+        previousDirectories.removeValue(forKey: jobID)
+        isHistoryPopoverPresented = false
+        prefersCommandFieldFocus = false
+        focusedField = nil
+        jobStore.removeJob(id: jobID)
+    }
 }
 
 private struct OutputPanelOutputScrollView: View {
@@ -653,6 +678,7 @@ private struct OutputCommandCapsuleFieldStyle: ViewModifier {
 
 private struct OutputPanelKeyMonitor: NSViewRepresentable {
     let isFindActive: Bool
+    let isCommandFieldFocused: Bool
     let isInterruptEnabled: Bool
     let onFind: () -> Void
     let onInterrupt: () -> Void
@@ -669,11 +695,13 @@ private struct OutputPanelKeyMonitor: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         context.coordinator.isFindActive = isFindActive
+        context.coordinator.isCommandFieldFocused = isCommandFieldFocused
         context.coordinator.isInterruptEnabled = isInterruptEnabled
     }
 
     final class Coordinator {
         var isFindActive: Bool
+        var isCommandFieldFocused: Bool
         var isInterruptEnabled: Bool
         let onFind: () -> Void
         let onInterrupt: () -> Void
@@ -683,6 +711,7 @@ private struct OutputPanelKeyMonitor: NSViewRepresentable {
             self.onFind = onFind
             self.onInterrupt = onInterrupt
             self.isFindActive = false
+            self.isCommandFieldFocused = false
             self.isInterruptEnabled = false
         }
 
@@ -698,6 +727,7 @@ private struct OutputPanelKeyMonitor: NSViewRepresentable {
             switch OutputPanelKeyboard.action(
                 for: event,
                 isFindActive: isFindActive,
+                isCommandFieldFocused: isCommandFieldFocused,
                 isInterruptEnabled: isInterruptEnabled
             ) {
             case .interrupt:
