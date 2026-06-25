@@ -388,140 +388,7 @@ struct ContentView: View {
         .background(BarTextFieldFocusSync(activeField: $activeBarField))
         .navigationTitle(currentDirectoryTitle)
         .modifier(InlineToolbarTitleModifier())
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button(action: toggleLeftPanelVisibility) {
-                    Image(systemName: leftPanelMode == .hidden ? "sidebar.left" : "sidebar.left")
-                }
-                .buttonStyle(.borderless)
-                .instantHoverTooltip(leftPanelMode == .hidden ? L10n.Toolbar.showLeftPanel : L10n.Toolbar.hideLeftPanel)
-            }
-            .hideSharedBackgroundIfAvailable()
-
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: { layout.showPreview.toggle() }) {
-                    Image(systemName: layout.showPreview ? "doc.text.image.fill" : "doc.text.image")
-                }
-                .buttonStyle(.borderless)
-                .instantHoverTooltip(layout.showPreview ? L10n.Menu.hidePreview : L10n.Menu.showPreview)
-            }
-            .hideSharedBackgroundIfAvailable()
-
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: { layout.showSnippets.toggle() }) {
-                    Image(systemName: layout.showSnippets ? "curlybraces.square.fill" : "curlybraces.square")
-                }
-                .buttonStyle(.borderless)
-                .instantHoverTooltip(layout.showSnippets ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets)
-            }
-            .hideSharedBackgroundIfAvailable()
-            
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: createNewFolder) {
-                    LucideIcon.folderPlus
-                }
-                .buttonStyle(.borderless)
-                .instantHoverTooltip(L10n.Toolbar.newFolder)
-            }
-            .hideSharedBackgroundIfAvailable()
-
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: {
-                    showHiddenFiles.toggle()
-                    loadItems()
-                }) {
-                    Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
-                }
-                .buttonStyle(.borderless)
-            }
-            .hideSharedBackgroundIfAvailable()
-            
-            ToolbarItem(placement: .primaryAction) {
-                Picker(L10n.Toolbar.viewPicker, selection: Binding(
-                    get: { layout.fileListViewModeRaw },
-                    set: { layout.setFileListViewMode(FileListViewMode(rawValue: $0) ?? .list) }
-                )) {
-                    ForEach(FileListViewMode.allCases, id: \.rawValue) { mode in
-                        Image(systemName: mode.systemImageName)
-                            .tag(mode.rawValue)
-                            .instantHoverTooltip(mode == .list ? L10n.Toolbar.listView : L10n.Toolbar.thumbnailView)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 72)
-            }
-            .hideSharedBackgroundIfAvailable()
-            
-            if fileListViewMode == .thumbnail {
-                ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "photo")
-                            .foregroundStyle(.secondary)
-                        Slider(
-                            value: Binding(
-                                get: { layout.thumbnailCellSizeValue },
-                                set: { layout.thumbnailCellSizeValue = FileListThumbnailMetrics.steppedCellSize(from: $0) }
-                            ),
-                            in: FileListThumbnailMetrics.minCellSize...FileListThumbnailMetrics.maxCellSize,
-                            step: FileListThumbnailMetrics.cellSizeStep
-                        )
-                        .frame(width: 120)
-                        Text("\(Int(FileListThumbnailMetrics.steppedCellSize(from: layout.thumbnailCellSizeValue)))")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                            .frame(width: 30, alignment: .trailing)
-                    }
-                    .instantHoverTooltip(L10n.Toolbar.thumbnailSize)
-                }
-                .hideSharedBackgroundIfAvailable()
-            }
-            
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    ForEach(SortOrder.allCases) { order in
-                        Button {
-                            sortOrder = order
-                        } label: {
-                            if sortOrder == order {
-                                Label(order.displayName, systemImage: "checkmark")
-                            } else {
-                                Text(order.displayName)
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "arrow.up.arrow.down")
-                }
-                .menuStyle(.borderlessButton)
-            }
-            .hideSharedBackgroundIfAvailable()
-            
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Toggle(L10n.Toolbar.autoFolderSize, isOn: $autoCalculateDirectorySizes)
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-                .menuStyle(.borderlessButton)
-                .instantHoverTooltip(L10n.Toolbar.browseSettings)
-            }
-            .hideSharedBackgroundIfAvailable()
-            
-            ToolbarItem(placement: .primaryAction) {
-                BarTextField(
-                    fieldID: .search,
-                    prompt: L10n.Search.prompt,
-                    text: $searchText,
-                    activeField: $activeBarField,
-                    icon: "magnifyingglass",
-                    shape: .capsule,
-                    showsClearButton: true
-                )
-                .frame(width: 220)
-            }
-            .hideSharedBackgroundIfAvailable()
-        }
+        .toolbar { explorerToolbarItems }
         .onChange(of: activeBarField) { field in
             guard let field, let hostWindow else { return }
             BarTextFieldFocusRegistry.focus(field, in: hostWindow)
@@ -555,6 +422,124 @@ struct ContentView: View {
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
             .disabled(!canNavigateForward)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var explorerToolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button(action: toggleLeftPanelVisibility) {
+                Image(systemName: leftPanelMode == .hidden ? "sidebar.left" : "sidebar.left")
+            }
+            .buttonStyle(.borderless)
+            .instantHoverTooltip(leftPanelMode == .hidden ? L10n.Toolbar.showLeftPanel : L10n.Toolbar.hideLeftPanel)
+        }
+        .hideSharedBackgroundIfAvailable()
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button(action: { layout.showPreview.toggle() }) {
+                Image(systemName: layout.showPreview ? "doc.text.image.fill" : "doc.text.image")
+            }
+            .buttonStyle(.borderless)
+            .instantHoverTooltip(layout.showPreview ? L10n.Menu.hidePreview : L10n.Menu.showPreview)
+
+            Button(action: { layout.showSnippets.toggle() }) {
+                Image(systemName: layout.showSnippets ? "curlybraces.square.fill" : "curlybraces.square")
+            }
+            .buttonStyle(.borderless)
+            .instantHoverTooltip(layout.showSnippets ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets)
+
+            Button(action: { layout.toggleOutputPanel() }) {
+                Image(systemName: layout.isOutputPanelVisible ? "terminal.fill" : "terminal")
+            }
+            .buttonStyle(.borderless)
+            .instantHoverTooltip(layout.isOutputPanelVisible ? L10n.Menu.hideOutputPanel : L10n.Menu.showOutputPanel)
+
+            Button(action: createNewFolder) {
+                LucideIcon.folderPlus
+            }
+            .buttonStyle(.borderless)
+            .instantHoverTooltip(L10n.Toolbar.newFolder)
+
+            Button(action: {
+                showHiddenFiles.toggle()
+                loadItems()
+            }) {
+                Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
+            }
+            .buttonStyle(.borderless)
+
+            Picker(L10n.Toolbar.viewPicker, selection: Binding(
+                get: { layout.fileListViewModeRaw },
+                set: { layout.setFileListViewMode(FileListViewMode(rawValue: $0) ?? .list) }
+            )) {
+                ForEach(FileListViewMode.allCases, id: \.rawValue) { mode in
+                    Image(systemName: mode.systemImageName)
+                        .tag(mode.rawValue)
+                        .instantHoverTooltip(mode == .list ? L10n.Toolbar.listView : L10n.Toolbar.thumbnailView)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 72)
+
+            if fileListViewMode == .thumbnail {
+                HStack(spacing: 6) {
+                    Image(systemName: "photo")
+                        .foregroundStyle(.secondary)
+                    Slider(
+                        value: Binding(
+                            get: { layout.thumbnailCellSizeValue },
+                            set: { layout.thumbnailCellSizeValue = FileListThumbnailMetrics.steppedCellSize(from: $0) }
+                        ),
+                        in: FileListThumbnailMetrics.minCellSize...FileListThumbnailMetrics.maxCellSize,
+                        step: FileListThumbnailMetrics.cellSizeStep
+                    )
+                    .frame(width: 120)
+                    Text("\(Int(FileListThumbnailMetrics.steppedCellSize(from: layout.thumbnailCellSizeValue)))")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 30, alignment: .trailing)
+                }
+                .instantHoverTooltip(L10n.Toolbar.thumbnailSize)
+            }
+
+            Menu {
+                ForEach(SortOrder.allCases) { order in
+                    Button {
+                        sortOrder = order
+                    } label: {
+                        HStack {
+                            Text(order.displayName)
+                            if sortOrder == order {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+            }
+            .menuStyle(.borderlessButton)
+
+            Menu {
+                Toggle(L10n.Toolbar.autoFolderSize, isOn: $autoCalculateDirectorySizes)
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .menuStyle(.borderlessButton)
+            .instantHoverTooltip(L10n.Toolbar.browseSettings)
+
+            BarTextField(
+                fieldID: .search,
+                prompt: L10n.Search.prompt,
+                text: $searchText,
+                activeField: $activeBarField,
+                icon: "magnifyingglass",
+                shape: .capsule,
+                showsClearButton: true
+            )
+            .frame(width: 220)
         }
     }
     
