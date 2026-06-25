@@ -42,6 +42,7 @@ APP_DIR="$APP_NAME/Contents"
 MACOS_DIR="$APP_DIR/MacOS"
 RESOURCES_DIR="$APP_DIR/Resources"
 FRAMEWORKS_DIR="$APP_DIR/Frameworks"
+APP_ROOT_DIR="$APP_NAME"
 
 mkdir -p "$MACOS_DIR"
 mkdir -p "$RESOURCES_DIR"
@@ -57,6 +58,10 @@ copy_spm_bundle() {
     bundle_path=$(find -L ".build/$BUILD_CONFIG" -name "$pattern" -type d 2>/dev/null | head -1)
     if [ -n "$bundle_path" ]; then
         cp -R "$bundle_path" "$RESOURCES_DIR/"
+        # 某些运行路径下 SwiftPM 资源访问器会从 `Bundle.main.bundleURL/<bundle>` 读取。
+        # 兼容该行为：在 app 根目录额外放一份（保留 Contents/Resources 供标准加载链路）。
+        rm -rf "$APP_ROOT_DIR/$pattern"
+        cp -R "$bundle_path" "$APP_ROOT_DIR/"
     else
         echo "Warning: SPM resource bundle not found: $pattern"
     fi

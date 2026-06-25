@@ -3,6 +3,59 @@ import FileList
 import SwiftUI
 
 extension PreviewSession {
+    func previewQuickLookImageToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
+        [
+            previewToolbarIconItem(
+                id: "quicklook-image-zoom-out",
+                title: L10n.Preview.Toolbar.zoomOut,
+                systemImage: "minus.magnifyingglass",
+                isDisabled: office.zoomScale <= 0.25,
+                action: { [self] in office.sendNavigate(.zoomOut) }
+            ),
+            PreviewToolbarOverflowModel(
+                id: "quicklook-image-scale",
+                menuTitle: L10n.Preview.Toolbar.zoomScale,
+                menuSystemImage: "percent",
+                isDisabled: false,
+                estimatedWidth: 44,
+                menuAction: {},
+                content: AnyView(
+                    Text("\(Int((office.zoomScale * 100).rounded()))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundColor(.secondary)
+                        .frame(minWidth: 44, alignment: .center)
+                        .instantHoverTooltip(L10n.Preview.Toolbar.zoomScale)
+                )
+            ),
+            previewToolbarIconItem(
+                id: "quicklook-image-zoom-in",
+                title: L10n.Preview.Toolbar.zoomIn,
+                systemImage: "plus.magnifyingglass",
+                isDisabled: office.zoomScale >= 5.0,
+                action: { [self] in office.sendNavigate(.zoomIn) }
+            ),
+            previewToolbarIconItem(
+                id: "quicklook-image-reset",
+                title: L10n.Preview.Toolbar.reset,
+                systemImage: "arrow.counterclockwise",
+                isDisabled: abs(office.zoomScale - 1.0) < 0.001,
+                action: { [self] in office.sendNavigate(.resetZoom) }
+            ),
+            previewToolbarIconItem(
+                id: "quicklook-image-copy",
+                title: L10n.Preview.Toolbar.copyImage,
+                systemImage: "doc.on.doc",
+                action: { [self] in copyImageToPasteboard(item) }
+            ),
+            previewToolbarIconItem(
+                id: "quicklook-image-open",
+                title: L10n.Preview.Toolbar.openDefaultApp,
+                systemImage: "arrow.up.forward.app",
+                action: { NSWorkspace.shared.open(item.url) }
+            ),
+        ]
+    }
+
     func previewImageToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
         var items: [PreviewToolbarOverflowModel] = [
             PreviewToolbarOverflowModel(

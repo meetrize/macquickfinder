@@ -4,6 +4,7 @@ import Foundation
 enum PreviewLoadRoute: Equatable {
     case customOverride(CustomPreviewMode)
     case builtInImage
+    case builtInQuickLookImage
     case builtInMedia
     case docx
     case doc
@@ -35,6 +36,9 @@ enum PreviewLoadDispatch {
         }
         if BuiltinPreviewExtensions.image.contains(ext) {
             return .builtInImage
+        }
+        if BuiltinPreviewExtensions.quickLookImage.contains(ext) {
+            return .builtInQuickLookImage
         }
         if BuiltinPreviewExtensions.media.contains(ext) {
             return .builtInMedia

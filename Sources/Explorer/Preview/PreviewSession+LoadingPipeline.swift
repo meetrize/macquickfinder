@@ -25,6 +25,9 @@ extension PreviewSession {
             await loadCustomPreview(mode: mode, url: url, itemID: itemID)
         case .builtInImage:
             await loadBuiltInImage(url: url, itemID: itemID)
+        case .builtInQuickLookImage:
+            guard !Task.isCancelled else { return }
+            applyLoadPayload(.office(url: url), expectedItemID: itemID)
         case .builtInMedia:
             guard !Task.isCancelled else { return }
             applyLoadPayload(.media(url: url), expectedItemID: itemID)

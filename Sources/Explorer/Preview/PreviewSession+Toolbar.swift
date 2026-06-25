@@ -4,7 +4,10 @@ import SwiftUI
 
 extension PreviewSession {
     func previewToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
-        let ext = item.url.pathExtension
+        let ext = item.url.pathExtension.lowercased()
+        if BuiltinPreviewExtensions.quickLookImage.contains(ext) {
+            return previewQuickLookImageToolbarItems(for: item)
+        }
         if PreviewTypeClassifier.isImageFile(ext) {
             return previewImageToolbarItems(for: item)
         }
