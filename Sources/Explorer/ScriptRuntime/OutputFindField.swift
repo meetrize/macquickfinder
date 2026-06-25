@@ -107,7 +107,7 @@ struct OutputFindField: NSViewRepresentable {
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
-        nsView.onSubmit = context.coordinator.onSubmit
+        nsView.onSubmit = onSubmit
         if isFocused, nsView.window?.firstResponder !== nsView.currentEditor() {
             nsView.window?.makeFirstResponder(nsView)
         }

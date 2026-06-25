@@ -1,8 +1,13 @@
 import AppKit
 import SwiftUI
 
+extension Notification.Name {
+    static let outputPanelFindNextRequested = Notification.Name("outputPanelFindNextRequested")
+}
+
 /// 输出区：运行中与结束后均按 stderr 分段富文本渲染，避免内联控制符显示为乱码。
 struct OutputPanelOutputTextView: NSViewRepresentable {
+    let jobID: UUID
     let stdout: String
     let stderr: String
     let isRunning: Bool
@@ -48,7 +53,9 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         scrollView.documentView = textView
         context.coordinator.textView = textView
         context.coordinator.scrollView = scrollView
+        context.coordinator.jobID = jobID
         context.coordinator.installWidthObserver(on: scrollView.contentView)
+        context.coordinator.installFindNextObserver()
         return scrollView
     }
 
@@ -56,6 +63,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         guard context.coordinator.textView != nil else { return }
 
         let coordinator = context.coordinator
+        coordinator.jobID = jobID
         let trimmedFindText = findText.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasActiveFind = !trimmedFindText.isEmpty
         let shouldAutoScroll = coordinator.shouldAutoScrollBeforeUpdate(isRunning: isRunning)
@@ -134,6 +142,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
     final class Coordinator {
         weak var textView: NSTextView?
         weak var scrollView: NSScrollView?
+        var jobID: UUID?
         var renderedStdoutLength = 0
         var renderedStderrLength = 0
         var lastRenderedStdout = ""
@@ -151,10 +160,14 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         private var pendingScroll = false
         private var lastClipMaxY: CGFloat?
         private var widthObserver: NSObjectProtocol?
+        private var findNextObserver: NSObjectProtocol?
 
         deinit {
             if let widthObserver {
                 NotificationCenter.default.removeObserver(widthObserver)
+            }
+            if let findNextObserver {
+                NotificationCenter.default.removeObserver(findNextObserver)
             }
         }
 
@@ -166,6 +179,22 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
                 queue: .main
             ) { [weak self] _ in
                 self?.refreshStatusTabAlignmentIfNeeded()
+            }
+        }
+
+        func installFindNextObserver() {
+            guard findNextObserver == nil else { return }
+            findNextObserver = NotificationCenter.default.addObserver(
+                forName: .outputPanelFindNextRequested,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self else { return }
+                guard
+                    let targetJobID = notification.userInfo?["jobID"] as? UUID,
+                    targetJobID == self.jobID
+                else { return }
+                self.advanceToNextFindMatch()
             }
         }
 
@@ -299,7 +328,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         ) {
             let trimmed = findText.trimmingCharacters(in: .whitespacesAndNewlines)
             let findTextChanged = lastFindText != findText
-            let nextTriggered = !findTextChanged && lastFindNextToken != findNextToken
+            let pendingAdvanceCount = findTextChanged ? 0 : Int(findNextToken &- lastFindNextToken)
 
             if findTextChanged {
                 lastFindText = findText
@@ -330,10 +359,11 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
 
             if findTextChanged || (didRebuildContent && !findMatchRanges.isEmpty) {
                 scrollToFindMatch(at: findCurrentIndex)
-            } else if nextTriggered {
+            } else if pendingAdvanceCount > 0 {
                 lastFindNextToken = findNextToken
                 guard !findMatchRanges.isEmpty else { return }
-                findCurrentIndex = (findCurrentIndex + 1) % findMatchRanges.count
+                let step = pendingAdvanceCount % findMatchRanges.count
+                findCurrentIndex = (findCurrentIndex + step) % findMatchRanges.count
                 scrollToFindMatch(at: findCurrentIndex)
             }
         }
@@ -346,6 +376,12 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
             }
             textView.scrollRangeToVisible(range)
             lastClipMaxY = scrollView?.contentView.bounds.maxY
+        }
+
+        func advanceToNextFindMatch() {
+            guard !findMatchRanges.isEmpty else { return }
+            findCurrentIndex = (findCurrentIndex + 1) % findMatchRanges.count
+            scrollToFindMatch(at: findCurrentIndex)
         }
     }
 }

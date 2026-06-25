@@ -153,9 +153,13 @@ struct OutputPanelView: View {
         }
         .background(OutputPanelKeyMonitor(
             isFindActive: isOutputContextActive,
+            isFindFieldFocused: focusedField == .find,
             isCommandFieldFocused: focusedField == .command,
             isInterruptEnabled: jobStore.selectedJob?.status == .running,
             onFind: { focusedField = .find },
+            onFindNext: {
+                requestFindNextMatch()
+            },
             onInterrupt: {
                 guard let job = jobStore.selectedJob, job.status == .running else { return }
                 jobStore.cancel(jobID: job.id)
@@ -494,14 +498,14 @@ struct OutputPanelView: View {
                     }
                 ),
                 onSubmit: {
-                    findNextToken &+= 1
+                    requestFindNextMatch()
                 }
             )
             .frame(minWidth: 72, maxWidth: .infinity)
 
             if !findText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Button {
-                    findNextToken &+= 1
+                    requestFindNextMatch()
                 } label: {
                     Image(systemName: "chevron.down")
                         .font(.system(size: NSFont.systemFontSize, weight: .regular))
@@ -653,6 +657,18 @@ struct OutputPanelView: View {
         focusedField = nil
         jobStore.removeJob(id: jobID)
     }
+
+    private func requestFindNextMatch() {
+        guard !findText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        if let selectedJobID = jobStore.selectedJobID {
+            NotificationCenter.default.post(
+                name: .outputPanelFindNextRequested,
+                object: nil,
+                userInfo: ["jobID": selectedJobID]
+            )
+        }
+        findNextToken &+= 1
+    }
 }
 
 private struct OutputPanelOutputScrollView: View {
@@ -664,6 +680,7 @@ private struct OutputPanelOutputScrollView: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             OutputPanelOutputTextView(
+                jobID: job.id,
                 stdout: job.stdout,
                 stderr: job.stderr,
                 isRunning: job.status == .running,
@@ -707,13 +724,15 @@ private struct OutputCommandCapsuleFieldStyle: ViewModifier {
 
 private struct OutputPanelKeyMonitor: NSViewRepresentable {
     let isFindActive: Bool
+    let isFindFieldFocused: Bool
     let isCommandFieldFocused: Bool
     let isInterruptEnabled: Bool
     let onFind: () -> Void
+    let onFindNext: () -> Void
     let onInterrupt: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onFind: onFind, onInterrupt: onInterrupt)
+        Coordinator(onFind: onFind, onFindNext: onFindNext, onInterrupt: onInterrupt)
     }
 
     func makeNSView(context: Context) -> NSView {
@@ -724,22 +743,27 @@ private struct OutputPanelKeyMonitor: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         context.coordinator.isFindActive = isFindActive
+        context.coordinator.isFindFieldFocused = isFindFieldFocused
         context.coordinator.isCommandFieldFocused = isCommandFieldFocused
         context.coordinator.isInterruptEnabled = isInterruptEnabled
     }
 
     final class Coordinator {
         var isFindActive: Bool
+        var isFindFieldFocused: Bool
         var isCommandFieldFocused: Bool
         var isInterruptEnabled: Bool
         let onFind: () -> Void
+        let onFindNext: () -> Void
         let onInterrupt: () -> Void
         private var monitor: Any?
 
-        init(onFind: @escaping () -> Void, onInterrupt: @escaping () -> Void) {
+        init(onFind: @escaping () -> Void, onFindNext: @escaping () -> Void, onInterrupt: @escaping () -> Void) {
             self.onFind = onFind
+            self.onFindNext = onFindNext
             self.onInterrupt = onInterrupt
             self.isFindActive = false
+            self.isFindFieldFocused = false
             self.isCommandFieldFocused = false
             self.isInterruptEnabled = false
         }
@@ -753,6 +777,10 @@ private struct OutputPanelKeyMonitor: NSViewRepresentable {
         }
 
         private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+            if isFindFieldFocused, (event.keyCode == 36 || event.keyCode == 76) {
+                onFindNext()
+                return nil
+            }
             switch OutputPanelKeyboard.action(
                 for: event,
                 isFindActive: isFindActive,
