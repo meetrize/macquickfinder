@@ -52,13 +52,14 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         guard context.coordinator.textView != nil else { return }
 
         let coordinator = context.coordinator
-        let wasNearBottom = coordinator.isScrolledNearBottom()
+        let shouldAutoScroll = coordinator.shouldAutoScrollBeforeUpdate(isRunning: isRunning)
 
         if stdout.isEmpty, stderr.isEmpty {
             if !coordinator.lastRenderedStdout.isEmpty || !coordinator.lastRenderedStderr.isEmpty {
                 coordinator.replaceAll(with: NSAttributedString())
                 coordinator.lastRenderedStdout = ""
                 coordinator.lastRenderedStderr = ""
+                coordinator.resetScrollFollowing()
             }
             return
         }
@@ -95,8 +96,9 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
             }
         }
 
-        if wasNearBottom {
+        if shouldAutoScroll {
             coordinator.scrollToBottom()
+            coordinator.scheduleScrollToBottom()
         }
     }
 
@@ -109,6 +111,33 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         var lastRenderedStderr = ""
         var renderStyledSnapshot = false
         var styledSnapshotKey = ""
+        /// 运行中默认跟随最新输出；用户主动上滚后暂停，滚回底部后恢复。
+        private var followRunningOutput = true
+        private var pendingScroll = false
+        private var lastClipMaxY: CGFloat?
+
+        func shouldAutoScrollBeforeUpdate(isRunning: Bool) -> Bool {
+            guard let scrollView else {
+                followRunningOutput = true
+                return true
+            }
+
+            let clipMaxY = scrollView.contentView.bounds.maxY
+            if isRunning {
+                if let lastClipMaxY, clipMaxY < lastClipMaxY - 8 {
+                    followRunningOutput = false
+                }
+                if isScrolledNearBottom() {
+                    followRunningOutput = true
+                }
+                lastClipMaxY = clipMaxY
+                return followRunningOutput
+            }
+
+            followRunningOutput = isScrolledNearBottom()
+            lastClipMaxY = clipMaxY
+            return followRunningOutput
+        }
 
         func replaceAll(with attributed: NSAttributedString) {
             guard let textView else { return }
@@ -121,11 +150,40 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
             guard let scrollView, let textView else { return true }
             let visible = scrollView.contentView.bounds
             let docHeight = textView.bounds.height
+            guard docHeight > 0 else { return true }
             return visible.maxY >= docHeight - threshold
         }
 
+        /// 布局完成后再滚一次，避免 `replaceAll` 后第一次同步滚动够不到新文档尾部。
+        func scheduleScrollToBottom() {
+            guard !pendingScroll else { return }
+            pendingScroll = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.pendingScroll = false
+                if self.followRunningOutput || self.isScrolledNearBottom() {
+                    self.scrollToBottom()
+                }
+            }
+        }
+
         func scrollToBottom() {
-            textView?.scrollToEndOfDocument(nil)
+            guard let textView else { return }
+            if let container = textView.textContainer {
+                textView.layoutManager?.ensureLayout(for: container)
+            }
+            let length = (textView.string as NSString).length
+            if length > 0 {
+                textView.scrollRangeToVisible(NSRange(location: length - 1, length: 1))
+            } else {
+                textView.scrollToEndOfDocument(nil)
+            }
+            lastClipMaxY = scrollView?.contentView.bounds.maxY
+        }
+
+        func resetScrollFollowing() {
+            followRunningOutput = true
+            lastClipMaxY = nil
         }
     }
 }
