@@ -12,7 +12,7 @@ struct ToolbarCustomizationPanelView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(L10n.Toolbar.customizeHint)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -23,22 +23,14 @@ struct ToolbarCustomizationPanelView: View {
                         paletteChip(ref)
                     }
 
-                    Button {
-                        ToolbarOpenAppEditorWindowController.present(
-                            store: store,
-                            parentWindow: ToolbarCustomizationWindowController.activeWindow
-                        )
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .semibold))
-                            .frame(width: ExplorerToolbarMetrics.iconHitSize, height: ExplorerToolbarMetrics.iconHitSize)
-                    }
-                    .buttonStyle(.plain)
-                    .help(L10n.Toolbar.addOpenApp)
+                    Spacer(minLength: 8)
+
+                    addOpenAppButton
                 }
-                .padding(12)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
             }
-            .frame(minHeight: 52)
+            .frame(minHeight: 40)
 
             HStack {
                 Button(L10n.Toolbar.customizeReset) {
@@ -60,8 +52,31 @@ struct ToolbarCustomizationPanelView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(minWidth: 560, minHeight: 200)
+        .padding(.vertical, 8)
+        .frame(minWidth: 560)
+        .onAppear {
+            // 避免窗口打开时「＋」自动获得键盘焦点并显示蓝框
+            DispatchQueue.main.async {
+                ToolbarCustomizationWindowController.activeWindow?.makeFirstResponder(nil)
+            }
+        }
+    }
+
+    private var addOpenAppButton: some View {
+        Button {
+            ToolbarOpenAppEditorWindowController.present(
+                store: store,
+                parentWindow: ToolbarCustomizationWindowController.activeWindow
+            )
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: ExplorerToolbarMetrics.iconHitSize, height: ExplorerToolbarMetrics.iconHitSize)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .focusable(false)
+        .help(L10n.Toolbar.addOpenApp)
     }
 
     @ViewBuilder

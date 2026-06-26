@@ -16,6 +16,7 @@ enum ToolbarCustomizationWindowController {
         if let customizationWindow, customizationWindow.isVisible {
             ToolbarWindowPlacement.attachAsChild(customizationWindow, to: parentWindow)
             customizationWindow.makeKeyAndOrderFront(nil)
+            customizationWindow.makeFirstResponder(nil)
             return
         }
 
@@ -28,7 +29,7 @@ enum ToolbarCustomizationWindowController {
         )
 
         let hostingView = NSHostingView(rootView: rootView)
-        let windowSize = NSSize(width: 600, height: 260)
+        let windowSize = NSSize(width: 600, height: 168)
 
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: windowSize),
@@ -55,6 +56,7 @@ enum ToolbarCustomizationWindowController {
 
         customizationWindow = window
         window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
