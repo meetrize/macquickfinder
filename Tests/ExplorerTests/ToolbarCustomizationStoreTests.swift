@@ -103,6 +103,27 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
         XCTAssertFalse(layout.visibleIDSet.contains(ToolbarBuiltinID.delete.rawValue))
         XCTAssertTrue(layout.visibleIDSet.contains(ToolbarBuiltinID.preview.rawValue))
     }
+
+    func testDeleteCustomOpenAppRemovesActionAndVisibleEntry() {
+        let store = ToolbarCustomizationStore.shared
+        store.loadIfNeeded()
+        store.beginCustomization()
+
+        let action = CustomOpenAppAction(
+            displayName: "Test App",
+            applicationPath: "/Applications/Safari.app"
+        )
+        store.addCustomOpenApp(action)
+        let itemID = ToolbarItemIdentity.customItemID(action.id)
+        var layout = store.workingLayout
+        layout.insertVisible(itemID: itemID, kind: .openApp, zone: .main, at: 0)
+        store.workingLayout = layout
+
+        store.deleteCustomOpenApp(id: action.id)
+
+        XCTAssertFalse(store.workingLayout.customOpenApps.contains { $0.id == action.id })
+        XCTAssertFalse(store.workingLayout.visibleIDSet.contains(itemID))
+    }
 }
 
 @MainActor

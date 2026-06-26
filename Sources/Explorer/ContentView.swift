@@ -427,6 +427,9 @@ struct ContentView: View {
                         parentWindow: hostWindow ?? ToolbarCustomizationWindowController.activeWindow,
                         editingAction: action
                     )
+                },
+                onDeleteOpenApp: { action in
+                    toolbarStore.deleteCustomOpenApp(id: action.id)
                 }
             )
             .frame(width: 0, height: 0)

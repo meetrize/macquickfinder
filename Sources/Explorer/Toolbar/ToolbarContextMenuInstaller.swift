@@ -10,13 +10,15 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
     var workingLayout: ToolbarLayoutConfig
     let onCustomize: () -> Void
     let onEditOpenApp: (CustomOpenAppAction) -> Void
+    let onDeleteOpenApp: (CustomOpenAppAction) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             isCustomizing: isCustomizing,
             workingLayout: workingLayout,
             onCustomize: onCustomize,
-            onEditOpenApp: onEditOpenApp
+            onEditOpenApp: onEditOpenApp,
+            onDeleteOpenApp: onDeleteOpenApp
         )
     }
 
@@ -35,6 +37,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         context.coordinator.workingLayout = workingLayout
         context.coordinator.onCustomize = onCustomize
         context.coordinator.onEditOpenApp = onEditOpenApp
+        context.coordinator.onDeleteOpenApp = onDeleteOpenApp
         context.coordinator.syncMonitor(targetWindow: hostWindow ?? nsView.window)
     }
 
@@ -48,6 +51,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         var workingLayout: ToolbarLayoutConfig
         var onCustomize: () -> Void
         var onEditOpenApp: (CustomOpenAppAction) -> Void
+        var onDeleteOpenApp: (CustomOpenAppAction) -> Void
         private var monitor: Any?
         private weak var monitoredWindow: NSWindow?
 
@@ -55,12 +59,14 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             isCustomizing: Bool,
             workingLayout: ToolbarLayoutConfig,
             onCustomize: @escaping () -> Void,
-            onEditOpenApp: @escaping (CustomOpenAppAction) -> Void
+            onEditOpenApp: @escaping (CustomOpenAppAction) -> Void,
+            onDeleteOpenApp: @escaping (CustomOpenAppAction) -> Void
         ) {
             self.isCustomizing = isCustomizing
             self.workingLayout = workingLayout
             self.onCustomize = onCustomize
             self.onEditOpenApp = onEditOpenApp
+            self.onDeleteOpenApp = onDeleteOpenApp
         }
 
         func syncMonitor(targetWindow: NSWindow?) {
@@ -127,6 +133,15 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             editItem.representedObject = action.id.uuidString
             menu.addItem(editItem)
 
+            let deleteItem = NSMenuItem(
+                title: L10n.Action.delete,
+                action: #selector(handleDeleteOpenAppItem(_:)),
+                keyEquivalent: ""
+            )
+            deleteItem.target = self
+            deleteItem.representedObject = action.id.uuidString
+            menu.addItem(deleteItem)
+
             popUp(menu, for: event, in: window)
             return nil
         }
@@ -150,6 +165,15 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
                 return
             }
             onEditOpenApp(action)
+        }
+
+        @objc private func handleDeleteOpenAppItem(_ sender: NSMenuItem) {
+            guard let rawID = sender.representedObject as? String,
+                  let actionID = UUID(uuidString: rawID),
+                  let action = workingLayout.customOpenApps.first(where: { $0.id == actionID }) else {
+                return
+            }
+            onDeleteOpenApp(action)
         }
 
         deinit {

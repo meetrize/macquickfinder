@@ -99,6 +99,9 @@ struct ToolbarCustomizationPanelView: View {
                 Button(L10n.Toolbar.openAppEdit) {
                     presentOpenAppEditor(action)
                 }
+                Button(L10n.Action.delete, role: .destructive) {
+                    store.deleteCustomOpenApp(id: action.id)
+                }
             }
         }
     }

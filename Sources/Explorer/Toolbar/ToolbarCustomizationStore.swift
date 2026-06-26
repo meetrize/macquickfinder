@@ -72,6 +72,14 @@ final class ToolbarCustomizationStore: ObservableObject {
         workingLayout = config
     }
 
+    func deleteCustomOpenApp(id: UUID) {
+        var config = workingLayout
+        let itemID = ToolbarItemIdentity.customItemID(id)
+        config.customOpenApps.removeAll { $0.id == id }
+        config.removeVisible(itemID: itemID)
+        workingLayout = config
+    }
+
     func applyDrop(
         payload: ToolbarDragPayload,
         targetZone: ToolbarZone,
