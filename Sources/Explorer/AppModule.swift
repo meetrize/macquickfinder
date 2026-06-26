@@ -575,9 +575,11 @@ struct ExplorerApp: App {
         let _ = languageSettings.revision
         let keyLayout = activeWindowLayout.keyWindowLayout
         FileCommands()
-        CommandGroup(after: .help) {
-            Button(L10n.Help.cheatSheetMenu) {
+        CommandGroup(replacing: .help) {
+            Button {
                 HelpWindowPresenter.shared.show()
+            } label: {
+                Label(L10n.Help.cheatSheetMenu, systemImage: "questionmark.circle")
             }
             .keyboardShortcut("?", modifiers: .command)
         }

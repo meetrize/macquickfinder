@@ -570,6 +570,24 @@
 	<string>Right Panel</string>
 	<key>help.entry.toggle_right_panel.shortcut</key>
 	<string>⌘⇧B</string>
+	<key>help.entry.toolbar_customize.desc</key>
+	<string>Right-click the toolbar to add, remove, and reorder buttons; click Done to save</string>
+	<key>help.entry.toolbar_customize.name</key>
+	<string>Customize Toolbar</string>
+	<key>help.entry.toolbar_customize.shortcut</key>
+	<string>Right-click toolbar</string>
+	<key>help.entry.toolbar_delete.desc</key>
+	<string>Move selected items to Trash from the toolbar delete button</string>
+	<key>help.entry.toolbar_delete.name</key>
+	<string>Toolbar Delete</string>
+	<key>help.entry.toolbar_delete.shortcut</key>
+	<string></string>
+	<key>help.entry.toolbar_open_app.desc</key>
+	<string>Add a custom button to launch an app with selected files or the current folder</string>
+	<key>help.entry.toolbar_open_app.name</key>
+	<string>Open With App</string>
+	<key>help.entry.toolbar_open_app.shortcut</key>
+	<string>Customize panel +</string>
 	<key>help.entry.trash.desc</key>
 	<string>Browse deleted items; put back or empty trash</string>
 	<key>help.entry.trash.name</key>
@@ -608,6 +626,8 @@
 	<string>Sidebar</string>
 	<key>help.section.snippets</key>
 	<string>Snippets</string>
+	<key>help.section.toolbar</key>
+	<string>Toolbar</string>
 	<key>help.subtitle</key>
 	<string>A quick overview of what MeoFind can do</string>
 	<key>help.window_title</key>

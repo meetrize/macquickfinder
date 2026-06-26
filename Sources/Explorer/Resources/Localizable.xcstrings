@@ -7821,6 +7821,23 @@
         }
       }
     },
+    "help.section.toolbar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toolbar"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具栏"
+          }
+        }
+      }
+    },
     "help.section.permissions": {
       "extractionState": "manual",
       "localizations": {
@@ -11443,6 +11460,159 @@
       }
     },
     "help.entry.automation.shortcut": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        }
+      }
+    },
+    "help.entry.toolbar_customize.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize Toolbar"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义工具栏"
+          }
+        }
+      }
+    },
+    "help.entry.toolbar_customize.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right-click the toolbar to add, remove, and reorder buttons; click Done to save"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右键工具栏进入自定义模式，拖拽增减与排序按钮，点击完成保存"
+          }
+        }
+      }
+    },
+    "help.entry.toolbar_customize.shortcut": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right-click toolbar"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右键工具栏"
+          }
+        }
+      }
+    },
+    "help.entry.toolbar_open_app.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open With App"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开应用按钮"
+          }
+        }
+      }
+    },
+    "help.entry.toolbar_open_app.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a custom button to launch an app with selected files or the current folder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在自定义面板点击 ＋ 添加按钮，用指定应用打开选中项或当前文件夹"
+          }
+        }
+      }
+    },
+    "help.entry.toolbar_open_app.shortcut": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize panel +"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义面板 ＋"
+          }
+        }
+      }
+    },
+    "help.entry.toolbar_delete.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toolbar Delete"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具栏删除"
+          }
+        }
+      }
+    },
+    "help.entry.toolbar_delete.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move selected items to Trash from the toolbar delete button"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选中文件后点击工具栏删除按钮移入废纸篓"
+          }
+        }
+      }
+    },
+    "help.entry.toolbar_delete.shortcut": {
       "extractionState": "manual",
       "localizations": {
         "en": {

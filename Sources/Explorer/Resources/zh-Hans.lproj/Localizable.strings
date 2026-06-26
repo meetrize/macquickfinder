@@ -570,6 +570,24 @@
 	<string>右侧面板</string>
 	<key>help.entry.toggle_right_panel.shortcut</key>
 	<string>⌘⇧B</string>
+	<key>help.entry.toolbar_customize.desc</key>
+	<string>右键工具栏进入自定义模式，拖拽增减与排序按钮，点击完成保存</string>
+	<key>help.entry.toolbar_customize.name</key>
+	<string>自定义工具栏</string>
+	<key>help.entry.toolbar_customize.shortcut</key>
+	<string>右键工具栏</string>
+	<key>help.entry.toolbar_delete.desc</key>
+	<string>选中文件后点击工具栏删除按钮移入废纸篓</string>
+	<key>help.entry.toolbar_delete.name</key>
+	<string>工具栏删除</string>
+	<key>help.entry.toolbar_delete.shortcut</key>
+	<string></string>
+	<key>help.entry.toolbar_open_app.desc</key>
+	<string>在自定义面板点击 ＋ 添加按钮，用指定应用打开选中项或当前文件夹</string>
+	<key>help.entry.toolbar_open_app.name</key>
+	<string>打开应用按钮</string>
+	<key>help.entry.toolbar_open_app.shortcut</key>
+	<string>自定义面板 ＋</string>
 	<key>help.entry.trash.desc</key>
 	<string>浏览已删除文件，支持放回原处与清空</string>
 	<key>help.entry.trash.name</key>
@@ -608,6 +626,8 @@
 	<string>侧边栏</string>
 	<key>help.section.snippets</key>
 	<string>Snippets</string>
+	<key>help.section.toolbar</key>
+	<string>工具栏</string>
 	<key>help.subtitle</key>
 	<string>一句话了解 MeoFind 能做什么</string>
 	<key>help.window_title</key>

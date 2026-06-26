@@ -78,6 +78,9 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertEqual(L10n.Help.cheatSheetMenu, "功能速查表")
         XCTAssertEqual(L10n.Help.entryName("file_list"), "文件列表")
         XCTAssertNotEqual(L10n.Help.entryName("file_list"), "help.entry.file_list.name")
+        XCTAssertEqual(L10n.Help.entryName("toolbar_customize"), "自定义工具栏")
+        XCTAssertNotEqual(L10n.Help.entryName("toolbar_customize"), "help.entry.toolbar_customize.name")
+        XCTAssertEqual(L10n.Help.sectionTitle("toolbar"), "工具栏")
     }
 
     private func localizedBundle(language: String, parent: Bundle) -> Bundle? {

@@ -36,6 +36,9 @@ enum HelpCheatSheetContent {
         HelpCheatSheetSection(id: "layout", entries: [
             "toggle_right_panel", "panel_height", "panel_width", "window_snap", "multi_window",
         ]),
+        HelpCheatSheetSection(id: "toolbar", entries: [
+            "toolbar_customize", "toolbar_open_app", "toolbar_delete",
+        ]),
         HelpCheatSheetSection(id: "settings", entries: [
             "settings_general", "settings_snippets", "settings_preview", "default_file_manager",
         ]),

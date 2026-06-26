@@ -1,7 +1,8 @@
-# 远程服务器连接 — 设计方案（v1）
+# 远程服务器连接 — 设计方案（v1 精简版）
 
 > 目标：在应用内提供类似 Finder「连接服务器」（⌘K）的能力；挂载后与本地目录共用现有浏览链路；挂载状态与 Finder 互通（在系统支持的协议范围内）。  
 > 基于 2026-06 代码库现状，**主推系统挂载 + 路径浏览**；SFTP 需单独分阶段处理。  
+> **v1 精简原则**：复用 `DirectorySizeVolumeFilter` 作为网络卷策略入口；不新建 `NetworkVolumePolicy`；Finder 最近列表延后 v1.1；预览/缩略图预取 guard 纳入 v1 必做。  
 > 关联评估：性能、体积、代码量见 §八、§九、§十。
 
 ---
@@ -12,11 +13,13 @@
 
 | 能力 | 现状 | 文件 |
 |------|------|------|
-| 目录浏览 | 全路径 `FileManager.contentsOfDirectory` | `AppModule.swift` |
-| 侧边栏 Devices | `mountedVolumeURLs` + mount/unmount 通知 | `SidebarVolumeLoader` |
+| 目录浏览 | 全路径 `FileManager.contentsOfDirectory` | `DirectoryListingLoader.swift`、`ContentView.swift` |
+| 侧边栏 Devices | `mountedVolumeURLs` + mount/unmount 通知 | `SidebarView.swift`（`SidebarVolumeLoader`） |
 | 网络卷性能保护 | 非本地卷跳过目录大小自动计算 | `DirectorySizeVolumeFilter` |
 | 子项计数 | 已复用同一 filter，网络卷不调度 | `DirectoryItemCountService` |
-| 弹出设备 | `diskutil eject`，但网络卷 `canEject` 被 `isLocal` 挡住 | `SidebarVolume` |
+| FSEvents | 网络卷**不启用**监听（与 filter 共用判断） | `DirectoryFSEventsMonitor.swift` |
+| 弹出设备 | `diskutil eject`，但网络卷 `canEject` 被 `isLocal` 挡住 | `SidebarVolume`（`SidebarView.swift`） |
+| 预览 | 通过 `file://` 路径读盘，挂载后无需新协议层 | `PreviewSession+LoadingPipeline.swift` |
 
 ### 1.2 核心结论
 
@@ -28,8 +31,9 @@
 2. **系统挂载封装**（触发 macOS 认证与挂载）
 3. **挂载结果导航**（挂载成功后跳转到卷根目录）
 4. **网络卷 UX 策略**（loading、断线、禁用重操作）
-5. **与 Finder 只读互通**（最近服务器 URL）
-6. **协议扩展策略**（FTP 纳入 v1；SFTP 分阶段，见 §九）
+5. **应用内最近服务器列表**（Finder 最近列表延后 v1.1）
+6. **网络卷预取克制**（预览/缩略图 guard，见 §六）
+7. **协议扩展策略**（FTP 纳入 v1，待 Phase 0 验证；SFTP 分阶段，见 §九）
 
 ---
 
@@ -60,28 +64,33 @@ sequenceDiagram
 
 ```
 Sources/Explorer/RemoteServer/
-├── RemoteServerURL.swift           // URL 解析、规范化、协议校验
-├── RemoteServerBookmark.swift      // 最近服务器条目模型
-├── FinderRecentServersReader.swift // 只读 Finder plist / bookmark
-├── RecentServersStore.swift        // 应用内最近列表（UserDefaults）
-├── RemoteVolumeMountService.swift  // 系统挂载 / 断开 / 状态
-├── RemoteVolumeSession.swift       // 挂载中状态、超时、错误
-├── ConnectServerSheet.swift        // SwiftUI 连接对话框
-└── NetworkVolumePolicy.swift       // 网络卷行为策略（集中定义）
+├── RemoteServerURL.swift           // URL 解析、规范化、协议校验 + RemoteMountError
+├── RemoteVolumeMountService.swift  // 系统挂载、超时、卷 diff（含挂载中状态）
+├── RemoteServerBookmark.swift      // 最近服务器条目模型（Phase 2）
+├── RecentServersStore.swift        // 应用内最近列表（Phase 2）
+├── ConnectServerSheet.swift        // SwiftUI 连接对话框（Phase 3）
+
+// v1.1 可选
+└── FinderRecentServersReader.swift // 只读 Finder plist / bookmark
 
 // v2+ 可选（仅 SFTP 内置客户端路线时需要）
 └── SFTP/ …                         // 见 §九.3
 ```
 
+**网络卷策略**：不新建 `NetworkVolumePolicy.swift`；在 `DirectorySizeVolumeFilter` 增加 `isNetworkVolume(path:)`，供目录元数据、FSEvents、预览/缩略图预取共用。
+
 与现有代码的集成点：
 
 | 集成点 | 改动 |
 |--------|------|
-| `ExplorerApp.commands` | 新增「连接服务器…」菜单 + ⌘K |
+| `ExplorerApp.commands`（`AppModule.swift`） | 新增「连接服务器…」菜单 + ⌘K |
+| `ContentView` | Sheet 展示、挂载成功后更新 `@State path`；`didUnmount` 路径回退 |
+| 多窗口 | 菜单/⌘K 通过 key window 回调更新**当前窗口** `ContentView.path`（参考 `ActiveWindowLayoutCenter`） |
 | `SidebarView` / `SidebarRailView` | Devices 区网络卷图标、eject 修复 |
 | `SidebarVolumeLoader` | 增加 `isNetworkVolume` |
-| `DirectoryFSEventsMonitor` | v1 可保持现状；网络卷 debounce 略加长（可选） |
-| `ExplorerWindowLayoutState` | 挂载成功后更新 `path` |
+| `DirectorySizeVolumeFilter` | 增加 `isNetworkVolume(path:)` |
+| `DirectoryFSEventsMonitor` | **保持现状**：网络卷不启 FSEvents（性能更优） |
+| `PreviewBrowserContentPrefetcher` / 缩略图预取 | 网络卷跳过预取（v1 必做） |
 
 ### 2.3 挂载 API 选型
 
@@ -155,10 +164,10 @@ struct RemoteVolumeMountService {
 | 凭据 | ✅ | Keychain 由系统管理 |
 | 浏览路径 | ✅ | 同一 mount point |
 | 断开挂载 | ✅ | `diskutil eject` / unmount |
-| 读取 Finder 最近 URL | ✅ | `FXConnectToLastURL` + `FXRecentFolders` bookmark |
+| 读取 Finder 最近 URL | ⏸ v1.1 | `FinderRecentServersReader`；v1 仅用 `RecentServersStore` |
 | 写入 Finder 收藏 | ❌ v2 | plist 非公开 API，键名随版本变化 |
 
-### 3.3 Finder 数据源（本机已验证）
+### 3.3 Finder 数据源（v1.1 候选，本机 macOS 26 已确认键名存在）
 
 | Key | 用途 |
 |-----|------|
@@ -166,7 +175,9 @@ struct RemoteVolumeMountService {
 | `FXRecentFolders` | `[{ name, file-bookmark }]`，bookmark 可 resolve 为 URL |
 | `ShowMountedServersOnDesktop` | 只读参考，v1 不依赖 |
 
-读取逻辑：
+**v1 降级策略**：仅使用应用内 `RecentServersStore`；Sheet 默认地址为空或上次应用内连接记录。
+
+### 3.4 Finder 数据源实现草案（v1.1）
 
 ```swift
 enum FinderRecentServersReader {
@@ -184,9 +195,7 @@ enum FinderRecentServersReader {
 }
 ```
 
-**降级策略**：Finder plist 读取失败时，仅用应用内 `RecentServersStore`。
-
-### 3.4 应用内最近列表
+### 3.5 应用内最近列表
 
 ```swift
 struct RemoteServerBookmark: Codable, Identifiable, Equatable {
@@ -266,7 +275,7 @@ enum RemoteServerURL {
 │  支持：SMB · NFS · WebDAV · FTP      │
 │  （FTP 为明文传输，请注意安全）        │
 │                                     │
-│  最近 / Finder 最近                  │
+│  最近连接                            │
 │  ○ smb://nas.local/media            │
 │  ○ ftp://ftp.example.com/pub        │
 │                                     │
@@ -308,21 +317,23 @@ Rail 模式（`SidebarRailView`）v1 同步补上 eject 按钮或长按菜单「
 
 ## 六、网络卷浏览策略
 
-集中定义在 `NetworkVolumePolicy`（v1 大部分规则已存在，主要是收口 + 文档化）：
+策略入口为 **`DirectorySizeVolumeFilter`**（`isNetworkVolume` / `shouldAutoCalculate`），不另建 `NetworkVolumePolicy`：
 
 | 行为 | 本地卷 | 网络卷（含 FTP 挂载） |
 |------|--------|----------------------|
 | 列目录 | ✅ | ✅（可能慢） |
 | 目录大小自动计算 | ✅ | ❌ 已有 |
 | 子项计数 | ✅ | ❌ 已有 |
-| FSEvents 刷新 | ✅ | ✅（v1 保持，debounce 0.5s） |
-| 缩略图 | ✅ | ✅ 但不预加载大量项 |
+| FSEvents 刷新 | ✅ | ❌ **不启用**（`DirectoryFSEventsMonitor` 入口即 return） |
+| 预览加载 | ✅ | ✅（`file://` 读盘） |
+| 预览/胶片条内容预取 | ✅ | ❌ **v1 必做 guard** |
+| 缩略图预取 | ✅ | ❌ **v1 必做 guard** |
 | 树展开 | ✅ | ✅ 懒加载 |
 | Snippets 执行 | ✅ | ✅（路径即真实路径） |
 
 ### 6.1 断线处理
 
-监听 `NSWorkspace.didUnmountNotification`：
+监听 `NSWorkspace.didUnmountNotification`（在 **`ContentView`** 或共享 coordinator，不仅 `SidebarView.refreshDevices`）：
 
 ```swift
 if currentPath.hasPrefix(unmountedVolumePath) {
@@ -331,12 +342,12 @@ if currentPath.hasPrefix(unmountedVolumePath) {
 }
 ```
 
-### 6.2 列表 loading UX
+### 6.2 列表 loading UX（可选，v1.1）
 
 网络卷下列目录时：
 
 - 保留现有 `isLoading` 占位
-- 首次进入网络卷根目录时，loading 超时提示改为「网络较慢，仍在加载…」（>3s）
+- （可选）首次进入网络卷根目录时，loading 超时提示改为「网络较慢，仍在加载…」（>3s）
 
 ---
 
@@ -494,32 +505,39 @@ macOS **没有** SFTP 的原生「连接服务器 → 挂载为卷」API。`sftp
 ### 10.1 v1 必做
 
 - [ ] 连接服务器 Sheet（地址输入 + 连接按钮）
-- [ ] 系统挂载 + 挂载点识别 + 自动导航
-- [ ] 支持协议：**SMB、NFS、WebDAV、FTP**（`RemoteServerURL`）
+- [ ] 系统挂载 + 挂载点识别 + 自动导航（更新 key window 的 `ContentView.path`）
+- [ ] 支持协议：**SMB、NFS、WebDAV、FTP**（`RemoteServerURL`；FTP 待 Phase 0 实机验证）
 - [ ] FTP 明文安全提示
 - [ ] ⌘K + 菜单入口
-- [ ] 应用内最近服务器列表
-- [ ] 只读 Finder 最近 URL（`FXConnectToLastURL` + bookmark，含 `ftp://`）
+- [ ] 应用内最近服务器列表（`RecentServersStore`）
 - [ ] Devices 网络卷图标 + eject 修复
-- [ ] 断线回退导航
+- [ ] 断线回退导航（`ContentView`）
 - [ ] 输入 `sftp://` 的 v1 降级提示
+- [ ] **网络卷预览/缩略图预取 guard**（`DirectorySizeVolumeFilter`）
 - [ ] 基础单元测试（URL 规范化、mount diff 逻辑）
 
 ### 10.2 v1 不做
 
 - SFTP 连接（仅提示 + 兼容已有 sshfs 挂载路径浏览）
+- **Finder 最近 URL 只读**（延后 v1.1）
 - 写入 Finder 收藏列表
 - 自研 SMB / FTP / SFTP 协议栈
 - 挂载高级选项（端口、只读、FTPS 等，待 spike 后决定）
 - 侧边栏独立「网络」分组
 - 后台自动重连
+- 路径栏 `smb://` / `ftp://` 智能识别（延后 v1.1）
 
-### 10.3 v2 候选
+### 10.3 v1.1 候选
+
+- `FinderRecentServersReader`（`FXConnectToLastURL` + bookmark）
+- 路径栏 URL 识别与连接
+- 网络卷慢 loading 文案
+
+### 10.4 v2 候选
 
 - SFTP via sshfs 一键挂载（§9.2 路线 A）
 - FTPS 支持验证与纳入
 - 侧边栏「网络」分组 + 应用内收藏
-- 路径栏 `smb://` / `ftp://` 智能识别
 - 内置 SFTP 客户端（§9.2 路线 B，独立评估通过后）
 
 ---
@@ -548,65 +566,66 @@ macOS **没有** SFTP 的原生「连接服务器 → 挂载为卷」API。`sftp
 
 ### Phase 0 — 调研 Spike（0.5 天）
 
-| ID | 任务 | 产出 |
-|----|------|------|
-| T0-1 | 在 macOS 13+ 验证 Finder plist 键名与 bookmark 结构 | 确认 `FXRecentFolders` 解析代码 |
-| T0-2 | 验证 `NSWorkspace.open` 对 smb://、**ftp://** 的挂载 diff 策略 | 记录超时、ambiguous 案例 |
-| T0-3 | 验证 **ftps://** 是否可被系统 open（决定 v1/v2） | 结论写入本文档 |
-| T0-4 | 验证 **sshfs 已挂载**路径是否被 `SidebarVolumeLoader` 正常展示 | 确认 v1 零改动可浏览 |
-| T0-5 | 确认 `DirectoryItemCountService` 在网络卷上确实不调度 | 无需改或补注释 |
+| ID | 任务 | 产出 | 状态 |
+|----|------|------|------|
+| T0-1 | 在 macOS 13+ 验证 Finder plist 键名与 bookmark 结构 | 确认 `FXRecentFolders` 可延后 v1.1 | ✅ macOS 26：`com.apple.finder.plist` 存在 |
+| T0-2 | 验证 `NSWorkspace.open` 对 smb://、**ftp://** 的挂载 diff 策略 | 记录超时、ambiguous 案例 | ⏳ 需实机 NAS/FTP 联调 |
+| T0-3 | 验证 **ftps://** 是否可被系统 open | 结论写入本文档 | ⏳ 待测；暂不入 v1 |
+| T0-4 | 验证 **sshfs 已挂载**路径是否被 `SidebarVolumeLoader` 展示 | 确认 v1 零改动可浏览 | ✅ 逻辑上 `/Volumes/*` 外置卷均可见 |
+| T0-5 | 确认 `DirectoryItemCountService` 在网络卷上确实不调度 | 无需改 | ✅ `shouldSchedulePath` 复用 `DirectorySizeVolumeFilter` |
 
-### Phase 1 — 基础模块（1～1.5 天）
+### Phase 1 — 基础模块（1 天）
 
 | ID | 任务 | 文件 | 估行 |
 |----|------|------|------|
 | T1-1 | `RemoteServerURL`：normalize、scheme 校验（**含 ftp**）、默认 smb:// | `RemoteServerURL.swift` | ~100 |
-| T1-2 | `RemoteMountError` + 本地化（含 unsupportedProtocol / sftp 提示） | 同上或独立 | ~50 |
-| T1-3 | `RemoteVolumeMountService`：before/after diff + notification 等待 | `RemoteVolumeMountService.swift` | ~150 |
+| T1-2 | `RemoteMountError` + 本地化（含 unsupportedProtocol / sftp 提示） | `RemoteServerURL.swift` + `L10n` | ~50 |
+| T1-3 | `RemoteVolumeMountService`：before/after diff + notification 等待 | `RemoteVolumeMountService.swift` | ~180 |
 | T1-4 | 单元测试：URL normalize、diff 逻辑 | `Tests/ExplorerTests/RemoteServer*.swift` | ~140 |
 
 **验收**：mock 卷列表 diff 正确；`ftp://`、`smb://` 均可 normalize。
 
-### Phase 2 — 最近服务器（0.5～1 天）
+### Phase 2 — 最近服务器（0.5 天）
 
 | ID | 任务 | 文件 | 估行 |
 |----|------|------|------|
 | T2-1 | `RemoteServerBookmark` 模型 | `RemoteServerBookmark.swift` | ~30 |
 | T2-2 | `RecentServersStore`：UserDefaults CRUD，上限 20 | `RecentServersStore.swift` | ~80 |
-| T2-3 | `FinderRecentServersReader`：plist + bookmark，过滤含 **ftp** | `FinderRecentServersReader.swift` | ~130 |
-| T2-4 | 合并展示：Finder 最近 + 应用最近，去重 | Sheet 数据源 | ~50 |
+| ~~T2-3~~ | ~~`FinderRecentServersReader`~~ | — | **延后 v1.1** |
+| T2-3 | Sheet 最近列表数据源 | `ConnectServerSheet.swift` | ~40 |
 
 ### Phase 3 — UI 与入口（1 天）
 
 | ID | 任务 | 文件 | 估行 |
 |----|------|------|------|
 | T3-1 | `ConnectServerSheet` + **FTP 安全提示** + sftp 降级文案 | `ConnectServerSheet.swift` | ~220 |
-| T3-2 | 菜单「前往 → 连接服务器…」+ ⌘K | `AppModule.swift`, `ExplorerKeyboardShortcuts.swift` | ~40 |
-| T3-3 | `ContentView` sheet + 连接成功 `path = mountPath` | `AppModule.swift` | ~30 |
+| T3-2 | 菜单「连接服务器…」+ ⌘K | `AppModule.swift`, `ExplorerKeyboardShortcuts.swift` | ~40 |
+| T3-3 | `ContentView` sheet + 连接成功 `path = mountPath` + key window 回调 | `ContentView.swift` | ~50 |
 | T3-4 | （可选）Devices 底部「连接服务器…」 | `SidebarView.swift` | ~25 |
 
 ### Phase 4 — 侧边栏与断线（0.5 天）
 
 | ID | 任务 | 文件 | 估行 |
 |----|------|------|------|
-| T4-1 | `SidebarVolume.isNetworkVolume` + icon | `AppModule.swift` | ~20 |
-| T4-2 | 修复 `canEject` | `SidebarVolumeLoader` | ~5 |
-| T4-3 | `SidebarRailView` eject / 断开菜单 | `SidebarRailView` | ~40 |
-| T4-4 | `didUnmount` 路径回退 | 新 handler 或 `ContentView` | ~60 |
+| T4-1 | `SidebarVolume.isNetworkVolume` + icon | `SidebarView.swift` | ~20 |
+| T4-2 | 修复 `canEject` | `SidebarView.swift` | ~5 |
+| T4-3 | `SidebarRailView` eject / 断开菜单 | `SidebarView.swift` | ~40 |
+| T4-4 | `didUnmount` 路径回退 | `ContentView.swift` | ~60 |
 
 ### Phase 5 — 网络卷策略收口（0.5 天）
 
 | ID | 任务 | 文件 | 估行 |
 |----|------|------|------|
-| T5-1 | `NetworkVolumePolicy` 收口文档化 | `NetworkVolumePolicy.swift` | ~40 |
-| T5-2 | 网络卷 listing >3s loading 文案 | `AppModule.swift` | ~30 |
-| T5-3 | 缩略图预取 guard（如有） | Thumbnail 相关 | ~20 |
+| T5-1 | `DirectorySizeVolumeFilter.isNetworkVolume` | `DirectorySizeVolumeFilter.swift` | ~10 |
+| T5-2 | 预览内容预取 guard | `PreviewBrowserContentPrefetcher.swift` | ~15 |
+| T5-3 | 胶片条缩略图预取 guard | `PreviewBrowserStripThumbnailLoader.swift` | ~15 |
+| ~~T5-4~~ | ~~慢 loading 文案~~ | — | **可选 v1.1** |
 
 ### Phase 6 — 联调（0.5 天）
 
 | ID | 任务 | 产出 |
 |----|------|------|
-| T6-1 | 执行 §十一 测试矩阵（含 FTP） | 测试记录 |
+| T6-1 | 执行 §十一 测试矩阵（含 FTP，若 Phase 0 通过） | 测试记录 |
 | T6-2 | README 一句：远程连接依赖系统挂载，FTP 明文，SFTP v2 | 用户说明 |
 
 ### 工作量汇总
@@ -614,17 +633,18 @@ macOS **没有** SFTP 的原生「连接服务器 → 挂载为卷」API。`sftp
 | Phase | 估时 |
 |-------|------|
 | Phase 0 | 0.5 天 |
-| Phase 1～5 | 3～4 天 |
+| Phase 1～5 | **约 3～3.5 天** |
 | Phase 6 | 0.5 天 |
-| **合计** | **约 4～5 天** |
+| **合计** | **约 3.5～4 天** |
 
-新增代码约 **950～1250 行**（含测试；FTP 比原方案仅 +30～50 行）。
+新增代码约 **700～900 行**（含测试；较初版精简约 250 行）。
 
 ### 建议 PR 切分
 
-1. **PR-1**：`RemoteServerURL` + `RemoteVolumeMountService` + 测试（含 ftp scheme）
-2. **PR-2**：`ConnectServerSheet` + ⌘K + 挂载导航 + FTP/sftp 提示
-3. **PR-3**：Devices 增强 + 断线回退 + Finder 最近列表
+1. **PR-1**：`RemoteServerURL` + `RemoteVolumeMountService` + 测试（含 ftp scheme）← **当前**
+2. **PR-2**：`ConnectServerSheet` + `RecentServersStore` + ⌘K + 挂载导航
+3. **PR-3**：Devices 增强 + 断线回退 + 网络卷预取 guard
+4. **PR-4**（v1.1）：`FinderRecentServersReader` + 路径栏 URL
 
 ---
 
@@ -634,3 +654,4 @@ macOS **没有** SFTP 的原生「连接服务器 → 挂载为卷」API。`sftp
 |------|------|
 | 2026-06-19 | 初版：系统挂载方案 + v1 任务清单 |
 | 2026-06-19 | 增补 FTP（v1）、SFTP（v2）性能/体积评估与分阶段路线 |
+| 2026-06-26 | **精简版**：更正 FSEvents/文件引用；合并 NetworkVolumePolicy；Finder 最近延后 v1.1；预取 guard 升为 v1 必做；开始 Phase 1 实现 |

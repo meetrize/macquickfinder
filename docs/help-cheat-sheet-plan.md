@@ -106,6 +106,14 @@
 | 窗口贴靠 | 拖拽窗口靠边自动半屏/全屏贴靠 | 设置可开关 |
 | 多窗口 | 文件夹可在新窗口独立打开 | 右键 / 拖出 |
 
+### 工具栏
+
+| 功能 | 一句话说明 | 快捷键 |
+|------|-----------|--------|
+| 自定义工具栏 | 右键工具栏进入自定义模式，拖拽增减与排序按钮，点击完成保存 | 右键工具栏 |
+| 打开应用按钮 | 在自定义面板点击 ＋ 添加按钮，用指定应用打开选中项或当前文件夹 | 自定义面板 ＋ |
+| 工具栏删除 | 选中文件后点击工具栏删除按钮移入废纸篓 | — |
+
 ### 设置
 
 | 功能 | 一句话说明 | 快捷键 |
@@ -156,13 +164,17 @@ CommandGroup(replacing: .help) {
 推荐：
 
 ```swift
-CommandGroup(after: .help) {
-    Button(L10n.Help.cheatSheet) {
+CommandGroup(replacing: .help) {
+    Button {
         HelpWindowPresenter.shared.show()
+    } label: {
+        Label(L10n.Help.cheatSheetMenu, systemImage: "questionmark.circle")
     }
     .keyboardShortcut("?", modifiers: .command) // 可选，与多数 Mac 应用一致
 }
 ```
+
+使用 `replacing: .help` 可移除系统默认的「MeoFind 帮助」菜单项，并将其帮助图标用于「功能速查表」。
 
 ### 3.2 窗口呈现
 

@@ -26,7 +26,9 @@ final class HelpWindowPresenter: NSObject {
     }
 
     private func makeWindow() -> NSWindow {
-        let initialSize = NSSize(width: 560, height: 640)
+        let screenWidth = NSScreen.main?.visibleFrame.width ?? 1_200
+        let initialWidth = HelpCheatSheetLayoutEngine.preferredWindowWidth(forScreenWidth: screenWidth)
+        let initialSize = NSSize(width: initialWidth, height: 640)
         let newWindow = NSWindow(
             contentRect: NSRect(origin: .zero, size: initialSize),
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
