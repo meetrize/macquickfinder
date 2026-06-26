@@ -49,6 +49,7 @@ struct FileListView: View {
     let directoryMetadataOverlay: DirectoryMetadataOverlay
     let viewMode: FileListViewMode
     let thumbnailCellSize: CGFloat
+    let useIconPreview: Bool
     let isLoading: Bool
     let onThumbnailCellSizeChange: (CGFloat) -> Void
     let onItemOpen: (FileItem) -> Void
@@ -204,7 +205,8 @@ struct FileListView: View {
                     onItemOpen(item)
                 },
                 onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
-                directorySizeProvider: sizeProvider
+                directorySizeProvider: sizeProvider,
+                useIconPreview: useIconPreview
             )
             .onAppear {
                 preferencesStore.resetToDefaultIfNeeded()

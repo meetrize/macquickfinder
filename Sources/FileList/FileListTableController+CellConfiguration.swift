@@ -194,7 +194,7 @@ extension FileListTableController {
                 cell.imageView?.image = NSImage(systemSymbolName: "arrow.up.circle", accessibilityDescription: nil)
                     ?? NSImage(named: NSImage.folderName)
             } else {
-                cell.imageView?.image = FileListWorkspaceIconCache.icon(forPath: item.iconPath)
+                configureNameCellIcon(in: cell, item: item)
             }
             let isSelected = tableView?.selectedRowIndexes.contains(row) ?? false
             let isEmphasized = tableView?.window?.isKeyWindow ?? true

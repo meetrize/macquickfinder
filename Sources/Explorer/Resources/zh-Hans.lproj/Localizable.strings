@@ -1264,6 +1264,8 @@
 	<string>缩略图大小</string>
 	<key>toolbar.thumbnail_view</key>
 	<string>缩略图视图</string>
+	<key>toolbar.use_icon_preview</key>
+	<string>使用图标预览</string>
 	<key>toolbar.view_picker</key>
 	<string>视图</string>
 </dict>

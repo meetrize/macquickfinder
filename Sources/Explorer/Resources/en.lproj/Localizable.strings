@@ -1264,6 +1264,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Icon Size</string>
 	<key>toolbar.thumbnail_view</key>
 	<string>Icon View</string>
+	<key>toolbar.use_icon_preview</key>
+	<string>Use Icon Preview</string>
 	<key>toolbar.view_picker</key>
 	<string>View</string>
 </dict>

@@ -51,6 +51,7 @@ enum AppPreferences {
     /// 目录元数据。
     enum Directory {
         static let autoCalculateDirectorySizes = "autoCalculateDirectorySizes"
+        static let useIconPreview = "useIconPreview"
     }
 
     /// 通用 Explorer 行为。

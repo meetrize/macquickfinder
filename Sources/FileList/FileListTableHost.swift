@@ -10,6 +10,7 @@ public struct FileListTableHost: NSViewRepresentable {
     public let onOpenRow: (FileListRow) -> Void
     public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
     public var directorySizeProvider: DirectorySizeColumnProvider?
+    public var useIconPreview: Bool
     
     public init(
         rows: [FileListRow],
@@ -18,7 +19,8 @@ public struct FileListTableHost: NSViewRepresentable {
         preferencesStore: FileListPreferencesStore,
         onOpenRow: @escaping (FileListRow) -> Void,
         onVisibleDirectoryPathsChanged: (([String]) -> Void)? = nil,
-        directorySizeProvider: DirectorySizeColumnProvider? = nil
+        directorySizeProvider: DirectorySizeColumnProvider? = nil,
+        useIconPreview: Bool = false
     ) {
         self.rows = rows
         self.interaction = interaction
@@ -27,6 +29,7 @@ public struct FileListTableHost: NSViewRepresentable {
         self.onOpenRow = onOpenRow
         self.onVisibleDirectoryPathsChanged = onVisibleDirectoryPathsChanged
         self.directorySizeProvider = directorySizeProvider
+        self.useIconPreview = useIconPreview
     }
     
     public func makeCoordinator() -> FileListTableController {
@@ -55,7 +58,8 @@ public struct FileListTableHost: NSViewRepresentable {
             interaction: interaction,
             selectionGet: { selection },
             selectionSet: { selection = $0 },
-            preferencesStore: preferencesStore
+            preferencesStore: preferencesStore,
+            useIconPreview: useIconPreview
         )
         controller.refreshDirectorySizeColumnIfNeeded(directorySizeProvider)
     }

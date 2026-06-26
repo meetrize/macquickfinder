@@ -31,6 +31,10 @@ public final class FileListTableController: FileListContentController {
     var pendingScrollToTop = false
     var contentBackgroundMaxX: CGFloat = 0
 
+    var useIconPreview = false
+    let thumbnailGenerator = ThumbnailGenerator()
+    var visibleIconPreviewLoadWorkItem: DispatchWorkItem?
+
     let userResizing = NSTableColumn.ResizingOptions(rawValue: 1 << 1)
 
     public override init() {
@@ -39,6 +43,7 @@ public final class FileListTableController: FileListContentController {
     }
 
     deinit {
+        thumbnailGenerator.shutdown()
         tearDownObservers()
     }
 
@@ -100,8 +105,15 @@ public final class FileListTableController: FileListContentController {
         interaction: FileListTableInteraction,
         selectionGet: @escaping () -> Set<String>,
         selectionSet: @escaping (Set<String>) -> Void,
-        preferencesStore: FileListPreferencesStore
+        preferencesStore: FileListPreferencesStore,
+        useIconPreview: Bool = false
     ) {
+        let iconPreviewChanged = self.useIconPreview != useIconPreview
+        self.useIconPreview = useIconPreview
+        if iconPreviewChanged && !useIconPreview {
+            thumbnailGenerator.cancelInFlightRequests()
+        }
+
         bindUpdateContext(
             interaction: interaction,
             selectionGet: selectionGet,
@@ -137,12 +149,25 @@ public final class FileListTableController: FileListContentController {
             && zip(newDisplay, previousDisplayRows).contains { $0.size != $1.size || $0.sizeDisplay != $1.sizeDisplay }
 
         if plan.displayUnchanged {
+            if iconPreviewChanged {
+                FileListTableAnimations.performWithoutAnimation {
+                    tableView?.reloadData()
+                }
+            }
             scheduleVisibleDirectoryPathsNotify(debounce: 0.15)
+            if useIconPreview {
+                scheduleVisibleIconPreviewLoad()
+            }
             return
         }
 
         let sort = preferencesStore.sort
-        if plan.orderChanged || plan.searchChanged {
+        if iconPreviewChanged {
+            lastFillLayoutRowCount = -1
+            FileListTableAnimations.performWithoutAnimation {
+                tableView?.reloadData()
+            }
+        } else if plan.orderChanged || plan.searchChanged {
             lastFillLayoutRowCount = -1
             FileListTableAnimations.performWithoutAnimation {
                 if plan.orderChanged && !plan.searchChanged && !plan.listingChanged {
@@ -171,6 +196,9 @@ public final class FileListTableController: FileListContentController {
             scheduleQuickSearchMatchFocus()
         }
         scheduleVisibleDirectoryPathsNotify(debounce: 0.15)
+        if useIconPreview {
+            scheduleVisibleIconPreviewLoad()
+        }
     }
 
     func finishPointerInteractionIfNeeded() {

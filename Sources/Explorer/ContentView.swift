@@ -54,6 +54,7 @@ struct ContentView: View {
     @State private var isApplyingHistoryNavigation = false
     @State private var lastRecordedPath: String?
     @AppStorage(AppPreferences.Directory.autoCalculateDirectorySizes) private var autoCalculateDirectorySizes = true
+    @AppStorage(AppPreferences.Directory.useIconPreview) private var useIconPreview = false
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
     @State private var previewHostWindowID = UUID()
@@ -531,6 +532,7 @@ struct ContentView: View {
 
             Menu {
                 Toggle(L10n.Toolbar.autoFolderSize, isOn: $autoCalculateDirectorySizes)
+                Toggle(L10n.Toolbar.useIconPreview, isOn: $useIconPreview)
             } label: {
                 Image(systemName: "gearshape")
             }
@@ -598,6 +600,7 @@ struct ContentView: View {
             directoryMetadataOverlay: directoryMetadataOverlay,
             viewMode: fileListViewMode,
             thumbnailCellSize: thumbnailCellSize,
+            useIconPreview: useIconPreview,
             isLoading: isLoading,
             onThumbnailCellSizeChange: { layout.thumbnailCellSizeValue = $0 },
             onItemOpen: openItem,

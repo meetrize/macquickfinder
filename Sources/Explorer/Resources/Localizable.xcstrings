@@ -6682,6 +6682,23 @@
         }
       }
     },
+    "toolbar.use_icon_preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Icon Preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用图标预览"
+          }
+        }
+      }
+    },
     "toolbar.browse_settings": {
       "extractionState": "manual",
       "localizations": {
