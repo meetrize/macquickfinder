@@ -389,7 +389,10 @@ struct ContentView: View {
         .background(BarTextFieldFocusSync(activeField: $activeBarField))
         .navigationTitle(currentDirectoryTitle)
         .modifier(InlineToolbarTitleModifier())
-        .toolbar { explorerToolbarItems }
+        .toolbar {
+            explorerToolbarLeadingItems
+            explorerToolbarTrailingItems
+        }
         .onChange(of: activeBarField) { field in
             guard let field, let hostWindow else { return }
             BarTextFieldFocusRegistry.focus(field, in: hostWindow)
@@ -427,118 +430,119 @@ struct ContentView: View {
     }
 
     @ToolbarContentBuilder
-    private var explorerToolbarItems: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Button(action: toggleLeftPanelVisibility) {
-                Image(systemName: leftPanelMode == .hidden ? "sidebar.left" : "sidebar.left")
-            }
-            .buttonStyle(.borderless)
-            .instantHoverTooltip(leftPanelMode == .hidden ? L10n.Toolbar.showLeftPanel : L10n.Toolbar.hideLeftPanel)
+    private var explorerToolbarLeadingItems: some ToolbarContent {
+        ToolbarItem(id: "toolbar.leftPanel", placement: .navigation) {
+            ExplorerToolbarIconButton(
+                icon: LucideIcon.panelLeft,
+                action: toggleLeftPanelVisibility,
+                tooltip: leftPanelMode == .hidden ? L10n.Toolbar.showLeftPanel : L10n.Toolbar.hideLeftPanel
+            )
         }
         .hideSharedBackgroundIfAvailable()
 
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button(action: { layout.showPreview.toggle() }) {
-                Image(systemName: layout.showPreview ? "doc.text.image.fill" : "doc.text.image")
-            }
-            .buttonStyle(.borderless)
-            .instantHoverTooltip(layout.showPreview ? L10n.Menu.hidePreview : L10n.Menu.showPreview)
+        ToolbarItem(id: "toolbar.actions", placement: .primaryAction) {
+            HStack(spacing: ExplorerToolbarMetrics.iconSpacing) {
+                ExplorerToolbarIconButton(
+                    icon: LucideIcon.fileImage(isActive: layout.showPreview),
+                    action: { layout.showPreview.toggle() },
+                    tooltip: layout.showPreview ? L10n.Menu.hidePreview : L10n.Menu.showPreview
+                )
 
-            Button(action: { layout.showSnippets.toggle() }) {
-                Image(systemName: layout.showSnippets ? "curlybraces.square.fill" : "curlybraces.square")
-            }
-            .buttonStyle(.borderless)
-            .instantHoverTooltip(layout.showSnippets ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets)
+                ExplorerToolbarIconButton(
+                    icon: LucideIcon.braces(isActive: layout.showSnippets),
+                    action: { layout.showSnippets.toggle() },
+                    tooltip: layout.showSnippets ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets
+                )
 
-            Button(action: { layout.toggleOutputPanel() }) {
-                Image(systemName: layout.isOutputPanelVisible ? "terminal.fill" : "terminal")
-            }
-            .buttonStyle(.borderless)
-            .instantHoverTooltip(layout.isOutputPanelVisible ? L10n.Menu.hideOutputPanel : L10n.Menu.showOutputPanel)
+                ExplorerToolbarIconButton(
+                    icon: LucideIcon.terminal(isActive: layout.isOutputPanelVisible),
+                    action: { layout.toggleOutputPanel() },
+                    tooltip: layout.isOutputPanelVisible ? L10n.Menu.hideOutputPanel : L10n.Menu.showOutputPanel
+                )
 
-            Button(action: createNewFolder) {
-                LucideIcon.folderPlus
-            }
-            .buttonStyle(.borderless)
-            .instantHoverTooltip(L10n.Toolbar.newFolder)
+                ExplorerToolbarIconButton(
+                    icon: LucideIcon.folderPlus,
+                    action: createNewFolder,
+                    tooltip: L10n.Toolbar.newFolder
+                )
 
-            Button(action: deleteSelectedItems) {
-                Image(systemName: "trash")
-            }
-            .buttonStyle(.borderless)
-            .disabled(deletableSelectedItems.isEmpty)
-            .instantHoverTooltip(L10n.Toolbar.delete)
+                ExplorerToolbarIconButton(
+                    icon: LucideIcon.trash2,
+                    action: deleteSelectedItems,
+                    tooltip: L10n.Toolbar.delete,
+                    isDisabled: deletableSelectedItems.isEmpty
+                )
 
-            Button(action: {
-                showHiddenFiles.toggle()
-                loadItems()
-            }) {
-                Image(systemName: showHiddenFiles ? "eye.fill" : "eye")
-            }
-            .buttonStyle(.borderless)
-
-            Picker(L10n.Toolbar.viewPicker, selection: Binding(
-                get: { layout.fileListViewModeRaw },
-                set: { layout.setFileListViewMode(FileListViewMode(rawValue: $0) ?? .list) }
-            )) {
-                ForEach(FileListViewMode.allCases, id: \.rawValue) { mode in
-                    Image(systemName: mode.systemImageName)
-                        .tag(mode.rawValue)
-                        .instantHoverTooltip(mode == .list ? L10n.Toolbar.listView : L10n.Toolbar.thumbnailView)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 72)
-
-            if fileListViewMode == .thumbnail {
-                HStack(spacing: 6) {
-                    Image(systemName: "photo")
-                        .foregroundStyle(.secondary)
-                    Slider(
-                        value: Binding(
-                            get: { layout.thumbnailCellSizeValue },
-                            set: { layout.thumbnailCellSizeValue = FileListThumbnailMetrics.steppedCellSize(from: $0) }
-                        ),
-                        in: FileListThumbnailMetrics.minCellSize...FileListThumbnailMetrics.maxCellSize,
-                        step: FileListThumbnailMetrics.cellSizeStep
-                    )
-                    .frame(width: 120)
-                    Text("\(Int(FileListThumbnailMetrics.steppedCellSize(from: layout.thumbnailCellSizeValue)))")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .frame(width: 30, alignment: .trailing)
-                }
-                .instantHoverTooltip(L10n.Toolbar.thumbnailSize)
-            }
-
-            Menu {
-                ForEach(SortOrder.allCases) { order in
-                    Button {
-                        sortOrder = order
-                    } label: {
-                        HStack {
-                            Text(order.displayName)
-                            if sortOrder == order {
-                                Image(systemName: "checkmark")
-                            }
-                        }
+                ExplorerToolbarIconButton(
+                    icon: showHiddenFiles ? LucideIcon.eye : LucideIcon.eyeOff,
+                    action: {
+                        showHiddenFiles.toggle()
+                        loadItems()
                     }
+                )
+
+                ExplorerToolbarIconButton(
+                    icon: LucideIcon.list(isActive: fileListViewMode == .list),
+                    action: { layout.setFileListViewMode(.list) },
+                    tooltip: L10n.Toolbar.listView
+                )
+
+                ExplorerToolbarIconButton(
+                    icon: LucideIcon.layoutGrid(isActive: fileListViewMode == .thumbnail),
+                    action: { layout.setFileListViewMode(.thumbnail) },
+                    tooltip: L10n.Toolbar.thumbnailView
+                )
+            }
+        }
+        .hideSharedBackgroundIfAvailable()
+    }
+
+    @ToolbarContentBuilder
+    private var explorerToolbarTrailingItems: some ToolbarContent {
+        ToolbarItem(id: "toolbar.utilities", placement: .primaryAction) {
+            HStack(spacing: ExplorerToolbarMetrics.iconSpacing) {
+                if fileListViewMode == .thumbnail {
+                    ExplorerToolbarThumbnailSizeSlider(
+                        cellSize: Binding(
+                            get: { layout.thumbnailCellSizeValue },
+                            set: { layout.thumbnailCellSizeValue = $0 }
+                        )
+                    )
+                    .instantHoverTooltip(L10n.Toolbar.thumbnailSize)
                 }
-            } label: {
-                Image(systemName: "arrow.up.arrow.down")
-            }
-            .menuStyle(.borderlessButton)
 
-            Menu {
-                Toggle(L10n.Toolbar.autoFolderSize, isOn: $autoCalculateDirectorySizes)
-                Toggle(L10n.Toolbar.useIconPreview, isOn: $useIconPreview)
-            } label: {
-                Image(systemName: "gearshape")
-            }
-            .menuStyle(.borderlessButton)
-            .instantHoverTooltip(L10n.Toolbar.browseSettings)
+                ExplorerToolbarLucideMenu(
+                    icon: LucideIcon.arrowUpDown,
+                    menuActions: SortOrder.allCases.map { order in
+                        ExplorerToolbarMenuAction(
+                            title: order.displayName,
+                            isSelected: sortOrder == order,
+                            handler: { sortOrder = order }
+                        )
+                    }
+                )
 
+                ExplorerToolbarLucideMenu(
+                    icon: LucideIcon.settings,
+                    tooltip: L10n.Toolbar.browseSettings,
+                    menuActions: [
+                        ExplorerToolbarMenuAction(
+                            title: L10n.Toolbar.autoFolderSize,
+                            isOn: autoCalculateDirectorySizes,
+                            handler: { autoCalculateDirectorySizes.toggle() }
+                        ),
+                        ExplorerToolbarMenuAction(
+                            title: L10n.Toolbar.useIconPreview,
+                            isOn: useIconPreview,
+                            handler: { useIconPreview.toggle() }
+                        )
+                    ]
+                )
+            }
+        }
+        .hideSharedBackgroundIfAvailable()
+
+        ToolbarItem(id: "toolbar.search", placement: .primaryAction) {
             BarTextField(
                 fieldID: .search,
                 prompt: L10n.Search.prompt,
@@ -550,6 +554,7 @@ struct ContentView: View {
             )
             .frame(width: 220)
         }
+        .hideSharedBackgroundIfAvailable()
     }
     
     @ViewBuilder

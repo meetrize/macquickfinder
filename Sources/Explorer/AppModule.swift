@@ -99,9 +99,14 @@ struct FileCommands: Commands {
     }
 }
 
-extension ToolbarContent {
-    func hideSharedBackgroundIfAvailable() -> some ToolbarContent {
-        self
+extension CustomizableToolbarContent {
+    @ToolbarContentBuilder
+    func hideSharedBackgroundIfAvailable() -> some CustomizableToolbarContent {
+        if #available(macOS 26.0, *) {
+            self.sharedBackgroundVisibility(.hidden)
+        } else {
+            self
+        }
     }
 }
 
@@ -178,14 +183,73 @@ private enum LucideSVG {
     static let folderUp = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="m9 13 3-3 3 3"/></svg>
 """)
+    static let panelLeft = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
+""")
+    static let braces = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg>
+""")
+    static let trash2 = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+""")
+    static let eye = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+""")
+    static let eyeOff = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg>
+""")
+    static let list = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h.01"/><path d="M3 12h.01"/><path d="M3 19h.01"/><path d="M8 5h13"/><path d="M8 12h13"/><path d="M8 19h13"/></svg>
+""")
+    static let layoutGrid = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+""")
+    static let image = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+""")
+    static let arrowUpDown = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>
+""")
 }
 
 struct LucideIcon: View {
     let svgData: Data
-    var size: CGFloat = 16
+    var size: CGFloat = ExplorerToolbarMetrics.iconSize
+    var isActive: Bool = false
+    var isSecondary: Bool = false
 
+    static let panelLeft = LucideIcon(svgData: LucideSVG.panelLeft)
     static let folderPlus = LucideIcon(svgData: LucideSVG.folderPlus)
     static let folderUp = LucideIcon(svgData: LucideSVG.folderUp)
+    static let trash2 = LucideIcon(svgData: LucideSVG.trash2)
+    static let eye = LucideIcon(svgData: LucideSVG.eye)
+    static let eyeOff = LucideIcon(svgData: LucideSVG.eyeOff)
+    static let arrowUpDown = LucideIcon(svgData: LucideSVG.arrowUpDown)
+    static let settings = LucideIcon(svgData: LucideSVG.settings)
+
+    static func fileImage(isActive: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.fileImage, isActive: isActive)
+    }
+
+    static func braces(isActive: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.braces, isActive: isActive)
+    }
+
+    static func terminal(isActive: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.terminal, isActive: isActive)
+    }
+
+    static func list(isActive: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.list, isActive: isActive)
+    }
+
+    static func layoutGrid(isActive: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.layoutGrid, isActive: isActive)
+    }
+
+    static func image(isSecondary: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.image, isSecondary: isSecondary)
+    }
 
     var body: some View {
         if let image = NSImage(data: svgData) {
@@ -194,7 +258,260 @@ struct LucideIcon: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: size, height: size)
+                .foregroundStyle(foregroundColor)
         }
+    }
+
+    private var foregroundColor: Color {
+        if isActive { return .accentColor }
+        if isSecondary { return .secondary }
+        return .primary
+    }
+}
+
+enum ExplorerToolbarMetrics {
+    static let iconSize: CGFloat = 16
+    static let iconHitSize: CGFloat = 18
+    static let iconSpacing: CGFloat = 8
+}
+
+struct ExplorerToolbarMenuAction {
+    let title: String
+    var isSelected: Bool = false
+    var isOn: Bool? = nil
+    let handler: () -> Void
+}
+
+struct ExplorerToolbarPlainButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(width: ExplorerToolbarMetrics.iconSize, height: ExplorerToolbarMetrics.iconSize)
+            .frame(width: ExplorerToolbarMetrics.iconHitSize, height: ExplorerToolbarMetrics.iconHitSize)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.65 : 1)
+    }
+}
+
+struct ExplorerToolbarIconButton: View {
+    let icon: LucideIcon
+    let action: () -> Void
+    var tooltip: String? = nil
+    var isDisabled: Bool = false
+
+    var body: some View {
+        let button = Button(action: action) { icon }
+            .buttonStyle(ExplorerToolbarPlainButtonStyle())
+            .disabled(isDisabled)
+
+        if let tooltip {
+            button.instantHoverTooltip(tooltip)
+        } else {
+            button
+        }
+    }
+}
+
+struct ExplorerToolbarLucideMenuButton: NSViewRepresentable {
+    let icon: LucideIcon
+    let menuActions: [ExplorerToolbarMenuAction]
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> ExplorerToolbarLucideMenuNSView {
+        let view = ExplorerToolbarLucideMenuNSView()
+        view.onMenuAction = { index in
+            guard menuActions.indices.contains(index) else { return }
+            menuActions[index].handler()
+        }
+        updateMenuView(view, context: context)
+        return view
+    }
+
+    func updateNSView(_ nsView: ExplorerToolbarLucideMenuNSView, context: Context) {
+        context.coordinator.menuActions = menuActions
+        nsView.onMenuAction = { index in
+            guard menuActions.indices.contains(index) else { return }
+            menuActions[index].handler()
+        }
+        updateMenuView(nsView, context: context)
+    }
+
+    private func updateMenuView(_ view: ExplorerToolbarLucideMenuNSView, context: Context) {
+        view.update(
+            svgData: icon.svgData,
+            menuActions: menuActions,
+            isActive: icon.isActive,
+            isSecondary: icon.isSecondary,
+            isEnabled: isEnabled
+        )
+    }
+
+    final class Coordinator {
+        var menuActions: [ExplorerToolbarMenuAction] = []
+    }
+}
+
+final class ExplorerToolbarLucideMenuNSView: NSView {
+    private let imageView = NSImageView()
+    private var menuActions: [ExplorerToolbarMenuAction] = []
+    var onMenuAction: ((Int) -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        translatesAutoresizingMaskIntoConstraints = false
+        focusRingType = .none
+
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.imageScaling = .scaleProportionallyDown
+        addSubview(imageView)
+
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: ExplorerToolbarMetrics.iconHitSize),
+            heightAnchor.constraint(equalToConstant: ExplorerToolbarMetrics.iconHitSize),
+            imageView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            imageView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: ExplorerToolbarMetrics.iconSize),
+            imageView.heightAnchor.constraint(equalToConstant: ExplorerToolbarMetrics.iconSize)
+        ])
+
+        let click = NSClickGestureRecognizer(target: self, action: #selector(handleClick))
+        addGestureRecognizer(click)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(
+        svgData: Data,
+        menuActions: [ExplorerToolbarMenuAction],
+        isActive: Bool,
+        isSecondary: Bool,
+        isEnabled: Bool
+    ) {
+        self.menuActions = menuActions
+
+        if let image = NSImage(data: svgData) {
+            image.isTemplate = true
+            imageView.image = image
+        }
+
+        if !isEnabled {
+            imageView.contentTintColor = .disabledControlTextColor
+            alphaValue = 0.6
+        } else if isActive {
+            imageView.contentTintColor = .controlAccentColor
+            alphaValue = 1
+        } else if isSecondary {
+            imageView.contentTintColor = .secondaryLabelColor
+            alphaValue = 1
+        } else {
+            imageView.contentTintColor = .labelColor
+            alphaValue = 1
+        }
+    }
+
+    @objc private func handleClick() {
+        guard !menuActions.isEmpty else { return }
+        let menu = NSMenu()
+        for (index, action) in menuActions.enumerated() {
+            let item = NSMenuItem(title: action.title, action: #selector(menuItemSelected(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = index
+            if let isOn = action.isOn {
+                item.state = isOn ? .on : .off
+            } else if action.isSelected {
+                item.state = .on
+            }
+            menu.addItem(item)
+        }
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height + 2), in: self)
+    }
+
+    @objc private func menuItemSelected(_ sender: NSMenuItem) {
+        onMenuAction?(sender.tag)
+    }
+
+    override var acceptsFirstResponder: Bool { false }
+    override var canBecomeKeyView: Bool { false }
+}
+
+struct ExplorerToolbarLucideMenu: View {
+    let icon: LucideIcon
+    var tooltip: String? = nil
+    let menuActions: [ExplorerToolbarMenuAction]
+
+    var body: some View {
+        let button = ExplorerToolbarLucideMenuButton(icon: icon, menuActions: menuActions)
+        if let tooltip {
+            button.instantHoverTooltip(tooltip)
+        } else {
+            button
+        }
+    }
+}
+
+struct ExplorerToolbarThumbnailSizeSlider: View {
+    @Binding var cellSize: CGFloat
+
+    private let trackHeight: CGFloat = 4
+    private let thumbSize: CGFloat = 11
+    private let sliderWidth: CGFloat = 104
+
+    private var range: ClosedRange<CGFloat> {
+        FileListThumbnailMetrics.minCellSize...FileListThumbnailMetrics.maxCellSize
+    }
+
+    private var progress: CGFloat {
+        let span = range.upperBound - range.lowerBound
+        guard span > 0 else { return 0 }
+        return (FileListThumbnailMetrics.steppedCellSize(from: cellSize) - range.lowerBound) / span
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = max(geometry.size.width, 1)
+            let fillWidth = max(trackHeight, width * progress)
+            let thumbOffset = max(0, min(width - thumbSize, (width - thumbSize) * progress))
+
+            ZStack(alignment: .leading) {
+                Capsule(style: .continuous)
+                    .fill(Color.primary.opacity(0.18))
+                    .frame(height: trackHeight)
+
+                Capsule(style: .continuous)
+                    .fill(Color.accentColor.opacity(0.95))
+                    .frame(width: fillWidth, height: trackHeight)
+
+                Circle()
+                    .fill(Color.accentColor)
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.5)
+                    }
+                    .frame(width: thumbSize, height: thumbSize)
+                    .shadow(color: .black.opacity(0.18), radius: 1, y: 0.5)
+                    .offset(x: thumbOffset)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        updateCellSize(forLocationX: value.location.x, width: width)
+                    }
+            )
+        }
+        .frame(width: sliderWidth, height: ExplorerToolbarMetrics.iconHitSize)
+    }
+
+    private func updateCellSize(forLocationX locationX: CGFloat, width: CGFloat) {
+        let fraction = min(max(locationX / width, 0), 1)
+        let rawValue = range.lowerBound + fraction * (range.upperBound - range.lowerBound)
+        cellSize = FileListThumbnailMetrics.steppedCellSize(from: rawValue)
     }
 }
 
