@@ -222,6 +222,7 @@ enum L10n {
         static var openAppSelectionPolicy: String { ModuleLocalization.localized("toolbar.open_app.selection_policy", bundle: .module) }
         static var openAppSelectionRequire: String { ModuleLocalization.localized("toolbar.open_app.selection_require", bundle: .module) }
         static var openAppSelectionOptional: String { ModuleLocalization.localized("toolbar.open_app.selection_optional", bundle: .module) }
+        static var openAppSelectionCurrentFolder: String { ModuleLocalization.localized("toolbar.open_app.selection_current_folder", bundle: .module) }
         static var openAppSelectionPolicyHelp: String { ModuleLocalization.localized("toolbar.open_app.selection_policy_help", bundle: .module) }
 
         static func openAppTooltip(_ appName: String) -> String {

@@ -18,6 +18,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Toolbar.customizeTitle, "toolbar.customize.title")
         XCTAssertNotEqual(L10n.Toolbar.customizeDone, "toolbar.customize.done")
         XCTAssertNotEqual(L10n.Toolbar.openAppSelectionPolicy, "toolbar.open_app.selection_policy")
+        XCTAssertNotEqual(L10n.Toolbar.openAppSelectionCurrentFolder, "toolbar.open_app.selection_current_folder")
         XCTAssertNotEqual(L10n.Toolbar.openAppEdit, "toolbar.open_app.edit")
     }
 

@@ -51,6 +51,8 @@ enum OpenAppSelectionPolicy: String, Codable, CaseIterable, Identifiable {
     case requireSelection
     /// 无选中也可点击；有选中时传递选中项，无选中时不传参数。
     case passSelectionIfAvailable
+    /// 始终将当前浏览的文件夹路径作为参数传给应用。
+    case passCurrentDirectory
 
     var id: String { rawValue }
 }

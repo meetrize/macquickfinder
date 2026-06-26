@@ -7277,19 +7277,36 @@
         }
       }
     },
+    "toolbar.open_app.selection_current_folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pass current folder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将当前文件夹作为参数"
+          }
+        }
+      }
+    },
     "toolbar.open_app.selection_policy_help": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When items are selected, they are passed to the application. Otherwise the button either requires a selection or launches the app without files."
+            "value": "Require selection: at least one item must be selected. Pass when available: passes selected items if any, otherwise launches the app without files. Current folder: always passes the folder you are browsing."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "有选中项时会作为参数传给应用；未选中时，按钮要么要求必须先选中，要么直接启动应用且不传文件。"
+            "value": "必须选中：需先选中文件或文件夹再运行。无选中也可运行：有选中时传递选中项，否则直接启动应用。当前文件夹：始终将当前浏览的文件夹路径传给应用。"
           }
         }
       }

@@ -193,6 +193,20 @@ final class OpenAppExecutorTests: XCTestCase {
         XCTAssertEqual(action.selectionPolicy, .requireSelection)
     }
 
+    func testPassCurrentDirectoryDoesNotRequireSelection() {
+        let action = CustomOpenAppAction(
+            displayName: "Folder",
+            applicationPath: "/Applications/DefinitelyMissing.app",
+            selectionPolicy: .passCurrentDirectory
+        )
+        let context = ToolbarActionContext(cwd: "/Users/test/Projects", selectedItems: [])
+
+        XCTAssertThrowsError(try OpenAppExecutor.run(action, context: context)) { error in
+            XCTAssertEqual(error as? ToolbarActionError, .applicationMissing("Folder"))
+            XCTAssertNotEqual(error as? ToolbarActionError, .requiresSelection)
+        }
+    }
+
     func testCustomOpenAppDecodesMissingSelectionPolicyAsRequireSelection() throws {
         let json = """
         {

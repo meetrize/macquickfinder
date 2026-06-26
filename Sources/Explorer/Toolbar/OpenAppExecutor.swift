@@ -30,6 +30,9 @@ enum OpenAppExecutor {
                 } else {
                     NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: configuration)
                 }
+            case .passCurrentDirectory:
+                let folderURL = URL(fileURLWithPath: context.cwd, isDirectory: true)
+                NSWorkspace.shared.open([folderURL], withApplicationAt: appURL, configuration: configuration)
             }
         case .launchWithArguments:
             throw ToolbarActionError.unsupportedDeliveryMode

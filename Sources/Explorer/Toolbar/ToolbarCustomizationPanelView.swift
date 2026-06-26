@@ -183,35 +183,40 @@ struct CustomOpenAppEditorSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Form {
-                Section {
-                    TextField(L10n.Toolbar.openAppName, text: $displayName)
+            VStack(alignment: .leading, spacing: 18) {
+                OpenAppLabeledField(label: L10n.Toolbar.openAppName) {
+                    TextField("", text: $displayName)
                         .textFieldStyle(.roundedBorder)
                 }
 
-                Section {
+                OpenAppLabeledField(label: L10n.Toolbar.openAppChoosePrompt) {
                     applicationPickerRow
                 }
 
-                Section {
-                    Picker(L10n.Toolbar.openAppSelectionPolicy, selection: $selectionPolicy) {
-                        Text(L10n.Toolbar.openAppSelectionRequire)
-                            .tag(OpenAppSelectionPolicy.requireSelection)
-                        Text(L10n.Toolbar.openAppSelectionOptional)
-                            .tag(OpenAppSelectionPolicy.passSelectionIfAvailable)
+                OpenAppLabeledField(label: L10n.Toolbar.openAppSelectionPolicy) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Picker("", selection: $selectionPolicy) {
+                            Text(L10n.Toolbar.openAppSelectionRequire)
+                                .tag(OpenAppSelectionPolicy.requireSelection)
+                            Text(L10n.Toolbar.openAppSelectionOptional)
+                                .tag(OpenAppSelectionPolicy.passSelectionIfAvailable)
+                            Text(L10n.Toolbar.openAppSelectionCurrentFolder)
+                                .tag(OpenAppSelectionPolicy.passCurrentDirectory)
+                        }
+                        .pickerStyle(.radioGroup)
+                        .labelsHidden()
+
+                        Text(L10n.Toolbar.openAppSelectionPolicyHelp)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .pickerStyle(.radioGroup)
-                } footer: {
-                    Text(L10n.Toolbar.openAppSelectionPolicyHelp)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
-                Section {
-                    Toggle(L10n.Toolbar.openAppUseAppIcon, isOn: $useApplicationIcon)
-                }
+                Toggle(L10n.Toolbar.openAppUseAppIcon, isOn: $useApplicationIcon)
             }
-            .formStyle(.grouped)
+
+            Spacer(minLength: 0)
 
             HStack {
                 Spacer()
@@ -222,12 +227,12 @@ struct CustomOpenAppEditorSheet: View {
             }
         }
         .padding(24)
-        .frame(minWidth: 512, minHeight: 372)
+        .frame(width: 480, height: 540)
         .onAppear(perform: populateFields)
     }
 
     private var applicationPickerRow: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: 12) {
             Group {
                 if applicationPath.isEmpty {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -260,12 +265,19 @@ struct CustomOpenAppEditorSheet: View {
                 }
             }
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 8)
 
             Button(L10n.Toolbar.openAppChoose, action: chooseApplication)
-                .controlSize(.large)
         }
-        .padding(.vertical, 4)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.2), lineWidth: 1)
+        )
     }
 
     private var applicationDisplayTitle: String {
@@ -322,5 +334,19 @@ struct CustomOpenAppEditorSheet: View {
         )
         store.addCustomOpenApp(action)
         close()
+    }
+}
+
+private struct OpenAppLabeledField<Content: View>: View {
+    let label: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            content()
+        }
     }
 }

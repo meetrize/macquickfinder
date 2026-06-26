@@ -1326,12 +1326,14 @@
 	<string>名称</string>
 	<key>toolbar.open_app.save</key>
 	<string>存储</string>
+	<key>toolbar.open_app.selection_current_folder</key>
+	<string>将当前文件夹作为参数</string>
 	<key>toolbar.open_app.selection_optional</key>
 	<string>无选中也可运行，选中时传递</string>
 	<key>toolbar.open_app.selection_policy</key>
 	<string>选中项策略</string>
 	<key>toolbar.open_app.selection_policy_help</key>
-	<string>有选中项时会作为参数传给应用；未选中时，按钮要么要求必须先选中，要么直接启动应用且不传文件。</string>
+	<string>必须选中：需先选中文件或文件夹再运行。无选中也可运行：有选中时传递选中项，否则直接启动应用。当前文件夹：始终将当前浏览的文件夹路径传给应用。</string>
 	<key>toolbar.open_app.selection_require</key>
 	<string>必须选中文件或文件夹</string>
 	<key>toolbar.open_app.title</key>

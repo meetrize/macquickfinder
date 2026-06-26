@@ -23,16 +23,17 @@ enum ToolbarOpenAppEditorWindowController {
         }
 
         let hostingView = NSHostingView(rootView: rootView)
-        let windowSize = NSSize(width: 560, height: 420)
+        let windowSize = NSSize(width: 528, height: 588)
 
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: windowSize),
-            styleMask: [.titled, .closable],
+            styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
 
         window.title = editingAction == nil ? L10n.Toolbar.openAppTitle : L10n.Toolbar.openAppEditTitle
+        window.minSize = NSSize(width: 440, height: 440)
         window.isReleasedWhenClosed = false
         window.contentView = hostingView
         hostingView.frame = window.contentView?.bounds ?? .zero

@@ -1326,12 +1326,14 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Name</string>
 	<key>toolbar.open_app.save</key>
 	<string>Save</string>
+	<key>toolbar.open_app.selection_current_folder</key>
+	<string>Pass current folder</string>
 	<key>toolbar.open_app.selection_optional</key>
 	<string>Pass selection when available</string>
 	<key>toolbar.open_app.selection_policy</key>
 	<string>Selection Policy</string>
 	<key>toolbar.open_app.selection_policy_help</key>
-	<string>When items are selected, they are passed to the application. Otherwise the button either requires a selection or launches the app without files.</string>
+	<string>Require selection: at least one item must be selected. Pass when available: passes selected items if any, otherwise launches the app without files. Current folder: always passes the folder you are browsing.</string>
 	<key>toolbar.open_app.selection_require</key>
 	<string>Require selected items</string>
 	<key>toolbar.open_app.title</key>
