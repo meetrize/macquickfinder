@@ -1284,14 +1284,62 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Calculate All Folder Sizes</string>
 	<key>toolbar.browse_settings</key>
 	<string>Browse Settings</string>
+	<key>toolbar.customize</key>
+	<string>Customize Toolbar…</string>
+	<key>toolbar.customize.add_open_app</key>
+	<string>Add Toolbar Item…</string>
+	<key>toolbar.customize.cancel</key>
+	<string>Cancel</string>
+	<key>toolbar.customize.done</key>
+	<string>Done</string>
+	<key>toolbar.customize.hint</key>
+	<string>Drag items into the toolbar to add them. Drag items out to remove them.</string>
+	<key>toolbar.customize.reset</key>
+	<string>Restore Defaults</string>
+	<key>toolbar.customize.title</key>
+	<string>Customize Toolbar</string>
 	<key>toolbar.delete</key>
 	<string>Delete</string>
+	<key>toolbar.error.app_missing</key>
+	<string>Application “%@” could not be found. Reconfigure it in Customize Toolbar.</string>
+	<key>toolbar.error.app_missing_title</key>
+	<string>Application Not Found</string>
+	<key>toolbar.error.no_selection</key>
+	<string>Select one or more items first</string>
 	<key>toolbar.hide_left_panel</key>
 	<string>Hide Left Panel</string>
 	<key>toolbar.list_view</key>
 	<string>List View</string>
 	<key>toolbar.new_folder</key>
 	<string>New Folder</string>
+	<key>toolbar.open_app.add</key>
+	<string>Add</string>
+	<key>toolbar.open_app.choose</key>
+	<string>Choose…</string>
+	<key>toolbar.open_app.choose_prompt</key>
+	<string>Choose an application</string>
+	<key>toolbar.open_app.edit</key>
+	<string>Edit Toolbar Item…</string>
+	<key>toolbar.open_app.edit_title</key>
+	<string>Edit Toolbar Item</string>
+	<key>toolbar.open_app.name</key>
+	<string>Name</string>
+	<key>toolbar.open_app.save</key>
+	<string>Save</string>
+	<key>toolbar.open_app.selection_optional</key>
+	<string>Pass selection when available</string>
+	<key>toolbar.open_app.selection_policy</key>
+	<string>Selection Policy</string>
+	<key>toolbar.open_app.selection_policy_help</key>
+	<string>When items are selected, they are passed to the application. Otherwise the button either requires a selection or launches the app without files.</string>
+	<key>toolbar.open_app.selection_require</key>
+	<string>Require selected items</string>
+	<key>toolbar.open_app.title</key>
+	<string>Add Toolbar Item</string>
+	<key>toolbar.open_app.tooltip</key>
+	<string>Open with %@</string>
+	<key>toolbar.open_app.use_app_icon</key>
+	<string>Use application icon</string>
 	<key>toolbar.show_left_panel</key>
 	<string>Show Left Panel</string>
 	<key>toolbar.thumbnail_size</key>

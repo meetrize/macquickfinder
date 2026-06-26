@@ -203,6 +203,45 @@ enum L10n {
         static var viewPicker: String { ModuleLocalization.localized("toolbar.view_picker", bundle: .module) }
         static var autoFolderSize: String { ModuleLocalization.localized("toolbar.auto_folder_size", bundle: .module) }
         static var useIconPreview: String { ModuleLocalization.localized("toolbar.use_icon_preview", bundle: .module) }
+        static var customize: String { ModuleLocalization.localized("toolbar.customize", bundle: .module) }
+        static var customizeTitle: String { ModuleLocalization.localized("toolbar.customize.title", bundle: .module) }
+        static var customizeHint: String { ModuleLocalization.localized("toolbar.customize.hint", bundle: .module) }
+        static var customizeDone: String { ModuleLocalization.localized("toolbar.customize.done", bundle: .module) }
+        static var customizeCancel: String { ModuleLocalization.localized("toolbar.customize.cancel", bundle: .module) }
+        static var customizeReset: String { ModuleLocalization.localized("toolbar.customize.reset", bundle: .module) }
+        static var addOpenApp: String { ModuleLocalization.localized("toolbar.customize.add_open_app", bundle: .module) }
+        static var openAppTitle: String { ModuleLocalization.localized("toolbar.open_app.title", bundle: .module) }
+        static var openAppName: String { ModuleLocalization.localized("toolbar.open_app.name", bundle: .module) }
+        static var openAppChoose: String { ModuleLocalization.localized("toolbar.open_app.choose", bundle: .module) }
+        static var openAppChoosePrompt: String { ModuleLocalization.localized("toolbar.open_app.choose_prompt", bundle: .module) }
+        static var openAppUseAppIcon: String { ModuleLocalization.localized("toolbar.open_app.use_app_icon", bundle: .module) }
+        static var openAppAdd: String { ModuleLocalization.localized("toolbar.open_app.add", bundle: .module) }
+        static var openAppSave: String { ModuleLocalization.localized("toolbar.open_app.save", bundle: .module) }
+        static var openAppEdit: String { ModuleLocalization.localized("toolbar.open_app.edit", bundle: .module) }
+        static var openAppEditTitle: String { ModuleLocalization.localized("toolbar.open_app.edit_title", bundle: .module) }
+        static var openAppSelectionPolicy: String { ModuleLocalization.localized("toolbar.open_app.selection_policy", bundle: .module) }
+        static var openAppSelectionRequire: String { ModuleLocalization.localized("toolbar.open_app.selection_require", bundle: .module) }
+        static var openAppSelectionOptional: String { ModuleLocalization.localized("toolbar.open_app.selection_optional", bundle: .module) }
+        static var openAppSelectionPolicyHelp: String { ModuleLocalization.localized("toolbar.open_app.selection_policy_help", bundle: .module) }
+
+        static func openAppTooltip(_ appName: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("toolbar.open_app.tooltip", bundle: .module),
+                appName
+            )
+        }
+
+        enum Error {
+            static var noSelection: String { ModuleLocalization.localized("toolbar.error.no_selection", bundle: .module) }
+            static var appMissingTitle: String { ModuleLocalization.localized("toolbar.error.app_missing_title", bundle: .module) }
+
+            static func appMissing(_ name: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("toolbar.error.app_missing", bundle: .module),
+                    name
+                )
+            }
+        }
     }
 
     enum Search {

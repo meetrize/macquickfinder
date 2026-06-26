@@ -1284,14 +1284,62 @@
 	<string>自动计算文件夹大小</string>
 	<key>toolbar.browse_settings</key>
 	<string>浏览设置</string>
+	<key>toolbar.customize</key>
+	<string>自定义工具栏…</string>
+	<key>toolbar.customize.add_open_app</key>
+	<string>添加工具栏项…</string>
+	<key>toolbar.customize.cancel</key>
+	<string>取消</string>
+	<key>toolbar.customize.done</key>
+	<string>完成</string>
+	<key>toolbar.customize.hint</key>
+	<string>将项目拖到工具栏以添加；将项目拖出工具栏以移除。</string>
+	<key>toolbar.customize.reset</key>
+	<string>恢复默认</string>
+	<key>toolbar.customize.title</key>
+	<string>自定义工具栏</string>
 	<key>toolbar.delete</key>
 	<string>删除</string>
+	<key>toolbar.error.app_missing</key>
+	<string>找不到应用「%@」，请在自定义工具栏中重新配置。</string>
+	<key>toolbar.error.app_missing_title</key>
+	<string>找不到应用</string>
+	<key>toolbar.error.no_selection</key>
+	<string>需要先选中文件</string>
 	<key>toolbar.hide_left_panel</key>
 	<string>隐藏左侧面板</string>
 	<key>toolbar.list_view</key>
 	<string>列表视图</string>
 	<key>toolbar.new_folder</key>
 	<string>新建文件夹</string>
+	<key>toolbar.open_app.add</key>
+	<string>添加</string>
+	<key>toolbar.open_app.choose</key>
+	<string>选择…</string>
+	<key>toolbar.open_app.choose_prompt</key>
+	<string>选择应用程序</string>
+	<key>toolbar.open_app.edit</key>
+	<string>编辑工具栏项…</string>
+	<key>toolbar.open_app.edit_title</key>
+	<string>编辑工具栏项</string>
+	<key>toolbar.open_app.name</key>
+	<string>名称</string>
+	<key>toolbar.open_app.save</key>
+	<string>存储</string>
+	<key>toolbar.open_app.selection_optional</key>
+	<string>无选中也可运行，选中时传递</string>
+	<key>toolbar.open_app.selection_policy</key>
+	<string>选中项策略</string>
+	<key>toolbar.open_app.selection_policy_help</key>
+	<string>有选中项时会作为参数传给应用；未选中时，按钮要么要求必须先选中，要么直接启动应用且不传文件。</string>
+	<key>toolbar.open_app.selection_require</key>
+	<string>必须选中文件或文件夹</string>
+	<key>toolbar.open_app.title</key>
+	<string>添加工具栏项</string>
+	<key>toolbar.open_app.tooltip</key>
+	<string>用 %@ 打开</string>
+	<key>toolbar.open_app.use_app_icon</key>
+	<string>使用应用图标</string>
 	<key>toolbar.show_left_panel</key>
 	<string>显示左侧面板</string>
 	<key>toolbar.thumbnail_size</key>

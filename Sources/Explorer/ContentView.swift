@@ -64,6 +64,7 @@ struct ContentView: View {
     @State private var liveLeftPanelDragWidth: CGFloat?
     @StateObject private var externalFolderOpenCenter = ExternalFolderOpenCenter.shared
     @ObservedObject private var outputPanelTextEditing = OutputPanelTextEditingCenter.shared
+    @ObservedObject private var toolbarStore = ToolbarCustomizationStore.shared
     @State private var pendingExternalSelectionPath: String?
     
     init(initialPath: String? = nil) {
@@ -278,6 +279,7 @@ struct ContentView: View {
             )
         )
         .onAppear {
+            toolbarStore.loadIfNeeded()
             externalFolderOpenCenter.setOpenFolderWindowHandler { path in
                 openWindow(id: ExplorerWindowScene.folder, value: path)
             }
@@ -390,8 +392,45 @@ struct ContentView: View {
         .navigationTitle(currentDirectoryTitle)
         .modifier(InlineToolbarTitleModifier())
         .toolbar {
-            explorerToolbarLeadingItems
-            explorerToolbarTrailingItems
+            ExplorerDynamicToolbar(
+                store: toolbarStore,
+                environment: toolbarEnvironment,
+                searchContent: {
+                    BarTextField(
+                        fieldID: .search,
+                        prompt: L10n.Search.prompt,
+                        text: $searchText,
+                        activeField: $activeBarField,
+                        icon: "magnifyingglass",
+                        shape: .capsule,
+                        showsClearButton: true
+                    )
+                    .frame(width: 220)
+                }
+            )
+        }
+        .background {
+            ToolbarContextMenuInstaller(
+                hostWindow: $hostWindow,
+                isCustomizing: toolbarStore.isCustomizing,
+                workingLayout: toolbarStore.workingLayout,
+                onCustomize: {
+                    ToolbarCustomizationWindowController.present(
+                        store: toolbarStore,
+                        environment: toolbarEnvironment,
+                        parentWindow: hostWindow
+                    )
+                },
+                onEditOpenApp: { action in
+                    ToolbarOpenAppEditorWindowController.present(
+                        store: toolbarStore,
+                        parentWindow: hostWindow ?? ToolbarCustomizationWindowController.activeWindow,
+                        editingAction: action
+                    )
+                }
+            )
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
         }
         .onChange(of: activeBarField) { field in
             guard let field, let hostWindow else { return }
@@ -429,134 +468,55 @@ struct ContentView: View {
         }
     }
 
-    @ToolbarContentBuilder
-    private var explorerToolbarLeadingItems: some ToolbarContent {
-        ToolbarItem(id: "toolbar.leftPanel", placement: .navigation) {
-            ExplorerToolbarIconButton(
-                icon: LucideIcon.panelLeft,
-                action: toggleLeftPanelVisibility,
-                tooltip: leftPanelMode == .hidden ? L10n.Toolbar.showLeftPanel : L10n.Toolbar.hideLeftPanel
-            )
-        }
-        .hideSharedBackgroundIfAvailable()
-
-        ToolbarItem(id: "toolbar.actions", placement: .primaryAction) {
-            HStack(spacing: ExplorerToolbarMetrics.iconSpacing) {
-                ExplorerToolbarIconButton(
-                    icon: LucideIcon.fileImage(isActive: layout.showPreview),
-                    action: { layout.showPreview.toggle() },
-                    tooltip: layout.showPreview ? L10n.Menu.hidePreview : L10n.Menu.showPreview
-                )
-
-                ExplorerToolbarIconButton(
-                    icon: LucideIcon.braces(isActive: layout.showSnippets),
-                    action: { layout.showSnippets.toggle() },
-                    tooltip: layout.showSnippets ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets
-                )
-
-                ExplorerToolbarIconButton(
-                    icon: LucideIcon.terminal(isActive: layout.isOutputPanelVisible),
-                    action: { layout.toggleOutputPanel() },
-                    tooltip: layout.isOutputPanelVisible ? L10n.Menu.hideOutputPanel : L10n.Menu.showOutputPanel
-                )
-
-                ExplorerToolbarIconButton(
-                    icon: LucideIcon.folderPlus,
-                    action: createNewFolder,
-                    tooltip: L10n.Toolbar.newFolder
-                )
-
-                ExplorerToolbarIconButton(
-                    icon: LucideIcon.trash2,
-                    action: deleteSelectedItems,
-                    tooltip: L10n.Toolbar.delete,
-                    isDisabled: deletableSelectedItems.isEmpty
-                )
-
-                ExplorerToolbarIconButton(
-                    icon: showHiddenFiles ? LucideIcon.eye : LucideIcon.eyeOff,
-                    action: {
-                        showHiddenFiles.toggle()
-                        loadItems()
-                    }
-                )
-
-                ExplorerToolbarIconButton(
-                    icon: LucideIcon.list(isActive: fileListViewMode == .list),
-                    action: { layout.setFileListViewMode(.list) },
-                    tooltip: L10n.Toolbar.listView
-                )
-
-                ExplorerToolbarIconButton(
-                    icon: LucideIcon.layoutGrid(isActive: fileListViewMode == .thumbnail),
-                    action: { layout.setFileListViewMode(.thumbnail) },
-                    tooltip: L10n.Toolbar.thumbnailView
-                )
-            }
-        }
-        .hideSharedBackgroundIfAvailable()
+    private var toolbarEnvironment: ExplorerToolbarEnvironment {
+        ExplorerToolbarEnvironment(
+            layout: layout,
+            showHiddenFiles: showHiddenFiles,
+            sortOrder: sortOrder,
+            autoCalculateDirectorySizes: autoCalculateDirectorySizes,
+            useIconPreview: useIconPreview,
+            fileListViewMode: fileListViewMode,
+            selectedItems: selectedItems,
+            deletableSelectedItems: deletableSelectedItems,
+            leftPanelMode: leftPanelMode,
+            isCustomizing: toolbarStore.isCustomizing,
+            toggleLeftPanelVisibility: toggleLeftPanelVisibility,
+            createNewFolder: createNewFolder,
+            deleteSelectedItems: deleteSelectedItems,
+            toggleHiddenFiles: {
+                showHiddenFiles.toggle()
+                loadItems()
+            },
+            setSortOrder: { sortOrder = $0 },
+            toggleAutoCalculateDirectorySizes: { autoCalculateDirectorySizes.toggle() },
+            toggleUseIconPreview: { useIconPreview.toggle() },
+            performOpenApp: performToolbarOpenApp,
+            editOpenApp: editToolbarOpenApp
+        )
     }
 
-    @ToolbarContentBuilder
-    private var explorerToolbarTrailingItems: some ToolbarContent {
-        ToolbarItem(id: "toolbar.utilities", placement: .primaryAction) {
-            HStack(spacing: ExplorerToolbarMetrics.iconSpacing) {
-                if fileListViewMode == .thumbnail {
-                    ExplorerToolbarThumbnailSizeSlider(
-                        cellSize: Binding(
-                            get: { layout.thumbnailCellSizeValue },
-                            set: { layout.thumbnailCellSizeValue = $0 }
-                        )
-                    )
-                    .instantHoverTooltip(L10n.Toolbar.thumbnailSize)
-                }
-
-                ExplorerToolbarLucideMenu(
-                    icon: LucideIcon.arrowUpDown,
-                    menuActions: SortOrder.allCases.map { order in
-                        ExplorerToolbarMenuAction(
-                            title: order.displayName,
-                            isSelected: sortOrder == order,
-                            handler: { sortOrder = order }
-                        )
-                    }
-                )
-
-                ExplorerToolbarLucideMenu(
-                    icon: LucideIcon.settings,
-                    tooltip: L10n.Toolbar.browseSettings,
-                    menuActions: [
-                        ExplorerToolbarMenuAction(
-                            title: L10n.Toolbar.autoFolderSize,
-                            isOn: autoCalculateDirectorySizes,
-                            handler: { autoCalculateDirectorySizes.toggle() }
-                        ),
-                        ExplorerToolbarMenuAction(
-                            title: L10n.Toolbar.useIconPreview,
-                            isOn: useIconPreview,
-                            handler: { useIconPreview.toggle() }
-                        )
-                    ]
-                )
-            }
-        }
-        .hideSharedBackgroundIfAvailable()
-
-        ToolbarItem(id: "toolbar.search", placement: .primaryAction) {
-            BarTextField(
-                fieldID: .search,
-                prompt: L10n.Search.prompt,
-                text: $searchText,
-                activeField: $activeBarField,
-                icon: "magnifyingglass",
-                shape: .capsule,
-                showsClearButton: true
-            )
-            .frame(width: 220)
-        }
-        .hideSharedBackgroundIfAvailable()
+    private func editToolbarOpenApp(_ action: CustomOpenAppAction) {
+        ToolbarOpenAppEditorWindowController.present(
+            store: toolbarStore,
+            parentWindow: hostWindow,
+            editingAction: action
+        )
     }
-    
+
+    private func performToolbarOpenApp(_ action: CustomOpenAppAction) {
+        let context = ToolbarActionContext(
+            cwd: path,
+            selectedItems: selectedItems
+        )
+        do {
+            try OpenAppExecutor.run(action, context: context)
+        } catch ToolbarActionError.applicationMissing(let name) {
+            OpenAppExecutor.presentApplicationMissingAlert(name: name)
+        } catch {
+            return
+        }
+    }
+
     @ViewBuilder
     private func explorerRightPanelColumn(maxPreviewWidth: CGFloat) -> some View {
         HorizontalResizeDivider(

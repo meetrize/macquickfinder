@@ -247,6 +247,8 @@ struct LucideIcon: View {
         LucideIcon(svgData: LucideSVG.layoutGrid, isActive: isActive)
     }
 
+    static let appWindow = LucideIcon(svgData: LucideSVG.appWindow)
+
     static func image(isSecondary: Bool = false) -> LucideIcon {
         LucideIcon(svgData: LucideSVG.image, isSecondary: isSecondary)
     }

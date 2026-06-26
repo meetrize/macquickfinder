@@ -14,6 +14,11 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertFalse(L10n.Settings.Tab.general.isEmpty)
         XCTAssertNotEqual(L10n.Sidebar.favorites, "sidebar.favorites")
         XCTAssertNotEqual(L10n.Sidebar.trash, "sidebar.trash")
+        XCTAssertNotEqual(L10n.Toolbar.customize, "toolbar.customize")
+        XCTAssertNotEqual(L10n.Toolbar.customizeTitle, "toolbar.customize.title")
+        XCTAssertNotEqual(L10n.Toolbar.customizeDone, "toolbar.customize.done")
+        XCTAssertNotEqual(L10n.Toolbar.openAppSelectionPolicy, "toolbar.open_app.selection_policy")
+        XCTAssertNotEqual(L10n.Toolbar.openAppEdit, "toolbar.open_app.edit")
     }
 
     func testExplorerEnglishStringsMatchCatalog() {

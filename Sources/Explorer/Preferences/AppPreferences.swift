@@ -67,6 +67,11 @@ enum AppPreferences {
         static let trashRestoreRecords = "trashRestoreRecords"
     }
 
+    /// 顶部工具栏自定义布局。
+    enum Toolbar {
+        static let layoutConfig = "toolbar.layoutConfig"
+    }
+
     /// 快捷键偏好。
     enum Shortcuts {
         static let globalToggleEnabled = "shortcuts.globalToggleEnabled"

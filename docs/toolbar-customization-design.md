@@ -1,7 +1,7 @@
-# 顶部工具栏自定义 — 交互、UI 与实现方案
+# 顶部主工具栏自定义 — 设计方案
 
-> 目标：为 Explorer 顶部工具栏增加**可自定义**能力——用户可通过**右键**打开「工具栏自定义」窗口，调整内置按钮的显示/顺序，并添加**打开第三方应用**等自定义动作；执行时可将**当前选中文件**作为参数传给目标应用。  
-> 本文档为自包含设计，参考现有 `CustomPreviewRuleStore`、`SnippetExpander`、`FileOperations.openWithApplication` 等实现模式。
+> 目标：为 Explorer 顶部主工具栏增加 **Finder 风格** 的可自定义能力——右键进入自定义模式，在工具栏与底部图标面板之间拖拽增删、排序；支持添加「用指定应用打开当前选中文件」的自定义按钮。  
+> 本文档基于当前 `ContentView` 工具栏实现编写，可直接拆分为开发 Plan。
 
 ---
 
@@ -11,579 +11,530 @@
 
 | 区域 | 现状 |
 |------|------|
-| 工具栏结构 | `ContentView` 中 `explorerToolbarLeadingItems` / `explorerToolbarTrailingItems` **硬编码**图标按钮 |
-| 内置按钮（左侧 actions 组） | 预览、Snippets、输出面板、新建文件夹、删除、显示隐藏文件、列表/缩略图视图 |
-| 内置控件（右侧 utilities 组） | 缩略图尺寸滑块（条件显示）、排序菜单、浏览设置菜单 |
-| 固定区域 | 路径栏、前进/后退、搜索框——**不参与自定义** |
-| 打开第三方应用 | `FileOperations.openWith` / `openWithApplication` 已存在，但仅在右键「打开方式」中使用，未暴露到工具栏 |
-| 上下文变量 | `SnippetExpander` 已支持 `%f`、`%p`、`%P`、`%d` 等占位符，可复用 |
+| 工具栏结构 | `ContentView.explorerToolbarLeadingItems` / `explorerToolbarTrailingItems` **硬编码** |
+| 左侧 navigation | 侧栏切换（`toolbar.leftPanel`） |
+| 左侧 actions 组 | 预览、Snippets、输出面板、新建文件夹、删除、显示隐藏文件、列表/缩略图 |
+| 右侧 utilities 组 | 缩略图尺寸滑块（条件显示）、排序菜单、浏览设置菜单 |
+| 右侧 search | 搜索框（`BarTextField`） |
+| **固定不参与自定义** | 路径栏（前进/后退 + `PathBarView`）、搜索框 |
+| 打开第三方应用 | `FileOperations.openWithApplication` 已存在，仅用于右键「打开方式」 |
+| 上下文变量 | `SnippetExpander` 支持 `%f`、`%F`、`%p`、`%d` 等，可复用 |
 
-### 1.2 目标
+当前硬编码位置：
 
-1. **右键入口**：在工具栏可操作区域（图标按钮区）右键，弹出菜单项「自定义工具栏…」，打开独立配置窗口。
-2. **内置项管理**：显示/隐藏、拖拽排序、恢复默认布局。
-3. **自定义动作**：首版重点支持「**用指定应用打开选中项**」；可选扩展为「运行 Snippet」「执行 Shell 命令」等。
-4. **选中文件传参**：将当前选中文件/目录路径传给第三方应用（文件作为 `NSWorkspace` 打开目标，或作为命令行参数）。
-5. **持久化**：配置写入 `UserDefaults`（JSON blob），多窗口共享；支持导入/导出（Phase 2）。
+```432:497:Sources/Explorer/ContentView.swift
+    @ToolbarContentBuilder
+    private var explorerToolbarLeadingItems: some ToolbarContent {
+        ToolbarItem(id: "toolbar.leftPanel", placement: .navigation) {
+            ExplorerToolbarIconButton(...)
+        }
+        ToolbarItem(id: "toolbar.actions", placement: .primaryAction) {
+            HStack(spacing: ExplorerToolbarMetrics.iconSpacing) {
+                // preview, snippets, output, newFolder, delete, hidden, list, thumbnail
+            }
+        }
+    }
+```
+
+### 1.2 需求目标（对齐 Finder 交互）
+
+1. **右键入口**：在主工具栏任意可操作区域右键，弹出「**自定义工具栏…**」菜单，进入自定义模式。
+2. **互斥显示**：自定义面板中列出所有可用图标；**已在顶部工具栏显示的项，不在面板中显示**。
+3. **双向拖拽**：
+   - 从面板拖入工具栏任意插入位置 → 显示该按钮；
+   - 从工具栏拖入面板 → 从工具栏移除（隐藏）。
+4. **排序与保存**：自定义模式下，工具栏内图标可左右拖动调整顺序；点击「**完成**」持久化，「**取消**」恢复原状。
+5. **自定义动作**：面板末尾 **＋** 按钮，添加「打开应用」快捷方式；默认将**当前选中文件**作为打开参数；添加后出现在面板中，可拖入工具栏。
 
 ### 1.3 非目标（首版）
 
-- 跨设备 iCloud 同步
-- 用户上传自定义 SVG 图标（首版使用应用图标或内置 Lucide 图标）
-- 为每个文件扩展名单独配置不同应用（可 Phase 3 用 scope 扩展）
-- 修改路径栏、搜索框的布局
+- 修改路径栏、搜索框位置或样式
+- 用户上传自定义 SVG 图标（首版用 Lucide 或目标应用图标）
+- iCloud 跨设备同步
+- 为不同扩展名配置不同应用（Phase 3）
+- 系统 `NSToolbar` 原生 `allowsUserCustomization`（当前为 SwiftUI `.toolbar`，需自研拖拽层）
 
 ---
 
-## 二、建议的自定义功能清单
+## 二、交互设计（Finder 风格）
 
-按优先级分层，便于分阶段交付。
+### 2.1 正常模式
 
-### 2.1 P0 — 首版必做
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ [侧栏] [预览][片段][终端][新建][删除][隐藏][列表][缩略图]  [排序][设置] [搜索…] │
+│  ↑ navigation          ↑ primaryAction（可自定义区）      ↑ 固定搜索      │
+└──────────────────────────────────────────────────────────────────────────┘
+```
 
-| 功能 | 说明 |
+- **可右键区域**：`navigation` + `primaryAction` 中的图标按钮区（不含搜索框）。
+- **右键菜单**（首版仅一项）：
+
+| 菜单项 | 行为 |
+|--------|------|
+| 自定义工具栏… | 进入自定义模式（见 2.2） |
+
+可选增强（Phase 2）：按住 **Option** 点击任意工具栏按钮，快捷进入自定义模式（与 Finder 一致）。
+
+### 2.2 自定义模式（核心）
+
+进入自定义后，**主窗口标题栏下方展开一块自定义面板**（Finder 为 sheet 式下拉，非独立设置页）。工具栏区进入「编辑态」：按钮带拖拽把手、插入指示线，点击不触发业务动作。
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ [侧栏] │ [预览] [片段] [VS Code] [删除] │ [排序] [设置] │     [搜索…]    │  ← 编辑态工具栏
+│        ↑ 可左右拖拽排序；可拖出到下面面板                                      ↑ 灰显固定
+├──────────────────────────────────────────────────────────────────────────┤
+│  将项目拖到工具栏以添加；将项目拖出工具栏以移除。                              │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │ [终端] [新建] [隐藏] [列表] [缩略图] [缩略图尺寸]  │  ＋            │  │  ← 可用面板
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                    [恢复默认]              [取消]  [完成]                  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**与 Finder 对齐的规则：**
+
+| 规则 | 说明 |
 |------|------|
-| 显示/隐藏内置按钮 | 每个内置 `ToolbarBuiltinAction` 可 toggle |
-| 拖拽排序 | 在自定义窗口内调整可见项顺序 |
-| 恢复默认 | 一键重置为出厂布局 |
-| 自定义：打开应用 | 选择 `.app`，点击工具栏按钮时用该应用打开选中文件 |
-| 无选中时的禁用态 | 需要选中项的动作在工具栏上 `disabled`，tooltip 提示原因 |
-| 右键「自定义工具栏…」 | 工具栏空白处或任意按钮上 secondary click |
+| 互斥集合 | `visibleItemIDs` ∩ `paletteItemIDs` = ∅ |
+| 面板内容 | 所有**未在工具栏显示**的内置项 + 所有**未显示**的自定义项 |
+| 拖入工具栏 | 从面板拖到工具栏某位置 → 插入到 `visibleOrder` 对应索引 |
+| 拖出工具栏 | 从工具栏拖到面板 → 从 `visibleOrder` 移除，加入面板 |
+| 工具栏内排序 | 仅在自定义模式下，同一工具栏条内左右拖拽改变 `visibleOrder` |
+| 完成 | 将草稿 `draftLayout` 写入 `ToolbarCustomizationStore` 并退出模式 |
+| 取消 | 丢弃 `draftLayout`，恢复进入模式前的 `savedLayout` |
+| 固定项 | 搜索框始终显示且不可拖；路径栏不在 unified toolbar 自定义范围内 |
 
-### 2.2 P1 — 次优先
+### 2.3 拖拽反馈
 
-| 功能 | 说明 |
+| 状态 | 视觉 |
 |------|------|
-| 参数模板 | 除「把文件交给应用打开」外，支持 `argumentsTemplate`，如 `--line %n %f` |
-| 作用域（Scope） | 复用 Snippet 的 scope 模型：仅文件、仅目录、单选、指定扩展名等 |
-| 多选行为 | 多文件时批量 `open(urls, withApplicationAt:)` 或合并为参数列表 `%F` |
-| 溢出菜单 `…` | 可见区放不下时，未显示的项收进「更多」菜单（与 macOS 工具栏溢出一致） |
-| 导入/导出 JSON | 与 `CustomPreviewRuleStore` 同类体验 |
+| 拖拽中 | 半透明幽灵图标跟随指针；原位置留空槽 |
+| 悬停插入点 | 工具栏两按钮之间显示 2pt 竖线（`accentColor`） |
+| 非法落点 | 搜索框、路径栏区域显示禁止光标 |
+| 面板接收 | 面板背景高亮 `accentColor.opacity(0.08)` |
 
-### 2.3 P2 — 可选增强
+### 2.4 添加自定义「打开应用」（＋ 按钮）
 
-| 功能 | 说明 |
-|------|------|
-| 关联 Snippet | 工具栏按钮一键执行已有 Snippet（不必重复配置脚本） |
-| 分隔符 / 分组 | 在列表中加 `separator` 项，视觉上分组 |
-| 键盘快捷键 | 为自定义动作绑定局部快捷键（需与系统菜单协调） |
-| 条件显示 | 如「仅缩略图模式下显示缩略图尺寸滑块」——内置项已有此逻辑，自定义项可配置 `visibilityRule` |
-| 最近使用应用 | 添加自定义动作时，快速从「最近用此扩展名打开过的应用」挑选 |
-
----
-
-## 三、交互设计
-
-### 3.1 入口
+点击面板末尾 **＋**，弹出 Sheet：
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ [←→] /Users/.../project          [👁][📄][⌘]…[🔍 搜索]          │  ← 系统 unified toolbar
-└─────────────────────────────────────────────────────────────────┘
-         ↑ 路径栏（固定）                    ↑ 可自定义区域
+┌─ 添加工具栏项 ──────────────────────────────────────┐
+│ 名称         [ Visual Studio Code            ]      │
+│ 应用         [ 🟦 Visual Studio Code      ] [选择…] │
+│                                                     │
+│ 打开方式                                            │
+│   ● 用应用打开选中文件（默认）                       │
+│   ○ 启动应用并传入参数（Phase 2）                    │
+│                                                     │
+│ 参数模板（Phase 2）  [ %f                     ]     │
+│ 占位符：%f 单文件  %F 多文件  %p 路径  %d 当前目录   │
+│                                                     │
+│ 图标         ○ 使用应用图标  ○ 使用通用外链图标       │
+│                                                     │
+│                          [取消]  [添加]               │
+└─────────────────────────────────────────────────────┘
 ```
 
-**触发方式：**
+**默认行为（首版）：**
 
-| 操作 | 行为 |
-|------|------|
-| 在工具栏图标区 **右键**（secondary click） | 弹出 `NSMenu`：`自定义工具栏…` |
-| 按住 **Option** 点击任意工具栏按钮 | 快捷打开自定义窗口（可选，Finder 风格） |
-| 设置 → 通用 → 「自定义工具栏…」 | 辅助入口（Phase 1 可加链接） |
+- `deliveryMode = .openFiles`
+- 点击工具栏上该按钮时，调用 `NSWorkspace.shared.open(urls, withApplicationAt:configuration:)`
+- `urls` 取自**当前选中项**；无选中时按钮 `disabled`，tooltip：`需要先选中文件`
+- 多选时传入全部选中 URL（与 `FileOperations.openWithApplication` 一致）
 
-右键菜单首版仅一项即可，后续可扩展「隐藏此按钮」「重置工具栏」。
+面板中自定义项显示应用图标；右键或长按（Phase 2）可「编辑」「删除」。
 
-### 3.2 自定义窗口
-
-独立 `NSWindow`（非 Sheet），尺寸约 **560 × 480**，与 `SettingsView` 视觉一致。
-
-```
-┌─ 自定义工具栏 ───────────────────────────────────────────── [×] ┐
-│                                                                   │
-│  将项目拖到工具栏预览区；勾选控制在主窗口是否显示。                  │
-│                                                                   │
-│  ┌─ 工具栏预览 ────────────────────────────────────────────────┐  │
-│  │ [👁][📄][VS Code][🗑] … │ [排序▾][⚙][🔍────]              │  │
-│  └─────────────────────────────────────────────────────────────┘  │
-│                                                                   │
-│  ┌─ 可用项目 ─────────────┐  ┌─ 当前工具栏（可拖拽排序）──────┐  │
-│  │ ☐ 预览                  │  │ ≡ 预览                    [−] │  │
-│  │ ☐ Snippets              │  │ ≡ Snippets                [−] │  │
-│  │ ☐ 输出面板              │  │ ≡ Visual Studio Code  [✎][−] │  │
-│  │ ☐ 新建文件夹            │  │ ≡ 删除                    [−] │  │
-│  │ …                       │  │ ≡ 显示隐藏文件            [−] │  │
-│  │ ─────────────────       │  │ …                             │  │
-│  │ ＋ 添加打开应用…         │  │                               │  │
-│  └─────────────────────────┘  └───────────────────────────────┘  │
-│                                                                   │
-│              [恢复默认]              [取消]  [完成]                │
-└───────────────────────────────────────────────────────────────────┘
-```
-
-**交互要点：**
-
-- **左侧「可用项目」**：内置动作列表 + 底部「添加打开应用…」；勾选或拖入右侧。
-- **右侧「当前工具栏」**：仅含已启用项；`≡` 拖拽把手排序；`[−]` 移除（回到左侧）；自定义项有 `[✎]` 编辑。
-- **顶部预览条**：实时反映排序结果；搜索框、路径栏等**灰显不可拖**，标示为固定项。
-- **完成**：写回 `ToolbarCustomizationStore` 并刷新主窗口工具栏；**取消**丢弃未保存编辑。
-
-### 3.3 添加/编辑「打开应用」Sheet
-
-```
-┌─ 打开应用 ────────────────────────────────────────┐
-│ 名称         [ Visual Studio Code          ]       │
-│ 应用         [ 🟦 Visual Studio Code    ] [选择…]  │
-│                                                   │
-│ 打开方式                                          │
-│   ● 用应用打开选中文件（推荐）                     │
-│   ○ 启动应用并传入参数                            │
-│                                                   │
-│ 参数模板（可选）  [ %f                          ]   │
-│ 占位符：%f 单文件  %F 多文件  %p 路径  %d 当前目录 │
-│                                                   │
-│ 何时可用                                          │
-│   [ 至少选中一个文件 ▾ ]                          │
-│                                                   │
-│ 图标预览    [ 应用图标 ]  ○ 使用应用图标           │
-│                                                   │
-│                        [取消]  [保存]              │
-└───────────────────────────────────────────────────┘
-```
-
-**打开方式说明：**
-
-| 模式 | 行为 | API |
-|------|------|-----|
-| **用应用打开选中文件** | 将选中项 URL 交给应用，等同「打开方式」 | `NSWorkspace.shared.open(urls, withApplicationAt:configuration:)` |
-| **启动应用并传入参数** | 不通过文档模型，而是带参数启动；适合 CLI、部分编辑器 | `NSWorkspace.OpenConfiguration.arguments` 或 `Process` |
-
-### 3.4 主窗口工具栏上的执行反馈
+### 2.5 执行反馈（正常模式）
 
 | 场景 | 行为 |
 |------|------|
-| 无选中且动作需要选中 | 按钮 `disabled`；tooltip：`需要先选中文件` |
-| 选中类型不匹配 scope | `disabled`；tooltip：`不适用于当前选中项` |
-| 单选限制但多选 | `disabled` 或 Phase 1 仅取第一项并 tooltip 提示 |
-| 执行成功 | 无弹窗；可选短暂 status bar 提示 |
-| 应用不存在 / 被卸载 | `NSAlert`：`找不到应用「xxx」，请在自定义工具栏中重新选择` |
-| 扩展名无关联 | 仍尝试 `open(urls, withApplicationAt:)`；失败再提示 |
-
-### 3.5 与现有能力的关系
-
-- **不替代**右键「打开方式…」：那是每次临时选择；工具栏自定义是**固定快捷方式**。
-- **可复用** `SnippetExpander` 与 `SnippetScopeMatcher`：减少重复实现。
-- **与 Snippets 区分**：Snippets 偏脚本执行与输出面板；工具栏打开应用偏**一键启动外部 GUI/CLI**，无 Job 队列。
+| 无选中 | 按钮禁用 |
+| 应用被卸载 | `NSAlert`：找不到应用，请重新配置 |
+| 成功 | 无弹窗 |
+| 自定义模式下点击按钮 | 不执行，仅响应拖拽 |
 
 ---
 
-## 四、UI 视觉规范
+## 三、可自定义项清单
 
-### 4.1 工具栏上的自定义按钮
+### 3.1 内置项（`ToolbarBuiltinID`）
 
-- **内置项**：继续使用现有 `ExplorerToolbarIconButton` + `LucideIcon`。
-- **自定义「打开应用」项**：
-  - 优先显示目标应用的 `NSWorkspace.shared.icon(forFile: appPath)`，缩放到 `ExplorerToolbarMetrics.iconSize`（16pt）。
-  - 图标加载失败时回退 `LucideIcon.externalLink`。
-  - Tooltip：`用 {应用名} 打开` / `用 {应用名} 打开（需先选中文件）`。
+| ID | 图标 | 默认可见 | 说明 |
+|----|------|----------|------|
+| `leftPanel` | `LucideIcon.panelLeft` | 是 | 侧栏显隐 |
+| `preview` | `fileImage` | 是 | 预览面板 |
+| `snippets` | `braces` | 是 | 片段面板 |
+| `outputPanel` | `terminal` | 是 | 输出面板 |
+| `newFolder` | `folderPlus` | 是 | 新建文件夹 |
+| `delete` | `trash2` | 是 | 删除选中项 |
+| `toggleHiddenFiles` | `eye` / `eyeOff` | 是 | 显示隐藏文件 |
+| `listView` | `list` | 是 | 列表视图 |
+| `thumbnailView` | `layoutGrid` | 是 | 缩略图视图 |
+| `thumbnailSizeSlider` | 滑块 | 是* | *仅缩略图模式有意义；运行时仍按 `fileListViewMode` 条件渲染 |
+| `sortMenu` | `arrowUpDown` | 是 | 排序菜单 |
+| `browseSettingsMenu` | `settings` | 是 | 浏览设置菜单 |
 
-### 4.2 自定义窗口组件
+**默认出厂顺序**（与当前 `ContentView` 一致）：
 
-| 组件 | 实现建议 |
-|------|----------|
-| 预览条 | `HStack` + 与主工具栏相同的 `ExplorerToolbarMetrics` |
-| 可排序列表 | `List` + `.onMove` 或 `ReorderableList`（与 Snippets 列表风格一致） |
-| 应用选择 | `NSOpenPanel`，`allowedContentTypes = [.application]`，`directoryURL = /Applications` |
-| 表单 | `Form` + `.formStyle(.grouped)`，对齐 `PreviewSettingsTab` |
+```
+leading:  leftPanel
+actions:  preview → snippets → outputPanel → newFolder → delete → toggleHiddenFiles → listView → thumbnailView
+trailing: thumbnailSizeSlider → sortMenu → browseSettingsMenu
+```
 
-### 4.3 无障碍
+### 3.2 自定义项（`ToolbarCustomAction`）
 
-- 每个工具栏按钮保留 `accessibilityLabel`（含自定义名称）。
-- 自定义窗口列表项支持键盘上下移动与 Space 切换启用。
+首版仅支持一种：
+
+| 类型 | 说明 |
+|------|------|
+| `openApp` | 用指定 `.app` 打开选中文件 |
+
+Phase 2+：`runSnippet`、`separator`、`flexibleSpace`。
 
 ---
 
-## 五、数据模型
+## 四、数据模型
 
-### 5.1 工具栏项类型
+### 4.1 核心类型
 
 ```swift
-/// 工具栏上一项的联合类型（持久化用）。
+/// 工具栏槽位：leading（navigation）与 trailing（utilities）两组，中间 actions 合并为一组可排序区。
+enum ToolbarZone: String, Codable {
+    case leading    // 侧栏按钮
+  case main         // 原 actions 组
+  case trailing     // 排序、设置、缩略图滑块
+}
+
 enum ToolbarItemKind: String, Codable {
   case builtin
   case openApp
-  case separator      // Phase 2
-  case runSnippet     // Phase 2
 }
 
-struct ToolbarItemConfig: Codable, Identifiable, Equatable {
-  var id: UUID
+/// 稳定标识：内置项用 ToolbarBuiltinID.rawValue；自定义项用 UUID.uuidString
+struct ToolbarItemRef: Codable, Hashable, Identifiable {
+  var id: String
   var kind: ToolbarItemKind
-  var isVisible: Bool
-
-  // kind == .builtin
   var builtinID: ToolbarBuiltinID?
-
-  // kind == .openApp
-  var customOpenApp: CustomOpenAppAction?
-
-  // kind == .runSnippet
-  var snippetID: UUID?
+  var customActionID: UUID?
 }
 
-enum ToolbarBuiltinID: String, Codable, CaseIterable {
-  case leftPanel
-  case preview
-  case snippets
-  case outputPanel
-  case newFolder
-  case delete
-  case toggleHiddenFiles
-  case listView
-  case thumbnailView
-  case thumbnailSizeSlider
-  case sortMenu
-  case browseSettingsMenu
-  // search / pathBar 不在此枚举中——不可自定义
-}
-```
-
-### 5.2 自定义打开应用
-
-```swift
-enum OpenAppDeliveryMode: String, Codable {
-  /// NSWorkspace.open(urls, withApplicationAt:)
-  case openFiles
-  /// configuration.arguments 或 Process；模板经 SnippetExpander 展开
-  case launchWithArguments
-}
-
-struct CustomOpenAppAction: Codable, Equatable {
-  var id: UUID
-  var displayName: String
-  /// 应用 bundle URL 路径，如 /Applications/Visual Studio Code.app
-  var applicationPath: String
-  var bundleIdentifier: String?
-  var deliveryMode: OpenAppDeliveryMode
-  /// launchWithArguments 时使用；openFiles 时可为空
-  var argumentsTemplate: String?
-  var scope: SnippetScope
-  var enabled: Bool
-}
-```
-
-### 5.3 布局配置
-
-```swift
 struct ToolbarLayoutConfig: Codable, Equatable {
   var schemaVersion: Int = 1
-  /// 左侧 actions 组（preview … thumbnailView）
-  var leadingItems: [ToolbarItemConfig]
-  /// 右侧 utilities 组（thumbnailSizeSlider … browseSettingsMenu）
-  var trailingItems: [ToolbarItemConfig]
-  /// 是否启用溢出菜单；首版可 false，项过多时截断
-  var useOverflowMenu: Bool = false
+  /// 当前在工具栏上显示的有序列表（跨 zone 扁平存储，含 zone 标记）
+  var visibleItems: [ToolbarVisibleEntry]
+  /// 自定义打开应用定义（含未拖入工具栏的）
+  var customOpenApps: [CustomOpenAppAction]
+}
+
+struct ToolbarVisibleEntry: Codable, Identifiable, Equatable {
+  var id: String           // ToolbarItemRef.id
+  var zone: ToolbarZone
+  var kind: ToolbarItemKind
+}
+
+struct CustomOpenAppAction: Codable, Identifiable, Equatable {
+  var id: UUID
+  var displayName: String
+  var applicationPath: String      // /Applications/Foo.app
+  var bundleIdentifier: String?
+  var deliveryMode: OpenAppDeliveryMode
+  var argumentsTemplate: String?   // Phase 2
+  var useApplicationIcon: Bool
+  var enabled: Bool
+}
+
+enum OpenAppDeliveryMode: String, Codable {
+  case openFiles              // 默认：NSWorkspace.open(urls, withApplicationAt:)
+  case launchWithArguments    // Phase 2
 }
 ```
 
-### 5.4 持久化
+### 4.2 互斥与面板推导
 
-| 键 | 位置 |
-|----|------|
-| `toolbar.layoutConfig` | 新增 `AppPreferences.Toolbar.layoutConfig` |
-| 存储格式 | `JSONEncoder` → `UserDefaults` Data，模式同 `CustomPreviewRuleStore` |
+```swift
+extension ToolbarLayoutConfig {
+  /// 面板中应显示的项 = 全部内置（未在 visibleItems 中）+ 全部 customOpenApps（未在 visibleItems 中）
+  func paletteItems() -> [ToolbarItemRef] { ... }
+
+  /// 工具栏编辑态草稿与已保存配置分离
+}
+```
+
+进入自定义模式时：
+
+```swift
+struct ToolbarCustomizationSession {
+  var savedLayout: ToolbarLayoutConfig      // 进入时快照
+  var draftLayout: ToolbarLayoutConfig      // 编辑中的可变副本
+  var isActive: Bool
+}
+```
+
+### 4.3 持久化
+
+| 键 | 值 |
+|----|-----|
+| `AppPreferences.Toolbar.layoutConfig` | `JSONEncoder` → `UserDefaults` Data |
+
+参考 `CustomPreviewRuleStore` 模式：
 
 ```swift
 final class ToolbarCustomizationStore: ObservableObject {
   static let shared = ToolbarCustomizationStore()
   @Published private(set) var layout: ToolbarLayoutConfig
+  @Published var customizationSession: ToolbarCustomizationSession?
 
   func loadIfNeeded()
-  func save()
+  func save(_ layout: ToolbarLayoutConfig)
   func resetToDefaults()
-  func addOpenAppAction(_ action: CustomOpenAppAction, at index: Int?)
-  func updateOpenAppAction(_ action: CustomOpenAppAction)
-  func deleteItem(id: UUID)
-  func moveItem(from: IndexSet, to: Int, section: ToolbarSection)
+  func beginCustomization()
+  func commitCustomization()
+  func cancelCustomization()
 }
 ```
 
-默认布局应与当前硬编码顺序一致，升级时对未知 `builtinID` 忽略，对缺失项追加到末尾。
-
 ---
 
-## 六、执行引擎
+## 五、执行引擎
 
-### 6.1 上下文
+### 5.1 上下文
 
-复用 Snippets 的 `SnippetExecutionContext`：
+复用 Snippets 上下文：
 
 ```swift
-struct SnippetExecutionContext {
-  let cwd: String
+struct ToolbarActionContext {
+  let cwd: String           // 当前 path
   let selectedItems: [FileItem]
 }
 ```
 
-主窗口在渲染/点击工具栏时，将 `path` 与 `selectedItems` 注入。
+`ContentView` 在点击自定义按钮时注入 `path` 与 `selectedItems`。
 
-### 6.2 OpenAppExecutor
-
-```swift
-enum ToolbarActionExecutor {
-  static func perform(
-    _ item: ToolbarItemConfig,
-    context: SnippetExecutionContext
-  ) throws {
-    switch item.kind {
-    case .builtin:
-      // 由 ContentView 分发到已有 handler
-      break
-    case .openApp:
-      try OpenAppExecutor.run(item.customOpenApp!, context: context)
-    default:
-      break
-    }
-  }
-}
-```
-
-**`OpenAppExecutor` 核心逻辑：**
+### 5.2 打开应用
 
 ```swift
 enum OpenAppExecutor {
-  static func run(_ action: CustomOpenAppAction, context: SnippetExecutionContext) throws {
-    guard action.enabled else { return }
-    guard SnippetScopeMatcher.matches(action.scope, context: context) else {
-      throw ToolbarActionError.scopeMismatch
-    }
-
+  @MainActor
+  static func run(_ action: CustomOpenAppAction, context: ToolbarActionContext) throws {
     let appURL = URL(fileURLWithPath: action.applicationPath)
     guard FileManager.default.fileExists(atPath: appURL.path) else {
       throw ToolbarActionError.applicationMissing(action.displayName)
     }
-
     switch action.deliveryMode {
     case .openFiles:
-      let urls = resolvedFileURLs(context: context, scope: action.scope)
+      let urls = context.selectedItems.map(\.url)
       guard !urls.isEmpty else { throw ToolbarActionError.requiresSelection }
-      let config = NSWorkspace.OpenConfiguration()
-      NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: config)
-
+      NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: .init())
     case .launchWithArguments:
-      let template = action.argumentsTemplate ?? "%f"
-      let expanded = try SnippetExpander.expand(
-        template,
-        context: context,
-        scriptType: .shell
-      )
-      let config = NSWorkspace.OpenConfiguration()
-      config.arguments = splitArguments(expanded) // 或整段作为单一参数，见 6.3
-      config.createsNewApplicationInstance = false
-      NSWorkspace.shared.open([], withApplicationAt: appURL, configuration: config)
+      // Phase 2: SnippetExpander.expand(argumentsTemplate, ...)
+      break
     }
   }
 }
 ```
 
-现有代码参考：
+与现有实现对齐：
 
-```323:344:Sources/Explorer/Domain/FileOperations.swift
+```339:344:Sources/Explorer/Domain/FileOperations.swift
     static func openWithApplication(_ items: [FileItem], appURL: URL) {
         let urls = items.filter { !$0.isDirectory }.map(\.url)
         guard !urls.isEmpty else { return }
-        let configuration = NSWorkspace.OpenConfiguration()
-        NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: configuration)
+        ...
     }
 ```
 
-### 6.3 参数传递策略
+首版自定义打开应用：**目录与文件均传入**（与 Finder「打开方式」一致）；若需仅文件，Phase 2 加 `SnippetScope`。
 
-| 应用类型 | 推荐模式 | 示例 |
-|----------|----------|------|
-| VS Code、Sublime、Typora 等 | `openFiles` | 直接打开文件 URL |
-| 终端中打开路径 | `launchWithArguments` + `%d` | `argumentsTemplate: "%d"` 配合 iTerm/Terminal（需验证 bundle） |
-| 带开关的 CLI 包装 | `launchWithArguments` | `--line 10 %f` |
-| `.app` 内嵌 CLI | `Process` | `/Applications/Foo.app/Contents/MacOS/foo %f`（Phase 2） |
+### 5.3 内置项分发
 
-**参数拆分：**
-
-- 默认：`argumentsTemplate` 经 `SnippetExpander` 展开后，按 shell 规则拆分为 `configuration.arguments` 数组。
-- 若应用需要「整段字符串作为一个参数」，编辑器中提供「将展开结果作为单一参数」开关。
-
-**目录选中：**
-
-- `openFiles` 模式：目录 URL 同样传给 `NSWorkspace`（与 Finder 一致）。
-- 若 scope 为 `filesOnly` 且选中目录，按钮禁用。
-
-### 6.4 内置按钮分发
-
-将 `ContentView` 中各按钮的 `action` 提取为 `ToolbarBuiltinDispatcher`：
+将 `ContentView` 内联 `action` 提取为：
 
 ```swift
+@MainActor
 enum ToolbarBuiltinDispatcher {
-  @MainActor
   static func perform(
     _ id: ToolbarBuiltinID,
     environment: ToolbarActionEnvironment
   )
 }
-
-struct ToolbarActionEnvironment {
-  var layout: ExplorerWindowLayoutState
-  var showHiddenFiles: Binding<Bool>
-  var loadItems: () -> Void
-  // …
-}
 ```
 
-渲染时根据 `ToolbarCustomizationStore.layout.leadingItems` 过滤并排序，而非写死 `HStack`。
+`ToolbarActionEnvironment` 持有 `layout`、`showHiddenFiles`、`sortOrder`、`selectedItems` 等现有闭包/绑定。
 
 ---
 
-## 七、实现架构
+## 六、UI 与架构
 
-### 7.1 文件结构（建议）
+### 6.1 组件拆分
 
 ```
 Sources/Explorer/Toolbar/
   ToolbarBuiltinID.swift
-  ToolbarItemConfig.swift
+  ToolbarItemRef.swift
   ToolbarLayoutConfig.swift
   ToolbarCustomizationStore.swift
-  ToolbarCustomizationWindow.swift      // NSWindowController
-  ToolbarCustomizationView.swift        // SwiftUI 主界面
+  ToolbarCustomizationSession.swift
+  ToolbarCustomizationPanelView.swift     // 底部面板 + Done/Cancel
+  ToolbarCustomizationDragSupport.swift   // 拖拽、插入指示、互斥逻辑
   CustomOpenAppEditorSheet.swift
-  ToolbarActionExecutor.swift
   OpenAppExecutor.swift
   ToolbarBuiltinDispatcher.swift
-  ToolbarOverflowMenu.swift             // Phase 2
-  ExplorerToolbarHost.swift             // 从 ContentView 抽离的动态工具栏
+  ExplorerDynamicToolbar.swift            // 替代硬编码 HStack
+  ToolbarContextMenuInstaller.swift       // 右键「自定义工具栏…」
 ```
 
-### 7.2 ContentView 改造要点
+### 6.2 ContentView 改造
 
-1. 用 `ExplorerToolbarHost` 替换 `explorerToolbarLeadingItems` / `explorerToolbarTrailingItems` 中的硬编码 `HStack`。
-2. `ToolbarCustomizationStore.shared` 作为 `@ObservedObject`，`layout` 变化时 `toolbar` 自动刷新。
-3. 在 toolbar 区域叠加透明 `NSView` 或使用 `ExplorerToolbarLucideMenuNSView` 同类方式监听 **rightMouseDown**，弹出「自定义工具栏…」。
-4. 注册 `Notification.Name.openToolbarCustomizationRequested` 供设置页跳转。
+1. `explorerToolbarLeadingItems` / `explorerToolbarTrailingItems` 改为读取 `ToolbarCustomizationStore.layout.visibleItems` 动态渲染。
+2. 自定义模式激活时，在 `ContentView` 根 `VStack` 顶部（工具栏下方）插入 `ToolbarCustomizationPanelView`。
+3. `ToolbarContextMenuInstaller`：在 toolbar 容器监听 `rightMouseDown`，弹出 `NSMenu`。
+4. 编辑态工具栏使用 `ExplorerDynamicToolbar(isEditing: true)`，按钮 `allowsHitTesting` 仅用于拖拽。
 
-### 7.3 右键检测（AppKit）
+### 6.3 拖拽实现策略
 
-工具栏 unified titlebar 上 SwiftUI `.contextMenu` 对个别按钮有效，但对空白区域不稳定。建议：
+SwiftUI 原生 `.toolbar` 对 Finder 级拖拽支持有限，推荐 **混合方案**：
+
+| 层级 | 方案 |
+|------|------|
+| 自定义模式开关、面板、Done/Cancel | SwiftUI |
+| 工具栏编辑态拖拽 | `NSViewRepresentable` + `NSDraggingDestination` / `NSDraggingSource` |
+| 正常模式工具栏 | 保持现有 SwiftUI `ExplorerToolbarIconButton` |
+
+可参考 `FileListTableController` 列拖拽与 `Reorderable` 列表模式；拖拽 payload 使用 `ToolbarItemRef.id` 字符串。
+
+### 6.4 右键检测
+
+`SwiftUI .contextMenu` 在 unified toolbar 空白区不稳定。使用 AppKit 覆盖层：
 
 ```swift
-// ExplorerToolbarContextMenuInstaller: NSViewRepresentable
-// 在 toolbar 容器上添加 rightMouseDown → NSMenu
-override func rightMouseDown(with event: NSEvent) {
-  let menu = NSMenu()
-  menu.addItem(withTitle: L10n.Toolbar.customize, action: #selector(openCustomization), keyEquivalent: "")
-  NSMenu.popUpContextMenu(menu, with: event, for: self)
+final class ToolbarContextMenuInstallerView: NSView {
+  override func rightMouseDown(with event: NSEvent) {
+    let menu = NSMenu()
+    let item = NSMenuItem(
+      title: L10n.Toolbar.customize,
+      action: #selector(beginCustomization),
+      keyEquivalent: ""
+    )
+    menu.addItem(item)
+    NSMenu.popUpContextMenu(menu, with: event, for: self)
+  }
 }
 ```
 
-### 7.4 与 L10n / String Catalog
+通过 `NSViewRepresentable` 铺在全窗口 toolbar 区域（`zIndex` 低于按钮 hit area，或仅在空白区响应）。
 
-新增键位建议：
+### 6.5 视觉规范
 
-- `toolbar.customize` → 「自定义工具栏…」
-- `toolbar.customize.title` → 「自定义工具栏」
-- `toolbar.customize.preview` → 「工具栏预览」
-- `toolbar.customize.addOpenApp` → 「添加打开应用…」
-- `toolbar.openApp.*` → 编辑器表单字段
-- `toolbar.error.*` → 执行错误提示
+- 图标尺寸：沿用 `ExplorerToolbarMetrics`（16pt 图标，18pt 点击区，8pt 间距）。
+- 自定义应用按钮：优先 `NSWorkspace.shared.icon(forFile: appPath)` 缩放到 16pt；失败回退 `LucideIcon.externalLink`。
+- 面板高度：约 120–140pt；圆角与窗口 titlebar 衔接使用 `Material.regular` 背景。
+
+---
+
+## 七、i18n
+
+新增键写入 `Sources/Explorer/Resources/Localizable.xcstrings`（`en` + `zh-Hans`），并在 `L10n.Toolbar` 暴露：
+
+| 键 | 中文 | English |
+|----|------|---------|
+| `toolbar.customize` | 自定义工具栏… | Customize Toolbar… |
+| `toolbar.customize.hint` | 将项目拖到工具栏以添加；将项目拖出工具栏以移除。 | Drag items into the toolbar to add them. Drag items out to remove them. |
+| `toolbar.customize.done` | 完成 | Done |
+| `toolbar.customize.cancel` | 取消 | Cancel |
+| `toolbar.customize.reset` | 恢复默认 | Restore Defaults |
+| `toolbar.customize.add` | 添加工具栏项… | Add Toolbar Item… |
+| `toolbar.openApp.title` | 添加工具栏项 | Add Toolbar Item |
+| `toolbar.openApp.name` | 名称 | Name |
+| `toolbar.openApp.chooseApp` | 选择… | Choose… |
+| `toolbar.openApp.mode.openFiles` | 用应用打开选中文件 | Open selected items with application |
+| `toolbar.error.noSelection` | 需要先选中文件 | Select one or more items first |
+| `toolbar.error.appMissing` | 找不到应用「%@」 | Application “%@” could not be found |
 
 ---
 
 ## 八、分阶段实施计划
 
-### Phase 1 — 基础自定义 + 打开应用（MVP）
+### Phase 1 — Finder 式 MVP（对齐本文需求 1–5）
 
 | 步骤 | 内容 |
 |------|------|
-| 1 | 定义 `ToolbarBuiltinID`、`ToolbarLayoutConfig`、`ToolbarCustomizationStore` |
-| 2 | 默认布局迁移：从当前 ContentView 顺序生成 `defaultLayout` |
-| 3 | `ToolbarCustomizationView` + Window；显示/隐藏、排序、恢复默认 |
-| 4 | `CustomOpenAppEditorSheet`；应用选择器；`openFiles` 模式 |
-| 5 | `OpenAppExecutor` + 工具栏自定义按钮（应用图标） |
-| 6 | 工具栏右键菜单；`ContentView` 接入动态布局 |
-| 7 | 单元测试：`OpenAppExecutor` scope / 展开；Store 编解码 |
+| 1 | `ToolbarBuiltinID`、`ToolbarLayoutConfig`、`ToolbarCustomizationStore`；默认布局与当前硬编码一致 |
+| 2 | `ExplorerDynamicToolbar` 正常模式渲染；`ToolbarBuiltinDispatcher` |
+| 3 | 右键菜单 + `beginCustomization` / `commit` / `cancel` |
+| 4 | `ToolbarCustomizationPanelView`：互斥面板、＋按钮、`CustomOpenAppEditorSheet` |
+| 5 | 编辑态拖拽（面板 ↔ 工具栏、工具栏内排序） |
+| 6 | `OpenAppExecutor` + 自定义按钮图标 |
+| 7 | 单元测试：Store 编解码、互斥推导、`OpenAppExecutor` |
 
-**验收标准：**
+**验收：**
 
-- 可隐藏「删除」按钮并把 VS Code 加到工具栏；选中 `.swift` 文件点击后在该应用中打开。
-- 重启应用后布局保留。
+- [ ] 工具栏右键 → 自定义工具栏 → 面板展开
+- [ ] 工具栏已有项不在面板显示；拖出后出现在面板
+- [ ] 从面板拖入工具栏任意位置；工具栏内可排序
+- [ ] 完成保存、取消还原、恢复默认
+- [ ] ＋ 添加 VS Code，选中文件点击后在 VS Code 打开
+- [ ] 重启后布局保留
 
-### Phase 2 — 参数模板与导入导出
+### Phase 2 — 增强
 
-- `launchWithArguments` 模式与参数编辑器
-- `argumentsTemplate` 占位符帮助面板（复用 Snippet 文档）
+- `launchWithArguments` + `argumentsTemplate`（复用 `SnippetExpander`）
+- 自定义项编辑 / 删除
+- 工具栏宽度不足时的溢出「…」菜单
 - JSON 导入/导出
-- 溢出菜单
-
-### Phase 3 — 高级
-
-- `runSnippet` 工具栏项
-- `visibilityRule`（如仅缩略图模式显示滑块）
-- 扩展名 → 应用推荐
 - Option+点击快捷进入自定义
 
----
+### Phase 3 — 扩展
 
-## 九、预设示例（出厂可选模板）
-
-导入或「从模板添加」可降低配置成本：
-
-| 名称 | 应用 | 模式 | Scope |
-|------|------|------|-------|
-| VS Code | `Visual Studio Code.app` | openFiles | filesOnly |
-| Cursor | `Cursor.app` | openFiles | filesOnly |
-| 终端打开此处 | `Terminal.app` | launchWithArguments `%d` | anytime |
-| Hex Fiend | `Hex Fiend.app` | openFiles | fileExtensions: bin, hex, … |
-
-模板以 bundled `toolbar-presets.json` 提供，不写入用户配置直到确认添加。
+- `runSnippet` 工具栏项
+- `SnippetScope` 作用域（仅文件、扩展名过滤等）
+- 设置页辅助入口
 
 ---
 
-## 十、风险与对策
+## 九、风险与对策
 
 | 风险 | 对策 |
 |------|------|
-| 部分应用不支持 `open(_:withApplicationAt:)` | 失败时提示改用「启动并传入参数」或系统「打开方式」 |
-| `arguments` 行为因应用而异 | 文档说明 + 编辑器内「测试运行」按钮（Phase 2） |
-| 工具栏宽度不足 | Phase 2 溢出菜单；Phase 1 允许用户自行精简 |
-| 沙盒 / 安全书签 | 应用自身已具备文件访问能力；打开用户选中的文件与现有 `openWith` 同级 |
-| 与系统 toolbar 拖拽冲突 | 禁用系统工具栏用户自定义（`toolbarStyle(.unifiedCompact)` 已用）；仅通过应用内窗口配置 |
+| SwiftUI `.toolbar` 难以原生拖拽 | 编辑态用 AppKit 拖拽层；正常态保持 SwiftUI |
+| 缩略图滑块拖入工具栏但当前为列表模式 | 保留项但运行时按 `fileListViewMode` 隐藏（与现逻辑一致） |
+| 工具栏过宽 | Phase 2 溢出菜单；首版用户自行精简 |
+| 部分应用不支持 `open(_:withApplicationAt:)` | 提示改用参数模式或系统「打开方式」 |
+| 与系统 titlebar 手势冲突 | 自定义模式内禁用按钮业务点击，仅拖拽 |
 
 ---
 
-## 十一、测试要点
+## 十、测试要点
 
-### 11.1 单元测试
+### 10.1 单元测试
 
-- `ToolbarCustomizationStore`：默认布局、保存/加载、reset
-- `OpenAppExecutor`：scope 不匹配、无选中、多选 URL 列表
-- `SnippetExpander` 与 `argumentsTemplate` 组合展开
+- `ToolbarLayoutConfig.paletteItems()` 互斥正确性
+- 默认布局 ↔ 编解码 round-trip
+- `commitCustomization` / `cancelCustomization` 状态机
+- `OpenAppExecutor`：无选中、应用不存在、多选 URL
 
-### 11.2 手动测试
+### 10.2 手动测试
 
-1. 添加 VS Code，单选 `.md` 打开。
-2. 多选 3 个文件，确认均传入应用。
-3. 仅选目录，scope 为 `filesOnly` 时按钮禁用。
-4. 删除 `/Applications` 内应用后点击，提示重新配置。
-5. 隐藏所有 leading 项，工具栏不崩溃、预览区仍可用。
-6. 右键空白处可打开自定义窗口。
+1. 隐藏「删除」→ 完成 → 重启仍隐藏
+2. 拖「VS Code」到「新建」左侧 → 顺序正确
+3. 拖「预览」到面板 → 工具栏消失、面板出现
+4. 自定义模式中点击预览 → 不切换预览面板
+5. 无选中时 VS Code 按钮禁用
+6. 多选 3 个文件 → 均传入应用
 
 ---
 
-## 十二、小结
+## 十一、小结
 
-| 维度 | 方案要点 |
-|------|----------|
-| 入口 | 工具栏右键 → 「自定义工具栏…」 |
-| 核心自定义 | 内置项显隐/排序 + **打开第三方应用** |
-| 传参 | 优先 `NSWorkspace.open(urls, withApplicationAt:)`；高级用 `argumentsTemplate` + `SnippetExpander` |
-| 数据 | `ToolbarLayoutConfig` JSON 持久化，`ToolbarCustomizationStore` 单例 |
-| 实现 | 抽离 `Explorer/Toolbar/*`，`ContentView` 改为读 store 动态渲染 |
-| 分期 | Phase 1 MVP → Phase 2 参数/导入 → Phase 3 Snippet/智能推荐 |
+| 维度 | 方案 |
+|------|------|
+| 交互模型 | **Finder 式**：工具栏 + 底部面板互斥；拖拽增删排序；完成/取消 |
+| 入口 | 工具栏右键「自定义工具栏…」 |
+| 自定义能力 | 内置项显隐/排序 + **打开第三方应用**（默认传选中文件） |
+| 数据 | `ToolbarLayoutConfig` JSON → `UserDefaults` |
+| 实现 | 新建 `Explorer/Toolbar/*`；`ContentView` 动态渲染 + 编辑态 AppKit 拖拽 |
+| 分期 | Phase 1 对齐需求 1–5 → Phase 2 参数/溢出 → Phase 3 Snippet/Scope |
 
-本方案与现有 Snippets、自定义预览规则在架构上保持一致，复用上下文变量与 scope 匹配，实现成本可控，且能直接满足「选中文件一键用指定应用打开」的高频需求。
+本方案与 `CustomPreviewRuleStore`、`SnippetExpander`、`FileOperations` 架构一致，实现成本可控，且交互与 macOS Finder 用户习惯对齐。
