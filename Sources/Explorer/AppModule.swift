@@ -746,6 +746,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         FileServicesMenuSupport.registerIfNeeded()
         AppMemoryPressure.installHandler()
+        GlobalHotkeyService.shared.start()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

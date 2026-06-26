@@ -46,6 +46,15 @@ final class ExplorerL10nTests: XCTestCase {
         )
     }
 
+    func testShortcutsSettingsStringsResolve() {
+        XCTAssertNotEqual(L10n.Settings.Tab.shortcuts, "settings.tab.shortcuts")
+        XCTAssertNotEqual(L10n.Settings.Shortcuts.globalToggle, "settings.shortcut.global_toggle")
+        XCTAssertNotEqual(L10n.Settings.Shortcuts.globalToggleEnabled, "settings.shortcut.global_toggle_enabled")
+        XCTAssertNotEqual(L10n.Settings.Shortcuts.cheatSheet, "settings.shortcut.cheat_sheet")
+        XCTAssertNotEqual(L10n.Settings.Shortcuts.category("global"), "settings.shortcuts.category.global")
+        XCTAssertNotEqual(L10n.Settings.Shortcuts.category("navigation"), "settings.shortcuts.category.navigation")
+    }
+
     func testHelpStringsResolveFromStringsTable() {
         let defaults = UserDefaults.standard
         let previous = defaults.string(forKey: ModuleLocalization.preferenceKey)

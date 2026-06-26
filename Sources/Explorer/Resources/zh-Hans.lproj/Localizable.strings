@@ -1052,6 +1052,38 @@
 	<string>无法预览 %@ 文件</string>
 	<key>settings.preview.validation_extensions</key>
 	<string>请至少填写一个有效扩展名。</string>
+	<key>settings.shortcut.cheat_sheet</key>
+	<string>功能速查表</string>
+	<key>settings.shortcut.click_to_record</key>
+	<string>点击以录制新快捷键</string>
+	<key>settings.shortcut.close_detached_preview</key>
+	<string>关闭独立预览窗口</string>
+	<key>settings.shortcut.global_toggle</key>
+	<string>显示 / 隐藏应用</string>
+	<key>settings.shortcut.global_toggle_enabled</key>
+	<string>启用全局快捷键</string>
+	<key>settings.shortcut.global_toggle_footer</key>
+	<string>可在任意应用中生效：隐藏时唤起 MeoFind，已在前台时则隐藏应用。</string>
+	<key>settings.shortcut.recording_hint</key>
+	<string>按下目标组合键，Esc 取消。</string>
+	<key>settings.shortcut.recording_placeholder</key>
+	<string>请按键…</string>
+	<key>settings.shortcut.reset</key>
+	<string>恢复默认</string>
+	<key>settings.shortcuts.category.files</key>
+	<string>文件</string>
+	<key>settings.shortcuts.category.global</key>
+	<string>全局</string>
+	<key>settings.shortcuts.category.navigation</key>
+	<string>导航</string>
+	<key>settings.shortcuts.category.output</key>
+	<string>输出</string>
+	<key>settings.shortcuts.category.panels</key>
+	<string>面板</string>
+	<key>settings.shortcuts.category.preview</key>
+	<string>预览</string>
+	<key>settings.shortcuts.category.system</key>
+	<string>系统</string>
 	<key>settings.snippets.display.minimal</key>
 	<string>极简</string>
 	<key>settings.snippets.display.standard</key>
@@ -1062,6 +1094,8 @@
 	<string>通用</string>
 	<key>settings.tab.preview</key>
 	<string>预览</string>
+	<key>settings.tab.shortcuts</key>
+	<string>快捷键</string>
 	<key>settings.tab.snippets</key>
 	<string>Snippets</string>
 	<key>settings.window_snap</key>

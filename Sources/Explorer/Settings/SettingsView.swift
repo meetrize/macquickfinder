@@ -29,8 +29,14 @@ struct SettingsView: View {
             }
             .tag(SettingsTab.preview)
 
+            ShortcutsSettingsTab()
+                .tabItem {
+                    Label(L10n.Settings.Tab.shortcuts, systemImage: "keyboard")
+                }
+                .tag(SettingsTab.shortcuts)
+
         }
-        .frame(width: 520, height: 460)
+        .frame(width: 520, height: 500)
         .onAppear {
             if let ext = SettingsWindowPresenter.shared.consumePendingPrefillExtension() {
                 selectedTab = .preview

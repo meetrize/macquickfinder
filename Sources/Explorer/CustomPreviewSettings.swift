@@ -10,6 +10,7 @@ enum SettingsTab: Hashable {
     case general
     case snippets
     case preview
+    case shortcuts
 }
 
 struct PreviewSettingsTab: View {

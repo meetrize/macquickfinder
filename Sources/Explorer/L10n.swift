@@ -77,6 +77,23 @@ enum L10n {
             static var general: String { ModuleLocalization.localized("settings.tab.general", bundle: .module) }
             static var snippets: String { ModuleLocalization.localized("settings.tab.snippets", bundle: .module) }
             static var preview: String { ModuleLocalization.localized("settings.tab.preview", bundle: .module) }
+            static var shortcuts: String { ModuleLocalization.localized("settings.tab.shortcuts", bundle: .module) }
+        }
+
+        enum Shortcuts {
+            static var globalToggle: String { ModuleLocalization.localized("settings.shortcut.global_toggle", bundle: .module) }
+            static var globalToggleEnabled: String { ModuleLocalization.localized("settings.shortcut.global_toggle_enabled", bundle: .module) }
+            static var globalToggleFooter: String { ModuleLocalization.localized("settings.shortcut.global_toggle_footer", bundle: .module) }
+            static var reset: String { ModuleLocalization.localized("settings.shortcut.reset", bundle: .module) }
+            static var clickToRecord: String { ModuleLocalization.localized("settings.shortcut.click_to_record", bundle: .module) }
+            static var recordingHint: String { ModuleLocalization.localized("settings.shortcut.recording_hint", bundle: .module) }
+            static var recordingPlaceholder: String { ModuleLocalization.localized("settings.shortcut.recording_placeholder", bundle: .module) }
+            static var cheatSheet: String { ModuleLocalization.localized("settings.shortcut.cheat_sheet", bundle: .module) }
+            static var closeDetachedPreview: String { ModuleLocalization.localized("settings.shortcut.close_detached_preview", bundle: .module) }
+
+            static func category(_ id: String) -> String {
+                ModuleLocalization.localizedFromTable("settings.shortcuts.category.\(id)", bundle: .module)
+            }
         }
 
         enum General {

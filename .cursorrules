@@ -27,3 +27,7 @@ chore: 编译 String Catalog 修复界面显示键名问题
 ### 禁止
 
 - 不要输出英文提交标题或英文正文（除非用户当次明确要求其他语言）
+
+## UI 多语言文案（i18n）
+
+新增用户可见 UI 文案时，**必须**同步写入对应模块的 `Localizable.xcstrings`（`en` + `zh-Hans`），并在 `L10n.swift` 暴露访问；禁止只改 `*.lproj/Localizable.strings`。否则界面会显示语言键而非译文。细则见 `.cursor/rules/i18n-ui-strings.mdc` 与 `docs/i18n-design.md`。

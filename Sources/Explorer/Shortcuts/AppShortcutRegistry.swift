@@ -1,0 +1,108 @@
+import Foundation
+
+enum AppShortcutCategory: String, CaseIterable, Identifiable {
+    case global
+    case navigation
+    case panels
+    case files
+    case preview
+    case output
+    case system
+
+    var id: String { rawValue }
+
+    var title: String {
+        L10n.Settings.Shortcuts.category(rawValue)
+    }
+}
+
+struct AppShortcutEntry: Identifiable {
+    let id: String
+    let category: AppShortcutCategory
+    let name: String
+    let shortcut: String
+    let isConfigurable: Bool
+
+    init(
+        id: String,
+        category: AppShortcutCategory,
+        helpEntryID: String,
+        isConfigurable: Bool = false
+    ) {
+        self.id = id
+        self.category = category
+        self.name = L10n.Help.entryName(helpEntryID)
+        self.shortcut = L10n.Help.entryShortcut(helpEntryID)
+        self.isConfigurable = isConfigurable
+    }
+
+    init(
+        id: String,
+        category: AppShortcutCategory,
+        name: String,
+        shortcut: String,
+        isConfigurable: Bool = false
+    ) {
+        self.id = id
+        self.category = category
+        self.name = name
+        self.shortcut = shortcut
+        self.isConfigurable = isConfigurable
+    }
+}
+
+enum AppShortcutRegistry {
+    static let entries: [AppShortcutEntry] = [
+        AppShortcutEntry(id: "focus_search", category: .navigation, helpEntryID: "global_search"),
+        AppShortcutEntry(id: "back_forward", category: .navigation, helpEntryID: "back_forward"),
+        AppShortcutEntry(
+            id: "cheat_sheet",
+            category: .navigation,
+            name: L10n.Settings.Shortcuts.cheatSheet,
+            shortcut: "⌘?"
+        ),
+        AppShortcutEntry(id: "quick_search", category: .navigation, helpEntryID: "quick_search"),
+
+        AppShortcutEntry(id: "toggle_left_panel", category: .panels, helpEntryID: "toggle_left_panel"),
+        AppShortcutEntry(id: "toggle_right_panel", category: .panels, helpEntryID: "toggle_right_panel"),
+        AppShortcutEntry(id: "snippets_panel", category: .panels, helpEntryID: "snippets_panel"),
+        AppShortcutEntry(id: "output_panel", category: .panels, helpEntryID: "output_panel"),
+
+        AppShortcutEntry(id: "cut_copy_paste", category: .files, helpEntryID: "cut_copy_paste"),
+        AppShortcutEntry(id: "delete", category: .files, helpEntryID: "delete"),
+        AppShortcutEntry(id: "open", category: .files, helpEntryID: "open"),
+        AppShortcutEntry(id: "rename", category: .files, helpEntryID: "rename"),
+
+        AppShortcutEntry(id: "detach_preview", category: .preview, helpEntryID: "detach_preview"),
+        AppShortcutEntry(id: "preview_browser", category: .preview, helpEntryID: "preview_browser"),
+        AppShortcutEntry(
+            id: "previous_preview",
+            category: .preview,
+            name: L10n.Menu.previousPreview,
+            shortcut: "←"
+        ),
+        AppShortcutEntry(
+            id: "next_preview",
+            category: .preview,
+            name: L10n.Menu.nextPreview,
+            shortcut: "→"
+        ),
+        AppShortcutEntry(
+            id: "close_detached_preview",
+            category: .preview,
+            name: L10n.Settings.Shortcuts.closeDetachedPreview,
+            shortcut: "Esc"
+        ),
+
+        AppShortcutEntry(id: "command_box", category: .output, helpEntryID: "command_box"),
+        AppShortcutEntry(id: "command_history", category: .output, helpEntryID: "command_history"),
+        AppShortcutEntry(id: "stop_task", category: .output, helpEntryID: "stop_task"),
+        AppShortcutEntry(id: "output_find", category: .output, helpEntryID: "output_find"),
+
+        AppShortcutEntry(id: "settings_general", category: .system, helpEntryID: "settings_general"),
+    ]
+
+    static func entries(for category: AppShortcutCategory) -> [AppShortcutEntry] {
+        entries.filter { $0.category == category }
+    }
+}

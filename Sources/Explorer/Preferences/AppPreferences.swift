@@ -66,6 +66,13 @@ enum AppPreferences {
         static let favorites = "favoriteLocations"
         static let trashRestoreRecords = "trashRestoreRecords"
     }
+
+    /// 快捷键偏好。
+    enum Shortcuts {
+        static let globalToggleEnabled = "shortcuts.globalToggleEnabled"
+        static let globalToggleKeyCode = "shortcuts.globalToggleKeyCode"
+        static let globalToggleModifiers = "shortcuts.globalToggleModifiers"
+    }
 }
 
 /// 兼容旧调用方；新代码请使用 `AppPreferences`。
