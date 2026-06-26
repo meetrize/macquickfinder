@@ -69,10 +69,15 @@ enum HelpCheatSheetLayoutEngine {
             }
         }
 
+        let minContentWidth = totalWidth(for: selectedColumns)
+        if minContentWidth < usableWidth {
+            selectedColumns = expandColumns(selectedColumns, toTotalWidth: usableWidth)
+        }
+
         return HelpCheatSheetLayout(
             columns: selectedColumns,
             columnGap: columnGap,
-            contentWidth: totalWidth(for: selectedColumns)
+            contentWidth: max(minContentWidth, usableWidth)
         )
     }
 
@@ -144,6 +149,34 @@ enum HelpCheatSheetLayoutEngine {
         let columnsWidth = columns.reduce(0) { $0 + $1.width }
         let gaps = columnGap * CGFloat(max(columns.count - 1, 0))
         return columnsWidth + gaps
+    }
+
+    private static func expandColumns(
+        _ columns: [HelpCheatSheetColumnLayout],
+        toTotalWidth targetWidth: CGFloat
+    ) -> [HelpCheatSheetColumnLayout] {
+        let minTotal = totalWidth(for: columns)
+        guard minTotal < targetWidth, !columns.isEmpty else { return columns }
+
+        let extra = targetWidth - minTotal
+        let perColumnExtra = extra / CGFloat(columns.count)
+
+        return columns.map { column in
+            let subMinTotal = column.nameWidth + column.descriptionWidth + column.shortcutWidth
+            guard subMinTotal > 0 else { return column }
+
+            let nameRatio = column.nameWidth / subMinTotal
+            let descriptionRatio = column.descriptionWidth / subMinTotal
+            let shortcutRatio = column.shortcutWidth / subMinTotal
+
+            return HelpCheatSheetColumnLayout(
+                id: column.id,
+                sections: column.sections,
+                nameWidth: column.nameWidth + perColumnExtra * nameRatio,
+                descriptionWidth: column.descriptionWidth + perColumnExtra * descriptionRatio,
+                shortcutWidth: column.shortcutWidth + perColumnExtra * shortcutRatio
+            )
+        }
     }
 
     private static func measure(_ text: String, font: NSFont) -> CGFloat {

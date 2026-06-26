@@ -82,6 +82,9 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertEqual(L10n.Help.entryName("toolbar_customize"), "自定义工具栏")
         XCTAssertNotEqual(L10n.Help.entryName("toolbar_customize"), "help.entry.toolbar_customize.name")
         XCTAssertEqual(L10n.Help.sectionTitle("toolbar"), "工具栏")
+        XCTAssertEqual(L10n.Help.entryName("connect_server"), "连接服务器")
+        XCTAssertNotEqual(L10n.Help.entryName("connect_server"), "help.entry.connect_server.name")
+        XCTAssertEqual(L10n.Help.entryShortcut("connect_server"), "⌘K")
     }
 
     private func localizedBundle(language: String, parent: Bundle) -> Bundle? {

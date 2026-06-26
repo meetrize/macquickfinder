@@ -22,6 +22,13 @@ final class HelpCheatSheetLayoutEngineTests: XCTestCase {
         XCTAssertEqual(layout.contentWidth, expected, accuracy: 0.5)
     }
 
+    func testLayoutExpandsColumnsToFillAvailableWidth() {
+        let availableWidth: CGFloat = 1_600
+        let layout = HelpCheatSheetLayoutEngine.layout(for: availableWidth)
+        let usableWidth = availableWidth - HelpCheatSheetLayoutEngine.viewHorizontalPadding * 2
+        XCTAssertEqual(layout.contentWidth, usableWidth, accuracy: 0.5)
+    }
+
     func testSectionsAreDistributedWithoutSplitting() {
         let layout = HelpCheatSheetLayoutEngine.layout(for: 1_600)
         let sectionIDs = layout.columns.flatMap { $0.sections.map(\.id) }

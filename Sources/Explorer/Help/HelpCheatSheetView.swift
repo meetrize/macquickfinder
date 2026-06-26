@@ -14,7 +14,7 @@ struct HelpCheatSheetView: View {
                             columnPanel(column)
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, HelpCheatSheetLayoutEngine.viewHorizontalPadding)
                     .padding(.vertical, 16)
                 }

@@ -212,6 +212,12 @@
 	<string>命令历史</string>
 	<key>help.entry.command_history.shortcut</key>
 	<string>↑</string>
+	<key>help.entry.connect_server.desc</key>
+	<string>连接 SMB、AFP 或 FTP 共享，挂载后卷出现在设备中</string>
+	<key>help.entry.connect_server.name</key>
+	<string>连接服务器</string>
+	<key>help.entry.connect_server.shortcut</key>
+	<string>⌘K</string>
 	<key>help.entry.copy_clear.desc</key>
 	<string>复制全部输出或清空当前标签</string>
 	<key>help.entry.copy_clear.name</key>
@@ -267,7 +273,7 @@
 	<key>help.entry.detach_preview.shortcut</key>
 	<string>⌘⌥P</string>
 	<key>help.entry.devices.desc</key>
-	<string>动态显示已挂载的磁盘与移动硬盘，可推出</string>
+	<string>动态显示已挂载的磁盘、移动硬盘与网络卷，可推出</string>
 	<key>help.entry.devices.name</key>
 	<string>设备</string>
 	<key>help.entry.devices.shortcut</key>
@@ -482,6 +488,12 @@
 	<string>快速搜索</string>
 	<key>help.entry.quick_search.shortcut</key>
 	<string>直接打字</string>
+	<key>help.entry.recent_servers.desc</key>
+	<string>在连接对话框中从最近列表快速重连</string>
+	<key>help.entry.recent_servers.name</key>
+	<string>最近服务器</string>
+	<key>help.entry.recent_servers.shortcut</key>
+	<string></string>
 	<key>help.entry.rename.desc</key>
 	<string>再次点击文件名或右键重命名</string>
 	<key>help.entry.rename.name</key>
@@ -622,6 +634,8 @@
 	<string>权限</string>
 	<key>help.section.preview</key>
 	<string>预览</string>
+	<key>help.section.remote_server</key>
+	<string>远程服务器</string>
 	<key>help.section.settings</key>
 	<string>设置</string>
 	<key>help.section.sidebar</key>

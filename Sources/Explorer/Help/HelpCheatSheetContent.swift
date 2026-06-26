@@ -15,6 +15,9 @@ enum HelpCheatSheetContent {
         HelpCheatSheetSection(id: "sidebar", entries: [
             "favorites", "locations", "devices", "trash", "toggle_left_panel",
         ]),
+        HelpCheatSheetSection(id: "remote_server", entries: [
+            "connect_server", "recent_servers",
+        ]),
         HelpCheatSheetSection(id: "files", entries: [
             "open", "open_new_window", "open_with", "cut_copy_paste", "delete",
             "delete_immediately", "put_back", "empty_trash", "rename", "new_folder_file",

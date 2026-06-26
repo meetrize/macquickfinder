@@ -212,6 +212,12 @@
 	<string>Command History</string>
 	<key>help.entry.command_history.shortcut</key>
 	<string>↑</string>
+	<key>help.entry.connect_server.desc</key>
+	<string>Connect SMB, AFP, or FTP shares; mounted volumes appear in Devices</string>
+	<key>help.entry.connect_server.name</key>
+	<string>Connect to Server</string>
+	<key>help.entry.connect_server.shortcut</key>
+	<string>⌘K</string>
 	<key>help.entry.copy_clear.desc</key>
 	<string>Copy all output or clear the current tab</string>
 	<key>help.entry.copy_clear.name</key>
@@ -267,7 +273,7 @@
 	<key>help.entry.detach_preview.shortcut</key>
 	<string>⌘⌥P</string>
 	<key>help.entry.devices.desc</key>
-	<string>Shows mounted disks and removable drives; eject supported</string>
+	<string>Shows mounted disks, removable drives, and network shares; eject supported</string>
 	<key>help.entry.devices.name</key>
 	<string>Devices</string>
 	<key>help.entry.devices.shortcut</key>
@@ -482,6 +488,12 @@
 	<string>Quick Search</string>
 	<key>help.entry.quick_search.shortcut</key>
 	<string>Type</string>
+	<key>help.entry.recent_servers.desc</key>
+	<string>Quickly reconnect from the list in the connect dialog</string>
+	<key>help.entry.recent_servers.name</key>
+	<string>Recent Servers</string>
+	<key>help.entry.recent_servers.shortcut</key>
+	<string></string>
 	<key>help.entry.rename.desc</key>
 	<string>Click the name again or use the context menu</string>
 	<key>help.entry.rename.name</key>
@@ -622,6 +634,8 @@
 	<string>Permissions</string>
 	<key>help.section.preview</key>
 	<string>Preview</string>
+	<key>help.section.remote_server</key>
+	<string>Remote Server</string>
 	<key>help.section.settings</key>
 	<string>Settings</string>
 	<key>help.section.sidebar</key>

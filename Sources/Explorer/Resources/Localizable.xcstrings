@@ -8076,6 +8076,23 @@
         }
       }
     },
+    "help.section.remote_server": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote Server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "远程服务器"
+          }
+        }
+      }
+    },
     "help.section.files": {
       "extractionState": "manual",
       "localizations": {
@@ -9000,18 +9017,120 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Shows mounted disks and removable drives; eject supported"
+            "value": "Shows mounted disks, removable drives, and network shares; eject supported"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "动态显示已挂载的磁盘与移动硬盘，可推出"
+            "value": "动态显示已挂载的磁盘、移动硬盘与网络卷，可推出"
           }
         }
       }
     },
     "help.entry.devices.shortcut": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
+          }
+        }
+      }
+    },
+    "help.entry.connect_server.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to Server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接服务器"
+          }
+        }
+      }
+    },
+    "help.entry.connect_server.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect SMB, AFP, or FTP shares; mounted volumes appear in Devices"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接 SMB、AFP 或 FTP 共享，挂载后卷出现在设备中"
+          }
+        }
+      }
+    },
+    "help.entry.connect_server.shortcut": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘K"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘K"
+          }
+        }
+      }
+    },
+    "help.entry.recent_servers.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent Servers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近服务器"
+          }
+        }
+      }
+    },
+    "help.entry.recent_servers.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quickly reconnect from the list in the connect dialog"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在连接对话框中从最近列表快速重连"
+          }
+        }
+      }
+    },
+    "help.entry.recent_servers.shortcut": {
       "extractionState": "manual",
       "localizations": {
         "en": {
