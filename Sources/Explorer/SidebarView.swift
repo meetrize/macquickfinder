@@ -7,10 +7,19 @@ struct SidebarVolume: Identifiable, Equatable {
     let name: String
     let path: String
     let isExternal: Bool
+    let isNetworkVolume: Bool
     let canEject: Bool
-    
+
     var icon: String {
-        isExternal ? "externaldrive" : "internaldrive"
+        if isNetworkVolume { return "externaldrive.badge.wifi" }
+        return isExternal ? "externaldrive" : "internaldrive"
+    }
+
+    var ejectActionTitle: String {
+        if isNetworkVolume {
+            return L10n.Sidebar.disconnectDevice(name)
+        }
+        return L10n.Sidebar.ejectDevice(name)
     }
 }
 
@@ -45,6 +54,7 @@ enum SidebarVolumeLoader {
             let isExternal = volumePath.hasPrefix("/Volumes/")
             let isEjectable = values.volumeIsEjectable ?? false
             let isLocal = values.volumeIsLocal ?? true
+            let isNetworkVolume = !isLocal
             
             guard isMainInternalVolume(path: volumePath, isInternal: isInternal) || isExternal else {
                 continue
@@ -58,7 +68,12 @@ enum SidebarVolumeLoader {
                 name: name,
                 path: volumePath,
                 isExternal: isExternal,
-                canEject: isEjectable && isExternal && isLocal
+                isNetworkVolume: isNetworkVolume,
+                canEject: Self.canEjectVolume(
+                    isExternal: isExternal,
+                    isEjectable: isEjectable,
+                    isNetworkVolume: isNetworkVolume
+                )
             ))
         }
         
@@ -72,6 +87,12 @@ enum SidebarVolumeLoader {
     
     private static func isMainInternalVolume(path: String, isInternal: Bool) -> Bool {
         isInternal && (path == "/" || path == "/System/Volumes/Data")
+    }
+
+    /// SMB 等网络卷在 macOS 上常报告 `volumeIsEjectable == false`，但仍可通过 `diskutil eject` 断开。
+    static func canEjectVolume(isExternal: Bool, isEjectable: Bool, isNetworkVolume: Bool) -> Bool {
+        guard isExternal else { return false }
+        return isEjectable || isNetworkVolume
     }
 }
 
@@ -132,6 +153,7 @@ private struct FavoritesSidebarRows: View {
 struct SidebarView: View {
     @Binding var path: String
     @ObservedObject private var favoritesStore = FavoritesStore.shared
+    @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
     @State private var devices: [SidebarVolume] = []
     var onItemsChanged: () -> Void = {}
     var onReload: () -> Void = {}
@@ -156,26 +178,13 @@ struct SidebarView: View {
                             .padding(.horizontal, 8)
                     } else {
                         ForEach(devices) { device in
-                            SidebarRow(
-                                title: device.name,
-                                icon: device.icon,
+                            SidebarDeviceRow(
+                                device: device,
                                 isSelected: isSelected(device.path),
-                                dropDestinationPath: device.path,
-                                onDropURLs: handleSidebarDrop,
+                                showsTitle: true,
                                 onSelect: { path = device.path },
-                                trailingAccessory: {
-                                    if device.canEject {
-                                        Button {
-                                            ejectDevice(device)
-                                        } label: {
-                                            Image(systemName: "eject.fill")
-                                                .font(.caption)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .foregroundStyle(.secondary)
-                                        .instantHoverTooltip(L10n.Sidebar.ejectDevice(device.name))
-                                    }
-                                }
+                                onDropURLs: handleSidebarDrop,
+                                onEject: { ejectDevice(device) }
                             )
                         }
                     }
@@ -206,6 +215,9 @@ struct SidebarView: View {
             refreshDevices()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didUnmountNotification)) { _ in
+            refreshDevices()
+        }
+        .onChange(of: connectServerCenter.devicesRefreshToken) { _ in
             refreshDevices()
         }
     }
@@ -269,17 +281,52 @@ struct SidebarView: View {
     }
 
     private func ejectDevice(_ device: SidebarVolume) {
-        guard device.canEject else { return }
-        DispatchQueue.global(qos: .utility).async {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/sbin/diskutil")
-            process.arguments = ["eject", device.path]
-            process.standardOutput = Pipe()
-            process.standardError = Pipe()
-            try? process.run()
-            process.waitUntilExit()
-            DispatchQueue.main.async {
-                refreshDevices()
+        SidebarVolumeEjector.eject(device) { success in
+            refreshDevices()
+            guard !success else { return }
+            NotificationCenter.default.post(
+                name: .explorerTransientNotice,
+                object: nil,
+                userInfo: ["message": L10n.Sidebar.ejectFailed(device.name)]
+            )
+        }
+    }
+}
+
+private struct SidebarDeviceRow: View {
+    let device: SidebarVolume
+    let isSelected: Bool
+    let showsTitle: Bool
+    let onSelect: () -> Void
+    let onDropURLs: ([URL], String, Bool) -> Void
+    let onEject: () -> Void
+
+    var body: some View {
+        SidebarRow(
+            title: device.name,
+            icon: device.icon,
+            isSelected: isSelected,
+            dropDestinationPath: device.path,
+            onDropURLs: onDropURLs,
+            onSelect: onSelect,
+            showsTitle: showsTitle,
+            trailingAccessory: {
+                if device.canEject, showsTitle {
+                    Button(action: onEject) {
+                        Image(systemName: "eject.fill")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .instantHoverTooltip(device.ejectActionTitle)
+                }
+            }
+        )
+        .contextMenu {
+            if device.canEject {
+                Button(action: onEject) {
+                    Label(device.ejectActionTitle, systemImage: "eject.fill")
+                }
             }
         }
     }
@@ -288,6 +335,7 @@ struct SidebarView: View {
 struct SidebarRailView: View {
     @Binding var path: String
     @ObservedObject private var favoritesStore = FavoritesStore.shared
+    @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
     @State private var devices: [SidebarVolume] = []
     var onItemsChanged: () -> Void = {}
     var onReload: () -> Void = {}
@@ -311,14 +359,13 @@ struct SidebarRailView: View {
                 
                 VStack(spacing: 6) {
                     ForEach(devices) { device in
-                        SidebarRow(
-                            title: device.name,
-                            icon: device.icon,
+                        SidebarDeviceRow(
+                            device: device,
                             isSelected: isSelected(device.path),
-                            dropDestinationPath: device.path,
-                            onDropURLs: handleSidebarDrop,
+                            showsTitle: false,
                             onSelect: { path = device.path },
-                            showsTitle: false
+                            onDropURLs: handleSidebarDrop,
+                            onEject: { ejectDevice(device) }
                         )
                     }
                 }
@@ -350,6 +397,9 @@ struct SidebarRailView: View {
             refreshDevices()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didUnmountNotification)) { _ in
+            refreshDevices()
+        }
+        .onChange(of: connectServerCenter.devicesRefreshToken) { _ in
             refreshDevices()
         }
     }
@@ -396,6 +446,18 @@ struct SidebarRailView: View {
         }
         let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)
         FileOperations.moveItems(urls, to: destination, copy: copy, completion: onItemsChanged)
+    }
+
+    private func ejectDevice(_ device: SidebarVolume) {
+        SidebarVolumeEjector.eject(device) { success in
+            refreshDevices()
+            guard !success else { return }
+            NotificationCenter.default.post(
+                name: .explorerTransientNotice,
+                object: nil,
+                userInfo: ["message": L10n.Sidebar.ejectFailed(device.name)]
+            )
+        }
     }
 }
 

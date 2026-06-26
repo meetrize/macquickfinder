@@ -8,5 +8,6 @@ enum ExplorerKeyboardShortcuts {
     static let toggleOutputPanel = KeyboardShortcut("j", modifiers: .command)
     static let detachPreview = KeyboardShortcut("p", modifiers: [.command, .option])
     static let togglePreviewBrowserStrip = KeyboardShortcut("b", modifiers: [.command, .option])
+    static let connectServer = KeyboardShortcut("k", modifiers: .command)
 }
 

@@ -42,6 +42,8 @@
 	<string>Paste</string>
 	<key>action.put_back</key>
 	<string>Put Back</string>
+	<key>action.refresh</key>
+	<string>Refresh</string>
 	<key>action.remove_favorite</key>
 	<string>Remove from Favorites</string>
 	<key>action.rename</key>
@@ -684,6 +686,8 @@
 	<string>Expand Filmstrip</string>
 	<key>menu.export_snippets</key>
 	<string>Export All Snippets…</string>
+	<key>menu.go</key>
+	<string>Go</string>
 	<key>menu.hide_output</key>
 	<string>Hide Output Panel</string>
 	<key>menu.hide_preview</key>
@@ -936,6 +940,40 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Zoom Out (Overall)</string>
 	<key>preview.toolbar.zoom_scale</key>
 	<string>Zoom Level</string>
+	<key>remote_server.address_placeholder</key>
+	<string>smb://server.example.com/share</string>
+	<key>remote_server.address_prompt</key>
+	<string>Server Address</string>
+	<key>remote_server.connect</key>
+	<string>Connect</string>
+	<key>remote_server.connect_server_menu</key>
+	<string>Connect to Server…</string>
+	<key>remote_server.connecting</key>
+	<string>Connecting…</string>
+	<key>remote_server.disconnected_from_server</key>
+	<string>Disconnected from the server</string>
+	<key>remote_server.error.ambiguous_new_volumes</key>
+	<string>Multiple new volumes were mounted. Opened the first one.</string>
+	<key>remote_server.error.invalid_url</key>
+	<string>Unrecognized server address. Use smb://, ftp://, nfs://, or https://.</string>
+	<key>remote_server.error.mount_failed %@</key>
+	<string>Could not connect to the server: %@</string>
+	<key>remote_server.error.sftp_deferred</key>
+	<string>SFTP will be supported in a future release. Use SMB, or mount with sshfs first.</string>
+	<key>remote_server.error.timeout</key>
+	<string>Connection timed out. Check the network or server availability.</string>
+	<key>remote_server.error.unsupported_protocol %@</key>
+	<string>The %@ protocol is not supported.</string>
+	<key>remote_server.ftp_security_notice</key>
+	<string>FTP transfers data in plain text. Use SMB for sensitive files.</string>
+	<key>remote_server.recent_title</key>
+	<string>Recent Connections</string>
+	<key>remote_server.remove_from_recent</key>
+	<string>Remove from Recent</string>
+	<key>remote_server.sheet.title</key>
+	<string>Connect to Server</string>
+	<key>remote_server.supported_protocols</key>
+	<string>Supported: SMB · NFS · WebDAV · FTP</string>
 	<key>search.close_quick_search</key>
 	<string>Close Quick Search</string>
 	<key>search.focus</key>
@@ -1122,8 +1160,12 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Enable window snap and linked movement</string>
 	<key>sidebar.devices</key>
 	<string>Devices</string>
+	<key>sidebar.disconnect_device %@</key>
+	<string>Disconnect %@</string>
 	<key>sidebar.eject_device %@</key>
 	<string>Eject %@</string>
+	<key>sidebar.eject_failed %@</key>
+	<string>Could not disconnect %@. Close files using this volume and try again.</string>
 	<key>sidebar.favorites</key>
 	<string>Favorites</string>
 	<key>sidebar.locations</key>

@@ -574,52 +574,52 @@ macOS **没有** SFTP 的原生「连接服务器 → 挂载为卷」API。`sftp
 | T0-4 | 验证 **sshfs 已挂载**路径是否被 `SidebarVolumeLoader` 展示 | 确认 v1 零改动可浏览 | ✅ 逻辑上 `/Volumes/*` 外置卷均可见 |
 | T0-5 | 确认 `DirectoryItemCountService` 在网络卷上确实不调度 | 无需改 | ✅ `shouldSchedulePath` 复用 `DirectorySizeVolumeFilter` |
 
-### Phase 1 — 基础模块（1 天）
+### Phase 1 — 基础模块（1 天）✅ 已实现
 
-| ID | 任务 | 文件 | 估行 |
-|----|------|------|------|
-| T1-1 | `RemoteServerURL`：normalize、scheme 校验（**含 ftp**）、默认 smb:// | `RemoteServerURL.swift` | ~100 |
-| T1-2 | `RemoteMountError` + 本地化（含 unsupportedProtocol / sftp 提示） | `RemoteServerURL.swift` + `L10n` | ~50 |
-| T1-3 | `RemoteVolumeMountService`：before/after diff + notification 等待 | `RemoteVolumeMountService.swift` | ~180 |
-| T1-4 | 单元测试：URL normalize、diff 逻辑 | `Tests/ExplorerTests/RemoteServer*.swift` | ~140 |
+| ID | 任务 | 文件 | 估行 | 状态 |
+|----|------|------|------|------|
+| T1-1 | `RemoteServerURL`：normalize、scheme 校验（**含 ftp**）、默认 smb:// | `RemoteServerURL.swift` | ~100 | ✅ |
+| T1-2 | `RemoteMountError` + 本地化（含 unsupportedProtocol / sftp 提示） | `RemoteServerURL.swift` + `L10n` | ~50 | ✅ |
+| T1-3 | `RemoteVolumeMountService`：before/after diff + notification 等待 | `RemoteVolumeMountService.swift` | ~180 | ✅ |
+| T1-4 | 单元测试：URL normalize、diff 逻辑 | `Tests/ExplorerTests/RemoteServerTests.swift` | ~140 | ✅ |
 
 **验收**：mock 卷列表 diff 正确；`ftp://`、`smb://` 均可 normalize。
 
-### Phase 2 — 最近服务器（0.5 天）
+### Phase 2 — 最近服务器（0.5 天）✅ 已实现
 
-| ID | 任务 | 文件 | 估行 |
-|----|------|------|------|
-| T2-1 | `RemoteServerBookmark` 模型 | `RemoteServerBookmark.swift` | ~30 |
-| T2-2 | `RecentServersStore`：UserDefaults CRUD，上限 20 | `RecentServersStore.swift` | ~80 |
-| ~~T2-3~~ | ~~`FinderRecentServersReader`~~ | — | **延后 v1.1** |
-| T2-3 | Sheet 最近列表数据源 | `ConnectServerSheet.swift` | ~40 |
+| ID | 任务 | 文件 | 估行 | 状态 |
+|----|------|------|------|------|
+| T2-1 | `RemoteServerBookmark` 模型 | `RemoteServerBookmark.swift` | ~30 | ✅ |
+| T2-2 | `RecentServersStore`：UserDefaults CRUD，上限 20 | `RecentServersStore.swift` | ~80 | ✅ |
+| ~~T2-3~~ | ~~`FinderRecentServersReader`~~ | — | **延后 v1.1** | — |
+| T2-3 | Sheet 最近列表数据源 | `ConnectServerSheet.swift` | ~40 | ✅ |
 
-### Phase 3 — UI 与入口（1 天）
+### Phase 3 — UI 与入口（1 天）✅ 已实现
 
-| ID | 任务 | 文件 | 估行 |
-|----|------|------|------|
-| T3-1 | `ConnectServerSheet` + **FTP 安全提示** + sftp 降级文案 | `ConnectServerSheet.swift` | ~220 |
-| T3-2 | 菜单「连接服务器…」+ ⌘K | `AppModule.swift`, `ExplorerKeyboardShortcuts.swift` | ~40 |
-| T3-3 | `ContentView` sheet + 连接成功 `path = mountPath` + key window 回调 | `ContentView.swift` | ~50 |
-| T3-4 | （可选）Devices 底部「连接服务器…」 | `SidebarView.swift` | ~25 |
+| ID | 任务 | 文件 | 估行 | 状态 |
+|----|------|------|------|------|
+| T3-1 | `ConnectServerSheet` + **FTP 安全提示** + sftp 降级文案 | `ConnectServerSheet.swift` | ~220 | ✅ |
+| T3-2 | 菜单「前往 → 连接服务器…」+ ⌘K | `AppModule.swift`, `ExplorerKeyboardShortcuts.swift` | ~40 | ✅ |
+| T3-3 | `ContentView` sheet + 连接成功 `path = mountPath` + key window 回调 | `ContentView.swift` | ~50 | ✅ |
+| T3-4 | （可选）Devices 底部「连接服务器…」 | `SidebarView.swift` | ~25 | 未做 |
 
-### Phase 4 — 侧边栏与断线（0.5 天）
+### Phase 4 — 侧边栏与断线（0.5 天）✅ 已实现
 
-| ID | 任务 | 文件 | 估行 |
-|----|------|------|------|
-| T4-1 | `SidebarVolume.isNetworkVolume` + icon | `SidebarView.swift` | ~20 |
-| T4-2 | 修复 `canEject` | `SidebarView.swift` | ~5 |
-| T4-3 | `SidebarRailView` eject / 断开菜单 | `SidebarView.swift` | ~40 |
-| T4-4 | `didUnmount` 路径回退 | `ContentView.swift` | ~60 |
+| ID | 任务 | 文件 | 估行 | 状态 |
+|----|------|------|------|------|
+| T4-1 | `SidebarVolume.isNetworkVolume` + icon | `SidebarView.swift` | ~20 | ✅ |
+| T4-2 | 修复 `canEject` | `SidebarView.swift` | ~5 | ✅ |
+| T4-3 | `SidebarRailView` eject / 断开菜单 | `SidebarView.swift` | ~40 | ✅ |
+| T4-4 | `didUnmount` 路径回退 | `ContentView.swift` | ~60 | ✅ |
 
-### Phase 5 — 网络卷策略收口（0.5 天）
+### Phase 5 — 网络卷策略收口（0.5 天）✅ 已实现
 
-| ID | 任务 | 文件 | 估行 |
-|----|------|------|------|
-| T5-1 | `DirectorySizeVolumeFilter.isNetworkVolume` | `DirectorySizeVolumeFilter.swift` | ~10 |
-| T5-2 | 预览内容预取 guard | `PreviewBrowserContentPrefetcher.swift` | ~15 |
-| T5-3 | 胶片条缩略图预取 guard | `PreviewBrowserStripThumbnailLoader.swift` | ~15 |
-| ~~T5-4~~ | ~~慢 loading 文案~~ | — | **可选 v1.1** |
+| ID | 任务 | 文件 | 估行 | 状态 |
+|----|------|------|------|------|
+| T5-1 | `DirectorySizeVolumeFilter.isNetworkVolume` | `DirectorySizeVolumeFilter.swift` | ~10 | ✅ |
+| T5-2 | 预览内容预取 guard | `PreviewBrowserContentPrefetcher.swift` | ~15 | ✅ |
+| T5-3 | 胶片条缩略图预取 guard | `PreviewBrowserStripThumbnailLoader.swift` | ~15 | ✅ |
+| ~~T5-4~~ | ~~慢 loading 文案~~ | — | **可选 v1.1** | — |
 
 ### Phase 6 — 联调（0.5 天）
 
@@ -655,3 +655,5 @@ macOS **没有** SFTP 的原生「连接服务器 → 挂载为卷」API。`sftp
 | 2026-06-19 | 初版：系统挂载方案 + v1 任务清单 |
 | 2026-06-19 | 增补 FTP（v1）、SFTP（v2）性能/体积评估与分阶段路线 |
 | 2026-06-26 | **精简版**：更正 FSEvents/文件引用；合并 NetworkVolumePolicy；Finder 最近延后 v1.1；预取 guard 升为 v1 必做；开始 Phase 1 实现 |
+| 2026-06-26 | Phase 2/3 完成：`RecentServersStore`、`ConnectServerSheet`、前往菜单 + ⌘K、`ContentView` 挂载导航 |
+| 2026-06-26 | Phase 4/5 完成：网络卷图标/eject、断线回退、预取 guard |

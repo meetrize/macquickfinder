@@ -375,6 +375,23 @@
         }
       }
     },
+    "action.refresh": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新"
+          }
+        }
+      }
+    },
     "action.save": {
       "extractionState": "manual",
       "localizations": {
@@ -1714,6 +1731,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "展开胶片条"
+          }
+        }
+      }
+    },
+    "menu.go": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前往"
           }
         }
       }
@@ -3928,6 +3962,295 @@
         }
       }
     },
+    "remote_server.address_placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "smb://server.example.com/share"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "smb://server.example.com/share"
+          }
+        }
+      }
+    },
+    "remote_server.address_prompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server Address"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器地址"
+          }
+        }
+      }
+    },
+    "remote_server.connect": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接"
+          }
+        }
+      }
+    },
+    "remote_server.connect_server_menu": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to Server…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接服务器…"
+          }
+        }
+      }
+    },
+    "remote_server.connecting": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在连接…"
+          }
+        }
+      }
+    },
+    "remote_server.disconnected_from_server": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnected from the server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已断开与服务器的连接"
+          }
+        }
+      }
+    },
+    "remote_server.ftp_security_notice": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FTP transfers data in plain text. Use SMB for sensitive files."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FTP 为明文传输，敏感数据请改用 SMB。"
+          }
+        }
+      }
+    },
+    "remote_server.recent_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent Connections"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近连接"
+          }
+        }
+      }
+    },
+    "remote_server.remove_from_recent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from Recent"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从最近连接中移除"
+          }
+        }
+      }
+    },
+    "remote_server.sheet.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to Server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接服务器"
+          }
+        }
+      }
+    },
+    "remote_server.supported_protocols": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supported: SMB · NFS · WebDAV · FTP"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持：SMB · NFS · WebDAV · FTP"
+          }
+        }
+      }
+    },
+    "remote_server.error.ambiguous_new_volumes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multiple new volumes were mounted. Opened the first one."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检测到多个新挂载卷，已打开第一个。"
+          }
+        }
+      }
+    },
+    "remote_server.error.invalid_url": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unrecognized server address. Use smb://, ftp://, nfs://, or https://."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法识别服务器地址，请使用 smb://、ftp://、nfs:// 或 https:// 格式。"
+          }
+        }
+      }
+    },
+    "remote_server.error.mount_failed %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not connect to the server: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接服务器：%@"
+          }
+        }
+      }
+    },
+    "remote_server.error.sftp_deferred": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP will be supported in a future release. Use SMB, or mount with sshfs first."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SFTP 将在后续版本支持；当前请使用 SMB，或通过 sshfs 挂载后再浏览。"
+          }
+        }
+      }
+    },
+    "remote_server.error.timeout": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection timed out. Check the network or server availability."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接超时，请检查网络或服务器是否可用。"
+          }
+        }
+      }
+    },
+    "remote_server.error.unsupported_protocol %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The %@ protocol is not supported."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不支持 %@ 协议。"
+          }
+        }
+      }
+    },
     "settings.auto_show_output": {
       "extractionState": "manual",
       "localizations": {
@@ -5454,6 +5777,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "推出 %@"
+          }
+        }
+      }
+    },
+    "sidebar.disconnect_device %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "断开 %@"
+          }
+        }
+      }
+    },
+    "sidebar.eject_failed %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not disconnect %@. Close files using this volume and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法断开 %@，请关闭正在使用该卷的窗口或文件后重试。"
           }
         }
       }

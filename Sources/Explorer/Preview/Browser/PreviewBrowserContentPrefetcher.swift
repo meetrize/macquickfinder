@@ -11,6 +11,11 @@ final class PreviewBrowserContentPrefetcher {
     private var scheduledTask: Task<Void, Never>?
 
     func schedulePrefetch(items: [FileItem], centerIndex: Int) {
+        guard items.indices.contains(centerIndex) else { return }
+        guard !DirectorySizeVolumeFilter.isNetworkVolume(path: items[centerIndex].url.path) else {
+            cancel()
+            return
+        }
         scheduledTask?.cancel()
         scheduledTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: PreviewBrowserStripMetrics.contentPrefetchSettleMilliseconds * 1_000_000)

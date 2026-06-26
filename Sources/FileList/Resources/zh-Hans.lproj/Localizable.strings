@@ -16,6 +16,8 @@
 	<string>在此处打开终端</string>
 	<key>action.paste</key>
 	<string>粘贴</string>
+	<key>action.refresh</key>
+	<string>刷新</string>
 	<key>column.comment</key>
 	<string>注释</string>
 	<key>column.date_created</key>

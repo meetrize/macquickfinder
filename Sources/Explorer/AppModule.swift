@@ -575,6 +575,12 @@ struct ExplorerApp: App {
         let _ = languageSettings.revision
         let keyLayout = activeWindowLayout.keyWindowLayout
         FileCommands()
+        CommandMenu(L10n.Menu.go) {
+            Button(L10n.RemoteServer.connectServerMenu) {
+                ConnectServerCenter.shared.requestPresentSheet()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.connectServer)
+        }
         CommandGroup(replacing: .help) {
             Button {
                 HelpWindowPresenter.shared.show()

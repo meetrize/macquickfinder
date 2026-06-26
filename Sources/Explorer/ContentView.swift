@@ -65,7 +65,10 @@ struct ContentView: View {
     @StateObject private var externalFolderOpenCenter = ExternalFolderOpenCenter.shared
     @ObservedObject private var outputPanelTextEditing = OutputPanelTextEditingCenter.shared
     @ObservedObject private var toolbarStore = ToolbarCustomizationStore.shared
+    @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
     @State private var pendingExternalSelectionPath: String?
+    @State private var showConnectServerSheet = false
+    @State private var transientNoticeMessage: String?
     
     init(initialPath: String? = nil) {
         self.initialPath = initialPath
@@ -305,6 +308,18 @@ struct ContentView: View {
         .onReceive(externalFolderOpenCenter.$targetRequest.compactMap { $0 }) { request in
             applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
         }
+        .onChange(of: connectServerCenter.presentSheetToken) { _ in
+            guard hostWindow == NSApp.keyWindow else { return }
+            showConnectServerSheet = true
+        }
+        .sheet(isPresented: $showConnectServerSheet) {
+            ConnectServerSheet(
+                initialAddress: RecentServersStore.shared.bookmarks.first?.urlString ?? ""
+            ) { mountURL in
+                path = mountURL.path
+                ConnectServerCenter.shared.requestDevicesRefresh()
+            }
+        }
         .onChange(of: path) { newPath in
             let wasHistoryNavigation = isApplyingHistoryNavigation
             if let oldPath = lastRecordedPath, oldPath != newPath, !wasHistoryNavigation {
@@ -333,6 +348,28 @@ struct ContentView: View {
             sortOrder = mapped
             isSyncingSortFromPreferences = false
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didUnmountNotification)) { notification in
+            guard let volumeURL = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else {
+                return
+            }
+            handleVolumeUnmount(volumePath: volumeURL.path)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .explorerTransientNotice)) { notification in
+            guard let message = notification.userInfo?["message"] as? String else { return }
+            showTransientNotice(message)
+        }
+        .overlay(alignment: .bottom) {
+            if let transientNoticeMessage {
+                Text(transientNoticeMessage)
+                    .font(.callout)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .padding(.bottom, 12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: transientNoticeMessage)
     }
     
     private var filteredItems: [FileItem] {
@@ -678,6 +715,27 @@ struct ContentView: View {
             && !TrashLoader.isTrashPath(directoryPath)
             && DirectorySizeVolumeFilter.shouldAutoCalculate(path: directoryPath)
     }
+
+    private func handleVolumeUnmount(volumePath: String) {
+        guard let fallbackPath = RemoteVolumeUnmountHandler.resolveFallbackPath(
+            from: path,
+            unmountedVolumePath: volumePath
+        ) else { return }
+        showTransientNotice(L10n.RemoteServer.disconnectedFromServer)
+        path = fallbackPath
+    }
+
+    private func showTransientNotice(_ message: String) {
+        transientNoticeMessage = message
+        Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            await MainActor.run {
+                if transientNoticeMessage == message {
+                    transientNoticeMessage = nil
+                }
+            }
+        }
+    }
     
     private func updateDirectoryFSEventsMonitoring(
         directoryPath: String,
@@ -883,6 +941,7 @@ struct ContentView: View {
     
     private var blankMenuActions: FileListBlankMenuActions {
         let inTrash = TrashLoader.isTrashPath(path)
+        let isNetworkVolume = DirectorySizeVolumeFilter.isNetworkVolume(path: path)
         let pasteDestination = URL(fileURLWithPath: path, isDirectory: true)
         let canPaste = !inTrash && FileOperations.canPaste(to: pasteDestination)
         let serviceFileURLs: () -> [URL] = {
@@ -911,6 +970,8 @@ struct ContentView: View {
             newFile: createNewFile,
             openTerminal: { TerminalHelper.open(at: path) },
             isInTrash: inTrash,
+            showRefresh: isNetworkVolume,
+            refresh: { loadItems() },
             emptyTrash: {
                 FileOperations.emptyTrash {
                     selection.removeAll()
@@ -935,7 +996,8 @@ struct ContentView: View {
     }
     
     private var fileContextActions: FileContextActions {
-        FileContextActions(
+        let isNetworkVolume = DirectorySizeVolumeFilter.isNetworkVolume(path: path)
+        return FileContextActions(
             open: { FileOperations.open([$0]) { path = $0 } },
             openWith: FileOperations.openWith,
             openWithApplication: FileOperations.openWithApplication,
@@ -1002,7 +1064,9 @@ struct ContentView: View {
                 }
                 guard let directoryPath else { return }
                 externalFolderOpenCenter.requestOpenInNewWindow(directoryPath: directoryPath)
-            }
+            },
+            showRefresh: isNetworkVolume,
+            refresh: { loadItems() }
         )
     }
     

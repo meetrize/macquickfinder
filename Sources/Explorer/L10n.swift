@@ -13,6 +13,14 @@ enum L10n {
         static func ejectDevice(_ name: String) -> String {
             ModuleLocalization.localized("sidebar.eject_device \(name)", bundle: .module)
         }
+
+        static func disconnectDevice(_ name: String) -> String {
+            ModuleLocalization.localized("sidebar.disconnect_device \(name)", bundle: .module)
+        }
+
+        static func ejectFailed(_ name: String) -> String {
+            ModuleLocalization.localized("sidebar.eject_failed \(name)", bundle: .module)
+        }
     }
 
     enum SystemFolder {
@@ -33,6 +41,7 @@ enum L10n {
         static var paste: String { ModuleLocalization.localized("action.paste", bundle: .module) }
         static var delete: String { ModuleLocalization.localized("action.delete", bundle: .module) }
         static var rename: String { ModuleLocalization.localized("action.rename", bundle: .module) }
+        static var refresh: String { ModuleLocalization.localized("action.refresh", bundle: .module) }
         static var cancel: String { ModuleLocalization.localized("action.cancel", bundle: .module) }
         static var save: String { ModuleLocalization.localized("action.save", bundle: .module) }
         static var ok: String { ModuleLocalization.localized("action.ok", bundle: .module) }
@@ -70,6 +79,38 @@ enum L10n {
         static var nextPreview: String { ModuleLocalization.localized("menu.next_preview", bundle: .module) }
         static var collapseStrip: String { ModuleLocalization.localized("menu.collapse_strip", bundle: .module) }
         static var expandStrip: String { ModuleLocalization.localized("menu.expand_strip", bundle: .module) }
+        static var go: String { ModuleLocalization.localized("menu.go", bundle: .module) }
+    }
+
+    enum RemoteServer {
+        static var connectServerMenu: String { ModuleLocalization.localized("remote_server.connect_server_menu", bundle: .module) }
+        static var sheetTitle: String { ModuleLocalization.localized("remote_server.sheet.title", bundle: .module) }
+        static var addressPrompt: String { ModuleLocalization.localized("remote_server.address_prompt", bundle: .module) }
+        static var addressPlaceholder: String { ModuleLocalization.localized("remote_server.address_placeholder", bundle: .module) }
+        static var supportedProtocols: String { ModuleLocalization.localized("remote_server.supported_protocols", bundle: .module) }
+        static var ftpSecurityNotice: String { ModuleLocalization.localized("remote_server.ftp_security_notice", bundle: .module) }
+        static var recentTitle: String { ModuleLocalization.localized("remote_server.recent_title", bundle: .module) }
+        static var removeFromRecent: String { ModuleLocalization.localized("remote_server.remove_from_recent", bundle: .module) }
+        static var connecting: String { ModuleLocalization.localized("remote_server.connecting", bundle: .module) }
+        static var connect: String { ModuleLocalization.localized("remote_server.connect", bundle: .module) }
+        static var disconnectedFromServer: String {
+            ModuleLocalization.localized("remote_server.disconnected_from_server", bundle: .module)
+        }
+
+        enum Error {
+            static var invalidURL: String { ModuleLocalization.localized("remote_server.error.invalid_url", bundle: .module) }
+            static var timeout: String { ModuleLocalization.localized("remote_server.error.timeout", bundle: .module) }
+            static var ambiguousNewVolumes: String { ModuleLocalization.localized("remote_server.error.ambiguous_new_volumes", bundle: .module) }
+            static var sftpDeferred: String { ModuleLocalization.localized("remote_server.error.sftp_deferred", bundle: .module) }
+
+            static func mountFailed(_ detail: String) -> String {
+                ModuleLocalization.localized("remote_server.error.mount_failed \(detail)", bundle: .module)
+            }
+
+            static func unsupportedProtocol(_ scheme: String) -> String {
+                ModuleLocalization.localized("remote_server.error.unsupported_protocol \(scheme)", bundle: .module)
+            }
+        }
     }
 
     enum Settings {

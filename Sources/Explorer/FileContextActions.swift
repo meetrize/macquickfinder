@@ -22,6 +22,8 @@ struct FileContextActions {
     var deleteImmediately: ([FileItem]) -> Void = { _ in }
     var openTerminal: (FileItem) -> Void = { _ in }
     var openInNewWindow: (FileItem) -> Void = { _ in }
+    var showRefresh = false
+    var refresh: () -> Void = {}
 }
 
 

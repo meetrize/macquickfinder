@@ -42,6 +42,8 @@
 	<string>粘贴</string>
 	<key>action.put_back</key>
 	<string>放回原处</string>
+	<key>action.refresh</key>
+	<string>刷新</string>
 	<key>action.remove_favorite</key>
 	<string>取消收藏</string>
 	<key>action.rename</key>
@@ -684,6 +686,8 @@
 	<string>展开胶片条</string>
 	<key>menu.export_snippets</key>
 	<string>导出全部 Snippets…</string>
+	<key>menu.go</key>
+	<string>前往</string>
 	<key>menu.hide_output</key>
 	<string>关闭输出面板</string>
 	<key>menu.hide_preview</key>
@@ -936,6 +940,40 @@
 	<string>缩小（整体）</string>
 	<key>preview.toolbar.zoom_scale</key>
 	<string>缩放比例</string>
+	<key>remote_server.address_placeholder</key>
+	<string>smb://server.example.com/share</string>
+	<key>remote_server.address_prompt</key>
+	<string>服务器地址</string>
+	<key>remote_server.connect</key>
+	<string>连接</string>
+	<key>remote_server.connect_server_menu</key>
+	<string>连接服务器…</string>
+	<key>remote_server.connecting</key>
+	<string>正在连接…</string>
+	<key>remote_server.disconnected_from_server</key>
+	<string>已断开与服务器的连接</string>
+	<key>remote_server.error.ambiguous_new_volumes</key>
+	<string>检测到多个新挂载卷，已打开第一个。</string>
+	<key>remote_server.error.invalid_url</key>
+	<string>无法识别服务器地址，请使用 smb://、ftp://、nfs:// 或 https:// 格式。</string>
+	<key>remote_server.error.mount_failed %@</key>
+	<string>无法连接服务器：%@</string>
+	<key>remote_server.error.sftp_deferred</key>
+	<string>SFTP 将在后续版本支持；当前请使用 SMB，或通过 sshfs 挂载后再浏览。</string>
+	<key>remote_server.error.timeout</key>
+	<string>连接超时，请检查网络或服务器是否可用。</string>
+	<key>remote_server.error.unsupported_protocol %@</key>
+	<string>不支持 %@ 协议。</string>
+	<key>remote_server.ftp_security_notice</key>
+	<string>FTP 为明文传输，敏感数据请改用 SMB。</string>
+	<key>remote_server.recent_title</key>
+	<string>最近连接</string>
+	<key>remote_server.remove_from_recent</key>
+	<string>从最近连接中移除</string>
+	<key>remote_server.sheet.title</key>
+	<string>连接服务器</string>
+	<key>remote_server.supported_protocols</key>
+	<string>支持：SMB · NFS · WebDAV · FTP</string>
 	<key>search.close_quick_search</key>
 	<string>关闭快速搜索</string>
 	<key>search.focus</key>
@@ -1122,8 +1160,12 @@
 	<string>启用窗口吸附与联动移动</string>
 	<key>sidebar.devices</key>
 	<string>设备</string>
+	<key>sidebar.disconnect_device %@</key>
+	<string>断开 %@</string>
 	<key>sidebar.eject_device %@</key>
 	<string>推出 %@</string>
+	<key>sidebar.eject_failed %@</key>
+	<string>无法断开 %@，请关闭正在使用该卷的窗口或文件后重试。</string>
 	<key>sidebar.favorites</key>
 	<string>个人收藏</string>
 	<key>sidebar.locations</key>

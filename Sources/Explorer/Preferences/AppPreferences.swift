@@ -78,6 +78,11 @@ enum AppPreferences {
         static let globalToggleKeyCode = "shortcuts.globalToggleKeyCode"
         static let globalToggleModifiers = "shortcuts.globalToggleModifiers"
     }
+
+    /// 远程服务器连接。
+    enum RemoteServer {
+        static let recentBookmarks = "remoteServer.recentBookmarks"
+    }
 }
 
 /// 兼容旧调用方；新代码请使用 `AppPreferences`。

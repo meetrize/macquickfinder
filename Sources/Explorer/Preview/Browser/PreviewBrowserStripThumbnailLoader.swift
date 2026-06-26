@@ -14,7 +14,15 @@ final class PreviewBrowserStripThumbnailLoader: ObservableObject {
         let generation = loadGeneration
         generator.cancelInFlightRequests()
 
-        let radius = PreviewBrowserStripMetrics.thumbnailPrefetchRadius
+        guard items.indices.contains(centerIndex) else {
+            imageByItemID.removeAll()
+            return
+        }
+
+        let isNetworkVolume = DirectorySizeVolumeFilter.isNetworkVolume(
+            path: items[centerIndex].url.path
+        )
+        let radius = isNetworkVolume ? 0 : PreviewBrowserStripMetrics.thumbnailPrefetchRadius
         let cellSize = PreviewBrowserStripMetrics.thumbnailSize
 
         var indicesToLoad = Set<Int>()

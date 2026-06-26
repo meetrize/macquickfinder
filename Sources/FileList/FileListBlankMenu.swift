@@ -13,6 +13,8 @@ public struct FileListBlankMenuActions {
     public var newFile: () -> Void = {}
     public var openTerminal: () -> Void = {}
     public var isInTrash = false
+    public var showRefresh = false
+    public var refresh: () -> Void = {}
     public var emptyTrash: () -> Void = {}
     public var appendToMenu: ((NSMenu) -> Void)?
     public var serviceFileURLs: () -> [URL] = { [] }
@@ -32,6 +34,8 @@ public struct FileListBlankMenuActions {
         newFile: @escaping () -> Void = {},
         openTerminal: @escaping () -> Void = {},
         isInTrash: Bool = false,
+        showRefresh: Bool = false,
+        refresh: @escaping () -> Void = {},
         emptyTrash: @escaping () -> Void = {},
         appendToMenu: ((NSMenu) -> Void)? = nil,
         serviceFileURLs: @escaping () -> [URL] = { [] },
@@ -50,6 +54,8 @@ public struct FileListBlankMenuActions {
         self.newFile = newFile
         self.openTerminal = openTerminal
         self.isInTrash = isInTrash
+        self.showRefresh = showRefresh
+        self.refresh = refresh
         self.emptyTrash = emptyTrash
         self.appendToMenu = appendToMenu
         self.serviceFileURLs = serviceFileURLs

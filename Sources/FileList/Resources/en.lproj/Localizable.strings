@@ -16,6 +16,8 @@
 	<string>Open Terminal Here</string>
 	<key>action.paste</key>
 	<string>Paste</string>
+	<key>action.refresh</key>
+	<string>Refresh</string>
 	<key>column.comment</key>
 	<string>Comment</string>
 	<key>column.date_created</key>

@@ -19,6 +19,7 @@ enum FileListRowContextMenuBuilder {
         if selectedItems.count == 1,
            let item = selectedItems.first,
            item.isParentDirectoryEntry {
+            appendRefreshIfNeeded(to: menu, actions: actions)
             menu.addItem(menuItem(title: L10n.Action.open) { actions.open(item) })
             menu.addItem(menuItem(title: L10n.Action.openInNewWindow) { actions.openInNewWindow(item) })
             SnippetsContextMenuBuilder.appendSnippetsMenu(
@@ -53,6 +54,8 @@ enum FileListRowContextMenuBuilder {
         }
         
         guard !fileSelection.isEmpty else { return nil }
+        
+        appendRefreshIfNeeded(to: menu, actions: actions)
         
         let destination = FileOperations.pasteDestination(
             selectedItems: fileSelection,
@@ -113,6 +116,12 @@ enum FileListRowContextMenuBuilder {
         
         menu.addItem(menuItem(title: L10n.Action.showInfo) { actions.showInfo(fileSelection) })
         return menu
+    }
+
+    private static func appendRefreshIfNeeded(to menu: NSMenu, actions: FileContextActions) {
+        guard actions.showRefresh else { return }
+        menu.addItem(menuItem(title: L10n.Action.refresh) { actions.refresh() })
+        menu.addItem(.separator())
     }
 
     private static func isNavigableFolder(_ item: FileItem) -> Bool {

@@ -6,7 +6,8 @@ public final class FileListBlankMenuController: NSObject {
     public var actions: FileListBlankMenuActions
     
     private enum MenuAction: Int {
-        case goBack = 1
+        case refresh = 1
+        case goBack
         case goUp
         case paste
         case newFolder
@@ -21,6 +22,11 @@ public final class FileListBlankMenuController: NSObject {
     
     public func makeMenu() -> NSMenu {
         let menu = NSMenu()
+        
+        if actions.showRefresh {
+            menu.addItem(makeItem(title: L10n.Action.refresh, action: .refresh, enabled: true))
+            menu.addItem(.separator())
+        }
         
         menu.addItem(makeItem(title: L10n.Action.goBack, action: .goBack, enabled: actions.canGoBack))
         menu.addItem(makeItem(title: L10n.Action.goUp, action: .goUp, enabled: actions.canGoUp))
@@ -69,6 +75,8 @@ public final class FileListBlankMenuController: NSObject {
     @objc private func handleMenuAction(_ sender: NSMenuItem) {
         guard let action = MenuAction(rawValue: sender.tag) else { return }
         switch action {
+        case .refresh:
+            actions.refresh()
         case .goBack:
             actions.goBack()
         case .goUp:

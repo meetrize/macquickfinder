@@ -17,6 +17,7 @@ enum L10n {
     enum Action {
         static var goBack: String { ModuleLocalization.localized("action.go_back", bundle: .module) }
         static var goUp: String { ModuleLocalization.localized("action.go_up", bundle: .module) }
+        static var refresh: String { ModuleLocalization.localized("action.refresh", bundle: .module) }
         static var newFolder: String { ModuleLocalization.localized("action.new_folder", bundle: .module) }
         static var newFile: String { ModuleLocalization.localized("action.new_file", bundle: .module) }
         static var openTerminalHere: String { ModuleLocalization.localized("action.open_terminal_here", bundle: .module) }

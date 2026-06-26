@@ -116,6 +116,10 @@ final class PreviewSession: ObservableObject, Identifiable {
 
     func scheduleBrowseContentPrefetch() {
         guard let browseContext else { return }
+        guard !DirectorySizeVolumeFilter.isNetworkVolume(path: browseContext.directoryPath) else {
+            browseContentPrefetcher.cancel()
+            return
+        }
         browseContentPrefetcher.schedulePrefetch(
             items: browseContext.orderedItems,
             centerIndex: browseContext.currentIndex
