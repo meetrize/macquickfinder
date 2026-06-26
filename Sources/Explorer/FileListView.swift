@@ -50,6 +50,7 @@ struct FileListView: View {
     let viewMode: FileListViewMode
     let thumbnailCellSize: CGFloat
     let useIconPreview: Bool
+    let preferWorkspaceIconsInThumbnail: Bool
     let isLoading: Bool
     let onThumbnailCellSizeChange: (CGFloat) -> Void
     let onItemOpen: (FileItem) -> Void
@@ -240,7 +241,8 @@ struct FileListView: View {
                     onScheduleVisibleDirectoryItemCounts(paths)
                 },
                 directorySizeProvider: sizeProvider,
-                directoryItemCountProvider: countProvider
+                directoryItemCountProvider: countProvider,
+                preferWorkspaceIcons: preferWorkspaceIconsInThumbnail
             )
             .onAppear {
                 preferencesStore.resetToDefaultIfNeeded()
@@ -447,18 +449,16 @@ struct FileListView: View {
         directoryLoadGenerationByID[directoryID] = currentGeneration
         expandingDirectoryIDs.insert(directoryID)
         
-        let propertyKeys: Set<URLResourceKey> = [
-            .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isHiddenKey
-        ]
         let shouldShowHiddenFiles = showHiddenFiles
+        let parentCanonical = URL(fileURLWithPath: currentDirectoryPath)
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+            .path
+        let listingOptions = DirectoryListingOptions.forPath(directoryID)
         
-        Task {
+        Task.detached(priority: .userInitiated) {
             do {
                 let canonicalPath = URL(fileURLWithPath: directoryID).resolvingSymlinksInPath().standardizedFileURL.path
-                let parentCanonical = URL(fileURLWithPath: currentDirectoryPath)
-                    .resolvingSymlinksInPath()
-                    .standardizedFileURL
-                    .path
                 if canonicalPath == parentCanonical {
                     throw NSError(
                         domain: "Explorer.FileTree",
@@ -467,22 +467,11 @@ struct FileListView: View {
                     )
                 }
                 
-                let url = URL(fileURLWithPath: directoryID)
-                let options: FileManager.DirectoryEnumerationOptions = shouldShowHiddenFiles
-                    ? [.skipsPackageDescendants]
-                    : [.skipsHiddenFiles, .skipsPackageDescendants]
-                let urls = try FileManager.default.contentsOfDirectory(
-                    at: url,
-                    includingPropertiesForKeys: Array(propertyKeys),
-                    options: options
+                let loaded = try DirectoryListingLoader.loadFileItems(
+                    at: directoryID,
+                    showHiddenFiles: shouldShowHiddenFiles,
+                    options: listingOptions
                 )
-                var loaded: [FileItem] = []
-                loaded.reserveCapacity(urls.count)
-                for childURL in urls {
-                    if let item = TrashLoader.fileItem(from: childURL, propertyKeys: propertyKeys) {
-                        loaded.append(item)
-                    }
-                }
                 
                 await MainActor.run {
                     guard directoryLoadGenerationByID[directoryID] == currentGeneration else { return }

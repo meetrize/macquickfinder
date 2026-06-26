@@ -13,6 +13,7 @@ public struct FileListThumbnailHost: NSViewRepresentable {
     public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
     public var directorySizeProvider: DirectorySizeColumnProvider?
     public var directoryItemCountProvider: DirectoryItemCountColumnProvider?
+    public var preferWorkspaceIcons: Bool
     
     public init(
         rows: [FileListRow],
@@ -24,7 +25,8 @@ public struct FileListThumbnailHost: NSViewRepresentable {
         onOpenRow: @escaping (FileListRow) -> Void,
         onVisibleDirectoryPathsChanged: (([String]) -> Void)? = nil,
         directorySizeProvider: DirectorySizeColumnProvider? = nil,
-        directoryItemCountProvider: DirectoryItemCountColumnProvider? = nil
+        directoryItemCountProvider: DirectoryItemCountColumnProvider? = nil,
+        preferWorkspaceIcons: Bool = false
     ) {
         self.rows = rows
         self.interaction = interaction
@@ -36,6 +38,7 @@ public struct FileListThumbnailHost: NSViewRepresentable {
         self.onVisibleDirectoryPathsChanged = onVisibleDirectoryPathsChanged
         self.directorySizeProvider = directorySizeProvider
         self.directoryItemCountProvider = directoryItemCountProvider
+        self.preferWorkspaceIcons = preferWorkspaceIcons
     }
     
     public func makeCoordinator() -> FileListThumbnailController {
@@ -67,7 +70,8 @@ public struct FileListThumbnailHost: NSViewRepresentable {
             selectionGet: { selection },
             selectionSet: { selection = $0 },
             preferencesStore: preferencesStore,
-            cellSize: cellSize
+            cellSize: cellSize,
+            preferWorkspaceIcons: preferWorkspaceIcons
         )
         controller.refreshDirectorySizeColumnIfNeeded(directorySizeProvider)
         controller.refreshDirectoryItemCountColumnIfNeeded(directoryItemCountProvider)

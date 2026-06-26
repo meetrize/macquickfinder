@@ -137,39 +137,15 @@ struct FileItem: Identifiable, Hashable {
     private static func itemFromFileSystem(path: String) -> FileItem? {
         let standardized = (path as NSString).standardizingPath
         let url = URL(fileURLWithPath: standardized)
-        let keys: Set<URLResourceKey> = [
-            .isDirectoryKey, .contentModificationDateKey, .creationDateKey,
-            .fileSizeKey, .isHiddenKey, .tagNamesKey
-        ]
-        
-        do {
-            let values = try url.resourceValues(forKeys: keys)
-            guard let isDirectory = values.isDirectory else { return nil }
-            let modificationDate = values.contentModificationDate ?? .distantPast
-            let creationDate = values.creationDate ?? modificationDate
-            let fileSize = Int64(values.fileSize ?? 0)
-            let isHidden = values.isHidden ?? false
-            let name = url.lastPathComponent
-            let sizeDisplay = isDirectory ? "--" : FileItemFormatters.formatSize(fileSize)
-            return FileItem(
-                id: standardized,
-                url: url,
-                name: name,
-                isDirectory: isDirectory,
-                modificationDate: modificationDate,
-                creationDate: creationDate,
-                size: fileSize,
-                isHidden: isHidden,
-                fileType: fileType(for: name, isDirectory: isDirectory),
-                sizeDisplay: sizeDisplay,
-                dateDisplay: FileItemFormatters.formatDate(modificationDate),
-                creationDateDisplay: FileItemFormatters.formatDate(creationDate),
-                finderComment: finderComment(for: url),
-                tags: values.tagNames ?? []
-            )
-        } catch {
-            return nil
-        }
+        let options = DirectoryListingOptions.forPath(standardized)
+        let keys = DirectoryListingLoader.propertyKeys(lightweight: options.lightweightMetadata)
+        let prefetchedValues = try? url.resourceValues(forKeys: keys)
+        return TrashLoader.fileItem(
+            from: url,
+            propertyKeys: keys,
+            prefetchedValues: prefetchedValues,
+            skipExtendedMetadata: options.lightweightMetadata
+        )
     }
     
     func hash(into hasher: inout Hasher) {

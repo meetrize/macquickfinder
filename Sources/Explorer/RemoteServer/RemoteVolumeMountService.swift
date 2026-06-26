@@ -97,6 +97,7 @@ struct RemoteVolumeMountService {
         }
 
         let mountPath = try await waitForNewVolume(excluding: before, serverURL: serverURL)
+        NetworkVolumePrewarmer.touchPath(mountPath)
         return URL(fileURLWithPath: mountPath, isDirectory: true)
     }
 

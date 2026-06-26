@@ -316,6 +316,7 @@ struct ContentView: View {
             ConnectServerSheet(
                 initialAddress: RecentServersStore.shared.bookmarks.first?.urlString ?? ""
             ) { mountURL in
+                NetworkVolumePrewarmer.touchPath(mountURL.path)
                 path = mountURL.path
                 ConnectServerCenter.shared.requestDevicesRefresh()
             }
@@ -590,7 +591,8 @@ struct ContentView: View {
     }
     
     private var explorerFileListSection: some View {
-        FileListView(
+        let isNetworkVolume = DirectorySizeVolumeFilter.isNetworkVolume(path: path)
+        return FileListView(
             items: filteredItems,
             selection: $selection,
             showPreview: $layout.showPreview,
@@ -605,7 +607,8 @@ struct ContentView: View {
             directoryMetadataOverlay: directoryMetadataOverlay,
             viewMode: fileListViewMode,
             thumbnailCellSize: thumbnailCellSize,
-            useIconPreview: useIconPreview,
+            useIconPreview: useIconPreview && !isNetworkVolume,
+            preferWorkspaceIconsInThumbnail: isNetworkVolume,
             isLoading: isLoading,
             onThumbnailCellSizeChange: { layout.thumbnailCellSizeValue = $0 },
             onItemOpen: openItem,
@@ -629,12 +632,20 @@ struct ContentView: View {
     private func loadItems(invalidatingPaths: [String] = []) {
         loadGeneration += 1
         let currentGeneration = loadGeneration
-        isLoading = true
-        selection.removeAll()
-        
         let currentPath = path
         let shouldShowHiddenFiles = showHiddenFiles
+        let listingOptions = DirectoryListingOptions.forPath(currentPath)
+        let isNetworkListing = listingOptions.lightweightMetadata
+
+        // 立刻进入目标目录：清空旧列表并显示加载占位，不等待后台列举完成。
+        isLoading = true
+        items = []
+        selection.removeAll()
         directoryMetadataOverlay.beginSession(generation: currentGeneration)
+
+        if isNetworkListing {
+            NetworkVolumePrewarmer.touchPath(currentPath)
+        }
         
         Task {
             var didApplyItems = false
@@ -643,6 +654,64 @@ struct ContentView: View {
                     guard currentGeneration == loadGeneration, !didApplyItems else { return }
                     isLoading = false
                 }
+            }
+
+            if isNetworkListing, !TrashLoader.isTrashPath(currentPath) {
+                var loadedItems: [FileItem] = []
+                do {
+                    loadedItems = try await Task.detached(priority: .userInitiated) {
+                        try DirectoryListingLoader.loadFileItems(
+                            at: currentPath,
+                            showHiddenFiles: shouldShowHiddenFiles,
+                            options: listingOptions,
+                            onEachURL: { _ in try Task.checkCancellation() }
+                        )
+                    }.value
+                } catch is CancellationError {
+                    return
+                } catch {
+                    print("Error loading directory: \(error)")
+                }
+
+                guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
+
+                await MainActor.run {
+                    guard currentGeneration == loadGeneration else { return }
+                    items = loadedItems
+                    isLoading = false
+                    didApplyItems = true
+                    fileListFocusToken &+= 1
+                    applyPendingExternalSelectionIfNeeded(
+                        loadedItems: loadedItems,
+                        for: currentPath
+                    )
+                }
+
+                await MainActor.run {
+                    DirectoryFSEventsMonitor.shared.stop()
+                }
+                if !invalidatingPaths.isEmpty {
+                    await DirectoryMetadataScheduler.invalidate(paths: invalidatingPaths)
+                }
+                await DirectoryMetadataScheduler.resetSession(generation: currentGeneration)
+
+                let folderPaths = loadedItems
+                    .filter(\.isDirectory)
+                    .map(\.id)
+                await DirectoryMetadataScheduler.scheduleAfterListingLoad(
+                    folderPaths: folderPaths,
+                    showHiddenFiles: shouldShowHiddenFiles,
+                    includeSizes: false
+                )
+                await MainActor.run {
+                    guard currentGeneration == loadGeneration else { return }
+                    updateDirectoryFSEventsMonitoring(
+                        directoryPath: currentPath,
+                        folderPaths: folderPaths,
+                        showHiddenFiles: shouldShowHiddenFiles
+                    )
+                }
+                return
             }
             
             await MainActor.run {
@@ -664,6 +733,7 @@ struct ContentView: View {
                         try DirectoryListingLoader.loadFileItems(
                             at: currentPath,
                             showHiddenFiles: shouldShowHiddenFiles,
+                            options: listingOptions,
                             onEachURL: { _ in try Task.checkCancellation() }
                         )
                     }.value

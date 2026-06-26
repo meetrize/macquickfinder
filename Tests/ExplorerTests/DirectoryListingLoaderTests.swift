@@ -39,6 +39,40 @@ final class DirectoryListingLoaderTests: XCTestCase {
         XCTAssertTrue(DirectoryListingLoader.propertyKeys.contains(.isHiddenKey))
     }
 
+    func testLightweightPropertyKeysExcludeHeavyMetadata() {
+        let lightweight = DirectoryListingLoader.propertyKeys(lightweight: true)
+        XCTAssertFalse(lightweight.contains(.tagNamesKey))
+        XCTAssertFalse(lightweight.contains(.creationDateKey))
+        XCTAssertTrue(lightweight.contains(.fileSizeKey))
+    }
+
+    func testLightweightFileItemSkipsFinderComment() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let fileURL = directory.appendingPathComponent("note.txt")
+        try Data("hello".utf8).write(to: fileURL)
+
+        let keys = DirectoryListingLoader.propertyKeys(lightweight: true)
+        let values = try fileURL.resourceValues(forKeys: keys)
+        let item = try XCTUnwrap(
+            TrashLoader.fileItem(
+                from: fileURL,
+                propertyKeys: keys,
+                prefetchedValues: values,
+                skipExtendedMetadata: true
+            )
+        )
+
+        XCTAssertEqual(item.finderComment, "")
+        XCTAssertTrue(item.tags.isEmpty)
+    }
+
+    func testDirectoryListingOptionsForPathUsesNetworkVolumeFilter() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        XCTAssertFalse(DirectoryListingOptions.forPath(home).lightweightMetadata)
+    }
+
     private func makeTemporaryDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("directory-listing-loader-\(UUID().uuidString)", isDirectory: true)

@@ -1057,6 +1057,7 @@ private enum PathSubdirectoryCache {
     }
     
     static func preloadBreadcrumbPaths(_ path: String, showHiddenFiles: Bool) {
+        guard !DirectorySizeVolumeFilter.isNetworkVolume(path: path) else { return }
         var parentPaths = PathSegmentBuilder.segments(for: path).dropLast().map(\.path)
         if PathSegmentBuilder.showsLeadingRootSlash(for: path), path != "/" {
             if parentPaths.first != "/" {

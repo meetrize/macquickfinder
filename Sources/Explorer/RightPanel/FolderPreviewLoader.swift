@@ -10,11 +10,13 @@ enum FolderPreviewLoader {
     }
 
     static func load(at path: String, showHiddenFiles: Bool) async -> LoadResult {
-        await Task.detached(priority: .userInitiated) {
+        let options = DirectoryListingOptions.forPath(path)
+        return await Task.detached(priority: .userInitiated) {
             do {
                 let items = try DirectoryListingLoader.loadFileItems(
                     at: path,
-                    showHiddenFiles: showHiddenFiles
+                    showHiddenFiles: showHiddenFiles,
+                    options: options
                 )
                 let sorted = sortChildren(items)
                 let totalCount = sorted.count

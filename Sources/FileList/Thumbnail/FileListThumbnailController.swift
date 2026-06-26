@@ -19,6 +19,7 @@ public final class FileListThumbnailController: FileListContentController {
     private var isPerformingCollectionUpdate = false
     private var pendingCollectionReloadFull = false
     private var hasInstalledCollectionView = false
+    private var preferWorkspaceIcons = false
     private let thumbnailGenerator = ThumbnailGenerator()
     
     // Interaction state
@@ -87,8 +88,14 @@ public final class FileListThumbnailController: FileListContentController {
         selectionGet: @escaping () -> Set<String>,
         selectionSet: @escaping (Set<String>) -> Void,
         preferencesStore: FileListPreferencesStore,
-        cellSize: CGFloat
+        cellSize: CGFloat,
+        preferWorkspaceIcons: Bool = false
     ) {
+        let preferIconsChanged = self.preferWorkspaceIcons != preferWorkspaceIcons
+        self.preferWorkspaceIcons = preferWorkspaceIcons
+        if preferIconsChanged {
+            thumbnailGenerator.cancelInFlightRequests()
+        }
         bindUpdateContext(
             interaction: interaction,
             selectionGet: selectionGet,
@@ -371,6 +378,13 @@ public final class FileListThumbnailController: FileListContentController {
                 screenScale: screenScale
             )
             item.applyLoadedImage(icon, isThumbnail: false, animated: false)
+            return
+        }
+
+        if preferWorkspaceIcons {
+            let icon = FileListWorkspaceIconCache.icon(forPath: row.iconPath)
+            let scaled = FileListThumbnailMetrics.scaledIcon(icon, cellSize: cellSize)
+            item.applyLoadedImage(scaled, isThumbnail: false, animated: false)
             return
         }
         

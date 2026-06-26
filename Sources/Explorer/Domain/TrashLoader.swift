@@ -153,14 +153,19 @@ enum TrashLoader {
         return Array(itemsByPath.values)
     }
     
-    static func fileItem(from fileURL: URL, propertyKeys: Set<URLResourceKey>) -> FileItem? {
-        let resourceValues = try? fileURL.resourceValues(forKeys: propertyKeys)
+    static func fileItem(
+        from fileURL: URL,
+        propertyKeys: Set<URLResourceKey>,
+        prefetchedValues: URLResourceValues? = nil,
+        skipExtendedMetadata: Bool = false
+    ) -> FileItem? {
+        let resourceValues = prefetchedValues ?? (try? fileURL.resourceValues(forKeys: propertyKeys))
         let isDirectory = resourceValues?.isDirectory ?? false
         let modDate = resourceValues?.contentModificationDate ?? Date.distantPast
         let creationDate = resourceValues?.creationDate ?? modDate
         let size = Int64(resourceValues?.fileSize ?? 0)
         let isHidden = resourceValues?.isHidden ?? fileURL.lastPathComponent.hasPrefix(".")
-        
+
         return FileItem(
             id: fileURL.path,
             url: fileURL,
@@ -174,8 +179,8 @@ enum TrashLoader {
             sizeDisplay: isDirectory ? "--" : FileItemFormatters.formatSize(size),
             dateDisplay: FileItemFormatters.formatDate(modDate),
             creationDateDisplay: FileItemFormatters.formatDate(creationDate),
-            finderComment: FileItem.finderComment(for: fileURL),
-            tags: resourceValues?.tagNames ?? []
+            finderComment: skipExtendedMetadata ? "" : FileItem.finderComment(for: fileURL),
+            tags: skipExtendedMetadata ? [] : (resourceValues?.tagNames ?? [])
         )
     }
 }
