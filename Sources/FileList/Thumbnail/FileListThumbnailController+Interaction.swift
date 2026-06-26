@@ -132,7 +132,8 @@ extension FileListThumbnailController {
         )
         guard distance >= dragThreshold else { return true }
         guard indexPath.item >= 0, indexPath.item < displayRows.count else { return true }
-        
+        guard let startEvent = mouseDownEvent else { return true }
+
         if let collectionView, !collectionView.selectionIndexPaths.contains(indexPath) {
             let flags = mouseDownEvent?.modifierFlags ?? []
             if !flags.contains(.command), !flags.contains(.shift) {
@@ -142,7 +143,12 @@ extension FileListThumbnailController {
         }
         
         dragSessionActive = true
-        beginDrag(for: displayRows[indexPath.item], indexPath: indexPath, event: event)
+        beginDrag(
+            for: displayRows[indexPath.item],
+            indexPath: indexPath,
+            startEvent: startEvent,
+            dragEvent: event
+        )
         return true
     }
     

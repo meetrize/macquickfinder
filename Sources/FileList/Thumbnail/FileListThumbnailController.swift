@@ -503,6 +503,10 @@ public final class FileListThumbnailController: FileListContentController {
             }
         return Array(Set(paths)).sorted()
     }
+
+    override func hostWindowForDropHitTest() -> NSWindow? {
+        collectionView?.window
+    }
     
     func indexPath(for rowID: String) -> IndexPath? {
         guard let index = displayRows.firstIndex(where: { $0.id == rowID }) else { return nil }

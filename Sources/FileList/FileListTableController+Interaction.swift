@@ -206,6 +206,7 @@ extension FileListTableController {
         guard distance >= dragThreshold else { return false }
         let row = mouseDownRow
         guard row >= 0, row < displayRows.count else { return false }
+        guard let startEvent = mouseDownEvent else { return false }
 
         if let tableView, !tableView.selectedRowIndexes.contains(row) {
             let flags = mouseDownEvent?.modifierFlags ?? []
@@ -217,7 +218,7 @@ extension FileListTableController {
         }
 
         dragSessionActive = true
-        beginDrag(for: displayRows[row], rowIndex: row, event: event)
+        beginDrag(for: displayRows[row], rowIndex: row, startEvent: startEvent, dragEvent: event)
         return true
     }
 

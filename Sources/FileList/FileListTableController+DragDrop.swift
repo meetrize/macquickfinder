@@ -4,14 +4,16 @@ import Foundation
 // MARK: - Drag source
 
 extension FileListTableController {
-    func beginDrag(for row: FileListRow, rowIndex: Int, event: NSEvent) {
+    func beginDrag(for row: FileListRow, rowIndex: Int, startEvent: NSEvent, dragEvent: NSEvent) {
         guard let tableView else { return }
+        let ghostAnchor = tableView.convert(dragEvent.locationInWindow, from: nil)
         _ = FileListDragDropSupport.beginFileDrag(
             on: tableView,
             row: row,
             displayRows: displayRows,
             selection: effectiveSelectionIDs(),
-            event: event,
+            startEvent: startEvent,
+            ghostAnchorInView: ghostAnchor,
             source: self
         )
         _ = rowIndex

@@ -2,17 +2,19 @@ import AppKit
 import Foundation
 
 extension FileListThumbnailController {
-    func beginDrag(for row: FileListRow, indexPath: IndexPath, event: NSEvent) {
+    func beginDrag(for row: FileListRow, indexPath: IndexPath, startEvent: NSEvent, dragEvent: NSEvent) {
         guard let collectionView else { return }
 
         resetDragDropSessionState()
 
+        let ghostAnchor = collectionView.convert(dragEvent.locationInWindow, from: nil)
         guard let dragSession = FileListDragDropSupport.beginFileDrag(
             on: collectionView,
             row: row,
             displayRows: displayRows,
             selection: effectiveSelectionIDs(),
-            event: event,
+            startEvent: startEvent,
+            ghostAnchorInView: ghostAnchor,
             source: self
         ) else { return }
 
@@ -172,6 +174,7 @@ extension FileListThumbnailController {
         screenPoint: NSPoint
     ) -> Bool {
         guard !dropWasPerformed else { return true }
+        guard isDropInsideHostWindow(screenPoint: screenPoint) else { return false }
 
         if operation != [] {
             let resolvedOperation: NSDragOperation = operation.contains(.copy) ? .copy : .move
@@ -247,6 +250,8 @@ extension FileListThumbnailController {
         screenPoint: NSPoint,
         pasteboard: NSPasteboard
     ) -> Bool {
+        guard isDropInsideHostWindow(screenPoint: screenPoint) else { return false }
+
         let urls = FileListDragDropSupport.resolvedURLs(
             from: pasteboard,
             fallback: activeDragURLs

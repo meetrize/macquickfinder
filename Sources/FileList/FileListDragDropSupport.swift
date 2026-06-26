@@ -17,49 +17,20 @@ enum FileListDragDropSupport {
     }
 
     struct FileDragSession {
-        let session: NSDraggingSession
+        let session: NSDraggingSession?
         let activeDragURLs: [URL]
     }
 
     // MARK: - Drag source
 
-    static func beginDraggingSession(
-        on view: NSView,
-        items: [NSDraggingItem],
-        event: NSEvent,
-        source: NSDraggingSource
-    ) -> NSDraggingSession {
-        FileListContentInteractionNotifier.notifyDidBegin()
-        let session = view.beginDraggingSession(with: items, event: event, source: source)
-        session.animatesToStartingPositionsOnCancelOrFail = true
-        session.draggingFormation = items.count > 1 ? .pile : .none
-        return session
-    }
-
     static func sourceOperationMask(for context: NSDraggingContext) -> NSDragOperation {
-        if FileListDragSupport.shouldCopyFromCurrentEvent() {
-            return .copy
-        }
-        switch context {
-        case .withinApplication:
-            return .move
-        default:
-            return .move
-        }
+        FileListExternalFileDrag.sourceOperationMask(for: context)
     }
 
-    static func makeDraggingItems(
-        for row: FileListRow,
-        displayRows: [FileListRow],
-        selection: Set<String>,
-        mousePoint: NSPoint
-    ) -> [NSDraggingItem] {
-        FileListInteractionCoordinator.makeDraggingItems(
-            for: row,
-            in: displayRows,
-            selection: selection,
-            mousePoint: mousePoint
-        )
+    static func isScreenPointInsideWindow(_ screenPoint: NSPoint, window: NSWindow?) -> Bool {
+        guard let window, let contentView = window.contentView else { return false }
+        let pointInWindow = window.convertPoint(fromScreen: screenPoint)
+        return contentView.bounds.contains(pointInWindow)
     }
 
     static func beginFileDrag(
@@ -67,31 +38,48 @@ enum FileListDragDropSupport {
         row: FileListRow,
         displayRows: [FileListRow],
         selection: Set<String>,
-        event: NSEvent,
+        startEvent: NSEvent,
+        ghostAnchorInView: NSPoint,
         source: NSDraggingSource
     ) -> FileDragSession? {
-        let mousePoint = view.convert(event.locationInWindow, from: nil)
-        let draggingItems = makeDraggingItems(
-            for: row,
-            displayRows: displayRows,
-            selection: selection,
-            mousePoint: mousePoint
-        )
-        guard !draggingItems.isEmpty else { return nil }
-
-        let activeDragURLs = FileListDragSupport.draggedRows(
+        let dragged = FileListDragSupport.draggedRows(
             for: row,
             in: displayRows,
             selection: selection
-        ).map { URL(fileURLWithPath: $0.iconPath) }
-
-        let session = beginDraggingSession(
-            on: view,
-            items: draggingItems,
-            event: event,
-            source: source
         )
-        return FileDragSession(session: session, activeDragURLs: activeDragURLs)
+        guard !dragged.isEmpty else { return nil }
+
+        let activeDragURLs = dragged.map { URL(fileURLWithPath: $0.iconPath) }
+        let ghostRow = dragged.first(where: { $0.id == row.id }) ?? dragged[0]
+        let showLabel = dragged.count == 1 || dragged.contains(where: { $0.id == row.id })
+        let ghost = FileListDragSupport.makeDragGhost(
+            for: ghostRow.iconPath,
+            name: ghostRow.name,
+            showLabel: showLabel
+        )
+        let frame = FileListDragSupport.draggingFrame(
+            at: ghostAnchorInView,
+            ghostSize: ghost.size,
+            index: 0
+        )
+        let offset = NSSize(
+            width: ghostAnchorInView.x - frame.origin.x,
+            height: ghostAnchorInView.y - frame.origin.y
+        )
+
+        FileListContentInteractionNotifier.notifyDidBegin()
+        guard FileListExternalFileDrag.start(
+            on: view,
+            image: ghost.image,
+            at: frame.origin,
+            offset: offset,
+            startEvent: startEvent,
+            urls: activeDragURLs,
+            source: source
+        ) else {
+            return nil
+        }
+        return FileDragSession(session: nil, activeDragURLs: activeDragURLs)
     }
 
     // MARK: - Drop destination

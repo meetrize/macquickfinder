@@ -220,6 +220,14 @@ public class FileListContentController: NSObject {
         []
     }
 
+    func isDropInsideHostWindow(screenPoint: NSPoint) -> Bool {
+        FileListDragDropSupport.isScreenPointInsideWindow(screenPoint, window: hostWindowForDropHitTest())
+    }
+
+    func hostWindowForDropHitTest() -> NSWindow? {
+        nil
+    }
+
     // MARK: - Pointer session cleanup (subclass extends)
 
     func clearBlankDragState() {
@@ -247,12 +255,7 @@ public class FileListContentController: NSObject {
 }
 
 enum FileListDragDropRegistration {
-    static let fileURLPasteboardTypes: [NSPasteboard.PasteboardType] = [
-        .fileURL,
-        NSPasteboard.PasteboardType(UTType.fileURL.identifier),
-        NSPasteboard.PasteboardType("public.file-url"),
-        NSPasteboard.PasteboardType("NSFilenamesPboardType"),
-    ]
+    static let fileURLPasteboardTypes: [NSPasteboard.PasteboardType] = FileListExternalFileDrag.pasteboardTypes
 
     static func registerDragTypes(on view: NSView) {
         view.registerForDraggedTypes(fileURLPasteboardTypes)
@@ -261,10 +264,10 @@ enum FileListDragDropRegistration {
     static func configureSourceMasks(on view: NSView) {
         if let collectionView = view as? NSCollectionView {
             collectionView.setDraggingSourceOperationMask(.move, forLocal: true)
-            collectionView.setDraggingSourceOperationMask([.move, .copy], forLocal: false)
+            collectionView.setDraggingSourceOperationMask(.every, forLocal: false)
         } else if let tableView = view as? NSTableView {
             tableView.setDraggingSourceOperationMask(.move, forLocal: true)
-            tableView.setDraggingSourceOperationMask([.move, .copy], forLocal: false)
+            tableView.setDraggingSourceOperationMask(.every, forLocal: false)
         }
     }
 }

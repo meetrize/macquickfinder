@@ -75,6 +75,28 @@ final class FileListDragDropSupportTests: XCTestCase {
         XCTAssertEqual(urls.map(\.path), ["/tmp/active.txt"])
     }
 
+    func testSourceOperationMaskOutsideApplicationIncludesCopyAndGeneric() {
+        let mask = FileListExternalFileDrag.sourceOperationMask(for: .outsideApplication)
+        XCTAssertTrue(mask.contains(.copy))
+        XCTAssertTrue(mask.contains(.generic))
+    }
+
+    func testSourceOperationMaskWithinApplicationIsMove() {
+        XCTAssertEqual(
+            FileListExternalFileDrag.sourceOperationMask(for: .withinApplication),
+            .move
+        )
+    }
+
+    func testPreparePasteboardIncludesLegacyFilenamesType() {
+        let url = URL(fileURLWithPath: "/tmp/sample.apk")
+        let pasteboard = FileListExternalFileDrag.preparePasteboard(urls: [url])
+        let legacy = FileListExternalFileDrag.legacyFilenamesType
+
+        XCTAssertNotNil(pasteboard.data(forType: legacy))
+        XCTAssertEqual(pasteboard.propertyList(forType: legacy) as? [String], [url.path])
+    }
+
     func testPerformAcceptedDropUsesExplicitCopyFlag() {
         var performed: (String, [URL], Bool)?
         let interaction = FileListTableInteraction(
