@@ -532,11 +532,18 @@ enum BarTextFieldShape {
 /// 工具栏内的 TextField 有时无法可靠同步 @FocusState，通过 NSTextField 编辑状态驱动边框高亮。
 private struct BarTextFieldFocusObserver: NSViewRepresentable {
     let fieldID: BarTextFieldID
+    @Binding var text: String
     @Binding var activeField: BarTextFieldID?
     var retainHighlight: Bool = false
+    var clearTextOnEscape: Bool = false
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(fieldID: fieldID, activeField: $activeField)
+        Coordinator(
+            fieldID: fieldID,
+            text: $text,
+            activeField: $activeField,
+            clearTextOnEscape: clearTextOnEscape
+        )
     }
     
     func makeNSView(context: Context) -> NSView {
@@ -547,7 +554,10 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
     
     func updateNSView(_ nsView: NSView, context: Context) {
         let wasRetainHighlight = context.coordinator.retainHighlight
+        context.coordinator.text = $text
         context.coordinator.retainHighlight = retainHighlight
+        context.coordinator.clearTextOnEscape = clearTextOnEscape
+        context.coordinator.refreshEscapeMonitor()
         context.coordinator.refreshEditingState()
         if fieldID == .path, retainHighlight, !wasRetainHighlight,
            let window = context.coordinator.textField?.window {
@@ -558,17 +568,27 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
     
     final class Coordinator {
         let fieldID: BarTextFieldID
+        var text: Binding<String>
         @Binding var activeField: BarTextFieldID?
         var retainHighlight = false
+        var clearTextOnEscape = false
         private weak var anchorView: NSView?
         fileprivate weak var textField: NSTextField?
         private var observers: [NSObjectProtocol] = []
+        private var escapeMonitor: Any?
         private var retryCount = 0
         private var isHooked = false
         
-        init(fieldID: BarTextFieldID, activeField: Binding<BarTextFieldID?>) {
+        init(
+            fieldID: BarTextFieldID,
+            text: Binding<String>,
+            activeField: Binding<BarTextFieldID?>,
+            clearTextOnEscape: Bool
+        ) {
             self.fieldID = fieldID
+            self.text = text
             _activeField = activeField
+            self.clearTextOnEscape = clearTextOnEscape
         }
         
         func attach(to view: NSView) {
@@ -626,6 +646,42 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
                 }
             )
             refreshEditingState()
+            refreshEscapeMonitor()
+        }
+
+        fileprivate func refreshEscapeMonitor() {
+            guard clearTextOnEscape, isHooked else {
+                removeEscapeMonitor()
+                return
+            }
+            guard escapeMonitor == nil else { return }
+            escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                self?.handleEscapeKey(event) ?? event
+            }
+        }
+
+        private func removeEscapeMonitor() {
+            if let escapeMonitor {
+                NSEvent.removeMonitor(escapeMonitor)
+                self.escapeMonitor = nil
+            }
+        }
+
+        private func handleEscapeKey(_ event: NSEvent) -> NSEvent? {
+            guard event.keyCode == 53 else { return event }
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard !flags.contains(.command), !flags.contains(.control), !flags.contains(.option) else {
+                return event
+            }
+            guard let window = textField?.window, event.window === window else { return event }
+            guard BarTextFieldFocusRegistry.currentEditingField(in: window) == fieldID else { return event }
+            guard !text.wrappedValue.isEmpty else { return event }
+
+            text.wrappedValue = ""
+            textField?.stringValue = ""
+            activeField = fieldID
+            BarTextFieldFocusRegistry.focus(fieldID, in: window)
+            return nil
         }
         
         private func activateField() {
@@ -676,6 +732,7 @@ private struct BarTextFieldFocusObserver: NSViewRepresentable {
         
         deinit {
             observers.forEach { NotificationCenter.default.removeObserver($0) }
+            removeEscapeMonitor()
         }
     }
 }
@@ -688,6 +745,7 @@ struct BarTextField: View {
     var icon: String? = nil
     var shape: BarTextFieldShape = .rounded
     var showsClearButton = false
+    var clearTextOnEscape = false
     var onSubmit: (() -> Void)? = nil
     
     private let cornerRadius: CGFloat = 7
@@ -713,7 +771,12 @@ struct BarTextField: View {
                 .textFieldStyle(.plain)
                 .onSubmit { onSubmit?() }
                 .background(
-                    BarTextFieldFocusObserver(fieldID: fieldID, activeField: $activeField)
+                    BarTextFieldFocusObserver(
+                        fieldID: fieldID,
+                        text: $text,
+                        activeField: $activeField,
+                        clearTextOnEscape: clearTextOnEscape
+                    )
                 )
             
             if showsClearButton, !text.isEmpty {

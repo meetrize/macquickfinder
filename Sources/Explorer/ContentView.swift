@@ -441,7 +441,8 @@ struct ContentView: View {
                         activeField: $activeBarField,
                         icon: "magnifyingglass",
                         shape: .capsule,
-                        showsClearButton: true
+                        showsClearButton: true,
+                        clearTextOnEscape: true
                     )
                     .frame(width: 220)
                 }
