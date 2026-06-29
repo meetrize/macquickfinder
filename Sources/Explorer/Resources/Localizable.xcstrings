@@ -902,6 +902,23 @@
         }
       }
     },
+    "error.default_viewer.launch_services %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch Services registration failed (error %lld)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch Services 注册失败（错误码 %lld）。"
+          }
+        }
+      }
+    },
     "error.default_viewer.finder_not_found": {
       "extractionState": "manual",
       "localizations": {

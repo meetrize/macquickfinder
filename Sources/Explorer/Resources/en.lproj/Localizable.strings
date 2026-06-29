@@ -110,6 +110,8 @@
 	<string>System command failed (exit code %lld).</string>
 	<key>error.default_viewer.finder_not_found</key>
 	<string>Finder app not found.</string>
+	<key>error.default_viewer.launch_services %lld</key>
+	<string>Launch Services registration failed (error %lld).</string>
 	<key>error.default_viewer.preferences_sync</key>
 	<string>Unable to write system preferences.</string>
 	<key>error.directory_not_found</key>

@@ -294,9 +294,6 @@ struct ContentView: View {
         )
         .onAppear {
             toolbarStore.loadIfNeeded()
-            externalFolderOpenCenter.setOpenFolderWindowHandler { path in
-                openWindow(id: ExplorerWindowScene.folder, value: path)
-            }
 
             if let mapped = fileListPreferences.sort.explorerSortOrder {
                 sortOrder = mapped
@@ -316,7 +313,8 @@ struct ContentView: View {
             layout.recordLastOpenedPath(path)
             loadItems()
         }
-        .onReceive(externalFolderOpenCenter.$targetRequest.compactMap { $0 }) { request in
+        .onReceive(externalFolderOpenCenter.$openRequestGeneration.dropFirst()) { _ in
+            guard let request = externalFolderOpenCenter.targetRequest else { return }
             applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
         }
         .onChange(of: connectServerCenter.presentSheetToken) { _ in

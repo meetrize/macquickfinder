@@ -59,6 +59,7 @@ enum DefaultFileViewerManager {
         do {
             try setGlobalFileViewer(bundleIdentifier)
             try appendFolderHandlers(bundleIdentifier: bundleIdentifier)
+            try setLaunchServicesDefaultHandlers(bundleIdentifier: bundleIdentifier)
             await applyWorkspaceDefault(bundleURL: Bundle.main.bundleURL)
             return .success(())
         } catch {
@@ -73,6 +74,7 @@ enum DefaultFileViewerManager {
         do {
             try clearGlobalFileViewer()
             try appendFolderHandlers(bundleIdentifier: finderBundleIdentifier)
+            try setLaunchServicesDefaultHandlers(bundleIdentifier: finderBundleIdentifier)
             await applyWorkspaceDefault(bundleURL: finderURL)
             return .success(())
         } catch {
@@ -80,8 +82,25 @@ enum DefaultFileViewerManager {
         }
     }
 
+    static func registerWithLaunchServicesIfNeeded() {
+        registerWithLaunchServices()
+    }
+
     private static func registerWithLaunchServices() {
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
+    }
+
+    private static func setLaunchServicesDefaultHandlers(bundleIdentifier: String) throws {
+        for contentType in managedContentTypes {
+            let status = LSSetDefaultRoleHandlerForContentType(
+                contentType.identifier as CFString,
+                .viewer,
+                bundleIdentifier as CFString
+            )
+            guard status == noErr else {
+                throw DefaultFileViewerError.launchServicesFailed(status)
+            }
+        }
     }
 
     private static func setGlobalFileViewer(_ bundleIdentifier: String) throws {
@@ -148,6 +167,7 @@ enum DefaultFileViewerError: LocalizedError {
     case preferencesSyncFailed
     case defaultsCommandFailed(Int32)
     case finderNotFound
+    case launchServicesFailed(OSStatus)
 
     var errorDescription: String? {
         switch self {
@@ -157,6 +177,8 @@ enum DefaultFileViewerError: LocalizedError {
             return L10n.Error.DefaultViewer.defaultsCommand(code)
         case .finderNotFound:
             return L10n.Error.DefaultViewer.finderNotFound
+        case .launchServicesFailed(let status):
+            return L10n.Error.DefaultViewer.launchServices(status)
         }
     }
 }

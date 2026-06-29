@@ -533,6 +533,7 @@ struct ExplorerApp: App {
             }
             .frame(minWidth: 267, minHeight: 200)
             .applyInterfaceLanguageEnvironment()
+            .background(ExternalFolderOpenBridge())
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
@@ -546,6 +547,7 @@ struct ExplorerApp: App {
             }
             .frame(minWidth: 267, minHeight: 200)
             .applyInterfaceLanguageEnvironment()
+            .background(ExternalFolderOpenBridge())
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
@@ -688,6 +690,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
     }
 
     @Published private(set) var targetRequest: OpenRequest?
+    @Published private(set) var openRequestGeneration: UInt = 0
     private var pendingRequest: OpenRequest?
     private var openFolderWindow: ((String) -> Void)?
 
@@ -698,9 +701,15 @@ final class ExternalFolderOpenCenter: ObservableObject {
     }
 
     func requestOpen(urls: [URL]) {
-        guard let resolvedRequest = resolveOpenRequest(from: urls) else { return }
+        guard let resolved = ExternalFolderOpenRequestResolver.resolve(from: urls) else { return }
+        let resolvedRequest = OpenRequest(
+            directoryPath: resolved.directoryPath,
+            selectionPath: resolved.selectionPath
+        )
         pendingRequest = resolvedRequest
+        openRequestGeneration &+= 1
         targetRequest = resolvedRequest
+        presentIncomingRequest(resolvedRequest)
     }
 
     func consumePendingRequest() -> OpenRequest? {
@@ -719,27 +728,34 @@ final class ExternalFolderOpenCenter: ObservableObject {
         openFolderWindow?(standardized)
     }
 
-    private func resolveOpenRequest(from urls: [URL]) -> OpenRequest? {
-        for url in urls {
-            let standardized = url.standardizedFileURL
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDirectory) else {
-                continue
-            }
-            if isDirectory.boolValue {
-                return OpenRequest(
-                    directoryPath: standardized.path,
-                    selectionPath: nil
-                )
-            }
-            let parentDirectory = standardized.deletingLastPathComponent()
-            guard parentDirectory.path != standardized.path else { continue }
-            return OpenRequest(
-                directoryPath: parentDirectory.path,
-                selectionPath: standardized.path
-            )
+    private func presentIncomingRequest(_ request: OpenRequest) {
+        let app = NSApplication.shared
+        app.unhide(nil)
+        app.activate(ignoringOtherApps: true)
+
+        if hasVisibleExplorerWindow {
+            bringExplorerWindowsToFront()
+            return
         }
-        return nil
+
+        openFolderWindow?(request.directoryPath)
+    }
+
+    private var hasVisibleExplorerWindow: Bool {
+        NSApplication.shared.windows.contains { window in
+            window.isVisible && !window.isMiniaturized && window.canBecomeKey
+        }
+    }
+
+    private func bringExplorerWindowsToFront() {
+        let app = NSApplication.shared
+        if let keyWindow = app.keyWindow, keyWindow.isVisible, !keyWindow.isMiniaturized {
+            keyWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+        if let window = app.windows.first(where: { $0.isVisible && !$0.isMiniaturized && $0.canBecomeKey }) {
+            window.makeKeyAndOrderFront(nil)
+        }
     }
 }
 
@@ -751,6 +767,7 @@ struct ExternalNavigationTarget: Equatable {
 private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         ModuleLocalization.applyAppleLanguagesOverride()
+        DefaultFileViewerManager.registerWithLaunchServicesIfNeeded()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -759,24 +776,32 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
         GlobalHotkeyService.shared.start()
     }
 
+    @MainActor
     func application(_ application: NSApplication, open urls: [URL]) {
-        Task { @MainActor in
-            ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
-        }
+        ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
     }
 
+    @MainActor
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
         let urls = filenames.map { URL(fileURLWithPath: $0) }
-        Task { @MainActor in
-            ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
-        }
+        ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
+        sender.reply(toOpenOrPrint: .success)
     }
 
+    @MainActor
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        Task { @MainActor in
-            ExternalFolderOpenCenter.shared.requestOpen(
-                urls: [URL(fileURLWithPath: filename)]
-            )
+        ExternalFolderOpenCenter.shared.requestOpen(
+            urls: [URL(fileURLWithPath: filename)]
+        )
+        return true
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            Task { @MainActor in
+                NSApp.unhide(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
         }
         return true
     }

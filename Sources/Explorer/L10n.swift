@@ -638,6 +638,10 @@ enum L10n {
             static func defaultsCommand(_ code: Int32) -> String {
                 ModuleLocalization.localized("error.default_viewer.defaults_command \(code)", bundle: .module)
             }
+
+            static func launchServices(_ status: OSStatus) -> String {
+                ModuleLocalization.localized("error.default_viewer.launch_services \(Int32(status))", bundle: .module)
+            }
         }
 
         enum SnippetImport {

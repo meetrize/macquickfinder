@@ -110,6 +110,8 @@
 	<string>系统命令执行失败（退出码 %lld）。</string>
 	<key>error.default_viewer.finder_not_found</key>
 	<string>未找到 Finder 应用。</string>
+	<key>error.default_viewer.launch_services %lld</key>
+	<string>Launch Services 注册失败（错误码 %lld）。</string>
 	<key>error.default_viewer.preferences_sync</key>
 	<string>无法写入系统偏好设置。</string>
 	<key>error.directory_not_found</key>
