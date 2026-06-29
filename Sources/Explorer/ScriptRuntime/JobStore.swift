@@ -14,7 +14,7 @@ final class JobStore: ObservableObject {
     private var pendingOutputPublishes: [UUID: JobRecord] = [:]
     private var outputPublishScheduled = false
     private var stderrStreamStates: [UUID: StreamProgressOutput.StreamState] = [:]
-    private var archiveCompletionHandlers: [UUID: (JobStatus) -> Void] = [:]
+    private var archiveCompletionHandlers: [UUID: (JobStatus, JobRecord?) -> Void] = [:]
 
     private struct PendingShellRun {
         var jobID: UUID
@@ -374,7 +374,7 @@ final class JobStore: ObservableObject {
         shellCommand: String,
         workingDirectory: String?,
         preamble: String? = nil,
-        completion: @escaping (JobStatus) -> Void
+        completion: @escaping (JobStatus, JobRecord?) -> Void
     ) -> UUID {
         let jobID = createJob(
             snippetName: jobTitle,
@@ -420,7 +420,8 @@ final class JobStore: ObservableObject {
 
     private func dispatchArchiveCompletion(jobID: UUID, status: JobStatus) {
         guard let handler = archiveCompletionHandlers.removeValue(forKey: jobID) else { return }
-        handler(status)
+        let job = jobs.first { $0.id == jobID }
+        handler(status, job)
     }
 
     func scheduleShellRun(

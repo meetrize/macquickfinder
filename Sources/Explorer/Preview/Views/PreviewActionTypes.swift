@@ -24,6 +24,8 @@ enum ArchivePreviewAction: Equatable {
     case copyList
     case extractHere
     case extractTo
+    case extractSelectedHere
+    case extractSelectedTo
 }
 
 enum PDFNavigationAction: Equatable {

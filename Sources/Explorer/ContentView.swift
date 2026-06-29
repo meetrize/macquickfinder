@@ -372,7 +372,8 @@ struct ContentView: View {
             guard let paths = notification.userInfo?[ArchiveOperationNotifications.resultPathsKey] as? [String] else {
                 return
             }
-            handleArchiveOperationCompleted(paths: paths)
+            let navigateIntoResult = notification.userInfo?[ArchiveOperationNotifications.navigateIntoResultKey] as? Bool ?? false
+            handleArchiveOperationCompleted(paths: paths, navigateIntoResult: navigateIntoResult)
         }
         .overlay(alignment: .bottom) {
             if let transientNoticeMessage {
@@ -974,6 +975,14 @@ struct ContentView: View {
             navigateUp()
             return
         }
+        if ArchiveOperations.isArchive(item), !TrashLoader.isTrashPath(path) {
+            ArchiveOperations.extract(
+                archives: [item],
+                mode: .here,
+                navigateIntoResult: true
+            ) { _ in }
+            return
+        }
         FileOperations.open([item]) { path = $0 }
     }
     
@@ -1084,7 +1093,7 @@ struct ContentView: View {
     private var fileContextActions: FileContextActions {
         let isNetworkVolume = DirectorySizeVolumeFilter.isNetworkVolume(path: path)
         return FileContextActions(
-            open: { FileOperations.open([$0]) { path = $0 } },
+            open: { openItem($0) },
             openWith: FileOperations.openWith,
             openWithApplication: FileOperations.openWithApplication,
             cut: FileOperations.cut,
@@ -1171,7 +1180,16 @@ struct ContentView: View {
         )
     }
 
-    private func handleArchiveOperationCompleted(paths: [String]) {
+    private func handleArchiveOperationCompleted(paths: [String], navigateIntoResult: Bool = false) {
+        if navigateIntoResult, let first = paths.first {
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: first, isDirectory: &isDirectory),
+               isDirectory.boolValue {
+                path = first
+                selection.removeAll()
+                return
+            }
+        }
         loadItems()
         if let first = paths.first {
             selection = [first]

@@ -29,14 +29,15 @@ enum ArchiveTaskRunner {
                 shellCommand: shellCommand,
                 workingDirectory: workingDirectory,
                 preamble: networkHint ? L10n.Archive.hintNetworkSlow + "\n" : nil
-            ) { status in
+            ) { status, job in
                 switch status {
                 case .succeeded:
                     onComplete(.success(()))
                 case .cancelled:
                     onComplete(.failure(ArchiveOperationsError.cancelled))
                 default:
-                    onComplete(.failure(ArchiveOperationsError.commandFailed(exitCode: 1)))
+                    let output = job.map { $0.stderr + $0.stdout } ?? ""
+                    onComplete(.failure(ArchiveOperationsError.shellOutput(output)))
                 }
             }
         } else {
@@ -54,7 +55,6 @@ enum ArchiveTaskRunner {
                 } catch {
                     await MainActor.run {
                         onComplete(.failure(error))
-                        presentError(error)
                     }
                 }
             }
@@ -104,25 +104,5 @@ enum ArchiveTaskRunner {
                 continuation.resume(throwing: error)
             }
         }
-    }
-
-    @MainActor
-    private static func presentError(_ error: Error) {
-        if let localized = error as? LocalizedError,
-           let description = localized.errorDescription,
-           !description.isEmpty {
-            NSAlert(messageText: description).runModal()
-            return
-        }
-        NSAlert(error: error).runModal()
-    }
-}
-
-private extension NSAlert {
-    convenience init(messageText: String) {
-        self.init()
-        self.messageText = messageText
-        self.alertStyle = .warning
-        addButton(withTitle: L10n.Action.ok)
     }
 }

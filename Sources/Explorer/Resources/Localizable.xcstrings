@@ -987,6 +987,57 @@
         }
       }
     },
+    "archive.password.message %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the password to extract \"%@\"."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入解压「%@」所需的密码。"
+          }
+        }
+      }
+    },
+    "archive.password.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密码"
+          }
+        }
+      }
+    },
+    "archive.password.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password Required"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要密码"
+          }
+        }
+      }
+    },
     "archive.hint.network_slow": {
       "extractionState": "manual",
       "localizations": {
@@ -1068,6 +1119,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在压缩 %@…"
+          }
+        }
+      }
+    },
+    "archive.status.extracting_partial %lld %@ %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extracting %lld items from %@ → %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在解压 %lld 项（%@）→ %@"
           }
         }
       }
@@ -2653,6 +2721,23 @@
         }
       }
     },
+    "preview.archive.selection_count %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld selected · ⌘-click to multi-select"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选 %lld 项 · ⌘ 点击可多选"
+          }
+        }
+      }
+    },
     "preview.archive_truncated": {
       "extractionState": "manual",
       "localizations": {
@@ -3346,6 +3431,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "解压到…"
+          }
+        }
+      }
+    },
+    "preview.toolbar.extract_selected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extract Selected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解压选中项"
+          }
+        }
+      }
+    },
+    "preview.toolbar.extract_selected_to": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extract Selected To…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解压选中项到…"
           }
         }
       }

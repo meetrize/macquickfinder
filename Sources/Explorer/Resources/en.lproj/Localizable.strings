@@ -106,6 +106,12 @@
 	<string>Compress</string>
 	<key>archive.job.extract</key>
 	<string>Extract</string>
+	<key>archive.password.message %@</key>
+	<string>Enter the password to extract "%@".</string>
+	<key>archive.password.placeholder</key>
+	<string>Password</string>
+	<key>archive.password.title</key>
+	<string>Password Required</string>
 	<key>archive.status.compressing_count %lld</key>
 	<string>Compressing %lld items…</string>
 	<key>archive.status.compressing_item %@</key>
@@ -114,6 +120,8 @@
 	<string>Extracting %lld archives…</string>
 	<key>archive.status.extracting_item %@ %@</key>
 	<string>Extracting %@ → %@</string>
+	<key>archive.status.extracting_partial %lld %@ %@</key>
+	<string>Extracting %lld items from %@ → %@</string>
 	<key>dialog.cannot_create_file</key>
 	<string>Cannot Create File</string>
 	<key>dialog.cannot_create_file_message</key>
@@ -808,6 +816,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Return to this app and click Restart App to apply the permission.</string>
 	<key>permission.fda.title</key>
 	<string>Full Disk Access Required</string>
+	<key>preview.archive.selection_count %lld</key>
+	<string>%lld selected · ⌘-click to multi-select</string>
 	<key>preview.archive_truncated</key>
 	<string>[Truncated...]</string>
 	<key>preview.chrome.back_to_folder</key>
@@ -900,6 +910,10 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Copy Manifest</string>
 	<key>preview.toolbar.extract</key>
 	<string>Extract</string>
+	<key>preview.toolbar.extract_selected</key>
+	<string>Extract Selected</string>
+	<key>preview.toolbar.extract_selected_to</key>
+	<string>Extract Selected To…</string>
 	<key>preview.toolbar.extract_to</key>
 	<string>Extract To…</string>
 	<key>preview.toolbar.eyedropper</key>

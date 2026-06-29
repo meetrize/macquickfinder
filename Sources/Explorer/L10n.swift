@@ -255,6 +255,24 @@ enum L10n {
         static var hintNetworkSlow: String { ModuleLocalization.localized("archive.hint.network_slow", bundle: .module) }
         static var errorEncrypted: String { ModuleLocalization.localized("archive.error.encrypted", bundle: .module) }
         static var errorUnsupported: String { ModuleLocalization.localized("archive.error.unsupported", bundle: .module) }
+        static var passwordTitle: String { ModuleLocalization.localized("archive.password.title", bundle: .module) }
+        static var passwordPlaceholder: String { ModuleLocalization.localized("archive.password.placeholder", bundle: .module) }
+
+        static func passwordMessage(_ archiveName: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("archive.password.message %@", bundle: .module),
+                archiveName
+            )
+        }
+
+        static func statusExtractingPartial(_ count: Int, _ archiveName: String, _ destinationName: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("archive.status.extracting_partial %lld %@ %@", bundle: .module),
+                Int64(count),
+                archiveName,
+                destinationName
+            )
+        }
 
         static func statusCompressingItem(_ name: String) -> String {
             String(
@@ -467,6 +485,15 @@ enum L10n {
         static var saveFailedTitle: String { ModuleLocalization.localized("preview.save_failed_title", bundle: .module) }
         static var archiveTruncated: String { ModuleLocalization.localized("preview.archive_truncated", bundle: .module) }
 
+        enum Archive {
+            static func selectionCount(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.archive.selection_count %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+        }
+
         static func previewingInDetachedWindow(_ fileName: String) -> String {
             ModuleLocalization.localized("preview.detached_placeholder \(fileName)", bundle: .module)
         }
@@ -520,6 +547,8 @@ enum L10n {
             static var archiveExpand: String { ModuleLocalization.localized("preview.toolbar.archive_expand", bundle: .module) }
             static var extract: String { ModuleLocalization.localized("preview.toolbar.extract", bundle: .module) }
             static var extractTo: String { ModuleLocalization.localized("preview.toolbar.extract_to", bundle: .module) }
+            static var extractSelected: String { ModuleLocalization.localized("preview.toolbar.extract_selected", bundle: .module) }
+            static var extractSelectedTo: String { ModuleLocalization.localized("preview.toolbar.extract_selected_to", bundle: .module) }
             static var wrapDisable: String { ModuleLocalization.localized("preview.toolbar.wrap_disable", bundle: .module) }
             static var wrapEnable: String { ModuleLocalization.localized("preview.toolbar.wrap_enable", bundle: .module) }
             static var markdownToSource: String { ModuleLocalization.localized("preview.toolbar.markdown_to_source", bundle: .module) }

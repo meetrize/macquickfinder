@@ -6,12 +6,16 @@ extension Notification.Name {
 
 enum ArchiveOperationNotifications {
     static let resultPathsKey = "resultPaths"
+    static let navigateIntoResultKey = "navigateIntoResult"
 
-    static func postCompleted(resultPaths: [String]) {
+    static func postCompleted(resultPaths: [String], navigateIntoResult: Bool = false) {
         NotificationCenter.default.post(
             name: .archiveOperationCompleted,
             object: nil,
-            userInfo: [resultPathsKey: resultPaths]
+            userInfo: [
+                resultPathsKey: resultPaths,
+                navigateIntoResultKey: navigateIntoResult,
+            ]
         )
     }
 }

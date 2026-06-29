@@ -242,17 +242,20 @@ final class PreviewSessionArchiveState: ObservableObject {
     @Published var reloadToken = 0
     @Published var copyAction: ArchivePreviewAction?
     @Published var extractAction: ArchivePreviewAction?
+    @Published var selectedEntryPaths: Set<String> = []
 
     func resetToolbar() {
         expanded = true
         reloadToken = 0
         copyAction = nil
         extractAction = nil
+        selectedEntryPaths = []
     }
 
     func prepareForLoad() {
         copyAction = nil
         extractAction = nil
+        selectedEntryPaths = []
     }
 }
 

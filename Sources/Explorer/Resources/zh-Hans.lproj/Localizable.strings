@@ -106,6 +106,12 @@
 	<string>压缩</string>
 	<key>archive.job.extract</key>
 	<string>解压</string>
+	<key>archive.password.message %@</key>
+	<string>请输入解压「%@」所需的密码。</string>
+	<key>archive.password.placeholder</key>
+	<string>密码</string>
+	<key>archive.password.title</key>
+	<string>需要密码</string>
 	<key>archive.status.compressing_count %lld</key>
 	<string>正在压缩 %lld 个项目…</string>
 	<key>archive.status.compressing_item %@</key>
@@ -114,6 +120,8 @@
 	<string>正在解压 %lld 个压缩包…</string>
 	<key>archive.status.extracting_item %@ %@</key>
 	<string>正在解压 %@ → %@</string>
+	<key>archive.status.extracting_partial %lld %@ %@</key>
+	<string>正在解压 %lld 项（%@）→ %@</string>
 	<key>dialog.cannot_create_file</key>
 	<string>无法创建文件</string>
 	<key>dialog.cannot_create_file_message</key>
@@ -808,6 +816,8 @@
 	<string>返回本应用后，点击「重启应用」使权限生效。</string>
 	<key>permission.fda.title</key>
 	<string>需要完全磁盘访问权限</string>
+	<key>preview.archive.selection_count %lld</key>
+	<string>已选 %lld 项 · ⌘ 点击可多选</string>
 	<key>preview.archive_truncated</key>
 	<string>[已截断…]</string>
 	<key>preview.chrome.back_to_folder</key>
@@ -900,6 +910,10 @@
 	<string>复制清单</string>
 	<key>preview.toolbar.extract</key>
 	<string>解压</string>
+	<key>preview.toolbar.extract_selected</key>
+	<string>解压选中项</string>
+	<key>preview.toolbar.extract_selected_to</key>
+	<string>解压选中项到…</string>
 	<key>preview.toolbar.extract_to</key>
 	<string>解压到…</string>
 	<key>preview.toolbar.eyedropper</key>

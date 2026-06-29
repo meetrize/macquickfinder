@@ -181,9 +181,13 @@ struct FileContentView: View {
                     entries: session.content.archiveEntries,
                     truncated: session.content.archiveTruncated,
                     expanded: session.archive.expanded,
+                    selectedEntryPaths: $session.archive.selectedEntryPaths,
                     copyAction: $session.archive.copyAction
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .onChange(of: session.archive.reloadToken) { _ in
+                    session.archive.selectedEntryPaths = []
+                }
             } else if isHtmlPreviewMode {
                 HTMLFilePreview(fileURL: item.url)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -271,6 +275,27 @@ struct FileContentView: View {
                 ArchiveOperations.extract(archives: [archiveItem], mode: .here) { _ in }
             case .extractTo:
                 ArchiveOperations.extractToPanel(archives: [archiveItem]) { _ in }
+            case .extractSelectedHere, .extractSelectedTo:
+                let members = ArchiveMemberPathResolver.resolveMemberPaths(
+                    selectedPaths: session.archive.selectedEntryPaths,
+                    allEntries: session.content.archiveEntries,
+                    expanded: session.archive.expanded
+                )
+                guard !members.isEmpty else { return }
+                if action == .extractSelectedHere {
+                    ArchiveOperations.extractPartial(
+                        archive: archiveItem,
+                        memberPaths: members,
+                        mode: .here
+                    ) { _ in }
+                } else {
+                    guard let destination = ArchiveExtractPanel.pickDestinationDirectory() else { return }
+                    ArchiveOperations.extractPartial(
+                        archive: archiveItem,
+                        memberPaths: members,
+                        mode: .destination(destination)
+                    ) { _ in }
+                }
             }
         }
         .onChange(of: session.image.previewAction) { action in

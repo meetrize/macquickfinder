@@ -88,6 +88,33 @@ final class ArchiveOperationsTests: XCTestCase {
         XCTAssertTrue(command.contains("/usr/bin/tar -xf '/tmp/a.zip' -C '/tmp/a 2'"))
     }
 
+    func testMakeExtractCommandWithMembersUsesTarPatterns() {
+        let command = ArchiveCommandBuilder.makeExtractCommand(
+            archive: URL(fileURLWithPath: "/tmp/a.zip"),
+            destinationDirectory: URL(fileURLWithPath: "/tmp/out"),
+            members: ["docs/readme.md", "photo.png"]
+        )
+        XCTAssertTrue(command.contains("-- 'docs/readme.md' 'photo.png'"))
+    }
+
+    func testMakeExtractCommandWithPasswordUsesUnzip() {
+        let command = ArchiveCommandBuilder.makeExtractCommand(
+            archive: URL(fileURLWithPath: "/tmp/a.zip"),
+            destinationDirectory: URL(fileURLWithPath: "/tmp/out"),
+            members: ["readme.md"],
+            password: "secret"
+        )
+        XCTAssertTrue(command.contains("/usr/bin/unzip -o -q -P 'secret' '/tmp/a.zip' 'readme.md' -d '/tmp/out'"))
+    }
+
+    func testIsPasswordProtectedErrorDetectsPromptKeywords() {
+        XCTAssertTrue(
+            ArchiveOperations.isPasswordProtectedError(
+                ArchiveOperationsError.shellOutput("Enter password:")
+            )
+        )
+    }
+
     func testCanCompressAndExtractRules() {
         let archive = makeItem(name: "a.zip", path: "/tmp/a.zip")
         let file = makeItem(name: "b.txt", path: "/tmp/b.txt")

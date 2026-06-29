@@ -158,10 +158,15 @@ enum ArchiveOperations {
     static func extract(
         archives: [FileItem],
         mode: ArchiveExtractMode,
+        members: [String]? = nil,
+        navigateIntoResult: Bool = false,
         onComplete: @escaping (Result<[URL], Error>) -> Void
     ) {
         let files = selectableItems(from: archives).filter(isArchive)
         guard !files.isEmpty else { return }
+        if let members {
+            guard files.count == 1, !members.isEmpty else { return }
+        }
 
         let destinations = files.map { item in
             uniqueExtractDirectory(
@@ -169,37 +174,69 @@ enum ArchiveOperations {
                 in: baseDirectory(for: item, mode: mode)
             )
         }
-        let command = zip(files.map(\.url), destinations)
-            .map { ArchiveCommandBuilder.makeExtractCommand(archive: $0.0, destinationDirectory: $0.1) }
-            .joined(separator: " && ")
-        let displayCommand = extractDisplayCommand(archives: files, destinations: destinations)
+        let displayCommand = extractDisplayCommand(
+            archives: files,
+            destinations: destinations,
+            memberCount: members?.count
+        )
         let estimatedBytes = files.reduce(Int64(0)) { $0 + max(0, $1.size) }
         let volumePaths = files.map(\.url.path) + destinations.map(\.path)
         let workingDirectory = files[0].url.deletingLastPathComponent().path
+        let archiveLabel = files.count == 1 ? files[0].name : L10n.Archive.jobExtract
 
-        ArchiveTaskRunner.run(
+        performExtract(
             displayCommand: displayCommand,
-            shellCommand: command,
-            workingDirectory: workingDirectory,
             jobTitle: L10n.Archive.jobExtract,
             estimatedBytes: estimatedBytes,
             volumePaths: volumePaths,
-            containsDirectory: false
-        ) { result in
-            switch result {
-            case .success:
-                let paths = destinations.map(\.path)
-                ArchiveOperationNotifications.postCompleted(resultPaths: paths)
-                onComplete(.success(destinations))
-            case .failure(let error):
-                if case ArchiveOperationsError.cancelled = error {
-                    onComplete(.failure(error))
-                    return
-                }
-                presentFailure(error)
-                onComplete(.failure(error))
-            }
+            workingDirectory: workingDirectory,
+            archiveLabel: archiveLabel,
+            makeCommand: { password in
+                zip(files.map(\.url), destinations)
+                    .map { archive, destination in
+                        ArchiveCommandBuilder.makeExtractCommand(
+                            archive: archive,
+                            destinationDirectory: destination,
+                            members: members,
+                            password: password
+                        )
+                    }
+                    .joined(separator: " && ")
+            },
+            resultURLs: destinations,
+            navigateIntoResult: navigateIntoResult,
+            onComplete: onComplete
+        )
+    }
+
+    @MainActor
+    static func extractPartial(
+        archive: FileItem,
+        memberPaths: [String],
+        mode: ArchiveExtractMode,
+        navigateIntoResult: Bool = false,
+        onComplete: @escaping (Result<[URL], Error>) -> Void
+    ) {
+        extract(
+            archives: [archive],
+            mode: mode,
+            members: memberPaths,
+            navigateIntoResult: navigateIntoResult,
+            onComplete: onComplete
+        )
+    }
+
+    static func isPasswordProtectedError(_ error: Error) -> Bool {
+        if case ArchiveOperationsError.encryptedArchive = error { return true }
+        if case ArchiveOperationsError.shellOutput(let output) = error {
+            let lower = output.lowercased()
+            return lower.contains("password")
+                || lower.contains("encrypted")
+                || lower.contains("bad password")
+                || lower.contains("wrong password")
+                || lower.contains("incorrect password")
         }
+        return false
     }
 
     @MainActor
@@ -248,11 +285,72 @@ enum ArchiveOperations {
         return L10n.Archive.statusCompressingCount(itemCount)
     }
 
-    private static func extractDisplayCommand(archives: [FileItem], destinations: [URL]) -> String {
+    private static func extractDisplayCommand(
+        archives: [FileItem],
+        destinations: [URL],
+        memberCount: Int? = nil
+    ) -> String {
+        if let memberCount, memberCount > 0, let archive = archives.first, let destination = destinations.first {
+            return L10n.Archive.statusExtractingPartial(memberCount, archive.name, destination.lastPathComponent)
+        }
         if archives.count == 1, let archive = archives.first, let destination = destinations.first {
             return L10n.Archive.statusExtractingItem(archive.name, destination.lastPathComponent)
         }
         return L10n.Archive.statusExtractingCount(archives.count)
+    }
+
+    @MainActor
+    private static func performExtract(
+        displayCommand: String,
+        jobTitle: String,
+        estimatedBytes: Int64,
+        volumePaths: [String],
+        workingDirectory: String?,
+        archiveLabel: String,
+        makeCommand: @escaping (String?) -> String,
+        resultURLs: [URL],
+        navigateIntoResult: Bool,
+        onComplete: @escaping (Result<[URL], Error>) -> Void
+    ) {
+        func attempt(password: String?) {
+            let command = makeCommand(password)
+            ArchiveTaskRunner.run(
+                displayCommand: displayCommand,
+                shellCommand: command,
+                workingDirectory: workingDirectory,
+                jobTitle: jobTitle,
+                estimatedBytes: estimatedBytes,
+                volumePaths: volumePaths,
+                containsDirectory: false
+            ) { result in
+                switch result {
+                case .success:
+                    let paths = resultURLs.map(\.path)
+                    ArchiveOperationNotifications.postCompleted(
+                        resultPaths: paths,
+                        navigateIntoResult: navigateIntoResult
+                    )
+                    onComplete(.success(resultURLs))
+                case .failure(let error):
+                    if case ArchiveOperationsError.cancelled = error {
+                        onComplete(.failure(error))
+                        return
+                    }
+                    if isPasswordProtectedError(error) {
+                        guard let password = ArchivePasswordPanel.prompt(archiveName: archiveLabel),
+                              !password.isEmpty else {
+                            onComplete(.failure(ArchiveOperationsError.cancelled))
+                            return
+                        }
+                        attempt(password: password)
+                        return
+                    }
+                    presentFailure(error)
+                    onComplete(.failure(error))
+                }
+            }
+        }
+        attempt(password: nil)
     }
 
     @MainActor
