@@ -25,7 +25,7 @@ final class DefaultFileViewerSettingsModel: ObservableObject {
             case .success:
                 refresh()
                 showsRestartReminder = true
-                alertMessage = "已将 MeoFind 设为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。"
+                alertMessage = L10n.Settings.DefaultViewer.setSuccess
             case .failure(let error):
                 alertMessage = error.localizedDescription
             }
@@ -41,7 +41,7 @@ final class DefaultFileViewerSettingsModel: ObservableObject {
             case .success:
                 refresh()
                 showsRestartReminder = true
-                alertMessage = "已恢复 Finder 为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。"
+                alertMessage = L10n.Settings.DefaultViewer.restoreSuccess
             case .failure(let error):
                 alertMessage = error.localizedDescription
             }

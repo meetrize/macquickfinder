@@ -1014,8 +1014,12 @@
 	<string>更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。</string>
 	<key>settings.default_viewer.restore_finder</key>
 	<string>恢复 Finder</string>
+	<key>settings.default_viewer.restore_success</key>
+	<string>已恢复 Finder 为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。</string>
 	<key>settings.default_viewer.set</key>
 	<string>设为默认文件夹查看器</string>
+	<key>settings.default_viewer.set_success</key>
+	<string>已将 MeoFind 设为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。</string>
 	<key>settings.default_viewer.title</key>
 	<string>默认文件夹查看器</string>
 	<key>settings.general.interface_language</key>

@@ -152,6 +152,8 @@ enum L10n {
             static var set: String { ModuleLocalization.localized("settings.default_viewer.set", bundle: .module) }
             static var restoreFinder: String { ModuleLocalization.localized("settings.default_viewer.restore_finder", bundle: .module) }
             static var restartHint: String { ModuleLocalization.localized("settings.default_viewer.restart_hint", bundle: .module) }
+            static var setSuccess: String { ModuleLocalization.localized("settings.default_viewer.set_success", bundle: .module) }
+            static var restoreSuccess: String { ModuleLocalization.localized("settings.default_viewer.restore_success", bundle: .module) }
         }
 
         enum Snippets {
@@ -636,11 +638,17 @@ enum L10n {
             static var finderNotFound: String { ModuleLocalization.localized("error.default_viewer.finder_not_found", bundle: .module) }
 
             static func defaultsCommand(_ code: Int32) -> String {
-                ModuleLocalization.localized("error.default_viewer.defaults_command \(code)", bundle: .module)
+                String(
+                    format: ModuleLocalization.localizedFromTable("error.default_viewer.defaults_command %lld", bundle: .module),
+                    Int64(code)
+                )
             }
 
             static func launchServices(_ status: OSStatus) -> String {
-                ModuleLocalization.localized("error.default_viewer.launch_services \(Int32(status))", bundle: .module)
+                String(
+                    format: ModuleLocalization.localizedFromTable("error.default_viewer.launch_services %lld", bundle: .module),
+                    Int64(status)
+                )
             }
         }
 

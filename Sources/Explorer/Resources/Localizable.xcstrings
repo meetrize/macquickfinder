@@ -4404,6 +4404,40 @@
         }
       }
     },
+    "settings.default_viewer.restore_success": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finder is now the default folder viewer. Log out and back in (or restart) for the change to take effect everywhere."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已恢复 Finder 为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。"
+          }
+        }
+      }
+    },
+    "settings.default_viewer.set_success": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MeoFind is now the default folder viewer. Log out and back in (or restart) for the change to take effect everywhere."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已将 MeoFind 设为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。"
+          }
+        }
+      }
+    },
     "settings.default_viewer.set": {
       "extractionState": "manual",
       "localizations": {

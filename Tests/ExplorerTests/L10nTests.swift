@@ -87,6 +87,17 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertEqual(L10n.Help.entryShortcut("connect_server"), "⌘K")
     }
 
+    func testDefaultViewerStringsResolve() {
+        XCTAssertNotEqual(L10n.Settings.DefaultViewer.title, "settings.default_viewer.title")
+        XCTAssertNotEqual(L10n.Settings.DefaultViewer.setSuccess, "settings.default_viewer.set_success")
+        XCTAssertNotEqual(L10n.Settings.DefaultViewer.restoreSuccess, "settings.default_viewer.restore_success")
+        XCTAssertNotEqual(
+            L10n.Error.DefaultViewer.launchServices(-50),
+            "error.default_viewer.launch_services %lld"
+        )
+        XCTAssertTrue(L10n.Error.DefaultViewer.launchServices(-50).contains("-50"))
+    }
+
     private func localizedBundle(language: String, parent: Bundle) -> Bundle? {
         guard let path = parent.path(forResource: language, ofType: "lproj") else {
             return nil

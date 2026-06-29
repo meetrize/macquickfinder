@@ -73,6 +73,7 @@ enum DefaultFileViewerManager {
         }
         do {
             try clearGlobalFileViewer()
+            try removeFolderHandlers(bundleIdentifier: bundleIdentifier)
             try appendFolderHandlers(bundleIdentifier: finderBundleIdentifier)
             try setLaunchServicesDefaultHandlers(bundleIdentifier: finderBundleIdentifier)
             await applyWorkspaceDefault(bundleURL: finderURL)
@@ -97,6 +98,10 @@ enum DefaultFileViewerManager {
                 .viewer,
                 bundleIdentifier as CFString
             )
+            // public.folder 无法通过此 API 设置（macOS 返回 paramErr），依赖 NSFileViewer + LSHandlers。
+            if status == paramErr, contentType == .folder {
+                continue
+            }
             guard status == noErr else {
                 throw DefaultFileViewerError.launchServicesFailed(status)
             }
@@ -131,6 +136,50 @@ enum DefaultFileViewerManager {
         for roleKey in ["LSHandlerRoleAll", "LSHandlerRoleViewer"] {
             let entry = "{LSHandlerContentType=\"public.folder\";\(roleKey)=\"\(bundleIdentifier)\";}"
             try runDefaultsAppend(entry)
+        }
+    }
+
+    private static func removeFolderHandlers(bundleIdentifier: String) throws {
+        var handlers = copyLaunchServicesHandlers()
+        let originalCount = handlers.count
+        handlers.removeAll { handler in
+            guard handler["LSHandlerContentType"] as? String == UTType.folder.identifier else {
+                return false
+            }
+            for roleKey in ["LSHandlerRoleAll", "LSHandlerRoleViewer", "LSHandlerRoleEditor"] {
+                if handler[roleKey] as? String == bundleIdentifier {
+                    return true
+                }
+            }
+            return false
+        }
+        guard handlers.count != originalCount else { return }
+        try writeLaunchServicesHandlers(handlers)
+    }
+
+    private static func copyLaunchServicesHandlers() -> [[String: Any]] {
+        CFPreferencesCopyValue(
+            "LSHandlers" as CFString,
+            launchServicesDomain as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesAnyHost
+        ) as? [[String: Any]] ?? []
+    }
+
+    private static func writeLaunchServicesHandlers(_ handlers: [[String: Any]]) throws {
+        CFPreferencesSetValue(
+            "LSHandlers" as CFString,
+            handlers as CFArray,
+            launchServicesDomain as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesAnyHost
+        )
+        guard CFPreferencesSynchronize(
+            launchServicesDomain as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesAnyHost
+        ) else {
+            throw DefaultFileViewerError.preferencesSyncFailed
         }
     }
 
