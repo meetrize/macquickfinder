@@ -11,8 +11,9 @@ struct ConnectServerSheet: View {
     private let mountService: RemoteVolumeMountService
     private let onConnected: (URL) -> Void
 
+    @MainActor
     init(
-        recentStore: RecentServersStore = .shared,
+        recentStore: RecentServersStore,
         mountService: RemoteVolumeMountService = RemoteVolumeMountService(),
         initialAddress: String = "",
         onConnected: @escaping (URL) -> Void
@@ -21,6 +22,20 @@ struct ConnectServerSheet: View {
         self.mountService = mountService
         _addressInput = State(initialValue: initialAddress)
         self.onConnected = onConnected
+    }
+
+    @MainActor
+    init(
+        mountService: RemoteVolumeMountService = RemoteVolumeMountService(),
+        initialAddress: String = "",
+        onConnected: @escaping (URL) -> Void
+    ) {
+        self.init(
+            recentStore: .shared,
+            mountService: mountService,
+            initialAddress: initialAddress,
+            onConnected: onConnected
+        )
     }
 
     var body: some View {

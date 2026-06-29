@@ -20,7 +20,7 @@ echo "==> 编译 String Catalog (.xcstrings -> .lproj)"
 bash Scripts/compile_localizations.sh
 
 # Build the project
-build_args=(-c "$BUILD_CONFIG" --skip-update)
+build_args=(-c "$BUILD_CONFIG" --disable-automatic-resolution)
 if [ "$BUILD_CONFIG" = "debug" ] && [ "$FAST_DEBUG" = "1" ]; then
     # 仅编译 Explorer 可执行产物；--product 会链接二进制，--target 只编译不链接
     build_args+=(--product Explorer -q)

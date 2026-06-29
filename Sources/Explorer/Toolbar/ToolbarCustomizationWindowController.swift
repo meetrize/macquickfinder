@@ -91,7 +91,9 @@ enum ToolbarCustomizationWindowController {
                 object: parentWindow,
                 queue: .main
             ) { _ in
-                ToolbarCustomizationWindowController.dismiss()
+                Task { @MainActor in
+                    ToolbarCustomizationWindowController.dismiss()
+                }
             }
         }
 
