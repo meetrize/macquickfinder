@@ -105,7 +105,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     }
     
     func selectPath(_ path: String) {
-        parent.path = path
+        parent.onNavigateToDirectory(path)
         refreshRowHighlighting()
     }
     
@@ -1006,6 +1006,7 @@ struct FavoritesSidebarHost: NSViewRepresentable {
     var showsTitle: Bool
     var availableWidth: CGFloat
     var isSelected: (String) -> Bool
+    var onNavigateToDirectory: (String) -> Void
     var onDropURLs: ([URL], String, Bool, Int?) -> Void
     
     func makeCoordinator() -> FavoritesSidebarController {

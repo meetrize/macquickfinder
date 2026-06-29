@@ -101,6 +101,7 @@ private struct FavoritesSidebarRows: View {
     @Binding var path: String
     var showsTitle: Bool
     var isSelected: (String) -> Bool
+    var onNavigateToDirectory: (String) -> Void
     var onDropURLs: ([URL], String, Bool, Int?) -> Void
     
     private var listHeight: CGFloat {
@@ -137,6 +138,7 @@ private struct FavoritesSidebarRows: View {
             showsTitle: showsTitle,
             availableWidth: availableWidth,
             isSelected: isSelected,
+            onNavigateToDirectory: onNavigateToDirectory,
             onDropURLs: onDropURLs
         )
         .id(showsTitle)
@@ -155,6 +157,7 @@ struct SidebarView: View {
     @ObservedObject private var favoritesStore = FavoritesStore.shared
     @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
     @State private var devices: [SidebarVolume] = []
+    var onNavigateToDirectory: (String) -> Void = { _ in }
     var onItemsChanged: () -> Void = {}
     var onReload: () -> Void = {}
     
@@ -167,6 +170,7 @@ struct SidebarView: View {
                         path: $path,
                         showsTitle: true,
                         isSelected: isSelected,
+                        onNavigateToDirectory: onNavigateToDirectory,
                         onDropURLs: handleFavoriteDrop
                     )
                 }
@@ -337,6 +341,7 @@ struct SidebarRailView: View {
     @ObservedObject private var favoritesStore = FavoritesStore.shared
     @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
     @State private var devices: [SidebarVolume] = []
+    var onNavigateToDirectory: (String) -> Void = { _ in }
     var onItemsChanged: () -> Void = {}
     var onReload: () -> Void = {}
     
@@ -349,6 +354,7 @@ struct SidebarRailView: View {
                         path: $path,
                         showsTitle: false,
                         isSelected: isSelected,
+                        onNavigateToDirectory: onNavigateToDirectory,
                         onDropURLs: handleFavoriteDrop
                     )
                     .frame(maxWidth: .infinity)

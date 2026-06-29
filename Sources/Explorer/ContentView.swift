@@ -12,6 +12,15 @@ extension ExternalNavigationTarget {
 }
 
 extension ContentView {
+    /// 侧栏等 AppKit 宿主改 `path` 时 SwiftUI `onChange` 可能不触发，须显式加载列表。
+    func navigateToDirectory(_ targetPath: String) {
+        selection.removeAll()
+        if path != targetPath {
+            path = targetPath
+        }
+        loadItems()
+    }
+
     func applyExternalNavigationTarget(_ target: ExternalNavigationTarget) {
         pendingExternalSelectionPath = target.selectionPath
         if path == target.directoryPath {
@@ -180,6 +189,7 @@ struct ContentView: View {
                                 case .sidebar:
                                     SidebarView(
                                         path: $path,
+                                        onNavigateToDirectory: navigateToDirectory,
                                         onItemsChanged: {
                                             selection.removeAll()
                                             loadItems()
@@ -192,6 +202,7 @@ struct ContentView: View {
                                 case .rail:
                                     SidebarRailView(
                                         path: $path,
+                                        onNavigateToDirectory: navigateToDirectory,
                                         onItemsChanged: {
                                             selection.removeAll()
                                             loadItems()
