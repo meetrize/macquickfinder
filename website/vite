@@ -1,0 +1,98 @@
+
+
+  VITE v6.4.3  ready in 133 ms
+
+  ➜  Local:   http://localhost:
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to exp
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show he
+  ➜  press h + enter to show help
+16:22:45 [vite] (client) hmr up
+16:22:45 [vite] (client) hmr update /src/styles/main.css
+16:22:52 [vite] (client) hmr up
+16:22:52 [vite] (client) hmr update /src/styles/main.css (x2)
+16:22:57 [vite] (client) hmr up
+16:22:57 [vite] (client) hmr update /src/styles/main.css (x3)
+16:22:58 [vite] (client) hmr up
+16:22:58 [vite] (client) hmr update /src/styles/main.css (x4)
+16:22:59 [vite] (client) hmr up
+16:22:59 [vite] (client) hmr update /src/styles/main.css (x5)
+16:23:01 [vite] (client) hmr up
+16:23:01 [vite] (client) hmr update /src/styles/main.css (x6)
+16:23:24 [vite] (client) hmr up
+16:23:24 [vite] (client) hmr update /src/styles/main.css (x7)
+16:23:28 [vite] (client) hmr up
+16:23:28 [vitepdate /src/styles/main.css (x8)
+16:23:32 [vite] (client) hmr up
+16:23:32 [vite] (client) hmr update /src/styles/main.css (x9)
+16:23:33 [vite] (client) hmr up
+16:23:33 [vite] (client) hmr update /src/styles/main.css (x10)
+16:23:35 [vite] (client) hmr up
+16:23:35 [vite] (client) hmr update /src/styles/main.css (x11)
+16:23:36 [vite] (client) hmr up
+16:23:36 [vite] (client) hmr update /src/styles/main.css (x12)
+16:23:38 [vite] (client) hmr up
+16:23:38 [vite] (client) hmr update /src/styles/main.css (x13)
+16:23:40 [vite] (client) hmr up
+16:23:40 [vite] (client) hmr update /src/styles/main.css (x14)
+16:23:42 [vite] (client) hmr up
+16:23:42 [vite] (client) hmr update /src/styles/main.css (x15)
+16:23:43 [vite] (client) hmr up
+16:23:43 [vite] (client) hmr update /src/styles/main.css (x16)
+16:23:44 [vite] (client) hmr up
+16:23:44 [vite] (client) hmr update /src/styles/main.css (x17)
+16:23:47 [vite] (client) hmr up
+16:23:47 [vite] (client) hmr update /src/styles/main.css (x18)
+16:23:48 [vite] (client) hmr up
+16:23:48 [vite] (client) hmr update /src/styles/main.css (x19)
+16:23:50 [vite] (client) hmr up
+16:23:50 [vite] (client) hmr update /src/styles/main.css (x20)
+16:23:54 [vite] (client) hmr up
+16:23:54 [vite] (client) hmr update /src/styles/main.css (x21)
+16:23:57 [vite] (client) hmr up
+16:23:57 [vite] (client) hmr update /src/styles/main.css (x22)
+16:23:58 [vite] (client) hmr up
+16:23:58 [vite] (client) hmr update /src/styles/main.css (x23)
+16:24:42 [vite] (client) hmr up
+16:24:42 [vite] (client) hmr update /src/styles/main.css (x24)
+16:24:45 [vite] (client) hmr up
+16:24:45 [vite] (client) hmr update /src/styles/main.css (x25)
+16:24:49 [vite] (client) hmr up
+16:24:49 [vite] (client) hmr update /src/styles/main.css (x26)
+16:24:51 [vite] (client) hmr up
+16:24:51 [vite] (client) hmr update /src/styles/main.css (x27)
+16:25:06 [vite] (client) hmr up
+16:25:06 [vite] (client) hmr update /src/styles/main.css (x28)
+16:25:07 [vite] (client) page r
+16:25:07 [vite] (client) page reload index.html
+16:25:08 [vite] (client) page r
+16:25:08 [vite] (client) page reload src/main.js
+16:25:16 [vite] (client) page r
+16:25:16 [vite] (client) page reload index.html
+16:25:18 [vite] (client) page r
+16:25:18 [vite] (client) page reload src/main.js
+16:25:22 [vite] (client) page r
+16:25:22 [vite] (client) page reload src/main.js (x2)
+16:25:25 [vite] (client) page r
+16:25:25 [vite] (client) page reload src/main.js (x3)
+16:25:28 [vite] (client) page r
+16:25:28 [vite] (client) page reload src/main.js (x4)
+16:25:30 [vite] (client) page r
+16:25:30 [vite] (client) page reload src/main.js (x5)
+16:25:31 [vite] (client) page r
+16:25:31 [vite] (client) page reload src/main.js (x6)
+16:25:58 [vite] (client) hmr up
+16:25:58 [vite] (client) hmr update /src/styles/main.css
+16:32:14 [vite] (client) page r
+16:32:14 [vite] (client) page reload index.html
+16:32:18 [vite] (client) hmr up
+16:32:18 [vite] (client) hmr update /src/styles/main.css
+16:32:23 [vite] (client) hmr up
+16:32:23 [vite] (client) hmr update /src/styles/main.css (x2)
+16:32:26 [vite] (client) hmr up
+16:32:26 [vite] (client) hmr update /src/styles/main.css (x3)
+16:34:39 [vite] (client) page r
+16:34:39 [vite] (client) page reload index.html
+16:34:40 [vite] (client) hmr up
+16:34:40 [vite] (client) hmr update /src/styles/main.css

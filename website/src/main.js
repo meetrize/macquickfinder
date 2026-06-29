@@ -289,6 +289,7 @@ function applyTheme() {
       t(currentTheme === 'dark' ? 'theme.toLight' : 'theme.toDark'),
     );
   }
+  updateHeroBg();
 }
 
 function applyI18n() {
@@ -333,7 +334,39 @@ function setupThemeToggle() {
     currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
     localStorage.setItem(STORAGE_THEME, currentTheme);
     applyTheme();
+    applyI18n();
   });
+}
+
+const HERO_BG = {
+  dark: '/assets/hero-bg.png',
+  light: '/assets/hero-bg-light.png',
+};
+
+function updateHeroBg() {
+  const el = document.querySelector('[data-hero-bg]');
+  if (!el) return;
+
+  el.classList.remove('hero__bg--loaded');
+  el.style.backgroundImage = '';
+
+  const themed = currentTheme === 'light' ? HERO_BG.light : HERO_BG.dark;
+  const candidates = currentTheme === 'light'
+    ? [HERO_BG.light, HERO_BG.dark]
+    : [HERO_BG.dark];
+
+  const tryNext = (index) => {
+    if (index >= candidates.length) return;
+    const img = new Image();
+    img.onload = () => {
+      el.style.backgroundImage = `url('${candidates[index]}')`;
+      el.classList.add('hero__bg--loaded');
+    };
+    img.onerror = () => tryNext(index + 1);
+    img.src = candidates[index];
+  };
+
+  tryNext(0);
 }
 
 function setupLangToggle() {

@@ -17,6 +17,8 @@ npm run dev
 
 右上角 **☀/🌙** 可切换浅色/深色外观，偏好会保存在本地；首次访问会跟随系统 `prefers-color-scheme`。
 
+首屏背景图：将 `hero-bg.png` 放入 `public/assets/` 即可自动显示（详见 `docs/content-plan.md`）。
+
 ## 构建
 
 ```bash
