@@ -11,3 +11,7 @@ MeoFind.app/
 !.cursor/rules/
 !.cursor/rules/**
 .vscode/
+
+# Website (Vite)
+website/node_modules/
+website/dist/

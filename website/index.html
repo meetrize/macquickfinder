@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="MeoFind — 原生 macOS 文件工作台：浏览、预览、Snippets 脚本与输出面板，一窗完成。"
+    />
+    <meta property="og:title" content="MeoFind — macOS 文件工作台" />
+    <meta
+      property="og:description"
+      content="浏览、预览与脚本自动化装进一个 Swift 原生窗口。macOS 13+。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-image.png" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>MeoFind — macOS 文件工作台</title>
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('meofind-landing-theme');
+          var theme =
+            saved === 'light' || saved === 'dark'
+              ? saved
+              : window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-glow bg-glow--teal" aria-hidden="true"></div>
+    <div class="bg-glow bg-glow--navy" aria-hidden="true"></div>
+
+    <header class="site-nav">
+      <div class="site-nav__inner">
+        <a class="site-nav__brand" href="#">
+          <img src="/favicon.png" width="32" height="32" alt="" />
+          MeoFind
+        </a>
+        <nav class="site-nav__links" aria-label="主导航">
+          <a href="#story" data-nav data-i18n="nav.features">特性</a>
+          <a href="#gallery" data-nav data-i18n="nav.preview">预览</a>
+          <a href="#workflow" data-nav data-i18n="nav.automation">自动化</a>
+          <a href="#trust" data-nav data-i18n="nav.trust">技术</a>
+          <a href="#download" data-nav data-i18n="nav.download">下载</a>
+        </nav>
+        <div class="site-nav__actions">
+          <button type="button" class="theme-toggle" aria-label="切换外观">☀</button>
+          <button type="button" class="lang-toggle" aria-label="切换语言">EN</button>
+          <a class="btn btn--primary btn--sm" href="#download" data-download-link data-i18n="nav.downloadBtn">免费下载</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Hero -->
+      <section class="hero">
+        <div class="container hero__grid">
+          <div class="hero__content reveal">
+            <div class="hero__badge" data-i18n="hero.badge">macOS 原生 · Swift 构建</div>
+            <h1 class="hero__title">MeoFind</h1>
+            <p class="hero__subtitle" data-i18n="hero.subtitle">
+              在原生 macOS 上，把浏览、预览与脚本自动化装进一个窗口。少开三个窗口，多干一件事。
+            </p>
+            <div class="hero__cta">
+              <a class="btn btn--primary" href="#download" data-download-link data-i18n="hero.cta.download">免费下载 macOS 版</a>
+              <a class="btn btn--ghost" href="#video" data-i18n="hero.cta.demo">观看演示</a>
+            </div>
+            <p class="hero__meta">
+              <span data-i18n="hero.meta.os">macOS 13+</span>
+              <span data-i18n="hero.meta.native">Swift 原生</span>
+              <span data-i18n="hero.meta.i18n">中英双语</span>
+            </p>
+          </div>
+
+          <div class="hero__visual reveal">
+            <div class="mock-window" aria-hidden="true">
+              <div class="mock-window__chrome">
+                <div class="mock-window__dots">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="mock-window__title">MeoFind</div>
+              </div>
+              <div class="mock-window__body">
+                <div class="mock-sidebar">
+                  <div class="mock-sidebar__item mock-sidebar__item--active"></div>
+                  <div class="mock-sidebar__item"></div>
+                  <div class="mock-sidebar__item"></div>
+                  <div class="mock-sidebar__item"></div>
+                </div>
+                <div class="mock-list">
+                  <div class="mock-search">
+                    <span>⌕</span>
+                    <span class="mock-search__input"></span><span class="mock-search__cursor">|</span>
+                  </div>
+                  <div class="mock-rows">
+                    <div class="mock-row" data-file="readme.md"><span class="mock-row__icon"></span>readme.md</div>
+                    <div class="mock-row" data-file="package.json"><span class="mock-row__icon"></span>package.json</div>
+                    <div class="mock-row" data-file="src/"><span class="mock-row__icon"></span>src/</div>
+                    <div class="mock-row" data-file="assets/"><span class="mock-row__icon"></span>assets/</div>
+                    <div class="mock-row" data-file="docs/"><span class="mock-row__icon"></span>docs/</div>
+                  </div>
+                </div>
+                <div class="mock-preview">
+                  <div class="mock-preview__bar"></div>
+                  <div class="mock-preview__content" data-i18n="mock.preview">实时预览</div>
+                </div>
+                <div class="mock-output" data-i18n="mock.output">$ snippet 完成 · Job #1</div>
+              </div>
+              <span class="mock-layer-label mock-layer-label--preview" data-i18n="mock.previewLabel">预览</span>
+              <span class="mock-layer-label mock-layer-label--snippets" data-i18n="mock.snippetsLabel">Snippets</span>
+              <span class="mock-layer-label mock-layer-label--output" data-i18n="mock.outputLabel">输出</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Story -->
+      <section id="story" class="section section--alt">
+        <div class="container">
+          <header class="section__header reveal">
+            <p class="section__eyebrow" data-i18n="story.eyebrow">为什么需要 MeoFind</p>
+            <h2 class="section__title" data-i18n="story.title">三个场景，一个窗口搞定</h2>
+            <p class="section__desc" data-i18n="story.desc">
+              从找文件到看内容再到跑脚本，不必在 Finder、预览器和终端之间来回切换。
+            </p>
+          </header>
+          <div class="story-grid">
+            <article class="story-card reveal">
+              <div class="story-card__num">01</div>
+              <p class="story-card__pain" data-i18n="story.1.pain">文件夹里翻找太慢</p>
+              <h3 class="story-card__title" data-i18n="story.1.title">找文件</h3>
+              <p class="story-card__text" data-i18n="story.1.text">直接打字即过滤，Tab 循环匹配项并同步预览。</p>
+            </article>
+            <article class="story-card reveal">
+              <div class="story-card__num">02</div>
+              <p class="story-card__pain" data-i18n="story.2.pain">Space 预览不够用</p>
+              <h3 class="story-card__title" data-i18n="story.2.title">看内容</h3>
+              <p class="story-card__text" data-i18n="story.2.text">右侧实时预览代码、PDF、图片与音视频。</p>
+            </article>
+            <article class="story-card reveal">
+              <div class="story-card__num">03</div>
+              <p class="story-card__pain" data-i18n="story.3.pain">重复操作靠记忆</p>
+              <h3 class="story-card__title" data-i18n="story.3.title">做操作</h3>
+              <p class="story-card__text" data-i18n="story.3.text">Snippets 保存常用脚本；输出面板显示 Job 结果。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section id="features" class="section">
+        <div class="container">
+          <header class="section__header reveal">
+            <p class="section__eyebrow" data-i18n="features.eyebrow">功能全景</p>
+            <h2 class="section__title" data-i18n="features.title">按你的工作流分类</h2>
+            <p class="section__desc" data-i18n="features.desc">从浏览导航到预览、自动化与远程访问。</p>
+          </header>
+
+          <div class="features-layout">
+            <nav class="features-nav reveal" aria-label="功能分类">
+              <a href="#browse" data-i18n="feat.browse.title">浏览与导航</a>
+              <a href="#sidebar" data-i18n="feat.sidebar.title">侧边栏</a>
+              <a href="#preview" data-i18n="feat.preview.title">全能预览</a>
+              <a href="#preview-browser" data-i18n="feat.previewBrowser.title">预览浏览器</a>
+              <a href="#snippets" data-i18n="feat.snippets.title">Snippets</a>
+              <a href="#output" data-i18n="feat.output.title">输出面板</a>
+              <a href="#remote" data-i18n="feat.remote.title">远程服务器</a>
+              <a href="#layout" data-i18n="feat.layout.title">布局与效率</a>
+            </nav>
+
+            <div class="features-list">
+              <article id="browse" class="feature-block reveal">
+                <div class="feature-block__head">
+                  <div>
+                    <h3 class="feature-block__title" data-i18n="feat.browse.title">浏览与导航</h3>
+                    <p class="feature-block__tagline" data-i18n="feat.browse.tag">输入即搜，路径随心跳</p>
+                  </div>
+                </div>
+                <ul class="feature-block__list">
+                  <li data-i18n="feat.browse.1">列表与缩略图双视图</li>
+                  <li data-i18n="feat.browse.2">面包屑跳转、路径编辑、前进后退</li>
+                  <li data-i18n="feat.browse.3">拖放打开、外部新窗口</li>
+                </ul>
+                <div class="feature-shot" data-shot="browse-views.png">
+                  <img alt="" loading="lazy" />
+                  <div class="feature-shot__placeholder" style="display:none">
+                    <span data-i18n="shot.placeholder">截图待补充</span>
+                  </div>
+                </div>
+              </article>
+
+              <article id="sidebar" class="feature-block reveal">
+                <div class="feature-block__head">
+                  <div>
+                    <h3 class="feature-block__title" data-i18n="feat.sidebar.title">侧边栏</h3>
+                    <p class="feature-block__tagline" data-i18n="feat.sidebar.tag">常用位置，触手可及</p>
+                  </div>
+                </div>
+                <ul class="feature-block__list">
+                  <li data-i18n="feat.sidebar.1">收藏夹固定常用目录</li>
+                  <li data-i18n="feat.sidebar.2">设备区动态显示已挂载磁盘</li>
+                  <li data-i18n="feat.sidebar.3">废纸篓浏览、放回原处与清空</li>
+                </ul>
+                <div class="feature-shot" data-shot="sidebar-devices.png">
+                  <img alt="" loading="lazy" />
+                  <div class="feature-shot__placeholder" style="display:none"><span data-i18n="shot.placeholder">截图待补充</span></div>
+                </div>
+              </article>
+
+              <article id="preview" class="feature-block reveal">
+                <div class="feature-block__head">
+                  <div>
+                    <h3 class="feature-block__title" data-i18n="feat.preview.title">全能预览</h3>
+                    <p class="feature-block__tagline" data-i18n="feat.preview.tag">选中即看，不必再按 Space</p>
+                  </div>
+                </div>
+                <ul class="feature-block__list">
+                  <li data-i18n="feat.preview.1">文本/代码高亮、Markdown/HTML</li>
+                  <li data-i18n="feat.preview.2">图片、PDF、音视频</li>
+                  <li data-i18n="feat.preview.3">压缩包目录、Quick Look 回退</li>
+                </ul>
+                <div class="feature-shot" data-shot="preview-toolbar.png">
+                  <img alt="" loading="lazy" />
+                  <div class="feature-shot__placeholder" style="display:none"><span data-i18n="shot.placeholder">截图待补充</span></div>
+                </div>
+              </article>
+
+              <article id="preview-browser" class="feature-block reveal">
+                <div class="feature-block__head">
+                  <div>
+                    <h3 class="feature-block__title" data-i18n="feat.previewBrowser.title">预览浏览器</h3>
+                    <p class="feature-block__tagline" data-i18n="feat.previewBrowser.tag">胶片条快速切换</p>
+                  </div>
+                </div>
+                <ul class="feature-block__list">
+                  <li data-i18n="feat.previewBrowser.1">底部胶片条浏览当前目录</li>
+                  <li data-i18n="feat.previewBrowser.2">独立预览窗口 ⌘⌥P</li>
+                  <li data-i18n="feat.previewBrowser.3">自定义预览规则</li>
+                </ul>
+                <div class="feature-shot" data-shot="preview-browser.png">
+                  <img alt="" loading="lazy" />
+                  <div class="feature-shot__placeholder" style="display:none"><span data-i18n="shot.placeholder">截图待补充</span></div>
+                </div>
+              </article>
+
+              <article id="snippets" class="feature-block reveal">
+                <div class="feature-block__head">
+                  <div>
+                    <h3 class="feature-block__title" data-i18n="feat.snippets.title">Snippets</h3>
+                    <p class="feature-block__tagline" data-i18n="feat.snippets.tag">把重复操作写成片段</p>
+                  </div>
+                </div>
+                <ul class="feature-block__list">
+                  <li data-i18n="feat.snippets.1">Shell、Python、AppleScript</li>
+                  <li data-i18n="feat.snippets.2">%p、%d 变量自动展开</li>
+                  <li data-i18n="feat.snippets.3">作用域、导入导出 JSON</li>
+                </ul>
+                <div class="feature-shot" data-shot="snippets-panel.png">
+                  <img alt="" loading="lazy" />
+                  <div class="feature-shot__placeholder" style="display:none"><span data-i18n="shot.placeholder">截图待补充</span></div>
+                </div>
+              </article>
+
+              <article id="output" class="feature-block reveal">
+                <div class="feature-block__head">
+                  <div>
+                    <h3 class="feature-block__title" data-i18n="feat.output.title">输出面板</h3>
+                    <p class="feature-block__tagline" data-i18n="feat.output.tag">脚本与终端，底部一体</p>
+                  </div>
+                </div>
+                <ul class="feature-block__list">
+                  <li data-i18n="feat.output.1">Job 标签并行多任务</li>
+                  <li data-i18n="feat.output.2">交互式 zsh 命令框</li>
+                  <li data-i18n="feat.output.3">流式输出、查找与终止</li>
+                </ul>
+                <div class="feature-shot" data-shot="output-jobs.png">
+                  <img alt="" loading="lazy" />
+                  <div class="feature-shot__placeholder" style="display:none"><span data-i18n="shot.placeholder">截图待补充</span></div>
+                </div>
+              </article>
+
+              <article id="remote" class="feature-block reveal">
+                <div class="feature-block__head">
+                  <div>
+                    <h3 class="feature-block__title" data-i18n="feat.remote.title">远程服务器</h3>
+                    <p class="feature-block__tagline" data-i18n="feat.remote.tag">FTP 等协议直连</p>
+                  </div>
+                </div>
+                <ul class="feature-block__list">
+                  <li data-i18n="feat.remote.1">像本地文件夹一样浏览远程</li>
+                  <li data-i18n="feat.remote.2">最近连接快速回访</li>
+                  <li data-i18n="feat.remote.3">与预览、Snippets 无缝配合</li>
+                </ul>
+                <div class="feature-shot" data-shot="remote-server.png">
+                  <img alt="" loading="lazy" />
+                  <div class="feature-shot__placeholder" style="display:none"><span data-i18n="shot.placeholder">截图待补充</span></div>
+                </div>
+              </article>
+
+              <article id="layout" class="feature-block reveal">
+                <div class="feature-block__head">
+                  <div>
+                    <h3 class="feature-block__title" data-i18n="feat.layout.title">布局与效率</h3>
+                    <p class="feature-block__tagline" data-i18n="feat.layout.tag">窗口随你塑形</p>
+                  </div>
+                </div>
+                <ul class="feature-block__list">
+                  <li data-i18n="feat.layout.1">面板独立折叠与调比</li>
+                  <li data-i18n="feat.layout.2">窗口贴靠、多窗口</li>
+                  <li data-i18n="feat.layout.3">工具栏自定义</li>
+                </ul>
+                <div class="feature-shot" data-shot="layout-snap.png">
+                  <img alt="" loading="lazy" />
+                  <div class="feature-shot__placeholder" style="display:none"><span data-i18n="shot.placeholder">截图待补充</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Gallery -->
+      <section id="gallery" class="section section--alt">
+        <div class="container">
+          <header class="section__header reveal">
+            <p class="section__eyebrow" data-i18n="gallery.eyebrow">界面一览</p>
+            <h2 class="section__title" data-i18n="gallery.title">截图与演示</h2>
+            <p class="section__desc" data-i18n="gallery.desc">补充截图后自动展示。</p>
+          </header>
+          <div class="bento reveal">
+            <div class="bento__item bento__item--lg">
+              <div class="bento__placeholder" data-i18n="gallery.main">主界面三栏布局</div>
+              <span class="bento__label" data-i18n="gallery.main">主界面</span>
+            </div>
+            <div class="bento__item bento__item--md">
+              <div class="bento__placeholder" data-i18n="gallery.browse">列表 / 缩略图</div>
+              <span class="bento__label" data-i18n="gallery.browse">浏览</span>
+            </div>
+            <div class="bento__item bento__item--sm">
+              <div class="bento__placeholder" data-i18n="gallery.preview">预览工具栏</div>
+              <span class="bento__label" data-i18n="gallery.preview">预览</span>
+            </div>
+            <div class="bento__item bento__item--sm">
+              <div class="bento__placeholder" data-i18n="gallery.snippets">Snippets 面板</div>
+              <span class="bento__label" data-i18n="gallery.snippets">Snippets</span>
+            </div>
+            <div class="bento__item bento__item--sm">
+              <div class="bento__placeholder" data-i18n="gallery.output">输出 Job</div>
+              <span class="bento__label" data-i18n="gallery.output">输出</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Video -->
+      <section id="video" class="section">
+        <div class="container">
+          <header class="section__header reveal">
+            <p class="section__eyebrow" data-i18n="video.eyebrow">视频演示</p>
+            <h2 class="section__title" data-i18n="video.title">60 秒看懂 MeoFind</h2>
+            <p class="section__desc" data-i18n="video.desc">完整工作流演示。</p>
+          </header>
+          <div class="video-grid reveal">
+            <article class="video-card">
+              <div class="video-card__media">
+                <!-- 补充视频后取消注释：
+                <video controls preload="none" poster="/assets/screenshots/hero-main.png">
+                  <source src="/assets/videos/demo-main.mp4" type="video/mp4" />
+                </video>
+                -->
+                <div class="video-card__placeholder">
+                  <div class="video-card__play">▶</div>
+                  <span data-i18n="video.main.placeholder">视频待补充</span>
+                </div>
+              </div>
+              <div class="video-card__body">
+                <h3 class="video-card__title" data-i18n="video.main.title">完整工作流演示</h3>
+                <p class="video-card__desc" data-i18n="video.main.desc">搜索 → 预览 → Snippet → Job</p>
+              </div>
+            </article>
+            <article class="video-card">
+              <div class="video-card__media">
+                <div class="video-card__placeholder">
+                  <div class="video-card__play">▶</div>
+                  <span data-i18n="video.preview.placeholder">视频待补充</span>
+                </div>
+              </div>
+              <div class="video-card__body">
+                <h3 class="video-card__title" data-i18n="video.preview.title">多格式预览快剪</h3>
+                <p class="video-card__desc" data-i18n="video.preview.desc">代码、图片、PDF、音视频</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Workflow -->
+      <section id="workflow" class="section section--alt">
+        <div class="container">
+          <header class="section__header reveal">
+            <p class="section__eyebrow" data-i18n="workflow.eyebrow">一条链路</p>
+            <h2 class="section__title" data-i18n="workflow.title">从选中到执行，五步完成</h2>
+          </header>
+          <div class="workflow reveal">
+            <div class="workflow__step is-active">
+              <div class="workflow__dot">1</div>
+              <h3 class="workflow__title" data-i18n="workflow.1.title">选中文件</h3>
+              <p class="workflow__desc" data-i18n="workflow.1.desc">列表或缩略图</p>
+            </div>
+            <div class="workflow__step">
+              <div class="workflow__dot">2</div>
+              <h3 class="workflow__title" data-i18n="workflow.2.title">右侧预览</h3>
+              <p class="workflow__desc" data-i18n="workflow.2.desc">即时查看</p>
+              <span class="workflow__key">选中即预览</span>
+            </div>
+            <div class="workflow__step">
+              <div class="workflow__dot">3</div>
+              <h3 class="workflow__title" data-i18n="workflow.3.title">运行 Snippet</h3>
+              <p class="workflow__desc" data-i18n="workflow.3.desc">打开片段面板</p>
+              <span class="workflow__key">⌘⇧S</span>
+            </div>
+            <div class="workflow__step">
+              <div class="workflow__dot">4</div>
+              <h3 class="workflow__title" data-i18n="workflow.4.title">Job 输出</h3>
+              <p class="workflow__desc" data-i18n="workflow.4.desc">查看结果</p>
+              <span class="workflow__key">⌘J</span>
+            </div>
+            <div class="workflow__step">
+              <div class="workflow__dot">5</div>
+              <h3 class="workflow__title" data-i18n="workflow.5.title">继续操作</h3>
+              <p class="workflow__desc" data-i18n="workflow.5.desc">终端接力</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Trust -->
+      <section id="trust" class="section">
+        <div class="container">
+          <header class="section__header reveal">
+            <p class="section__eyebrow" data-i18n="trust.eyebrow">技术底座</p>
+            <h2 class="section__title" data-i18n="trust.title">原生、快速、可信赖</h2>
+          </header>
+          <div class="trust-grid reveal">
+            <div class="trust-item">
+              <div class="trust-item__icon">⚡</div>
+              <h3 class="trust-item__title" data-i18n="trust.1.title">Swift 原生</h3>
+              <p class="trust-item__text" data-i18n="trust.1.text">SwiftUI + AppKit</p>
+            </div>
+            <div class="trust-item">
+              <div class="trust-item__icon">🚀</div>
+              <h3 class="trust-item__title" data-i18n="trust.2.title">异步加载</h3>
+              <p class="trust-item__text" data-i18n="trust.2.text">缩略图磁盘缓存</p>
+            </div>
+            <div class="trust-item">
+              <div class="trust-item__icon">🌐</div>
+              <h3 class="trust-item__title" data-i18n="trust.3.title">双语界面</h3>
+              <p class="trust-item__text" data-i18n="trust.3.text">中文与英文</p>
+            </div>
+            <div class="trust-item">
+              <div class="trust-item__icon">📂</div>
+              <h3 class="trust-item__title" data-i18n="trust.4.title">默认打开方式</h3>
+              <p class="trust-item__text" data-i18n="trust.4.text">系统文件夹查看器</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Download -->
+      <section id="download" class="download-section section--alt">
+        <div class="container reveal">
+          <p class="section__eyebrow" data-i18n="download.eyebrow">立即体验</p>
+          <h2 class="section__title" data-i18n="download.title">下载 MeoFind</h2>
+          <p class="section__desc" data-i18n="download.desc">免费使用。</p>
+          <div class="download-box">
+            <p class="download-box__version" data-version-text>版本 1.0 · 需要 macOS 13.0+</p>
+            <a class="btn btn--primary" href="#download" data-download-link data-i18n="download.btn">下载 for macOS</a>
+            <p class="download-box__note" data-i18n="download.note">无账号、无追踪</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>
+          <span data-i18n="footer.copy">MeoFind · macOS 文件工作台</span>
+          ·
+          <a href="https://github.com" rel="noopener">GitHub</a>
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
