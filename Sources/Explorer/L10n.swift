@@ -56,6 +56,21 @@ enum L10n {
         static var showInfo: String { ModuleLocalization.localized("action.show_info", bundle: .module) }
         static var services: String { ModuleLocalization.localized("action.services", bundle: .module) }
         static var openTerminalHere: String { ModuleLocalization.localized("action.open_terminal_here", bundle: .module) }
+        static var extract: String { ModuleLocalization.localized("action.extract", bundle: .module) }
+        static var extractHere: String { ModuleLocalization.localized("action.extract_here", bundle: .module) }
+        static var extractTo: String { ModuleLocalization.localized("action.extract_to", bundle: .module) }
+        static var extractDownloads: String { ModuleLocalization.localized("action.extract_downloads", bundle: .module) }
+
+        static func compressOne(_ name: String) -> String {
+            ModuleLocalization.localized("action.compress_one \(name)", bundle: .module)
+        }
+
+        static func compressMany(_ count: Int) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("action.compress_many %lld", bundle: .module),
+                Int64(count)
+            )
+        }
 
         static func openWithDefault(_ appName: String) -> String {
             ModuleLocalization.localized("action.open_with_default \(appName)", bundle: .module)
@@ -231,6 +246,43 @@ enum L10n {
                 static var pdfDetail: String { ModuleLocalization.localized("settings.preview.mode.pdf.detail", bundle: .module) }
                 static var mediaDetail: String { ModuleLocalization.localized("settings.preview.mode.media.detail", bundle: .module) }
             }
+        }
+    }
+
+    enum Archive {
+        static var jobCompress: String { ModuleLocalization.localized("archive.job.compress", bundle: .module) }
+        static var jobExtract: String { ModuleLocalization.localized("archive.job.extract", bundle: .module) }
+        static var hintNetworkSlow: String { ModuleLocalization.localized("archive.hint.network_slow", bundle: .module) }
+        static var errorEncrypted: String { ModuleLocalization.localized("archive.error.encrypted", bundle: .module) }
+        static var errorUnsupported: String { ModuleLocalization.localized("archive.error.unsupported", bundle: .module) }
+
+        static func statusCompressingItem(_ name: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("archive.status.compressing_item %@", bundle: .module),
+                name
+            )
+        }
+
+        static func statusCompressingCount(_ count: Int) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("archive.status.compressing_count %lld", bundle: .module),
+                Int64(count)
+            )
+        }
+
+        static func statusExtractingItem(_ archiveName: String, _ destinationName: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("archive.status.extracting_item %@ %@", bundle: .module),
+                archiveName,
+                destinationName
+            )
+        }
+
+        static func statusExtractingCount(_ count: Int) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("archive.status.extracting_count %lld", bundle: .module),
+                Int64(count)
+            )
         }
     }
 
@@ -466,6 +518,8 @@ enum L10n {
             static var copyManifest: String { ModuleLocalization.localized("preview.toolbar.copy_manifest", bundle: .module) }
             static var archiveCollapse: String { ModuleLocalization.localized("preview.toolbar.archive_collapse", bundle: .module) }
             static var archiveExpand: String { ModuleLocalization.localized("preview.toolbar.archive_expand", bundle: .module) }
+            static var extract: String { ModuleLocalization.localized("preview.toolbar.extract", bundle: .module) }
+            static var extractTo: String { ModuleLocalization.localized("preview.toolbar.extract_to", bundle: .module) }
             static var wrapDisable: String { ModuleLocalization.localized("preview.toolbar.wrap_disable", bundle: .module) }
             static var wrapEnable: String { ModuleLocalization.localized("preview.toolbar.wrap_enable", bundle: .module) }
             static var markdownToSource: String { ModuleLocalization.localized("preview.toolbar.markdown_to_source", bundle: .module) }

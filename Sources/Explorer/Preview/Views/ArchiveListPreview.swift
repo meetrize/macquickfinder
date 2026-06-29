@@ -67,21 +67,18 @@ struct ArchiveListPreview: View {
             }
         }
         .onChange(of: copyAction) { action in
-            guard let action else { return }
-            switch action {
-            case .copyList:
-                let lines = displayedEntries.map { e in
-                    if let size = e.size, !e.isDirectory {
-                        return "\(e.path)\t\(Self.sizeFormatter.string(fromByteCount: size))"
-                    }
-                    return e.path
+            guard case .copyList? = action else { return }
+            let lines = displayedEntries.map { e in
+                if let size = e.size, !e.isDirectory {
+                    return "\(e.path)\t\(Self.sizeFormatter.string(fromByteCount: size))"
                 }
-                let text = lines.joined(separator: "\n")
-                let pasteboard = NSPasteboard.general
-                pasteboard.clearContents()
-                pasteboard.setString(text, forType: .string)
-                DispatchQueue.main.async { copyAction = nil }
+                return e.path
             }
+            let text = lines.joined(separator: "\n")
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            DispatchQueue.main.async { copyAction = nil }
         }
     }
 }

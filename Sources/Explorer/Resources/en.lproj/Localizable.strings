@@ -6,6 +6,10 @@
 	<string>Add to Favorites</string>
 	<key>action.cancel</key>
 	<string>Cancel</string>
+	<key>action.compress_many %lld</key>
+	<string>Compress %lld Items</string>
+	<key>action.compress_one %@</key>
+	<string>Compress "%@"</string>
 	<key>action.copy</key>
 	<string>Copy</string>
 	<key>action.copy_filename</key>
@@ -22,6 +26,14 @@
 	<string>Edit</string>
 	<key>action.empty_trash</key>
 	<string>Empty Trash</string>
+	<key>action.extract</key>
+	<string>Extract</string>
+	<key>action.extract_downloads</key>
+	<string>Extract to Downloads</string>
+	<key>action.extract_here</key>
+	<string>Extract Here</string>
+	<key>action.extract_to</key>
+	<string>Extract To…</string>
 	<key>action.ok</key>
 	<string>OK</string>
 	<key>action.open</key>
@@ -84,6 +96,24 @@
 	<string>Cannot Put Back</string>
 	<key>alert.selected_items %lld</key>
 	<string>%lld items selected</string>
+	<key>archive.error.encrypted</key>
+	<string>Encrypted archives are not supported</string>
+	<key>archive.error.unsupported</key>
+	<string>Unrecognized or unsupported archive format</string>
+	<key>archive.hint.network_slow</key>
+	<string>Archive operations on network volumes may be slow</string>
+	<key>archive.job.compress</key>
+	<string>Compress</string>
+	<key>archive.job.extract</key>
+	<string>Extract</string>
+	<key>archive.status.compressing_count %lld</key>
+	<string>Compressing %lld items…</string>
+	<key>archive.status.compressing_item %@</key>
+	<string>Compressing %@…</string>
+	<key>archive.status.extracting_count %lld</key>
+	<string>Extracting %lld archives…</string>
+	<key>archive.status.extracting_item %@ %@</key>
+	<string>Extracting %@ → %@</string>
 	<key>dialog.cannot_create_file</key>
 	<string>Cannot Create File</string>
 	<key>dialog.cannot_create_file_message</key>
@@ -868,6 +898,10 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Copy Image</string>
 	<key>preview.toolbar.copy_manifest</key>
 	<string>Copy Manifest</string>
+	<key>preview.toolbar.extract</key>
+	<string>Extract</string>
+	<key>preview.toolbar.extract_to</key>
+	<string>Extract To…</string>
 	<key>preview.toolbar.eyedropper</key>
 	<string>Eyedropper</string>
 	<key>preview.toolbar.fit_page</key>

@@ -368,6 +368,12 @@ struct ContentView: View {
             guard let message = notification.userInfo?["message"] as? String else { return }
             showTransientNotice(message)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .archiveOperationCompleted)) { notification in
+            guard let paths = notification.userInfo?[ArchiveOperationNotifications.resultPathsKey] as? [String] else {
+                return
+            }
+            handleArchiveOperationCompleted(paths: paths)
+        }
         .overlay(alignment: .bottom) {
             if let transientNoticeMessage {
                 Text(transientNoticeMessage)
@@ -1146,8 +1152,30 @@ struct ContentView: View {
                 externalFolderOpenCenter.requestOpenInNewWindow(directoryPath: directoryPath)
             },
             showRefresh: isNetworkVolume,
-            refresh: { loadItems() }
+            refresh: { loadItems() },
+            compress: { items in
+                ArchiveOperations.compress(
+                    items: items,
+                    in: URL(fileURLWithPath: path)
+                ) { _ in }
+            },
+            extractHere: { items in
+                ArchiveOperations.extract(archives: items, mode: .here) { _ in }
+            },
+            extractTo: { items in
+                ArchiveOperations.extractToPanel(archives: items) { _ in }
+            },
+            extractToDownloads: { items in
+                ArchiveOperations.extract(archives: items, mode: .downloads) { _ in }
+            }
         )
+    }
+
+    private func handleArchiveOperationCompleted(paths: [String]) {
+        loadItems()
+        if let first = paths.first {
+            selection = [first]
+        }
     }
     
     private func createNewFolder() {

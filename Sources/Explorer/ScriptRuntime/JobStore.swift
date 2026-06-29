@@ -14,6 +14,7 @@ final class JobStore: ObservableObject {
     private var pendingOutputPublishes: [UUID: JobRecord] = [:]
     private var outputPublishScheduled = false
     private var stderrStreamStates: [UUID: StreamProgressOutput.StreamState] = [:]
+    private var archiveCompletionHandlers: [UUID: (JobStatus) -> Void] = [:]
 
     private struct PendingShellRun {
         var jobID: UUID
@@ -163,6 +164,7 @@ final class JobStore: ObservableObject {
         jobs[idx].process = nil
         jobs[idx].status = exitCode == 0 ? .succeeded : .failed
         OutputSessionFormatting.attachCompletionStatus(to: &jobs[idx].stdout, exitCode: exitCode)
+        dispatchArchiveCompletion(jobID: jobID, status: jobs[idx].status)
         pumpQueue()
     }
 
@@ -176,6 +178,7 @@ final class JobStore: ObservableObject {
         jobs[idx].process = nil
         jobs[idx].status = .failed
         jobs[idx].exitCode = 1
+        dispatchArchiveCompletion(jobID: jobID, status: .failed)
         pumpQueue()
     }
 
@@ -193,6 +196,7 @@ final class JobStore: ObservableObject {
         jobs[idx].status = .cancelled
         jobs[idx].endedAt = Date()
         OutputSessionFormatting.attachCancelledStatus(to: &jobs[idx].stdout)
+        dispatchArchiveCompletion(jobID: jobID, status: .cancelled)
         pumpQueue()
     }
 
@@ -361,6 +365,62 @@ final class JobStore: ObservableObject {
 
     func runningCount() -> Int {
         jobs.filter { $0.status == .running }.count
+    }
+
+    @discardableResult
+    func runArchiveShellCommand(
+        jobTitle: String,
+        displayCommand: String,
+        shellCommand: String,
+        workingDirectory: String?,
+        preamble: String? = nil,
+        completion: @escaping (JobStatus) -> Void
+    ) -> UUID {
+        let jobID = createJob(
+            snippetName: jobTitle,
+            displayCommand: displayCommand,
+            source: .archiveOperation,
+            expandedContent: shellCommand,
+            workingDirectory: workingDirectory
+        )
+        archiveCompletionHandlers[jobID] = completion
+
+        if let layout = ActiveWindowLayoutCenter.shared.keyWindowLayout {
+            ActiveWindowLayoutCenter.shared.showOutputPanel(on: layout)
+        }
+
+        if let preamble, !preamble.isEmpty {
+            appendOutput(jobID: jobID, stdout: preamble)
+        }
+        appendOutput(
+            jobID: jobID,
+            stdout: OutputSessionFormatting.prompt(
+                cwd: workingDirectory ?? "",
+                command: displayCommand
+            )
+        )
+
+        let process = Process()
+        process.environment = ProcessInfo.processInfo.environment
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", shellCommand]
+        if let workingDirectory, !workingDirectory.isEmpty {
+            process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
+        }
+
+        ProcessOutputStreamer.attach(to: process, jobID: jobID)
+        do {
+            try process.run()
+            markRunning(jobID: jobID, process: process)
+        } catch {
+            markFailed(jobID: jobID, message: error.localizedDescription)
+        }
+        return jobID
+    }
+
+    private func dispatchArchiveCompletion(jobID: UUID, status: JobStatus) {
+        guard let handler = archiveCompletionHandlers.removeValue(forKey: jobID) else { return }
+        handler(status)
     }
 
     func scheduleShellRun(

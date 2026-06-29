@@ -12,6 +12,8 @@ enum JobSource: Equatable {
     case snippet(id: UUID, name: String)
     /// 通过菜单/快捷键打开输出面板时自动创建的交互式 Shell Tab。
     case shellSession
+    /// 压缩 / 解压等归档操作。
+    case archiveOperation
 }
 
 struct JobRecord: Identifiable {

@@ -95,7 +95,25 @@ enum FileListRowContextMenuBuilder {
             menu.addItem(menuItem(title: L10n.Action.copyFilename) { actions.copyFilename(item) })
         }
         menu.addItem(menuItem(title: L10n.Action.copyPaths) { actions.copyPaths(fileSelection) })
-        menu.addItem(.separator())
+
+        let showCompress = ArchiveOperations.canCompress(fileSelection, inTrash: inTrash)
+        let showExtract = ArchiveOperations.canExtract(fileSelection, inTrash: inTrash)
+        if showCompress {
+            let title: String
+            if fileSelection.count == 1, let item = fileSelection.first {
+                title = L10n.Action.compressOne(item.name)
+            } else {
+                title = L10n.Action.compressMany(fileSelection.count)
+            }
+            menu.addItem(menuItem(title: title) { actions.compress(fileSelection) })
+        }
+        if showExtract {
+            menu.addItem(makeExtractSubmenu(fileSelection: fileSelection, actions: actions))
+        }
+        if showCompress || showExtract {
+            menu.addItem(.separator())
+        }
+
         menu.addItem(menuItem(title: L10n.Action.delete, destructive: true) { actions.delete(fileSelection) })
         
         if fileSelection.count == 1, let item = fileSelection.first {
@@ -116,6 +134,19 @@ enum FileListRowContextMenuBuilder {
         
         menu.addItem(menuItem(title: L10n.Action.showInfo) { actions.showInfo(fileSelection) })
         return menu
+    }
+
+    private static func makeExtractSubmenu(
+        fileSelection: [FileItem],
+        actions: FileContextActions
+    ) -> NSMenuItem {
+        let item = NSMenuItem(title: L10n.Action.extract, action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        submenu.addItem(menuItem(title: L10n.Action.extractHere) { actions.extractHere(fileSelection) })
+        submenu.addItem(menuItem(title: L10n.Action.extractTo) { actions.extractTo(fileSelection) })
+        submenu.addItem(menuItem(title: L10n.Action.extractDownloads) { actions.extractToDownloads(fileSelection) })
+        item.submenu = submenu
+        return item
     }
 
     private static func appendRefreshIfNeeded(to menu: NSMenu, actions: FileContextActions) {

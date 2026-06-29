@@ -6,6 +6,10 @@
 	<string>收藏</string>
 	<key>action.cancel</key>
 	<string>取消</string>
+	<key>action.compress_many %lld</key>
+	<string>压缩 %lld 个项目</string>
+	<key>action.compress_one %@</key>
+	<string>压缩「%@」</string>
 	<key>action.copy</key>
 	<string>复制</string>
 	<key>action.copy_filename</key>
@@ -22,6 +26,14 @@
 	<string>编辑</string>
 	<key>action.empty_trash</key>
 	<string>清倒废纸篓</string>
+	<key>action.extract</key>
+	<string>解压</string>
+	<key>action.extract_downloads</key>
+	<string>解压到「下载」</string>
+	<key>action.extract_here</key>
+	<string>解压到此处</string>
+	<key>action.extract_to</key>
+	<string>解压到…</string>
 	<key>action.ok</key>
 	<string>好</string>
 	<key>action.open</key>
@@ -84,6 +96,24 @@
 	<string>无法放回原处</string>
 	<key>alert.selected_items %lld</key>
 	<string>已选择 %lld 个项目</string>
+	<key>archive.error.encrypted</key>
+	<string>不支持加密压缩包</string>
+	<key>archive.error.unsupported</key>
+	<string>无法识别或不支持的归档格式</string>
+	<key>archive.hint.network_slow</key>
+	<string>网络卷上的归档操作可能较慢</string>
+	<key>archive.job.compress</key>
+	<string>压缩</string>
+	<key>archive.job.extract</key>
+	<string>解压</string>
+	<key>archive.status.compressing_count %lld</key>
+	<string>正在压缩 %lld 个项目…</string>
+	<key>archive.status.compressing_item %@</key>
+	<string>正在压缩 %@…</string>
+	<key>archive.status.extracting_count %lld</key>
+	<string>正在解压 %lld 个压缩包…</string>
+	<key>archive.status.extracting_item %@ %@</key>
+	<string>正在解压 %@ → %@</string>
 	<key>dialog.cannot_create_file</key>
 	<string>无法创建文件</string>
 	<key>dialog.cannot_create_file_message</key>
@@ -868,6 +898,10 @@
 	<string>复制图片</string>
 	<key>preview.toolbar.copy_manifest</key>
 	<string>复制清单</string>
+	<key>preview.toolbar.extract</key>
+	<string>解压</string>
+	<key>preview.toolbar.extract_to</key>
+	<string>解压到…</string>
 	<key>preview.toolbar.eyedropper</key>
 	<string>取色棒</string>
 	<key>preview.toolbar.fit_page</key>

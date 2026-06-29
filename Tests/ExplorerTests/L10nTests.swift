@@ -21,6 +21,10 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Toolbar.openAppSelectionPolicy, "toolbar.open_app.selection_policy")
         XCTAssertNotEqual(L10n.Toolbar.openAppSelectionCurrentFolder, "toolbar.open_app.selection_current_folder")
         XCTAssertNotEqual(L10n.Toolbar.openAppEdit, "toolbar.open_app.edit")
+        XCTAssertNotEqual(L10n.Action.compressOne("demo"), "action.compress_one demo")
+        XCTAssertNotEqual(L10n.Action.extractHere, "action.extract_here")
+        XCTAssertNotEqual(L10n.Archive.jobCompress, "archive.job.compress")
+        XCTAssertNotEqual(L10n.Preview.Toolbar.extract, "preview.toolbar.extract")
     }
 
     func testExplorerEnglishStringsMatchCatalog() {

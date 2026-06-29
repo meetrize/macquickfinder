@@ -310,10 +310,10 @@ struct FileContextActions {
 **压缩（多选）：**
 
 ```bash
-/usr/bin/ditto -c -k --keepParent \
-  '/path/a' '/path/b.txt' \
-  '/path/Archive.zip'
+cd '/path/to' && /usr/bin/zip -r '/path/to/Archive.zip' 'a' 'b.txt' …
 ```
+
+> `ditto -c` 仅支持单一 `src`；多选改在同目录用 `zip -r` 按 basename 打包，行为对齐 Finder 的 `Archive.zip`。
 
 **解压到此处（含重名目录避让）：**
 

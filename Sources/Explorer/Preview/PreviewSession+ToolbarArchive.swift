@@ -23,6 +23,18 @@ extension PreviewSession {
                 systemImage: "doc.on.doc",
                 action: { [self] in archive.copyAction = .copyList }
             ),
+            previewToolbarIconItem(
+                id: "archive-extract",
+                title: L10n.Preview.Toolbar.extract,
+                systemImage: "arrow.up.bin",
+                action: { [self] in archive.extractAction = .extractHere }
+            ),
+            previewToolbarIconItem(
+                id: "archive-extract-to",
+                title: L10n.Preview.Toolbar.extractTo,
+                systemImage: "folder",
+                action: { [self] in archive.extractAction = .extractTo }
+            ),
         ]
     }
 }

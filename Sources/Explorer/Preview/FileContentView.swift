@@ -260,6 +260,19 @@ struct FileContentView: View {
                 Task { await session.loadTextContentIfNeeded() }
             }
         }
+        .onChange(of: session.archive.extractAction) { action in
+            guard let action else { return }
+            let archiveItem = session.browseTarget
+            defer { session.archive.extractAction = nil }
+            switch action {
+            case .copyList:
+                break
+            case .extractHere:
+                ArchiveOperations.extract(archives: [archiveItem], mode: .here) { _ in }
+            case .extractTo:
+                ArchiveOperations.extractToPanel(archives: [archiveItem]) { _ in }
+            }
+        }
         .onChange(of: session.image.previewAction) { action in
             guard let action else { return }
             switch action {

@@ -22,6 +22,8 @@ enum MediaControlAction: Equatable {
 
 enum ArchivePreviewAction: Equatable {
     case copyList
+    case extractHere
+    case extractTo
 }
 
 enum PDFNavigationAction: Equatable {

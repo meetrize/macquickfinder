@@ -24,6 +24,10 @@ struct FileContextActions {
     var openInNewWindow: (FileItem) -> Void = { _ in }
     var showRefresh = false
     var refresh: () -> Void = {}
+    var compress: ([FileItem]) -> Void = { _ in }
+    var extractHere: ([FileItem]) -> Void = { _ in }
+    var extractTo: ([FileItem]) -> Void = { _ in }
+    var extractToDownloads: ([FileItem]) -> Void = { _ in }
 }
 
 
