@@ -38,6 +38,17 @@ struct FileContentView: View {
             && !session.content.textContent.isEmpty
     }
 
+    private var usesWordDocumentFormattedMode: Bool {
+        PreviewTypeClassifier.isWordDocumentFile(fileExtension)
+            && session.office.wordDocumentMode == .formatted
+    }
+
+    private var isWordDocumentTextMode: Bool {
+        PreviewTypeClassifier.isWordDocumentFile(fileExtension)
+            && session.office.wordDocumentMode == .text
+            && !session.content.textContent.isEmpty
+    }
+
     private var spreadsheetQuickLookURL: URL {
         session.content.officeURL ?? item.url
     }
@@ -116,7 +127,7 @@ struct FileContentView: View {
                     session.media.isMuted = isMuted
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let officeRichText = session.content.officeRichText {
+            } else if usesWordDocumentFormattedMode, let officeRichText = session.content.officeRichText {
                 OfficeRichTextPreview(
                     attributedText: officeRichText,
                     wrapLines: session.text.wrapEnabled,
@@ -146,7 +157,7 @@ struct FileContentView: View {
                     }
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let officeURL = session.content.officeURL, !isSpreadsheetTextMode {
+            } else if let officeURL = session.content.officeURL, !isSpreadsheetTextMode, !isWordDocumentTextMode {
                 QuickLookPreview(
                     url: officeURL,
                     reloadToken: session.office.reloadToken,
@@ -238,6 +249,9 @@ struct FileContentView: View {
             previewTextSelectionActive = false
         }
         .onChange(of: session.office.spreadsheetMode) { _ in
+            previewTextSelectionActive = false
+        }
+        .onChange(of: session.office.wordDocumentMode) { _ in
             previewTextSelectionActive = false
         }
         .onChange(of: session.text.htmlMode) { newMode in

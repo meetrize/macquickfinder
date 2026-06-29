@@ -23,6 +23,9 @@ extension PreviewSession {
         if PreviewTypeClassifier.isSpreadsheetFile(ext) {
             return previewSpreadsheetToolbarItems(for: item)
         }
+        if PreviewTypeClassifier.isWordDocumentFile(ext) {
+            return previewWordDocumentToolbarItems(for: item)
+        }
         if PreviewTypeClassifier.isOfficeFile(ext) {
             return previewOfficeToolbarItems(for: item)
         }

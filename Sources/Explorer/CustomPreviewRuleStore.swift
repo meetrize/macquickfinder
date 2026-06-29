@@ -117,6 +117,8 @@ enum BuiltinPreviewExtensions {
     static let office: Set<String> = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"]
     /// 电子表格：优先文本表格预览（可选中复制），失败时回退 Quick Look。
     static let spreadsheet: Set<String> = ["xls", "xlsx"]
+    /// Word 文档：优先纯文本预览，可切换为格式化富文本预览。
+    static let wordDocument: Set<String> = ["doc", "docx"]
     /// 幻灯片类 Office 文件（Quick Look 多页预览）。
     static let presentation: Set<String> = ["ppt", "pptx"]
     static let pdf: Set<String> = ["pdf"]
@@ -205,6 +207,10 @@ enum PreviewTypeClassifier {
 
     static func isSpreadsheetFile(_ ext: String) -> Bool {
         BuiltinPreviewExtensions.spreadsheet.contains(ext.lowercased())
+    }
+
+    static func isWordDocumentFile(_ ext: String) -> Bool {
+        BuiltinPreviewExtensions.wordDocument.contains(ext.lowercased())
     }
 
     /// 代码类文本预览（语法高亮场景）；用于标题栏搜索框，替代复制/跳转按钮。

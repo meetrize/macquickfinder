@@ -91,18 +91,22 @@ extension PreviewSession {
     private func loadDOCXPreview(url: URL, itemID: String) async {
         guard !Task.isCancelled else { return }
         if let richText = await PreviewContentLoader.loadDOCXRichText(from: url) {
-            applyLoadPayload(.officeRichText(richText), expectedItemID: itemID)
+            applyLoadPayload(.wordDocument(text: richText.string, richText: richText), expectedItemID: itemID)
+            office.wordDocumentMode = .text
         } else {
             applyLoadPayload(.office(url: url), expectedItemID: itemID)
+            office.wordDocumentMode = .formatted
         }
     }
 
     private func loadDOCPreview(url: URL, itemID: String) async {
         guard !Task.isCancelled else { return }
         if let richText = await PreviewContentLoader.loadDOCRichText(from: url) {
-            applyLoadPayload(.officeRichText(richText), expectedItemID: itemID)
+            applyLoadPayload(.wordDocument(text: richText.string, richText: richText), expectedItemID: itemID)
+            office.wordDocumentMode = .text
         } else {
             applyLoadPayload(.office(url: url), expectedItemID: itemID)
+            office.wordDocumentMode = .formatted
         }
     }
 

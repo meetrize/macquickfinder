@@ -48,3 +48,8 @@ enum SpreadsheetDisplayMode: Equatable {
     case text
     case quickLook
 }
+
+enum WordDocumentDisplayMode: Equatable {
+    case text
+    case formatted
+}

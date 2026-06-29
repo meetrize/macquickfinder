@@ -3775,6 +3775,40 @@
         }
       }
     },
+    "preview.toolbar.word_document_to_formatted": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to Formatted Preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换为格式化预览"
+          }
+        }
+      }
+    },
+    "preview.toolbar.word_document_to_text": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to Plain Text"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换为纯文本预览"
+          }
+        }
+      }
+    },
     "preview.toolbar.zoom": {
       "extractionState": "manual",
       "localizations": {

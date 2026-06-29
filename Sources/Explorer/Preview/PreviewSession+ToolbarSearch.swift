@@ -12,6 +12,12 @@ extension PreviewSession {
         if PreviewTypeClassifier.isSpreadsheetFile(ext) {
             return office.spreadsheetMode == .text && !content.textContent.isEmpty
         }
+        if PreviewTypeClassifier.isWordDocumentFile(ext) {
+            if office.wordDocumentMode == .text {
+                return !content.textContent.isEmpty
+            }
+            return content.officeRichText != nil
+        }
         if PreviewTypeClassifier.isOfficeFile(ext) {
             return content.officeRichText != nil
         }

@@ -214,6 +214,7 @@ final class PreviewSessionOfficeState: ObservableObject {
     @Published var navigateRevision: UInt = 0
     @Published var panMode = false
     @Published var spreadsheetMode: SpreadsheetDisplayMode = .text
+    @Published var wordDocumentMode: WordDocumentDisplayMode = .text
 
     func resetToolbar() {
         reloadToken = 0
@@ -224,6 +225,7 @@ final class PreviewSessionOfficeState: ObservableObject {
         navigateRevision = 0
         panMode = false
         spreadsheetMode = .text
+        wordDocumentMode = .text
     }
 
     func sendNavigate(_ action: OfficePreviewNavigateAction) {

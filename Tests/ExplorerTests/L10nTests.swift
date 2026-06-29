@@ -98,6 +98,11 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertTrue(L10n.Error.DefaultViewer.launchServices(-50).contains("-50"))
     }
 
+    func testWordDocumentPreviewToolbarStringsResolve() {
+        XCTAssertNotEqual(L10n.Preview.Toolbar.wordDocumentToFormatted, "preview.toolbar.word_document_to_formatted")
+        XCTAssertNotEqual(L10n.Preview.Toolbar.wordDocumentToText, "preview.toolbar.word_document_to_text")
+    }
+
     private func localizedBundle(language: String, parent: Bundle) -> Bundle? {
         guard let path = parent.path(forResource: language, ofType: "lproj") else {
             return nil

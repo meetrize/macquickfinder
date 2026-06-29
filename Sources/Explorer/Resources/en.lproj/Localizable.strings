@@ -936,6 +936,10 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Undo Last Step</string>
 	<key>preview.toolbar.unmute</key>
 	<string>Unmute</string>
+	<key>preview.toolbar.word_document_to_formatted</key>
+	<string>Switch to Formatted Preview</string>
+	<key>preview.toolbar.word_document_to_text</key>
+	<string>Switch to Plain Text</string>
 	<key>preview.toolbar.wrap_disable</key>
 	<string>Disable Word Wrap</string>
 	<key>preview.toolbar.wrap_enable</key>

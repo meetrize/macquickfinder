@@ -41,6 +41,10 @@ struct PreviewLoadPayload {
         PreviewLoadPayload(officeURL: officeURL, textContent: content)
     }
 
+    static func wordDocument(text content: String, richText: NSAttributedString) -> PreviewLoadPayload {
+        PreviewLoadPayload(officeRichText: richText, textContent: content)
+    }
+
     static func failure(_ message: String) -> PreviewLoadPayload {
         PreviewLoadPayload(error: message)
     }

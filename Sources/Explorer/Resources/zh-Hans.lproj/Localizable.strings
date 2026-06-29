@@ -936,6 +936,10 @@
 	<string>撤销上一步</string>
 	<key>preview.toolbar.unmute</key>
 	<string>取消静音</string>
+	<key>preview.toolbar.word_document_to_formatted</key>
+	<string>切换为格式化预览</string>
+	<key>preview.toolbar.word_document_to_text</key>
+	<string>切换为纯文本预览</string>
 	<key>preview.toolbar.wrap_disable</key>
 	<string>关闭自动换行</string>
 	<key>preview.toolbar.wrap_enable</key>

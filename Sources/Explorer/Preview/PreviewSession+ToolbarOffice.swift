@@ -10,6 +10,68 @@ extension PreviewSession {
         return previewOfficeRichTextToolbarItems()
     }
 
+    func previewWordDocumentToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
+        var items: [PreviewToolbarOverflowModel] = []
+
+        if !content.textContent.isEmpty, content.officeRichText != nil {
+            items.append(
+                previewToolbarIconItem(
+                    id: "word-document-toggle-mode",
+                    title: office.wordDocumentMode == .text
+                        ? L10n.Preview.Toolbar.wordDocumentToFormatted
+                        : L10n.Preview.Toolbar.wordDocumentToText,
+                    systemImage: office.wordDocumentMode == .text ? "doc.richtext" : "doc.plaintext",
+                    action: { [self] in
+                        office.wordDocumentMode = office.wordDocumentMode == .text ? .formatted : .text
+                    }
+                )
+            )
+        }
+
+        if office.wordDocumentMode == .formatted {
+            if content.officeRichText != nil {
+                items.append(contentsOf: previewOfficeRichTextToolbarItems())
+            } else if content.officeURL != nil {
+                items.append(contentsOf: previewQuickLookOfficeToolbarItems(for: item))
+            }
+        } else {
+            items.append(
+                previewToolbarIconItem(
+                    id: "word-document-wrap",
+                    title: text.wrapEnabled ? L10n.Preview.Toolbar.wrapDisable : L10n.Preview.Toolbar.wrapEnable,
+                    systemImage: text.wrapEnabled ? "text.justify.left" : "arrow.left.and.right.text.vertical",
+                    action: { [self] in text.wrapEnabled.toggle() }
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "word-document-copy",
+                    title: L10n.Preview.Toolbar.copyAll,
+                    systemImage: "doc.on.doc",
+                    action: { [self] in text.previewAction = .copyAll }
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "word-document-top",
+                    title: L10n.Preview.Toolbar.jumpTop,
+                    systemImage: "arrow.up.to.line",
+                    action: { [self] in text.previewAction = .scrollTop }
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "word-document-bottom",
+                    title: L10n.Preview.Toolbar.jumpBottom,
+                    systemImage: "arrow.down.to.line",
+                    action: { [self] in text.previewAction = .scrollBottom }
+                )
+            )
+        }
+
+        return items
+    }
+
     func previewSpreadsheetToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
         var items: [PreviewToolbarOverflowModel] = []
 

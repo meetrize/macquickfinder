@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import PDFKit
 import XCTest
@@ -69,7 +70,7 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertTrue(session.image.editUndoStack.isEmpty)
     }
 
-    func testOfficeToolbarIncludesZoomControls() {
+    func testOfficeToolbarIncludesZoomControlsInFormattedMode() {
         let session = PreviewSession(
             hostWindowID: UUID(),
             file: FileItem(
@@ -85,8 +86,12 @@ final class PreviewSessionTests: XCTestCase {
                 dateDisplay: ""
             )
         )
+        session.content.textContent = "Hello"
+        session.content.officeRichText = NSAttributedString(string: "Hello")
+        session.office.wordDocumentMode = WordDocumentDisplayMode.formatted
         let items = session.previewToolbarItems(for: session.file)
         let ids = Set(items.map(\.id))
+        XCTAssertTrue(ids.contains("word-document-toggle-mode"))
         XCTAssertTrue(ids.contains("office-zoom-out"))
         XCTAssertTrue(ids.contains("office-scale"))
         XCTAssertTrue(ids.contains("office-zoom-in"))
@@ -94,6 +99,33 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertFalse(ids.contains("office-pan"))
         XCTAssertFalse(ids.contains("office-prev"))
         XCTAssertFalse(ids.contains("office-next"))
+    }
+
+    func testWordDocumentTextModeToolbarIncludesPlainTextControls() {
+        let session = PreviewSession(
+            hostWindowID: UUID(),
+            file: FileItem(
+                id: "doc",
+                url: URL(fileURLWithPath: "/tmp/sample.doc"),
+                name: "sample.doc",
+                isDirectory: false,
+                modificationDate: .distantPast,
+                size: 1024,
+                isHidden: false,
+                fileType: "doc",
+                sizeDisplay: "1 KB",
+                dateDisplay: ""
+            )
+        )
+        session.content.textContent = "Hello"
+        session.content.officeRichText = NSAttributedString(string: "Hello")
+        session.office.wordDocumentMode = WordDocumentDisplayMode.text
+        let items = session.previewToolbarItems(for: session.file)
+        let ids = Set(items.map(\.id))
+        XCTAssertTrue(ids.contains("word-document-toggle-mode"))
+        XCTAssertTrue(ids.contains("word-document-wrap"))
+        XCTAssertTrue(ids.contains("word-document-copy"))
+        XCTAssertFalse(ids.contains("office-zoom-in"))
     }
 
     func testShowsPreviewTextSearchForSupportedTypes() {
@@ -154,6 +186,28 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertTrue(xlsxSession.showsPreviewTextSearch(for: xlsxSession.file))
         xlsxSession.office.spreadsheetMode = .quickLook
         XCTAssertFalse(xlsxSession.showsPreviewTextSearch(for: xlsxSession.file))
+
+        let docxSession = PreviewSession(
+            hostWindowID: UUID(),
+            file: FileItem(
+                id: "docx",
+                url: URL(fileURLWithPath: "/tmp/readme.docx"),
+                name: "readme.docx",
+                isDirectory: false,
+                modificationDate: .distantPast,
+                size: 128,
+                isHidden: false,
+                fileType: "docx",
+                sizeDisplay: "128 B",
+                dateDisplay: ""
+            )
+        )
+        docxSession.content.textContent = "Body"
+        docxSession.content.officeRichText = NSAttributedString(string: "Body")
+        docxSession.office.wordDocumentMode = WordDocumentDisplayMode.text
+        XCTAssertTrue(docxSession.showsPreviewTextSearch(for: docxSession.file))
+        docxSession.office.wordDocumentMode = WordDocumentDisplayMode.formatted
+        XCTAssertTrue(docxSession.showsPreviewTextSearch(for: docxSession.file))
     }
 
     func testQuickLookOfficeToolbarIncludesPageControlsWhenMultiplePages() {
