@@ -12,7 +12,7 @@ enum DetachedPreviewWindowLayoutMetrics {
     static let layoutSlack: CGFloat = 2
 
     /// 窗口底边高于 Dock / 任务栏上沿的间距，避免底部状态栏被遮挡。
-    static let bottomMarginFromDock: CGFloat = 14
+    static let bottomMarginFromDock: CGFloat = 5
 
     static func placementBounds(for visibleFrame: CGRect) -> CGRect {
         let inset = bottomMarginFromDock

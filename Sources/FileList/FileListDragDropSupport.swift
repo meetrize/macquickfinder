@@ -62,17 +62,19 @@ enum FileListDragDropSupport {
             ghostSize: ghost.size,
             index: 0
         )
-        let offset = NSSize(
-            width: ghostAnchorInView.x - frame.origin.x,
-            height: ghostAnchorInView.y - frame.origin.y
+        // dragImage 以鼠标为 at、offset 指向图像原点；相对几何中心再下移半高，使指针落在图标+文件名中间。
+        let dragImageOffset = NSSize(
+            width: frame.origin.x - ghostAnchorInView.x,
+            height: frame.origin.y - ghostAnchorInView.y - ghost.size.height / 2
         )
 
         FileListContentInteractionNotifier.notifyDidBegin()
         guard FileListExternalFileDrag.start(
             on: view,
             image: ghost.image,
-            at: frame.origin,
-            offset: offset,
+            draggingFrame: frame,
+            mouseLocation: ghostAnchorInView,
+            dragImageOffset: dragImageOffset,
             startEvent: startEvent,
             urls: activeDragURLs,
             source: source

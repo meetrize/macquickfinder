@@ -107,10 +107,10 @@ enum FileListDragSupport {
     }
     
     static func draggingFrame(at point: NSPoint, ghostSize: NSSize, index: Int) -> NSRect {
-        let offset = CGFloat(index * 6)
+        let stackOffset = CGFloat(index * 6)
         return NSRect(
-            x: point.x - iconSize / 2 + offset,
-            y: point.y - ghostSize.height / 2 - offset,
+            x: point.x - ghostSize.width / 2 + stackOffset,
+            y: point.y - ghostSize.height / 2 - stackOffset,
             width: ghostSize.width,
             height: ghostSize.height
         )

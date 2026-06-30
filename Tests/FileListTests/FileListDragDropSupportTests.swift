@@ -75,6 +75,15 @@ final class FileListDragDropSupportTests: XCTestCase {
         XCTAssertEqual(urls.map(\.path), ["/tmp/active.txt"])
     }
 
+    func testDraggingFrameCentersOnMouse() {
+        let ghostSize = NSSize(width: 120, height: 40)
+        let mouse = NSPoint(x: 200, y: 150)
+        let frame = FileListDragSupport.draggingFrame(at: mouse, ghostSize: ghostSize, index: 0)
+
+        XCTAssertEqual(frame.midX, mouse.x, accuracy: 0.01)
+        XCTAssertEqual(frame.midY, mouse.y, accuracy: 0.01)
+    }
+
     func testSourceOperationMaskOutsideApplicationIncludesCopyAndGeneric() {
         let mask = FileListExternalFileDrag.sourceOperationMask(for: .outsideApplication)
         XCTAssertTrue(mask.contains(.copy))

@@ -60,8 +60,9 @@ enum FileListExternalFileDrag {
     static func start(
         on view: NSView,
         image: NSImage,
-        at location: NSPoint,
-        offset: NSSize,
+        draggingFrame: NSRect,
+        mouseLocation: NSPoint,
+        dragImageOffset: NSSize,
         startEvent: NSEvent,
         urls: [URL],
         source: NSDraggingSource
@@ -70,8 +71,8 @@ enum FileListExternalFileDrag {
         if performLegacyDragImage(
             on: view,
             image: image,
-            at: location,
-            offset: offset,
+            at: mouseLocation,
+            offset: dragImageOffset,
             event: startEvent,
             pasteboard: pasteboard,
             source: source
@@ -81,7 +82,7 @@ enum FileListExternalFileDrag {
         return startWithDraggingSession(
             on: view,
             image: image,
-            frame: NSRect(origin: location, size: image.size),
+            frame: draggingFrame,
             startEvent: startEvent,
             urls: urls,
             source: source,
