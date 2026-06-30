@@ -325,13 +325,82 @@ struct CustomPreviewUnavailableView: View {
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 10) {
-                Button(L10n.Settings.Preview.previewAsText) { onAddRule(.text) }
-                Button(L10n.Settings.Preview.previewQuickLook) { onAddRule(.quickLook) }
-            }
+                PreviewModeMenuButton(onSelect: onAddRule)
 
-            Button(L10n.Settings.Preview.openInSettings, action: onOpenSettings)
-                .buttonStyle(.link)
+                Button(L10n.Settings.Preview.customize, action: onOpenSettings)
+                    .buttonStyle(.bordered)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// 原生 `NSPopUpButton`（pull-down）：标题在左、系统分隔与箭头在右，样式与「自定义」一致。
+private struct PreviewModeMenuButton: View {
+    let onSelect: (CustomPreviewMode) -> Void
+
+    var body: some View {
+        PreviewModePopUpButtonRepresentable(onSelect: onSelect)
+            .fixedSize()
+    }
+}
+
+private struct PreviewModePopUpButtonRepresentable: NSViewRepresentable {
+    let onSelect: (CustomPreviewMode) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onSelect: onSelect)
+    }
+
+    func makeNSView(context: Context) -> NSPopUpButton {
+        let popup = NSPopUpButton(frame: .zero, pullsDown: true)
+        popup.bezelStyle = .rounded
+        popup.controlSize = .regular
+        popup.autoenablesItems = true
+        context.coordinator.attach(popup)
+        context.coordinator.rebuildMenu()
+        return popup
+    }
+
+    func updateNSView(_ popup: NSPopUpButton, context: Context) {
+        context.coordinator.onSelect = onSelect
+        context.coordinator.rebuildMenu()
+    }
+
+    final class Coordinator: NSObject {
+        var onSelect: (CustomPreviewMode) -> Void
+        private weak var popup: NSPopUpButton?
+
+        init(onSelect: @escaping (CustomPreviewMode) -> Void) {
+            self.onSelect = onSelect
+        }
+
+        func attach(_ popup: NSPopUpButton) {
+            self.popup = popup
+        }
+
+        func rebuildMenu() {
+            guard let popup else { return }
+            popup.removeAllItems()
+            popup.addItem(withTitle: L10n.Settings.Preview.previewMode)
+            for mode in CustomPreviewMode.allCases {
+                let item = NSMenuItem(
+                    title: mode.displayName,
+                    action: #selector(Coordinator.modeSelected(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = mode.rawValue
+                popup.menu?.addItem(item)
+            }
+            popup.selectItem(at: 0)
+        }
+
+        @objc func modeSelected(_ sender: NSMenuItem) {
+            guard let raw = sender.representedObject as? String,
+                  let mode = CustomPreviewMode(rawValue: raw) else { return }
+            onSelect(mode)
+            popup?.selectItem(at: 0)
+        }
     }
 }

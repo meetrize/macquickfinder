@@ -5900,6 +5900,23 @@
         }
       }
     },
+    "settings.preview.customize": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义"
+          }
+        }
+      }
+    },
     "settings.preview.open_in_settings": {
       "extractionState": "manual",
       "localizations": {

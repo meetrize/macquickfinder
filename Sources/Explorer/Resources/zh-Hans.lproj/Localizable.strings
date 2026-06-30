@@ -1122,6 +1122,8 @@
 	<string>代码预览显示行号</string>
 	<key>settings.preview.custom_types</key>
 	<string>自定义文件类型</string>
+	<key>settings.preview.customize</key>
+	<string>自定义</string>
 	<key>settings.preview.detached_browse</key>
 	<string>独立窗口浏览</string>
 	<key>settings.preview.detached_browse.footer</key>

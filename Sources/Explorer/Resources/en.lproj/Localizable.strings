@@ -1122,6 +1122,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Show line numbers in code preview</string>
 	<key>settings.preview.custom_types</key>
 	<string>Custom File Types</string>
+	<key>settings.preview.customize</key>
+	<string>Customize</string>
 	<key>settings.preview.detached_browse</key>
 	<string>Browse in Detached Window</string>
 	<key>settings.preview.detached_browse.footer</key>

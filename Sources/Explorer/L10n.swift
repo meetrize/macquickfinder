@@ -240,6 +240,7 @@ enum L10n {
             static var previewAsText: String { ModuleLocalization.localized("settings.preview.preview_as_text", bundle: .module) }
             static var previewQuickLook: String { ModuleLocalization.localized("settings.preview.preview_quicklook", bundle: .module) }
             static var openInSettings: String { ModuleLocalization.localized("settings.preview.open_in_settings", bundle: .module) }
+            static var customize: String { ModuleLocalization.localized("settings.preview.customize", bundle: .module) }
 
             enum Mode {
                 static var text: String { ModuleLocalization.localized("settings.preview.mode.text", bundle: .module) }
