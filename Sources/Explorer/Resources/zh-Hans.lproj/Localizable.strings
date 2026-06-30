@@ -1194,6 +1194,8 @@
 	<string>启用全局快捷键</string>
 	<key>settings.shortcut.global_toggle_footer</key>
 	<string>可在任意应用中生效：隐藏时唤起 MeoFind，已在前台时则隐藏应用。</string>
+	<key>settings.shortcut.new_tab</key>
+	<string>新建标签页</string>
 	<key>settings.shortcut.recording_hint</key>
 	<string>按下目标组合键，Esc 取消。</string>
 	<key>settings.shortcut.recording_placeholder</key>
@@ -1442,10 +1444,16 @@
 	<string>需要先选中文件</string>
 	<key>toolbar.hide_left_panel</key>
 	<string>隐藏左侧面板</string>
+	<key>toolbar.hide_tab_bar</key>
+	<string>隐藏标签栏</string>
 	<key>toolbar.list_view</key>
 	<string>列表视图</string>
 	<key>toolbar.new_folder</key>
 	<string>新建文件夹</string>
+	<key>toolbar.new_tab</key>
+	<string>新建标签页</string>
+	<key>toolbar.new_window</key>
+	<string>新建窗口</string>
 	<key>toolbar.open_app.add</key>
 	<string>添加</string>
 	<key>toolbar.open_app.choose</key>
@@ -1476,8 +1484,16 @@
 	<string>用 %@ 打开</string>
 	<key>toolbar.open_app.use_app_icon</key>
 	<string>使用应用图标</string>
+	<key>toolbar.show_all_tabs</key>
+	<string>显示所有标签页</string>
 	<key>toolbar.show_left_panel</key>
 	<string>显示左侧面板</string>
+	<key>toolbar.show_tab_bar</key>
+	<string>显示标签栏</string>
+	<key>toolbar.tab_bar.cannot_hide_multiple</key>
+	<string>已打开多个标签页，无法隐藏标签栏</string>
+	<key>toolbar.tab_bar.unavailable</key>
+	<string>此窗口不支持标签栏</string>
 	<key>toolbar.thumbnail_size</key>
 	<string>缩略图大小</string>
 	<key>toolbar.thumbnail_view</key>

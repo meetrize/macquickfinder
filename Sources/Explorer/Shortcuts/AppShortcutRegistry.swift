@@ -56,6 +56,19 @@ enum AppShortcutRegistry {
         AppShortcutEntry(id: "focus_search", category: .navigation, helpEntryID: "global_search"),
         AppShortcutEntry(id: "back_forward", category: .navigation, helpEntryID: "back_forward"),
         AppShortcutEntry(
+            id: "new_tab",
+            category: .navigation,
+            name: L10n.Toolbar.newTab,
+            shortcut: ShortcutBinding.defaultNewTab.displayString,
+            isConfigurable: true
+        ),
+        AppShortcutEntry(
+            id: "show_all_tabs",
+            category: .navigation,
+            name: L10n.Toolbar.showAllTabs,
+            shortcut: "⌘⇧\\"
+        ),
+        AppShortcutEntry(
             id: "cheat_sheet",
             category: .navigation,
             name: L10n.Settings.Shortcuts.cheatSheet,

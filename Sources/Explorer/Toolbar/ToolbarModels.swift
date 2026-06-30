@@ -24,6 +24,10 @@ struct ToolbarDragPayload: Codable, Equatable {
 
 enum ToolbarBuiltinID: String, Codable, CaseIterable, Identifiable {
     case leftPanel
+    case newWindow
+    case newTab
+    case showAllTabs
+    case toggleTabBar
     case preview
     case snippets
     case outputPanel
@@ -127,6 +131,10 @@ struct ToolbarLayoutConfig: Codable, Equatable {
     static var `default`: ToolbarLayoutConfig {
         let builtins: [(ToolbarBuiltinID, ToolbarZone)] = [
             (.leftPanel, .leading),
+            (.newWindow, .leading),
+            (.newTab, .leading),
+            (.showAllTabs, .leading),
+            (.toggleTabBar, .leading),
             (.preview, .main),
             (.snippets, .main),
             (.outputPanel, .main),

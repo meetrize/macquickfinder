@@ -165,6 +165,15 @@ private enum LucideSVG {
     static let appWindow = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/></svg>
 """)
+    static let squarePlus = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+""")
+    static let galleryHorizontalEnd = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7v10"/><path d="M6 5v14"/><rect width="12" height="18" x="10" y="3" rx="2"/></svg>
+""")
+    static let panelTop = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg>
+""")
     static let box = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
 """)
@@ -219,6 +228,11 @@ struct LucideIcon: View {
     var isSecondary: Bool = false
 
     static let panelLeft = LucideIcon(svgData: LucideSVG.panelLeft)
+    static let panelTop = LucideIcon(svgData: LucideSVG.panelTop)
+
+    static func panelTop(isActive: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.panelTop, isActive: isActive)
+    }
     static let folderPlus = LucideIcon(svgData: LucideSVG.folderPlus)
     static let folderUp = LucideIcon(svgData: LucideSVG.folderUp)
     static let trash2 = LucideIcon(svgData: LucideSVG.trash2)
@@ -248,6 +262,8 @@ struct LucideIcon: View {
     }
 
     static let appWindow = LucideIcon(svgData: LucideSVG.appWindow)
+    static let squarePlus = LucideIcon(svgData: LucideSVG.squarePlus)
+    static let galleryHorizontalEnd = LucideIcon(svgData: LucideSVG.galleryHorizontalEnd)
 
     static func image(isSecondary: Bool = false) -> LucideIcon {
         LucideIcon(svgData: LucideSVG.image, isSecondary: isSecondary)
@@ -527,9 +543,9 @@ struct ExplorerApp: App {
     @FocusedValue(\.previewBrowseCommands) private var previewBrowseCommands
     
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: ExplorerWindowScene.main) {
             FullDiskAccessGate {
-                ContentView()
+                ContentView(windowSceneKind: .main)
             }
             .frame(minWidth: 267, minHeight: 200)
             .applyInterfaceLanguageEnvironment()
@@ -541,9 +557,9 @@ struct ExplorerApp: App {
             explorerCommands
         }
 
-        WindowGroup(id: ExplorerWindowScene.folder, for: String.self) { $requestedPath in
+        WindowGroup(id: ExplorerWindowScene.folder, for: ExplorerFolderWindowValue.self) { $request in
             FullDiskAccessGate {
-                ContentView(initialPath: requestedPath)
+                ContentView(initialPath: request?.path, windowSceneKind: .folder)
             }
             .frame(minWidth: 267, minHeight: 200)
             .applyInterfaceLanguageEnvironment()
@@ -774,6 +790,15 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
         FileServicesMenuSupport.registerIfNeeded()
         AppMemoryPressure.installHandler()
         GlobalHotkeyService.shared.start()
+    }
+
+    @objc func newWindowForTab(_ sender: Any?) {
+        Task { @MainActor in
+            let sourceWindow = (sender as? NSWindow) ?? NSApp.keyWindow
+            let path = ExplorerWindowTabCenter.shared.path(for: sourceWindow)
+                ?? FileManager.default.homeDirectoryForCurrentUser.path
+            ExplorerWindowTabCenter.shared.openNewTab(path: path, from: sourceWindow)
+        }
     }
 
     @MainActor

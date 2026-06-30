@@ -9,8 +9,15 @@ struct ExternalFolderOpenBridge: View {
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
             .onAppear {
+                let openFolder: (ExplorerFolderWindowValue) -> Void = { value in
+                    openWindow(id: ExplorerWindowScene.folder, value: value)
+                }
+                ExplorerWindowOpenBridge.shared.openFolderWindow = openFolder
+                ExplorerWindowOpenBridge.shared.openMainWindow = {
+                    openWindow(id: ExplorerWindowScene.main)
+                }
                 ExternalFolderOpenCenter.shared.setOpenFolderWindowHandler { path in
-                    openWindow(id: ExplorerWindowScene.folder, value: path)
+                    openFolder(ExplorerFolderWindowValue(path: path))
                 }
             }
     }

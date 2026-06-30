@@ -77,6 +77,8 @@ enum AppPreferences {
         static let globalToggleEnabled = "shortcuts.globalToggleEnabled"
         static let globalToggleKeyCode = "shortcuts.globalToggleKeyCode"
         static let globalToggleModifiers = "shortcuts.globalToggleModifiers"
+        static let newTabKeyCode = "shortcuts.newTabKeyCode"
+        static let newTabModifiers = "shortcuts.newTabModifiers"
     }
 
     /// 远程服务器连接。

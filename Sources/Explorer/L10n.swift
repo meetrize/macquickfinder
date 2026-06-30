@@ -146,6 +146,7 @@ enum L10n {
             static var recordingPlaceholder: String { ModuleLocalization.localized("settings.shortcut.recording_placeholder", bundle: .module) }
             static var cheatSheet: String { ModuleLocalization.localized("settings.shortcut.cheat_sheet", bundle: .module) }
             static var closeDetachedPreview: String { ModuleLocalization.localized("settings.shortcut.close_detached_preview", bundle: .module) }
+            static var newTab: String { ModuleLocalization.localized("settings.shortcut.new_tab", bundle: .module) }
 
             static func category(_ id: String) -> String {
                 ModuleLocalization.localizedFromTable("settings.shortcuts.category.\(id)", bundle: .module)
@@ -307,6 +308,13 @@ enum L10n {
     enum Toolbar {
         static var showLeftPanel: String { ModuleLocalization.localized("toolbar.show_left_panel", bundle: .module) }
         static var hideLeftPanel: String { ModuleLocalization.localized("toolbar.hide_left_panel", bundle: .module) }
+        static var newWindow: String { ModuleLocalization.localized("toolbar.new_window", bundle: .module) }
+        static var newTab: String { ModuleLocalization.localized("toolbar.new_tab", bundle: .module) }
+        static var showAllTabs: String { ModuleLocalization.localized("toolbar.show_all_tabs", bundle: .module) }
+        static var showTabBar: String { ModuleLocalization.localized("toolbar.show_tab_bar", bundle: .module) }
+        static var hideTabBar: String { ModuleLocalization.localized("toolbar.hide_tab_bar", bundle: .module) }
+        static var tabBarCannotHideMultiple: String { ModuleLocalization.localized("toolbar.tab_bar.cannot_hide_multiple", bundle: .module) }
+        static var tabBarUnavailable: String { ModuleLocalization.localized("toolbar.tab_bar.unavailable", bundle: .module) }
         static var newFolder: String { ModuleLocalization.localized("toolbar.new_folder", bundle: .module) }
         static var delete: String { ModuleLocalization.localized("toolbar.delete", bundle: .module) }
         static var listView: String { ModuleLocalization.localized("toolbar.list_view", bundle: .module) }

@@ -40,6 +40,7 @@ extension ContentView {
 }
 struct ContentView: View {
     private let initialPath: String?
+    private let windowSceneKind: ExplorerWindowSceneKind
 
     @Environment(\.openWindow) private var openWindow
     @StateObject private var layout = ExplorerWindowLayoutState()
@@ -75,12 +76,16 @@ struct ContentView: View {
     @ObservedObject private var outputPanelTextEditing = OutputPanelTextEditingCenter.shared
     @ObservedObject private var toolbarStore = ToolbarCustomizationStore.shared
     @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
+    @ObservedObject private var shortcutSettings = ShortcutSettingsStore.shared
+    @ObservedObject private var windowTabCenter = ExplorerWindowTabCenter.shared
+    @State private var explorerTabBarState = ExplorerTabBarState.unavailable
     @State private var pendingExternalSelectionPath: String?
     @State private var showConnectServerSheet = false
     @State private var transientNoticeMessage: String?
     
-    init(initialPath: String? = nil) {
+    init(initialPath: String? = nil, windowSceneKind: ExplorerWindowSceneKind = .main) {
         self.initialPath = initialPath
+        self.windowSceneKind = windowSceneKind
         _path = State(initialValue: initialPath ?? FileManager.default.homeDirectoryForCurrentUser.path)
     }
     
@@ -278,7 +283,34 @@ struct ContentView: View {
             .background(TextEditingKeyMonitor(isActive: isAnyTextFieldEditing))
         }
         .background(WindowKeyLayoutTracker(layout: layout).frame(width: 0, height: 0).accessibilityHidden(true))
-        .background(HostWindowReader(window: $hostWindow).frame(width: 0, height: 0).accessibilityHidden(true))
+        .background(
+            HostWindowReader(
+                window: $hostWindow,
+                onWindowAttached: { window in
+                    ExplorerWindowTabCenter.shared.attemptTabMerge(for: window)
+                }
+            )
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+        )
+        .onChange(of: hostWindow) { window in
+            guard let window else { return }
+            ExplorerWindowTabCenter.shared.attemptTabMerge(for: window)
+            if let initialPath = ExplorerWindowTabCenter.shared.consumeInitialPathForNewTab(in: window) {
+                path = initialPath
+                loadItems()
+            }
+            ExplorerWindowTabCenter.shared.registerWindow(window, path: path, sceneKind: windowSceneKind)
+            ExplorerWindowTabCenter.shared.handleExplorerWindowDidAppear(window)
+            syncExplorerTabBarState()
+        }
+        .onChange(of: path) { newPath in
+            guard let hostWindow else { return }
+            ExplorerWindowTabCenter.shared.registerWindow(hostWindow, path: newPath, sceneKind: windowSceneKind)
+        }
+        .onChange(of: windowTabCenter.tabBarRevision) { _ in
+            syncExplorerTabBarState()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             guard let closingWindow = notification.object as? NSWindow,
                   closingWindow == hostWindow else { return }
@@ -312,6 +344,7 @@ struct ContentView: View {
             lastRecordedPath = path
             layout.recordLastOpenedPath(path)
             loadItems()
+            syncExplorerTabBarState()
         }
         .onReceive(externalFolderOpenCenter.$openRequestGeneration.dropFirst()) { _ in
             guard let request = externalFolderOpenCenter.targetRequest else { return }
@@ -523,7 +556,50 @@ struct ContentView: View {
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
             .disabled(!canNavigateForward)
+
+            Button(L10n.Toolbar.showAllTabs) {
+                showAllExplorerTabs()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.showAllTabs)
+            .labelsHidden()
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+
+            LocalShortcutMonitor(
+                binding: shortcutSettings.newTabBinding,
+                isEnabled: !isAnyTextFieldEditing
+            ) {
+                openNewExplorerTab()
+            }
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
         }
+    }
+
+    private func openNewExplorerWindow() {
+        ExplorerWindowTabCenter.shared.requestNewWindow(
+            path: path,
+            from: hostWindow,
+            openWindow: { openWindow(id: ExplorerWindowScene.folder, value: $0) }
+        )
+    }
+
+    private func openNewExplorerTab() {
+        ExplorerWindowTabCenter.shared.openNewTab(path: path, from: hostWindow)
+    }
+
+    private func showAllExplorerTabs() {
+        ExplorerWindowTabCenter.shared.showAllTabs(in: hostWindow)
+    }
+
+    private func toggleExplorerTabBar() {
+        ExplorerWindowTabCenter.shared.toggleTabBar(in: hostWindow)
+        syncExplorerTabBarState()
+    }
+
+    private func syncExplorerTabBarState() {
+        explorerTabBarState = ExplorerWindowTabCenter.tabBarState(for: hostWindow)
     }
 
     private var toolbarEnvironment: ExplorerToolbarEnvironment {
@@ -538,7 +614,12 @@ struct ContentView: View {
             deletableSelectedItems: deletableSelectedItems,
             leftPanelMode: leftPanelMode,
             isCustomizing: toolbarStore.isCustomizing,
+            tabBarState: explorerTabBarState,
             toggleLeftPanelVisibility: toggleLeftPanelVisibility,
+            openNewWindow: openNewExplorerWindow,
+            openNewTab: openNewExplorerTab,
+            showAllTabs: showAllExplorerTabs,
+            toggleTabBar: toggleExplorerTabBar,
             createNewFolder: createNewFolder,
             deleteSelectedItems: deleteSelectedItems,
             toggleHiddenFiles: {

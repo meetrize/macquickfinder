@@ -7,8 +7,9 @@ struct ShortcutsSettingsTab: View {
         ScrollView {
             Form {
                 globalSection
+                navigationSection
 
-                ForEach(AppShortcutCategory.allCases.filter { $0 != .global }) { category in
+                ForEach(AppShortcutCategory.allCases.filter { $0 != .global && $0 != .navigation }) { category in
                     let items = AppShortcutRegistry.entries(for: category)
                     if !items.isEmpty {
                         Section {
@@ -48,6 +49,26 @@ struct ShortcutsSettingsTab: View {
                 .fixedSize(horizontal: false, vertical: true)
         } header: {
             Text(AppShortcutCategory.global.title)
+        }
+    }
+
+    private var navigationSection: some View {
+        Section {
+            LabeledContent(L10n.Settings.Shortcuts.newTab) {
+                HStack(spacing: 8) {
+                    ShortcutRecorderView(binding: $settings.newTabBinding)
+
+                    Button(L10n.Settings.Shortcuts.reset) {
+                        settings.resetNewTabBinding()
+                    }
+                }
+            }
+
+            ForEach(AppShortcutRegistry.entries(for: .navigation).filter { $0.id != "new_tab" }) { entry in
+                shortcutRow(name: entry.name, shortcut: entry.shortcut)
+            }
+        } header: {
+            Text(AppShortcutCategory.navigation.title)
         }
     }
 

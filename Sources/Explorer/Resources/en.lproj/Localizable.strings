@@ -1194,6 +1194,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Enable global shortcut</string>
 	<key>settings.shortcut.global_toggle_footer</key>
 	<string>Works from any app. Shows MeoFind when hidden, or hides it when the app is active.</string>
+	<key>settings.shortcut.new_tab</key>
+	<string>New Tab</string>
 	<key>settings.shortcut.recording_hint</key>
 	<string>Press the desired key combination. Esc cancels.</string>
 	<key>settings.shortcut.recording_placeholder</key>
@@ -1442,10 +1444,16 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Select one or more items first</string>
 	<key>toolbar.hide_left_panel</key>
 	<string>Hide Left Panel</string>
+	<key>toolbar.hide_tab_bar</key>
+	<string>Hide Tab Bar</string>
 	<key>toolbar.list_view</key>
 	<string>List View</string>
 	<key>toolbar.new_folder</key>
 	<string>New Folder</string>
+	<key>toolbar.new_tab</key>
+	<string>New Tab</string>
+	<key>toolbar.new_window</key>
+	<string>New Window</string>
 	<key>toolbar.open_app.add</key>
 	<string>Add</string>
 	<key>toolbar.open_app.choose</key>
@@ -1476,8 +1484,16 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Open with %@</string>
 	<key>toolbar.open_app.use_app_icon</key>
 	<string>Use application icon</string>
+	<key>toolbar.show_all_tabs</key>
+	<string>Show All Tabs</string>
 	<key>toolbar.show_left_panel</key>
 	<string>Show Left Panel</string>
+	<key>toolbar.show_tab_bar</key>
+	<string>Show Tab Bar</string>
+	<key>toolbar.tab_bar.cannot_hide_multiple</key>
+	<string>Multiple tabs are open; the tab bar cannot be hidden</string>
+	<key>toolbar.tab_bar.unavailable</key>
+	<string>Tab bar is not available in this window</string>
 	<key>toolbar.thumbnail_size</key>
 	<string>Icon Size</string>
 	<key>toolbar.thumbnail_view</key>

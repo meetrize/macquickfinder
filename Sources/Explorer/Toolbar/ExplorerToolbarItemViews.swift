@@ -155,6 +155,22 @@ struct ExplorerToolbarItemView: View {
             return environment.leftPanelMode == .hidden
                 ? L10n.Toolbar.showLeftPanel
                 : L10n.Toolbar.hideLeftPanel
+        case .newWindow:
+            return L10n.Toolbar.newWindow
+        case .newTab:
+            return L10n.Toolbar.newTab
+        case .showAllTabs:
+            return L10n.Toolbar.showAllTabs
+        case .toggleTabBar:
+            if !environment.tabBarState.isTabbingAvailable {
+                return L10n.Toolbar.tabBarUnavailable
+            }
+            if !environment.tabBarState.canToggle {
+                return L10n.Toolbar.tabBarCannotHideMultiple
+            }
+            return environment.tabBarState.isVisible
+                ? L10n.Toolbar.hideTabBar
+                : L10n.Toolbar.showTabBar
         case .preview:
             return environment.layout.showPreview ? L10n.Menu.hidePreview : L10n.Menu.showPreview
         case .snippets:
@@ -180,6 +196,9 @@ struct ExplorerToolbarItemView: View {
         if environment.isCustomizing { return true }
         if builtin == .delete {
             return environment.deletableSelectedItems.isEmpty
+        }
+        if builtin == .toggleTabBar {
+            return !environment.tabBarState.canToggle
         }
         return false
     }
@@ -216,6 +235,14 @@ extension ToolbarBuiltinID {
         switch self {
         case .leftPanel:
             return .panelLeft
+        case .newWindow:
+            return .appWindow
+        case .newTab:
+            return .squarePlus
+        case .showAllTabs:
+            return .galleryHorizontalEnd
+        case .toggleTabBar:
+            return .panelTop(isActive: environment.tabBarState.isVisible)
         case .preview:
             return .fileImage(isActive: environment.layout.showPreview)
         case .snippets:

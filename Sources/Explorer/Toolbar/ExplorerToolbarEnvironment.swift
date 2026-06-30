@@ -12,8 +12,13 @@ struct ExplorerToolbarEnvironment {
     var deletableSelectedItems: [FileItem]
     var leftPanelMode: LeftPanelMode
     var isCustomizing: Bool
+    var tabBarState: ExplorerTabBarState
 
     var toggleLeftPanelVisibility: () -> Void
+    var openNewWindow: () -> Void
+    var openNewTab: () -> Void
+    var showAllTabs: () -> Void
+    var toggleTabBar: () -> Void
     var createNewFolder: () -> Void
     var deleteSelectedItems: () -> Void
     var toggleHiddenFiles: () -> Void
@@ -32,6 +37,14 @@ enum ToolbarBuiltinDispatcher {
         switch id {
         case .leftPanel:
             environment.toggleLeftPanelVisibility()
+        case .newWindow:
+            environment.openNewWindow()
+        case .newTab:
+            environment.openNewTab()
+        case .showAllTabs:
+            environment.showAllTabs()
+        case .toggleTabBar:
+            environment.toggleTabBar()
         case .preview:
             environment.layout.showPreview.toggle()
         case .snippets:

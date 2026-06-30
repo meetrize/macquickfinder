@@ -251,10 +251,14 @@ enum BarTextFieldFocusRegistry {
 /// 绑定当前 SwiftUI 视图所在的 NSWindow，供地址栏/搜索栏按窗口隔离焦点状态。
 struct HostWindowReader: NSViewRepresentable {
     @Binding var window: NSWindow?
+    var onWindowAttached: ((NSWindow) -> Void)? = nil
 
     func makeNSView(context: Context) -> TrackerView {
         let view = TrackerView()
         view.onWindowChange = { newWindow in
+            if let newWindow {
+                onWindowAttached?(newWindow)
+            }
             DispatchQueue.main.async {
                 window = newWindow
             }

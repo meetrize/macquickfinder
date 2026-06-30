@@ -10,6 +10,11 @@ struct ShortcutBinding: Codable, Equatable, Hashable {
         modifiers: NSEvent.ModifierFlags([.command, .option]).rawValue
     )
 
+    static let defaultNewTab = ShortcutBinding(
+        keyCode: 17,
+        modifiers: NSEvent.ModifierFlags.command.rawValue
+    )
+
     init(keyCode: UInt16, modifiers: UInt) {
         self.keyCode = keyCode
         self.modifiers = modifiers
