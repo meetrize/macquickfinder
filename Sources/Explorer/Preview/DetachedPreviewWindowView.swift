@@ -1,9 +1,11 @@
 import AppKit
+import Combine
 import FileList
 import SwiftUI
 
 struct DetachedPreviewWindowView: View {
     let sessionID: PreviewSessionID
+    var fitImageToScreen: Bool = false
 
     @ObservedObject private var store = PreviewSessionStore.shared
     @Environment(\.dismiss) private var dismiss
@@ -15,7 +17,10 @@ struct DetachedPreviewWindowView: View {
     var body: some View {
         Group {
             if let session {
-                DetachedPreviewWindowContent(session: session)
+                DetachedPreviewWindowContent(
+                    session: session,
+                    fitImageToScreen: fitImageToScreen
+                )
             } else {
                 Text(L10n.Preview.sessionClosed)
                     .foregroundStyle(.secondary)
@@ -31,6 +36,7 @@ struct DetachedPreviewWindowView: View {
 
 private struct DetachedPreviewWindowContent: View {
     @ObservedObject var session: PreviewSession
+    var fitImageToScreen: Bool
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AppPreferences.Preview.browserSameTypeOnly)
     private var previewBrowserSameTypeOnly = false
@@ -60,7 +66,7 @@ private struct DetachedPreviewWindowContent: View {
                 placement: .detachedWindow,
                 actions: PreviewChromeActions(
                     onBackFromFolderChild: { session.folderInlineChild = nil },
-                    onDock: { dockAndDismiss() },
+                    onDock: session.allowsDockBack ? { dockAndDismiss() } : nil,
                     onClose: {
                         PreviewDetachCoordinator.shared.onDetachedWindowWillClose(sessionID: session.id)
                         dismiss()
@@ -89,7 +95,7 @@ private struct DetachedPreviewWindowContent: View {
         .background(
             PreviewDetachedKeyboardMonitor(session: session, onCloseWindow: closeDetachedWindow)
         )
-        .background(DetachedPreviewWindowTracker(sessionID: session.id))
+        .background(DetachedPreviewWindowTracker(sessionID: session.id, fitImageToScreen: fitImageToScreen))
         .background(
             Button(action: closeDetachedWindow) {
                 EmptyView()
@@ -106,6 +112,10 @@ private struct DetachedPreviewWindowContent: View {
         }
         .onChange(of: session.browseContext?.currentIndex) { _ in
             session.scheduleBrowseContentPrefetch()
+        }
+        .onChange(of: session.isBrowserStripExpanded) { _ in
+            guard fitImageToScreen else { return }
+            DetachedPreviewWindowFitApplier.applyIfNeeded(sessionID: session.id)
         }
     }
 
@@ -127,12 +137,19 @@ private struct DetachedPreviewWindowContent: View {
 
 private struct DetachedPreviewWindowTracker: NSViewRepresentable {
     let sessionID: PreviewSessionID
+    var fitImageToScreen: Bool
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
             if let window = view.window {
                 PreviewDetachCoordinator.shared.trackDetachedWindow(window)
+                ExternalImagePreviewOpenCenter.shared.clearSuppressExplorerWindows()
+                if fitImageToScreen {
+                    Task { @MainActor in
+                        context.coordinator.applyInitialFitIfNeeded(window: window)
+                    }
+                }
             }
         }
         return view
@@ -142,7 +159,62 @@ private struct DetachedPreviewWindowTracker: NSViewRepresentable {
         DispatchQueue.main.async {
             if let window = nsView.window {
                 PreviewDetachCoordinator.shared.trackDetachedWindow(window)
+                ExternalImagePreviewOpenCenter.shared.clearSuppressExplorerWindows()
+                if fitImageToScreen {
+                    Task { @MainActor in
+                        context.coordinator.applyInitialFitIfNeeded(window: window)
+                    }
+                }
             }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(sessionID: sessionID, fitImageToScreen: fitImageToScreen)
+    }
+
+    @MainActor
+    final class Coordinator {
+        let sessionID: PreviewSessionID
+        let fitImageToScreen: Bool
+        private var didApplyInitialFit = false
+        private var imageLoadCancellable: AnyCancellable?
+
+        init(sessionID: PreviewSessionID, fitImageToScreen: Bool) {
+            self.sessionID = sessionID
+            self.fitImageToScreen = fitImageToScreen
+        }
+
+        @MainActor
+        func applyInitialFitIfNeeded(window: NSWindow) {
+            guard fitImageToScreen else { return }
+            guard let session = PreviewSessionStore.shared.session(for: sessionID) else { return }
+
+            if let pixelSize = ImageFileDimensionsReader.pixelSize(for: session.file.url) {
+                applyFit(window: window, session: session, pixelSize: pixelSize)
+                didApplyInitialFit = true
+            }
+
+            imageLoadCancellable = session.image.$sourcePixelSize
+                .filter { $0.width > 0 && $0.height > 0 }
+                .removeDuplicates()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self, weak window] pixelSize in
+                    guard let self, let window else { return }
+                    self.applyFit(window: window, session: session, pixelSize: pixelSize)
+                    self.didApplyInitialFit = true
+                }
+        }
+
+        @MainActor
+        private func applyFit(window: NSWindow, session: PreviewSession, pixelSize: CGSize) {
+            session.image.zoomScale = 1.0
+            DetachedPreviewWindowSizer.apply(
+                to: window,
+                imagePixelSize: pixelSize,
+                browserStripExpanded: session.isBrowserStripExpanded,
+                canBrowse: session.browseContext?.canBrowse ?? false
+            )
         }
     }
 }

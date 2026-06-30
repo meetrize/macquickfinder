@@ -172,6 +172,17 @@ enum L10n {
             static var restoreSuccess: String { ModuleLocalization.localized("settings.default_viewer.restore_success", bundle: .module) }
         }
 
+        enum DefaultImageViewer {
+            static var title: String { ModuleLocalization.localized("settings.default_image_viewer.title", bundle: .module) }
+            static var current: String { ModuleLocalization.localized("settings.default_image_viewer.current", bundle: .module) }
+            static var set: String { ModuleLocalization.localized("settings.default_image_viewer.set", bundle: .module) }
+            static var restorePreview: String { ModuleLocalization.localized("settings.default_image_viewer.restore_preview", bundle: .module) }
+            static var restartHint: String { ModuleLocalization.localized("settings.default_image_viewer.restart_hint", bundle: .module) }
+            static var setSuccess: String { ModuleLocalization.localized("settings.default_image_viewer.set_success", bundle: .module) }
+            static var restoreSuccess: String { ModuleLocalization.localized("settings.default_image_viewer.restore_success", bundle: .module) }
+            static var footer: String { ModuleLocalization.localized("settings.default_image_viewer.footer", bundle: .module) }
+        }
+
         enum Snippets {
             static var displayMode: String { ModuleLocalization.localized("settings.snippets.display_mode", bundle: .module) }
             static var displayStandard: String { ModuleLocalization.localized("settings.snippets.display.standard", bundle: .module) }
@@ -740,6 +751,25 @@ enum L10n {
             static func launchServices(_ status: OSStatus) -> String {
                 String(
                     format: ModuleLocalization.localizedFromTable("error.default_viewer.launch_services %lld", bundle: .module),
+                    Int64(status)
+                )
+            }
+        }
+
+        enum DefaultImageViewer {
+            static var preferencesSync: String { ModuleLocalization.localized("error.default_image_viewer.preferences_sync", bundle: .module) }
+            static var previewNotFound: String { ModuleLocalization.localized("error.default_image_viewer.preview_not_found", bundle: .module) }
+
+            static func defaultsCommand(_ code: Int32) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("error.default_image_viewer.defaults_command %lld", bundle: .module),
+                    Int64(code)
+                )
+            }
+
+            static func launchServices(_ status: OSStatus) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("error.default_image_viewer.launch_services %lld", bundle: .module),
                     Int64(status)
                 )
             }

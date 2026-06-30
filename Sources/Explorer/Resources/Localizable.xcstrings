@@ -1276,6 +1276,74 @@
         }
       }
     },
+    "error.default_image_viewer.defaults_command %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "defaults command failed (exit code %lld)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "defaults 命令失败（退出码 %lld）。"
+          }
+        }
+      }
+    },
+    "error.default_image_viewer.launch_services %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch Services registration failed (error %lld)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch Services 注册失败（错误 %lld）。"
+          }
+        }
+      }
+    },
+    "error.default_image_viewer.preview_not_found": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview.app was not found on this Mac."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到 Preview 应用。"
+          }
+        }
+      }
+    },
+    "error.default_image_viewer.preferences_sync": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to write system preferences."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法写入系统偏好设置。"
+          }
+        }
+      }
+    },
     "error.directory_not_found": {
       "extractionState": "manual",
       "localizations": {
@@ -4910,6 +4978,142 @@
           "stringUnit": {
             "state": "translated",
             "value": "默认文件夹查看器"
+          }
+        }
+      }
+    },
+    "settings.default_image_viewer.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default Image Viewer"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认图片查看器"
+          }
+        }
+      }
+    },
+    "settings.default_image_viewer.current": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current Default"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前默认"
+          }
+        }
+      }
+    },
+    "settings.default_image_viewer.set": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set as Default Image Viewer"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设为默认图片查看器"
+          }
+        }
+      }
+    },
+    "settings.default_image_viewer.restore_preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复 Preview"
+          }
+        }
+      }
+    },
+    "settings.default_image_viewer.restart_hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log out and back in, or restart your Mac, for changes to take effect everywhere."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。"
+          }
+        }
+      }
+    },
+    "settings.default_image_viewer.set_success": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MeoFind is now the default image viewer. Double-clicking an image opens the detached preview window."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已将 MeoFind 设为默认图片查看器。双击图片将打开预览独立窗。"
+          }
+        }
+      }
+    },
+    "settings.default_image_viewer.restore_success": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview is now the default image viewer."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已恢复 Preview 为默认图片查看器。"
+          }
+        }
+      }
+    },
+    "settings.default_image_viewer.footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens images in the detached preview window, sized to fit the screen."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "双击图片时以预览独立窗打开，并自动适应屏幕大小。"
           }
         }
       }

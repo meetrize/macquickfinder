@@ -111,6 +111,12 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertTrue(L10n.Error.DefaultViewer.launchServices(-50).contains("-50"))
     }
 
+    func testDefaultImageViewerStringsResolve() {
+        XCTAssertNotEqual(L10n.Settings.DefaultImageViewer.title, "settings.default_image_viewer.title")
+        XCTAssertNotEqual(L10n.Settings.DefaultImageViewer.setSuccess, "settings.default_image_viewer.set_success")
+        XCTAssertNotEqual(L10n.Settings.DefaultImageViewer.footer, "settings.default_image_viewer.footer")
+    }
+
     func testWordDocumentPreviewToolbarStringsResolve() {
         XCTAssertNotEqual(L10n.Preview.Toolbar.wordDocumentToFormatted, "preview.toolbar.word_document_to_formatted")
         XCTAssertNotEqual(L10n.Preview.Toolbar.wordDocumentToText, "preview.toolbar.word_document_to_text")

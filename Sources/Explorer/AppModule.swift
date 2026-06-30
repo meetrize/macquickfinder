@@ -550,6 +550,7 @@ struct ExplorerApp: App {
             .frame(minWidth: 267, minHeight: 200)
             .applyInterfaceLanguageEnvironment()
             .background(ExternalFolderOpenBridge())
+            .background(ExplorerBrowserWindowSuppressor())
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
@@ -564,6 +565,7 @@ struct ExplorerApp: App {
             .frame(minWidth: 267, minHeight: 200)
             .applyInterfaceLanguageEnvironment()
             .background(ExternalFolderOpenBridge())
+            .background(ExplorerBrowserWindowSuppressor())
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
@@ -571,12 +573,16 @@ struct ExplorerApp: App {
         WindowGroup(id: ExplorerWindowScene.preview, for: PreviewWindowValue.self) { $value in
             Group {
                 if let value {
-                    DetachedPreviewWindowView(sessionID: value.sessionID)
+                    DetachedPreviewWindowView(
+                        sessionID: value.sessionID,
+                        fitImageToScreen: value.fitImageToScreen
+                    )
                 } else {
                     EmptyView()
                 }
             }
             .applyInterfaceLanguageEnvironment()
+            .background(ExternalFolderOpenBridge())
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
@@ -784,6 +790,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         ModuleLocalization.applyAppleLanguagesOverride()
         DefaultFileViewerManager.registerWithLaunchServicesIfNeeded()
+        DefaultImageViewerManager.registerWithLaunchServicesIfNeeded()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -803,21 +810,30 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func application(_ application: NSApplication, open urls: [URL]) {
+        if ExternalImagePreviewOpenCenter.shared.tryOpen(urls: urls) {
+            return
+        }
         ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
     }
 
     @MainActor
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
         let urls = filenames.map { URL(fileURLWithPath: $0) }
+        if ExternalImagePreviewOpenCenter.shared.tryOpen(urls: urls) {
+            sender.reply(toOpenOrPrint: .success)
+            return
+        }
         ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
         sender.reply(toOpenOrPrint: .success)
     }
 
     @MainActor
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        ExternalFolderOpenCenter.shared.requestOpen(
-            urls: [URL(fileURLWithPath: filename)]
-        )
+        let urls = [URL(fileURLWithPath: filename)]
+        if ExternalImagePreviewOpenCenter.shared.tryOpen(urls: urls) {
+            return true
+        }
+        ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
         return true
     }
 

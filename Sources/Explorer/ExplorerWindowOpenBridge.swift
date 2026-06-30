@@ -7,6 +7,7 @@ final class ExplorerWindowOpenBridge {
 
     var openFolderWindow: ((ExplorerFolderWindowValue) -> Void)?
     var openMainWindow: (() -> Void)?
+    var openPreviewWindow: ((PreviewWindowValue) -> Void)?
 
     private init() {}
 }

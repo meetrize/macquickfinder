@@ -144,6 +144,14 @@
 	<string>无法读取 ZIP 目录</string>
 	<key>error.archive.timed_out</key>
 	<string>目录读取超时</string>
+	<key>error.default_image_viewer.defaults_command %lld</key>
+	<string>defaults 命令失败（退出码 %lld）。</string>
+	<key>error.default_image_viewer.launch_services %lld</key>
+	<string>Launch Services 注册失败（错误 %lld）。</string>
+	<key>error.default_image_viewer.preferences_sync</key>
+	<string>无法写入系统偏好设置。</string>
+	<key>error.default_image_viewer.preview_not_found</key>
+	<string>未找到 Preview 应用。</string>
 	<key>error.default_viewer.defaults_command %lld</key>
 	<string>系统命令执行失败（退出码 %lld）。</string>
 	<key>error.default_viewer.finder_not_found</key>
@@ -1060,6 +1068,22 @@
 	<string>空白处双击</string>
 	<key>settings.confirm_destructive</key>
 	<string>危险命令二次确认</string>
+	<key>settings.default_image_viewer.current</key>
+	<string>当前默认</string>
+	<key>settings.default_image_viewer.footer</key>
+	<string>双击图片时以预览独立窗打开，并自动适应屏幕大小。</string>
+	<key>settings.default_image_viewer.restart_hint</key>
+	<string>更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。</string>
+	<key>settings.default_image_viewer.restore_preview</key>
+	<string>恢复 Preview</string>
+	<key>settings.default_image_viewer.restore_success</key>
+	<string>已恢复 Preview 为默认图片查看器。</string>
+	<key>settings.default_image_viewer.set</key>
+	<string>设为默认图片查看器</string>
+	<key>settings.default_image_viewer.set_success</key>
+	<string>已将 MeoFind 设为默认图片查看器。双击图片将打开预览独立窗。</string>
+	<key>settings.default_image_viewer.title</key>
+	<string>默认图片查看器</string>
 	<key>settings.default_viewer.current</key>
 	<string>当前默认</string>
 	<key>settings.default_viewer.restart_hint</key>

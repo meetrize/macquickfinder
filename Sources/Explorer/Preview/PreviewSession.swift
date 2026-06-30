@@ -27,6 +27,8 @@ final class PreviewSession: ObservableObject, Identifiable {
     @Published var browseContext: PreviewBrowserContext?
     /// 独立窗口底部胶片条是否展开（弹出时默认展开，收回侧栏后重置）。
     @Published var isBrowserStripExpanded = false
+    /// 外部直接打开的图片预览不支持收回侧栏。
+    var allowsDockBack = true
 
     var loadTask: Task<Void, Never>?
     private var browseContextCancellable: AnyCancellable?

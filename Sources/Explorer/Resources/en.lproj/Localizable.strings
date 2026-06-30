@@ -144,6 +144,14 @@
 	<string>Unable to read ZIP listing</string>
 	<key>error.archive.timed_out</key>
 	<string>Listing read timed out</string>
+	<key>error.default_image_viewer.defaults_command %lld</key>
+	<string>defaults command failed (exit code %lld).</string>
+	<key>error.default_image_viewer.launch_services %lld</key>
+	<string>Launch Services registration failed (error %lld).</string>
+	<key>error.default_image_viewer.preferences_sync</key>
+	<string>Unable to write system preferences.</string>
+	<key>error.default_image_viewer.preview_not_found</key>
+	<string>Preview.app was not found on this Mac.</string>
 	<key>error.default_viewer.defaults_command %lld</key>
 	<string>System command failed (exit code %lld).</string>
 	<key>error.default_viewer.finder_not_found</key>
@@ -1060,6 +1068,22 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Double-click on blank area</string>
 	<key>settings.confirm_destructive</key>
 	<string>Confirm Destructive Commands</string>
+	<key>settings.default_image_viewer.current</key>
+	<string>Current Default</string>
+	<key>settings.default_image_viewer.footer</key>
+	<string>Opens images in the detached preview window, sized to fit the screen.</string>
+	<key>settings.default_image_viewer.restart_hint</key>
+	<string>Log out and back in, or restart your Mac, for changes to take effect everywhere.</string>
+	<key>settings.default_image_viewer.restore_preview</key>
+	<string>Restore Preview</string>
+	<key>settings.default_image_viewer.restore_success</key>
+	<string>Preview is now the default image viewer.</string>
+	<key>settings.default_image_viewer.set</key>
+	<string>Set as Default Image Viewer</string>
+	<key>settings.default_image_viewer.set_success</key>
+	<string>MeoFind is now the default image viewer. Double-clicking an image opens the detached preview window.</string>
+	<key>settings.default_image_viewer.title</key>
+	<string>Default Image Viewer</string>
 	<key>settings.default_viewer.current</key>
 	<string>Current Default</string>
 	<key>settings.default_viewer.restart_hint</key>

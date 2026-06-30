@@ -19,6 +19,11 @@ struct ExternalFolderOpenBridge: View {
                 ExternalFolderOpenCenter.shared.setOpenFolderWindowHandler { path in
                     openFolder(ExplorerFolderWindowValue(path: path))
                 }
+                let openPreview: (PreviewWindowValue) -> Void = { value in
+                    openWindow(id: ExplorerWindowScene.preview, value: value)
+                }
+                ExplorerWindowOpenBridge.shared.openPreviewWindow = openPreview
+                ExternalImagePreviewOpenCenter.shared.setOpenPreviewWindowHandler(openPreview)
             }
     }
 }

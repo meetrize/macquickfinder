@@ -85,10 +85,39 @@ final class PreviewDetachCoordinator: ObservableObject {
             detachedWindow = nil
             return
         }
-        guard case .detached(let detachedID, _) = placement, detachedID == sessionID else { return }
-        placement = .inline
+        if case .detached(let detachedID, _) = placement, detachedID == sessionID {
+            placement = .inline
+        }
         PreviewSessionStore.shared.remove(sessionID)
         detachedWindow = nil
+    }
+
+    /// 从 Finder 等外部入口直接打开图片独立预览窗。
+    @discardableResult
+    func openStandaloneImagePreview(
+        file: FileItem,
+        directoryPath: String,
+        directoryItems: [FileItem]
+    ) -> PreviewSessionID {
+        let hostWindowID = UUID()
+        let session = PreviewSession(hostWindowID: hostWindowID, file: file)
+        session.allowsDockBack = false
+        session.location = .detached(windowNumber: nil)
+        session.isBrowserStripExpanded = true
+        session.image.zoomScale = 1.0
+
+        if let context = PreviewBrowserContext.makeSnapshot(
+            directoryPath: directoryPath,
+            items: directoryItems,
+            sortOrder: .nameAscending,
+            showHiddenFiles: false,
+            currentFileID: file.id
+        ) {
+            session.attachBrowserContext(context)
+        }
+
+        PreviewSessionStore.shared.register(session)
+        return session.id
     }
 
     func onHostWindowWillClose(hostWindowID: UUID) {
