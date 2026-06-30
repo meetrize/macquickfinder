@@ -14,14 +14,14 @@ extension PreviewSession {
         if PreviewTypeClassifier.isPDFFile(ext) {
             return previewPDFToolbarItems()
         }
+        if PreviewTypeClassifier.isSpreadsheetFile(ext) {
+            return previewSpreadsheetToolbarItems(for: item)
+        }
         if PreviewTypeClassifier.isTextFile(ext) {
             return previewTextToolbarItems(for: item)
         }
         if PreviewTypeClassifier.isMediaFile(ext) {
             return previewMediaToolbarItems()
-        }
-        if PreviewTypeClassifier.isSpreadsheetFile(ext) {
-            return previewSpreadsheetToolbarItems(for: item)
         }
         if PreviewTypeClassifier.isWordDocumentFile(ext) {
             return previewWordDocumentToolbarItems(for: item)

@@ -10,6 +10,7 @@ enum PreviewLoadRoute: Equatable {
     case doc
     case xlsx
     case xls
+    case csv
     case builtInOffice
     case builtInPDF
     case archive
@@ -54,6 +55,9 @@ enum PreviewLoadDispatch {
         }
         if ext == "xls" {
             return .xls
+        }
+        if ext == "csv" {
+            return .csv
         }
         if BuiltinPreviewExtensions.office.contains(ext) {
             return .builtInOffice

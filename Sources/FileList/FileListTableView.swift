@@ -4,6 +4,50 @@ final class FileListTableView: NSTableView {
     weak var interactionController: FileListTableController?
     weak var servicesRequestor: (any FileListServicesMenuRequestor)?
 
+    private var rowHoverTrackingArea: NSTrackingArea?
+    private var rowHoverTrackingEnabled = false
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        installRowHoverTrackingIfNeeded()
+    }
+
+    func installRowHoverTrackingIfNeeded() {
+        if let rowHoverTrackingArea {
+            removeTrackingArea(rowHoverTrackingArea)
+            self.rowHoverTrackingArea = nil
+        }
+        guard rowHoverTrackingEnabled else { return }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        rowHoverTrackingArea = area
+    }
+
+    func updateRowHoverTrackingEnabled(_ enabled: Bool) {
+        guard rowHoverTrackingEnabled != enabled else { return }
+        rowHoverTrackingEnabled = enabled
+        installRowHoverTrackingIfNeeded()
+        if !enabled {
+            interactionController?.clearRowHoverHighlight()
+        }
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        interactionController?.updateRowHover(at: point, in: self)
+        super.mouseMoved(with: event)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        interactionController?.clearRowHoverHighlight()
+        super.mouseExited(with: event)
+    }
+
     override func validRequestor(
         forSendType sendType: NSPasteboard.PasteboardType?,
         returnType: NSPasteboard.PasteboardType?

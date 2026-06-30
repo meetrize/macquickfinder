@@ -12,6 +12,8 @@ public final class FileListTableController: FileListContentController {
     var mouseDownRow = -1
     var mouseDownHandledByDisclosureToggle = false
     var dropHighlightRow: Int?
+    var hoverHighlightRow: Int?
+    var _rowHoverHighlightEnabled = false
     var pendingRenameRow = -1
     var skipRenameArmOnCurrentMouseUp = false
 
@@ -95,6 +97,7 @@ public final class FileListTableController: FileListContentController {
         self.tableView = tableView
         self.scrollView = scrollView
 
+        (tableView as? FileListTableView)?.installRowHoverTrackingIfNeeded()
         installObservers()
         ensureTableViewFillsClipViewIfNeeded()
         return scrollView
@@ -106,13 +109,15 @@ public final class FileListTableController: FileListContentController {
         selectionGet: @escaping () -> Set<String>,
         selectionSet: @escaping (Set<String>) -> Void,
         preferencesStore: FileListPreferencesStore,
-        useIconPreview: Bool = false
+        useIconPreview: Bool = false,
+        rowHoverHighlight: Bool = false
     ) {
         let iconPreviewChanged = self.useIconPreview != useIconPreview
         self.useIconPreview = useIconPreview
         if iconPreviewChanged && !useIconPreview {
             thumbnailGenerator.cancelInFlightRequests()
         }
+        rowHoverHighlightEnabled = rowHoverHighlight
 
         bindUpdateContext(
             interaction: interaction,

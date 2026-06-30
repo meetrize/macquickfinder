@@ -81,6 +81,7 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         syncSelectionFromTable()
         refreshVisibleRowContentClip()
         refreshVisibleNameLabels()
+        refreshRowHoverHighlightFromCurrentMouseLocation()
     }
 
     public func tableView(

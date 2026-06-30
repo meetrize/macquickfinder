@@ -68,6 +68,10 @@ final class FileListThumbnailItem: NSCollectionViewItem {
     func setDropTargetHighlighted(_ highlighted: Bool) {
         cellView?.setDropTargetHighlighted(highlighted)
     }
+
+    func setRowHoverHighlightEnabled(_ enabled: Bool) {
+        cellView?.setRowHoverHighlightEnabled(enabled)
+    }
     
     func beginRename(
         name: String,

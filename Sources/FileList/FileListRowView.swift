@@ -15,6 +15,12 @@ final class FileListRowView: NSTableRowView {
             needsDisplay = true
         }
     }
+    var isHoverHighlighted = false {
+        didSet {
+            guard oldValue != isHoverHighlighted else { return }
+            needsDisplay = true
+        }
+    }
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -32,6 +38,16 @@ final class FileListRowView: NSTableRowView {
         let clipped = contentClip(of: dirtyRect)
         guard !clipped.isEmpty else { return }
         super.drawBackground(in: clipped)
+        
+        if isHoverHighlighted, !isSelected, !isDropTargetRow {
+            let insetRect = clipped.insetBy(dx: 1, dy: 1)
+            FileListRowHoverStyle.fillColor(for: effectiveAppearance).setFill()
+            if insetRect.width > 2, insetRect.height > 2 {
+                NSBezierPath(roundedRect: insetRect, xRadius: 4, yRadius: 4).fill()
+            } else {
+                clipped.fill()
+            }
+        }
         
         guard isDropTargetRow else { return }
         NSColor.controlAccentColor.withAlphaComponent(0.18).setFill()

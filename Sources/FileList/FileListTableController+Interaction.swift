@@ -29,6 +29,11 @@ extension FileListTableController {
     // MARK: - Mouse & keyboard
     
     func handleTableFocusChanged(_ isFocused: Bool) {
+        if !isFocused {
+            clearRowHoverHighlight()
+        } else {
+            refreshRowHoverHighlightFromCurrentMouseLocation()
+        }
         interaction.onTableFocusChanged(isFocused)
     }
     

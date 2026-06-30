@@ -1100,6 +1100,8 @@
 	<string>已将 MeoFind 设为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。</string>
 	<key>settings.default_viewer.title</key>
 	<string>默认文件夹查看器</string>
+	<key>settings.file_list.row_hover_highlight</key>
+	<string>鼠标悬停时高亮文件列表行</string>
 	<key>settings.general.interface_language</key>
 	<string>界面语言</string>
 	<key>settings.general.interface_language_footer</key>

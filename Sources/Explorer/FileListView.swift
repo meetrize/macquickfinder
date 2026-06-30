@@ -69,6 +69,7 @@ struct FileListView: View {
     @State private var quickSearchAutoCloseWorkItem: DispatchWorkItem?
     @State private var isQuickSearchTabKeyDown = false
     @AppStorage("explorer.treeExpandEnabled") private var treeExpandEnabled = true
+    @AppStorage(AppPreferences.FileList.rowHoverHighlight) private var rowHoverHighlight = true
     @State private var expandedDirectoryIDs: Set<String> = []
     @State private var expandingDirectoryIDs: Set<String> = []
     @State private var cachedChildrenByDirectoryID: [String: [FileItem]] = [:]
@@ -207,7 +208,8 @@ struct FileListView: View {
                 },
                 onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
                 directorySizeProvider: sizeProvider,
-                useIconPreview: useIconPreview
+                useIconPreview: useIconPreview,
+                rowHoverHighlight: rowHoverHighlight
             )
             .onAppear {
                 preferencesStore.resetToDefaultIfNeeded()
@@ -242,7 +244,8 @@ struct FileListView: View {
                 },
                 directorySizeProvider: sizeProvider,
                 directoryItemCountProvider: countProvider,
-                preferWorkspaceIcons: preferWorkspaceIconsInThumbnail
+                preferWorkspaceIcons: preferWorkspaceIconsInThumbnail,
+                rowHoverHighlight: rowHoverHighlight
             )
             .onAppear {
                 preferencesStore.resetToDefaultIfNeeded()

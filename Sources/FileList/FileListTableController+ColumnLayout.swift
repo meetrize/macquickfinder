@@ -400,6 +400,7 @@ extension FileListTableController {
             ) { [weak self] _ in
                 self?.scheduleVisibleDirectoryPathsNotify(debounce: 0.15)
                 self?.scheduleVisibleIconPreviewLoad()
+                self?.refreshRowHoverHighlightFromCurrentMouseLocation()
             }
         }
     }

@@ -156,6 +156,7 @@ extension FileListTableController {
         }
         rowView.isDropTargetRow = row == dropHighlightRow
         rowView.contentBackgroundMaxX = dataColumnsTrailingX(in: tableView)
+        syncRowHoverHighlight(forRow: row, rowView: rowView)
         return rowView
     }
 

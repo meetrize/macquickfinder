@@ -82,6 +82,8 @@ private struct GeneralSettingsTab: View {
     private var blankDoubleClickAction = BlankDoubleClickAction.navigateToParent.rawValue
     @AppStorage(AppPreferences.General.windowSnapEnabled)
     private var windowSnapEnabled = true
+    @AppStorage(AppPreferences.FileList.rowHoverHighlight)
+    private var rowHoverHighlight = true
     @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
     @StateObject private var defaultImageViewerSettings = DefaultImageViewerSettingsModel()
     
@@ -110,6 +112,7 @@ private struct GeneralSettingsTab: View {
 
             Section {
                 Toggle(L10n.Settings.General.windowSnap, isOn: $windowSnapEnabled)
+                Toggle(L10n.Settings.General.fileListRowHover, isOn: $rowHoverHighlight)
             }
 
             DefaultFileViewerSettingsSection(model: defaultFileViewerSettings)

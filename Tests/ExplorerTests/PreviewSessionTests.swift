@@ -187,6 +187,30 @@ final class PreviewSessionTests: XCTestCase {
         xlsxSession.office.spreadsheetMode = .quickLook
         XCTAssertFalse(xlsxSession.showsPreviewTextSearch(for: xlsxSession.file))
 
+        let csvSession = PreviewSession(
+            hostWindowID: UUID(),
+            file: FileItem(
+                id: "csv",
+                url: URL(fileURLWithPath: "/tmp/data.csv"),
+                name: "data.csv",
+                isDirectory: false,
+                modificationDate: .distantPast,
+                size: 256,
+                isHidden: false,
+                fileType: "csv",
+                sizeDisplay: "256 B",
+                dateDisplay: ""
+            )
+        )
+        csvSession.content.textContent = "a,b\n1,2"
+        csvSession.content.officeURL = URL(fileURLWithPath: "/tmp/data.csv")
+        let csvToolbarIDs = Set(csvSession.previewToolbarItems(for: csvSession.file).map(\.id))
+        XCTAssertTrue(csvToolbarIDs.contains("spreadsheet-toggle-mode"))
+        csvSession.office.spreadsheetMode = .text
+        XCTAssertTrue(csvSession.showsPreviewTextSearch(for: csvSession.file))
+        csvSession.office.spreadsheetMode = .quickLook
+        XCTAssertFalse(csvSession.showsPreviewTextSearch(for: csvSession.file))
+
         let docxSession = PreviewSession(
             hostWindowID: UUID(),
             file: FileItem(

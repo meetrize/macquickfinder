@@ -1100,6 +1100,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>MeoFind is now the default folder viewer. Log out and back in (or restart) for the change to take effect everywhere.</string>
 	<key>settings.default_viewer.title</key>
 	<string>Default Folder Viewer</string>
+	<key>settings.file_list.row_hover_highlight</key>
+	<string>Highlight file list row on hover</string>
 	<key>settings.general.interface_language</key>
 	<string>Interface Language</string>
 	<key>settings.general.interface_language_footer</key>

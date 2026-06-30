@@ -31,6 +31,7 @@ final class PreviewLoadDispatchTests: XCTestCase {
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "doc")), .doc)
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "xlsx")), .xlsx)
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "xls")), .xls)
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "csv")), .csv)
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "pptx")), .builtInOffice)
     }
 
@@ -48,6 +49,10 @@ final class PreviewLoadDispatchTests: XCTestCase {
     func testResolveTextAndHtmlDeferredLoad() {
         XCTAssertEqual(
             PreviewLoadDispatch.resolve(input(ext: "txt")),
+            .builtInText(deferSourceLoad: false)
+        )
+        XCTAssertNotEqual(
+            PreviewLoadDispatch.resolve(input(ext: "csv")),
             .builtInText(deferSourceLoad: false)
         )
         XCTAssertEqual(

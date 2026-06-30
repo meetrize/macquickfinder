@@ -37,6 +37,8 @@ extension PreviewSession {
             await loadDOCPreview(url: url, itemID: itemID)
         case .xlsx, .xls:
             await loadSpreadsheetPreview(url: url, itemID: itemID)
+        case .csv:
+            await loadCSVPreview(url: url, itemID: itemID)
         case .builtInOffice:
             guard !Task.isCancelled else { return }
             applyLoadPayload(.office(url: url), expectedItemID: itemID)
@@ -116,6 +118,20 @@ extension PreviewSession {
             applyLoadPayload(.spreadsheetText(text, officeURL: url), expectedItemID: itemID)
             office.spreadsheetMode = .text
         } else {
+            applyLoadPayload(.office(url: url), expectedItemID: itemID)
+            office.spreadsheetMode = .quickLook
+        }
+    }
+
+    private func loadCSVPreview(url: URL, itemID: String) async {
+        guard !Task.isCancelled else { return }
+        do {
+            let loadedText = try await PreviewContentLoader.loadText(from: url)
+            applyLoadPayload(.spreadsheetText(loadedText, officeURL: url), expectedItemID: itemID)
+            office.spreadsheetMode = .text
+        } catch {
+            guard !Task.isCancelled else { return }
+            if error is CancellationError { return }
             applyLoadPayload(.office(url: url), expectedItemID: itemID)
             office.spreadsheetMode = .quickLook
         }

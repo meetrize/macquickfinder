@@ -6529,6 +6529,23 @@
         }
       }
     },
+    "settings.file_list.row_hover_highlight": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Highlight file list row on hover"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鼠标悬停时高亮文件列表行"
+          }
+        }
+      }
+    },
     "sidebar.devices": {
       "extractionState": "manual",
       "localizations": {

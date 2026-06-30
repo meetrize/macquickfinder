@@ -20,6 +20,7 @@ public final class FileListThumbnailController: FileListContentController {
     private var pendingCollectionReloadFull = false
     private var hasInstalledCollectionView = false
     private var preferWorkspaceIcons = false
+    private var rowHoverHighlightEnabled = false
     private let thumbnailGenerator = ThumbnailGenerator()
     
     // Interaction state
@@ -89,12 +90,18 @@ public final class FileListThumbnailController: FileListContentController {
         selectionSet: @escaping (Set<String>) -> Void,
         preferencesStore: FileListPreferencesStore,
         cellSize: CGFloat,
-        preferWorkspaceIcons: Bool = false
+        preferWorkspaceIcons: Bool = false,
+        rowHoverHighlight: Bool = false
     ) {
         let preferIconsChanged = self.preferWorkspaceIcons != preferWorkspaceIcons
         self.preferWorkspaceIcons = preferWorkspaceIcons
         if preferIconsChanged {
             thumbnailGenerator.cancelInFlightRequests()
+        }
+        let hoverChanged = rowHoverHighlightEnabled != rowHoverHighlight
+        rowHoverHighlightEnabled = rowHoverHighlight
+        if hoverChanged, !rowHoverHighlight {
+            refreshVisibleItemAppearance()
         }
         bindUpdateContext(
             interaction: interaction,
@@ -361,6 +368,7 @@ public final class FileListThumbnailController: FileListContentController {
             placeholderImage: placeholder,
             cellSize: cellSize
         )
+        item.setRowHoverHighlightEnabled(rowHoverHighlightEnabled)
         
         if let cached = memoryCached {
             let displayImage = cached.isThumbnail
@@ -416,6 +424,7 @@ public final class FileListThumbnailController: FileListContentController {
                   indexPath.item >= 0,
                   indexPath.item < displayRows.count else { continue }
             let row = displayRows[indexPath.item]
+            item.setRowHoverHighlightEnabled(rowHoverHighlightEnabled)
             item.updateSelection(isRowSelected(row.id), highlightText: highlightText, row: row)
             if item.representedRowID == row.id {
                 item.refreshRowMetadata(row)

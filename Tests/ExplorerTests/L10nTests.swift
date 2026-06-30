@@ -76,6 +76,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Settings.Shortcuts.cheatSheet, "settings.shortcut.cheat_sheet")
         XCTAssertNotEqual(L10n.Settings.Shortcuts.category("global"), "settings.shortcuts.category.global")
         XCTAssertNotEqual(L10n.Settings.Shortcuts.category("navigation"), "settings.shortcuts.category.navigation")
+        XCTAssertNotEqual(L10n.Settings.General.fileListRowHover, "settings.file_list.row_hover_highlight")
     }
 
     func testHelpStringsResolveFromStringsTable() {

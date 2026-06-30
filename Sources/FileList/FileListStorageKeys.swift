@@ -7,4 +7,5 @@ public enum FileListStorageKeys {
     public static let legacyColumns = "fileListColumns"
     public static let viewMode = "explorer.fileList.viewMode"
     public static let thumbnailCellSize = "explorer.fileList.thumbnailCellSize"
+    public static let rowHoverHighlight = "explorer.fileList.rowHoverHighlight"
 }

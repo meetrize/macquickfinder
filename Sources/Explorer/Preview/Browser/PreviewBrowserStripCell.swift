@@ -91,6 +91,7 @@ struct PreviewBrowserStripCell: View {
             .opacity(cellOpacity)
         }
         .buttonStyle(.plain)
+        .focusable(false)
         .frame(
             width: PreviewBrowserStripMetrics.thumbnailSize,
             height: PreviewBrowserStripMetrics.thumbnailSize

@@ -18,6 +18,8 @@ final class FileListThumbnailCellView: NSView {
     
     private var isCellSelected = false
     private var isDropTarget = false
+    private var isHoverHighlighted = false
+    private var rowHoverHighlightEnabled = false
     private var imagePresentation: ImagePresentation = .icon
     private var representedRow: FileListRow?
     private var configuredCellSize: CGFloat = FileListThumbnailMetrics.defaultCellSize
@@ -111,14 +113,21 @@ final class FileListThumbnailCellView: NSView {
     }
     
     override func mouseEntered(with event: NSEvent) {
-        guard event.trackingArea === tooltipTrackingArea,
-              !hoverTooltipText.isEmpty
-        else { return }
+        guard event.trackingArea === tooltipTrackingArea else { return }
+        if rowHoverHighlightEnabled, !isCellSelected, !isDropTarget {
+            isHoverHighlighted = true
+            updateAppearanceForCurrentTheme()
+        }
+        guard !hoverTooltipText.isEmpty else { return }
         RailTooltipPresenter.show(text: hoverTooltipText, anchor: self)
     }
 
     override func mouseExited(with event: NSEvent) {
         guard event.trackingArea === tooltipTrackingArea else { return }
+        if isHoverHighlighted {
+            isHoverHighlighted = false
+            updateAppearanceForCurrentTheme()
+        }
         RailTooltipPresenter.hide()
     }
     
@@ -249,14 +258,26 @@ final class FileListThumbnailCellView: NSView {
         
         hoverTooltipText = thumbnailToolTip(for: row)
         toolTip = nil
-        selectionOverlay.isHidden = !isSelected
+        syncSelectionOverlayVisibility()
         updateAppearanceForCurrentTheme()
         needsLayout = true
     }
     
+    func setRowHoverHighlightEnabled(_ enabled: Bool) {
+        guard rowHoverHighlightEnabled != enabled else { return }
+        rowHoverHighlightEnabled = enabled
+        if !enabled, isHoverHighlighted {
+            isHoverHighlighted = false
+        }
+        updateAppearanceForCurrentTheme()
+    }
+
     func updateSelection(_ isSelected: Bool, highlightText: String, row: FileListRow) {
         representedRow = row
         isCellSelected = isSelected
+        if isSelected {
+            isHoverHighlighted = false
+        }
         guard renameField.isHidden else { return }
         nameLabel.attributedStringValue = FileListTextHighlight.attributedOverlayName(
             row.name,
@@ -265,7 +286,7 @@ final class FileListThumbnailCellView: NSView {
             isHidden: row.isHidden
         )
         applyFolderItemCountLabel(for: row)
-        selectionOverlay.isHidden = !isSelected
+        syncSelectionOverlayVisibility()
         updateAppearanceForCurrentTheme()
         needsLayout = true
     }
@@ -285,6 +306,9 @@ final class FileListThumbnailCellView: NSView {
     
     func setDropTargetHighlighted(_ highlighted: Bool) {
         isDropTarget = highlighted
+        if highlighted {
+            isHoverHighlighted = false
+        }
         updateAppearanceForCurrentTheme()
     }
     
@@ -454,6 +478,10 @@ final class FileListThumbnailCellView: NSView {
         return prefix + FileListThumbnailMetrics.compactSizeDisplay(bytes: row.size)
     }
     
+    private func syncSelectionOverlayVisibility() {
+        selectionOverlay.isHidden = !isCellSelected && !isHoverHighlighted && !isDropTarget
+    }
+    
     private func updateAppearanceForCurrentTheme() {
         let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         let overlayBackground = NSColor(white: 0.88, alpha: 0.8)
@@ -479,10 +507,15 @@ final class FileListThumbnailCellView: NSView {
             selectionOverlay.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.12).cgColor
             layer?.borderWidth = FileListThumbnailMetrics.selectionBorderWidth
             layer?.borderColor = NSColor.controlAccentColor.withAlphaComponent(0.85).cgColor
+        } else if isHoverHighlighted, rowHoverHighlightEnabled {
+            selectionOverlay.layer?.backgroundColor = FileListRowHoverStyle.fillColor(for: effectiveAppearance).cgColor
+            layer?.borderWidth = 0
+            layer?.borderColor = nil
         } else {
             selectionOverlay.layer?.backgroundColor = NSColor.clear.cgColor
             layer?.borderWidth = 0
             layer?.borderColor = nil
         }
+        syncSelectionOverlayVisibility()
     }
 }

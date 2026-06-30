@@ -9,6 +9,7 @@ enum AppPreferences {
         static let legacyColumns = FileListStorageKeys.legacyColumns
         static let viewMode = FileListStorageKeys.viewMode
         static let thumbnailCellSize = FileListStorageKeys.thumbnailCellSize
+        static let rowHoverHighlight = FileListStorageKeys.rowHoverHighlight
     }
 
     /// 窗口与面板布局。

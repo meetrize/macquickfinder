@@ -119,8 +119,8 @@ enum BuiltinPreviewExtensions {
     ]
     static let media: Set<String> = ["mp4", "mov", "mp3", "wav"]
     static let office: Set<String> = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"]
-    /// 电子表格：优先文本表格预览（可选中复制），失败时回退 Quick Look。
-    static let spreadsheet: Set<String> = ["xls", "xlsx"]
+    /// 电子表格 / CSV：优先纯文本预览，可切换 Quick Look 表格预览。
+    static let spreadsheet: Set<String> = ["xls", "xlsx", "csv"]
     /// Word 文档：优先纯文本预览，可切换为格式化富文本预览。
     static let wordDocument: Set<String> = ["doc", "docx"]
     /// 幻灯片类 Office 文件（Quick Look 多页预览）。
