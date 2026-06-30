@@ -62,6 +62,16 @@ struct PreviewChromeView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(-1)
 
+            if let archiveSelectionCaption = session.archiveSelectionCaption {
+                Text(archiveSelectionCaption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(0)
+            }
+
             if showsToolbarItems,
                let item = session.toolbarFileItem,
                session.showsPreviewTextSearch(for: item) {

@@ -3,6 +3,16 @@ import FileList
 import SwiftUI
 
 extension PreviewSession {
+    /// 压缩包预览且有选中项时，供顶栏展示的副标题。
+    var archiveSelectionCaption: String? {
+        guard let item = toolbarFileItem,
+              BuiltinPreviewExtensions.matchesArchive(fileName: item.url.lastPathComponent),
+              !archive.selectedEntryPaths.isEmpty else {
+            return nil
+        }
+        return L10n.Preview.Archive.selectionCount(archive.selectedEntryPaths.count)
+    }
+
     func previewArchiveToolbarItems() -> [PreviewToolbarOverflowModel] {
         let hasSelection = !archive.selectedEntryPaths.isEmpty
         return [

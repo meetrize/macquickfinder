@@ -29,14 +29,6 @@ struct ArchiveListPreview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if !selectedEntryPaths.isEmpty {
-                Text(L10n.Preview.Archive.selectionCount(selectedEntryPaths.count))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 6)
-            }
-
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
                     ForEach(visibleRows) { row in
