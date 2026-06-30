@@ -13,57 +13,63 @@ enum DetachedPreviewWindowSizer {
         let contentSize: CGSize
     }
 
-    /// 计算初始窗口内容区：工具栏 + 胶片条高度固定，图片区尽量撑满可用屏幕。
+    /// 计算初始窗口内容区：图片在扣除 chrome 后的可用空间内等比适应，高度紧凑无上下留白。
     static func fitResult(for input: LayoutInput, window: NSWindow) -> FitResult {
         let screen = input.screen ?? NSScreen.main
         let visibleFrame = screen?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1280, height: 800)
+        let placementBounds = DetachedPreviewWindowLayoutMetrics.placementBounds(for: visibleFrame)
         let backingScale = screen?.backingScaleFactor ?? 2.0
         let imagePoints = CGSize(
             width: max(input.imagePixelSize.width / backingScale, 1),
             height: max(input.imagePixelSize.height / backingScale, 1)
         )
 
+        let titleBar = DetachedPreviewWindowLayoutMetrics.titleBarHeight(for: window)
         let topChrome = DetachedPreviewWindowLayoutMetrics.previewChromeHeight
         let belowImageChrome = DetachedPreviewWindowLayoutMetrics.belowImageChromeHeight(
             browserStripExpanded: input.browserStripExpanded,
             canBrowse: input.canBrowse
         )
 
+        let maxFrameHeight = max(120, placementBounds.height)
+        let maxContentHeight = max(120, maxFrameHeight - titleBar)
+        let imageSlotHeight = max(1, maxContentHeight - topChrome - belowImageChrome)
+        let imageSlotWidth = max(1, placementBounds.width)
+
         var fitScale = min(
-            visibleFrame.width / imagePoints.width,
-            visibleFrame.height / imagePoints.height
+            imageSlotWidth / imagePoints.width,
+            imageSlotHeight / imagePoints.height
         )
 
         var fittedImage = CGSize(
             width: imagePoints.width * fitScale,
             height: imagePoints.height * fitScale
         )
-        var currentContentSize = makeContentSize(
+        var contentSize = makeContentSize(
             fittedImage: fittedImage,
             topChrome: topChrome,
             belowImageChrome: belowImageChrome
         )
 
-        for _ in 0..<32 {
-            let frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: currentContentSize))
-            if frame.maxY <= visibleFrame.maxY + 0.5,
-               frame.minY >= visibleFrame.minY - 0.5,
-               frame.width <= visibleFrame.width + 0.5 {
+        for _ in 0..<8 {
+            let frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: contentSize))
+            if frame.width <= placementBounds.width + 0.5,
+               frame.height <= maxFrameHeight + 0.5 {
                 break
             }
-            fitScale *= 0.97
+            fitScale *= 0.98
             fittedImage = CGSize(
                 width: imagePoints.width * fitScale,
                 height: imagePoints.height * fitScale
             )
-            currentContentSize = makeContentSize(
+            contentSize = makeContentSize(
                 fittedImage: fittedImage,
                 topChrome: topChrome,
                 belowImageChrome: belowImageChrome
             )
         }
 
-        return FitResult(contentSize: currentContentSize)
+        return FitResult(contentSize: contentSize)
     }
 
     @MainActor
@@ -73,8 +79,8 @@ enum DetachedPreviewWindowSizer {
         browserStripExpanded: Bool,
         canBrowse: Bool
     ) {
-        let screen = window.screen ?? NSScreen.main
-        let visibleFrame = screen?.visibleFrame ?? .zero
+        guard let screen = window.screen ?? NSScreen.main else { return }
+        let visibleFrame = screen.visibleFrame
         let result = fitResult(
             for: LayoutInput(
                 imagePixelSize: imagePixelSize,
@@ -89,32 +95,196 @@ enum DetachedPreviewWindowSizer {
             browserStripExpanded: browserStripExpanded,
             canBrowse: canBrowse
         )
-        window.setContentSize(result.contentSize)
-        alignWithinVisibleArea(window, visibleFrame: visibleFrame)
+        placeFrame(
+            window: window,
+            contentSize: result.contentSize,
+            visibleFrame: visibleFrame
+        )
+        scheduleEdgeSnaps(
+            for: window,
+            browserStripExpanded: browserStripExpanded,
+            canBrowse: canBrowse,
+            imagePixelSize: imagePixelSize
+        )
     }
 
-    /// 顶部尽量贴齐菜单栏下沿，且整窗完全落在可用区域内（不遮挡标题栏、不侵入 Dock）。
-    static func alignWithinVisibleArea(_ window: NSWindow, visibleFrame: CGRect) {
+    @MainActor
+    static func snapToVisibleArea(
+        _ window: NSWindow,
+        browserStripExpanded: Bool,
+        canBrowse: Bool,
+        imagePixelSize: CGSize? = nil
+    ) {
+        guard let screen = window.screen ?? NSScreen.main else {
+            DispatchQueue.main.async {
+                snapToVisibleArea(
+                    window,
+                    browserStripExpanded: browserStripExpanded,
+                    canBrowse: canBrowse,
+                    imagePixelSize: imagePixelSize
+                )
+            }
+            return
+        }
+        let visibleFrame = screen.visibleFrame
         guard visibleFrame.width > 0, visibleFrame.height > 0 else { return }
+
+        if let imagePixelSize, imagePixelSize.width > 0, imagePixelSize.height > 0 {
+            let result = fitResult(
+                for: LayoutInput(
+                    imagePixelSize: imagePixelSize,
+                    browserStripExpanded: browserStripExpanded,
+                    canBrowse: canBrowse,
+                    screen: screen
+                ),
+                window: window
+            )
+            placeFrame(
+                window: window,
+                contentSize: result.contentSize,
+                visibleFrame: visibleFrame
+            )
+        } else {
+            clampWindowFrameToVisibleArea(window)
+        }
+    }
+
+    @MainActor
+    static func snapToVisibleArea(for session: PreviewSession?, window: NSWindow) {
+        let pixelSize = session.flatMap { session -> CGSize? in
+            if session.image.sourcePixelSize.width > 0, session.image.sourcePixelSize.height > 0 {
+                return session.image.sourcePixelSize
+            }
+            return ImageFileDimensionsReader.pixelSize(for: session.file.url)
+        }
+        snapToVisibleArea(
+            window,
+            browserStripExpanded: session?.isBrowserStripExpanded ?? true,
+            canBrowse: session?.browseContext?.canBrowse ?? false,
+            imagePixelSize: pixelSize
+        )
+    }
+
+    /// 仅把窗口约束在可见区域内，不撑满高度。
+    @MainActor
+    static func clampWindowFrameToVisibleArea(_ window: NSWindow) {
+        guard let screen = window.screen ?? NSScreen.main else { return }
+        let visibleFrame = screen.visibleFrame
+        let bounds = DetachedPreviewWindowLayoutMetrics.placementBounds(for: visibleFrame)
+        guard bounds.width > 0, bounds.height > 0 else { return }
+
         var frame = window.frame
 
-        frame.origin.x = visibleFrame.midX - frame.width / 2
-        frame.origin.y = visibleFrame.maxY - frame.height
-
         if frame.maxY > visibleFrame.maxY {
-            frame.origin.y -= frame.maxY - visibleFrame.maxY
+            frame.origin.y = visibleFrame.maxY - frame.height
         }
-        if frame.minY < visibleFrame.minY {
-            frame.origin.y = visibleFrame.minY
+        if frame.minY < bounds.minY {
+            frame.origin.y = bounds.minY
         }
-        if frame.origin.x < visibleFrame.minX {
-            frame.origin.x = visibleFrame.minX
+        if frame.height > bounds.height {
+            frame.size.height = bounds.height
+            frame.origin.y = bounds.minY
         }
-        if frame.maxX > visibleFrame.maxX {
-            frame.origin.x = visibleFrame.maxX - frame.width
+        if frame.width > bounds.width {
+            frame.size.width = bounds.width
+        }
+        frame.origin.x = max(
+            bounds.minX,
+            min(frame.origin.x, bounds.maxX - frame.width)
+        )
+
+        if framesApproximatelyEqual(frame, window.frame) {
+            return
+        }
+        window.setFrame(frame, display: true, animate: false)
+    }
+
+    @MainActor
+    static func scheduleEdgeSnaps(
+        for window: NSWindow,
+        browserStripExpanded: Bool,
+        canBrowse: Bool,
+        imagePixelSize: CGSize?
+    ) {
+        snapToVisibleArea(
+            window,
+            browserStripExpanded: browserStripExpanded,
+            canBrowse: canBrowse,
+            imagePixelSize: imagePixelSize
+        )
+        DispatchQueue.main.async {
+            snapToVisibleArea(
+                window,
+                browserStripExpanded: browserStripExpanded,
+                canBrowse: canBrowse,
+                imagePixelSize: imagePixelSize
+            )
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            snapToVisibleArea(
+                window,
+                browserStripExpanded: browserStripExpanded,
+                canBrowse: canBrowse,
+                imagePixelSize: imagePixelSize
+            )
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            snapToVisibleArea(
+                window,
+                browserStripExpanded: browserStripExpanded,
+                canBrowse: canBrowse,
+                imagePixelSize: imagePixelSize
+            )
+        }
+    }
+
+    @MainActor
+    static func alignWithinVisibleArea(_ window: NSWindow, visibleFrame: CGRect) {
+        _ = visibleFrame
+        snapToVisibleArea(window, browserStripExpanded: true, canBrowse: true)
+    }
+
+    @MainActor
+    private static func placeFrame(
+        window: NSWindow,
+        contentSize: CGSize,
+        visibleFrame: CGRect
+    ) {
+        let bounds = DetachedPreviewWindowLayoutMetrics.placementBounds(for: visibleFrame)
+        let snugContent = NSSize(
+            width: max(320, contentSize.width.rounded(.down)),
+            height: max(120, contentSize.height.rounded(.down))
+        )
+
+        var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: snugContent))
+        if frame.height > bounds.height {
+            frame.size.height = bounds.height
         }
 
-        window.setFrame(frame, display: true)
+        frame.origin.y = visibleFrame.maxY - frame.height
+        if frame.minY < bounds.minY {
+            frame.origin.y = bounds.minY
+        }
+        frame.origin.x = bounds.midX - frame.width / 2
+
+        if frame.origin.x < bounds.minX {
+            frame.origin.x = bounds.minX
+        }
+        if frame.maxX > bounds.maxX {
+            frame.origin.x = bounds.maxX - frame.width
+        }
+
+        if framesApproximatelyEqual(frame, window.frame) {
+            return
+        }
+        window.setFrame(frame, display: true, animate: false)
+    }
+
+    private static func framesApproximatelyEqual(_ lhs: NSRect, _ rhs: NSRect, epsilon: CGFloat = 0.5) -> Bool {
+        abs(lhs.origin.x - rhs.origin.x) < epsilon
+            && abs(lhs.origin.y - rhs.origin.y) < epsilon
+            && abs(lhs.width - rhs.width) < epsilon
+            && abs(lhs.height - rhs.height) < epsilon
     }
 
     private static func makeContentSize(
@@ -122,9 +292,11 @@ enum DetachedPreviewWindowSizer {
         topChrome: CGFloat,
         belowImageChrome: CGFloat
     ) -> CGSize {
-        CGSize(
-            width: max(320, fittedImage.width),
-            height: topChrome + fittedImage.height + belowImageChrome
+        let trim = DetachedPreviewWindowLayoutMetrics.horizontalImageTrim
+        let imageWidth = max(1, fittedImage.width - trim)
+        return CGSize(
+            width: max(320, imageWidth.rounded(.down)),
+            height: topChrome + fittedImage.height.rounded(.down) + belowImageChrome
         )
     }
 }

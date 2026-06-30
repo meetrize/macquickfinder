@@ -3,7 +3,8 @@ import Foundation
 
 enum PreviewBrowserStripMetrics {
     static let stripHeight: CGFloat = 104
-    static let navBarHeight: CGFloat = 32
+    /// 与 `PreviewBrowserNavBar` 的 `PanelTopBarMetrics` 行高一致（28 + 6×2）。
+    static let navBarHeight: CGFloat = PanelTopBarMetrics.contentHeight + PanelTopBarMetrics.verticalPadding * 2
     static let thumbnailSize: CGFloat = 84
     static let cellSpacing: CGFloat = 14
     static let thumbnailContentInset: CGFloat = 8

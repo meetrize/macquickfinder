@@ -108,6 +108,9 @@ private struct DetachedPreviewWindowContent: View {
             DetachedPreviewWindowResizeMonitor(sessionID: session.id)
         )
         .background(
+            DetachedPreviewWindowEdgeSnapMonitor(sessionID: session.id, fitImageToScreen: fitImageToScreen)
+        )
+        .background(
             Button(action: closeDetachedWindow) {
                 EmptyView()
             }
@@ -119,6 +122,9 @@ private struct DetachedPreviewWindowContent: View {
             session.browseContext?.setSameTypeOnly(previewBrowserSameTypeOnly)
             if fitImageToScreen {
                 session.adaptImageToWindowOnResize = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    DetachedPreviewWindowFitApplier.applyIfNeeded(sessionID: session.id)
+                }
             }
         }
         .onChange(of: previewBrowserSameTypeOnly) { newValue in

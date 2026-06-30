@@ -47,7 +47,8 @@ struct PreviewBrowserNavBar: View {
             .instantHoverTooltip(session.isBrowserStripExpanded ? L10n.Menu.collapseStrip : L10n.Menu.expandStrip)
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.vertical, PanelTopBarMetrics.verticalPadding)
+        .frame(height: PanelTopBarMetrics.contentHeight)
         .frame(maxWidth: .infinity)
     }
 }
