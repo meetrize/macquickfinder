@@ -191,8 +191,7 @@ extension FileListTableController {
                 }
             }
             if item.isParentDirectoryEntry {
-                cell.imageView?.image = NSImage(systemSymbolName: "arrow.up.circle", accessibilityDescription: nil)
-                    ?? NSImage(named: NSImage.folderName)
+                cell.imageView?.image = Self.parentDirectoryNameCellIcon(for: cell)
             } else {
                 configureNameCellIcon(in: cell, item: item)
             }

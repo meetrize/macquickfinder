@@ -9,11 +9,18 @@ extension FileListTableController {
     static let listIconDisplaySize: CGFloat = 18
     private static let visibleIconPreviewBatchSize = 8
 
+    static func parentDirectoryNameCellIcon(for cell: NSView?) -> NSImage {
+        let scale = cell?.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        return FileListThumbnailMetrics.parentDirectoryIcon(
+            displaySide: listIconDisplaySize,
+            scale: scale
+        )
+    }
+
     func configureNameCellIcon(in cell: NSTableCellView, item: FileListRow) {
         if item.isParentDirectoryEntry {
             FileListTableNameCellIconState.clear(on: cell)
-            cell.imageView?.image = NSImage(systemSymbolName: "arrow.up.circle", accessibilityDescription: nil)
-                ?? NSImage(named: NSImage.folderName)
+            cell.imageView?.image = Self.parentDirectoryNameCellIcon(for: cell)
             return
         }
 

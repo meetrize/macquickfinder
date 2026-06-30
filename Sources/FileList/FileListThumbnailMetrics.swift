@@ -52,10 +52,14 @@ public enum FileListThumbnailMetrics {
     
     /// 「..」返回上一级：与缩略图文件夹同源的高清系统文件夹图标，桔色着色并叠加向上箭头。
     public static func parentDirectoryIcon(cellSize: CGFloat, scale: CGFloat) -> NSImage {
-        let logicalSide = iconFittingSide(in: cellSize)
-        let bucket = thumbnailSizeBucket(for: cellSize)
+        parentDirectoryIcon(displaySide: iconFittingSide(in: cellSize), scale: scale)
+    }
+    
+    /// 固定显示边长（如列表名前列 18pt）的返回上一级图标。
+    public static func parentDirectoryIcon(displaySide: CGFloat, scale: CGFloat) -> NSImage {
+        let sideKey = Int((displaySide * 10).rounded())
         let scaleKey = Int((scale * 100).rounded())
-        let cacheKey = "parent_\(bucket)_\(scaleKey)"
+        let cacheKey = "parent_\(sideKey)_\(scaleKey)"
         
         parentDirectoryIconCacheLock.lock()
         if let cached = parentDirectoryIconCache[cacheKey] {
@@ -64,8 +68,8 @@ public enum FileListThumbnailMetrics {
         }
         parentDirectoryIconCacheLock.unlock()
         
-        let rendered = renderParentDirectoryIcon(logicalSide: logicalSide, scale: scale)
-        rendered.size = NSSize(width: logicalSide, height: logicalSide)
+        let rendered = renderParentDirectoryIcon(logicalSide: displaySide, scale: scale)
+        rendered.size = NSSize(width: displaySide, height: displaySide)
         
         parentDirectoryIconCacheLock.lock()
         parentDirectoryIconCache[cacheKey] = rendered
@@ -124,7 +128,7 @@ public enum FileListThumbnailMetrics {
     }
     
     private static func drawParentDirectoryArrow(in bounds: NSRect, scale: CGFloat) {
-        let arrowPointSize = max(12, bounds.width * 0.30)
+        let arrowPointSize = min(max(bounds.width * 0.30, 5), bounds.width * 0.42)
         var configuration = NSImage.SymbolConfiguration(pointSize: arrowPointSize, weight: .heavy)
         if #available(macOS 11.0, *) {
             configuration = configuration.applying(
