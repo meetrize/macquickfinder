@@ -50,29 +50,132 @@ public enum FileListThumbnailMetrics {
         return copy
     }
     
-    /// 「..」返回上一级：按格子尺寸渲染 SF Symbol，避免小图放大发糊。
+    /// 「..」返回上一级：与缩略图文件夹同源的高清系统文件夹图标，桔色着色并叠加向上箭头。
     public static func parentDirectoryIcon(cellSize: CGFloat, scale: CGFloat) -> NSImage {
-        let side = iconFittingSide(in: cellSize)
-        let pointSize = max(20, side * 0.72)
-        var configuration = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)
+        let logicalSide = iconFittingSide(in: cellSize)
+        let bucket = thumbnailSizeBucket(for: cellSize)
+        let scaleKey = Int((scale * 100).rounded())
+        let cacheKey = "parent_\(bucket)_\(scaleKey)"
+        
+        parentDirectoryIconCacheLock.lock()
+        if let cached = parentDirectoryIconCache[cacheKey] {
+            parentDirectoryIconCacheLock.unlock()
+            return cached
+        }
+        parentDirectoryIconCacheLock.unlock()
+        
+        let rendered = renderParentDirectoryIcon(logicalSide: logicalSide, scale: scale)
+        rendered.size = NSSize(width: logicalSide, height: logicalSide)
+        
+        parentDirectoryIconCacheLock.lock()
+        parentDirectoryIconCache[cacheKey] = rendered
+        parentDirectoryIconCacheLock.unlock()
+        return rendered
+    }
+    
+    /// 返回上一级文件夹着色：饱和度较高、整体偏淡的暖桔色。
+    private static let parentDirectoryOrange = NSColor(red: 0.97, green: 0.71, blue: 0.40, alpha: 1)
+    private static var parentDirectoryIconCache: [String: NSImage] = [:]
+    private static let parentDirectoryIconCacheLock = NSLock()
+    
+    private static func renderParentDirectoryIcon(logicalSide: CGFloat, scale: CGFloat) -> NSImage {
+        let pixelDimension = max(1, (logicalSide * scale).rounded(.toNearestOrAwayFromZero))
+        let pixelCount = Int(pixelDimension)
+        
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: pixelCount,
+            pixelsHigh: pixelCount,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return tintedFolderFallback(logicalSide: logicalSide)
+        }
+        rep.size = NSSize(width: logicalSide, height: logicalSide)
+        
+        let folderSource = NSWorkspace.shared.icon(for: .folder)
+        let bounds = NSRect(x: 0, y: 0, width: logicalSide, height: logicalSide)
+        
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        
+        parentDirectoryOrange.setFill()
+        bounds.fill()
+        folderSource.draw(
+            in: bounds,
+            from: NSRect(origin: .zero, size: folderSource.size),
+            operation: .destinationIn,
+            fraction: 1
+        )
+        
+        drawParentDirectoryArrow(in: bounds, scale: scale)
+        
+        NSGraphicsContext.restoreGraphicsState()
+        
+        let image = NSImage(size: NSSize(width: logicalSide, height: logicalSide))
+        image.addRepresentation(rep)
+        image.isTemplate = false
+        return image
+    }
+    
+    private static func drawParentDirectoryArrow(in bounds: NSRect, scale: CGFloat) {
+        let arrowPointSize = max(12, bounds.width * 0.30)
+        var configuration = NSImage.SymbolConfiguration(pointSize: arrowPointSize, weight: .heavy)
         if #available(macOS 11.0, *) {
             configuration = configuration.applying(
-                NSImage.SymbolConfiguration(hierarchicalColor: .controlAccentColor)
+                NSImage.SymbolConfiguration(hierarchicalColor: NSColor(white: 1, alpha: 0.95))
             )
         }
         if scale > 1.5 {
             configuration = configuration.applying(NSImage.SymbolConfiguration(scale: .large))
         }
         
-        guard let symbol = NSImage(
-            systemSymbolName: "arrow.up.circle.fill",
+        guard let arrow = NSImage(
+            systemSymbolName: "arrow.up",
             accessibilityDescription: "返回上一级"
         )?.withSymbolConfiguration(configuration) else {
-            return scaledIcon(NSImage(named: NSImage.folderName) ?? NSImage(), cellSize: cellSize)
+            return
         }
         
-        let image = (symbol.copy() as? NSImage) ?? symbol
-        image.size = NSSize(width: side, height: side)
+        let arrowSize = arrow.size
+        let arrowRect = NSRect(
+            x: bounds.midX - arrowSize.width / 2,
+            y: bounds.midY - arrowSize.height / 2 - bounds.height * 0.02,
+            width: arrowSize.width,
+            height: arrowSize.height
+        )
+        
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.32)
+        shadow.shadowBlurRadius = bounds.width * 0.04
+        shadow.shadowOffset = NSSize(width: 0, height: -bounds.height * 0.01)
+        shadow.set()
+        arrow.draw(in: arrowRect)
+        NSGraphicsContext.restoreGraphicsState()
+    }
+    
+    private static func tintedFolderFallback(logicalSide: CGFloat) -> NSImage {
+        let folder = NSWorkspace.shared.icon(for: .folder)
+        let size = NSSize(width: logicalSide, height: logicalSide)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        let bounds = NSRect(origin: .zero, size: size)
+        parentDirectoryOrange.setFill()
+        bounds.fill()
+        folder.draw(
+            in: bounds,
+            from: NSRect(origin: .zero, size: folder.size),
+            operation: .destinationIn,
+            fraction: 1
+        )
+        drawParentDirectoryArrow(in: bounds, scale: 2)
+        image.unlockFocus()
         image.isTemplate = false
         return image
     }
