@@ -30,9 +30,15 @@ struct ArchiveListPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
+                LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(visibleRows) { row in
-                        archiveRow(row)
+                        ArchiveListRow(
+                            row: row,
+                            selectionPath: selectionPath(for: row.node),
+                            isSelected: selectedEntryPaths.contains(selectionPath(for: row.node)),
+                            onToggleSelection: toggleSelection,
+                            onToggleExpansion: toggleExpansion
+                        )
                     }
 
                     if isLoadingMore {
@@ -70,66 +76,6 @@ struct ArchiveListPreview: View {
         }
     }
 
-    @ViewBuilder
-    private func archiveRow(_ row: ArchiveFlatRow) -> some View {
-        let node = row.node
-        let selectionPath = selectionPath(for: node)
-        let isSelected = selectedEntryPaths.contains(selectionPath)
-
-        HStack(alignment: .top, spacing: 4) {
-            Color.clear.frame(width: CGFloat(row.depth) * 12)
-
-            disclosureControl(for: row)
-
-            Image(systemName: node.isDirectory ? "folder" : "doc")
-                .foregroundColor(node.isDirectory ? .accentColor : .secondary)
-                .frame(width: 14)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(node.name)
-                    .font(.system(size: 12, design: .monospaced))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                if let size = node.size, !node.isDirectory {
-                    Text(Self.sizeFormatter.string(fromByteCount: size))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            toggleSelection(for: selectionPath)
-        }
-    }
-
-    @ViewBuilder
-    private func disclosureControl(for row: ArchiveFlatRow) -> some View {
-        if row.hasChildren {
-            Button {
-                toggleExpansion(for: row.node.fullPath)
-            } label: {
-                Image(systemName: row.isExpanded ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 14, height: 14)
-            }
-            .buttonStyle(.plain)
-            .help(row.isExpanded ? L10n.Preview.Toolbar.archiveCollapse : L10n.Preview.Toolbar.archiveExpand)
-        } else {
-            Color.clear.frame(width: 14, height: 14)
-        }
-    }
-
     private func selectionPath(for node: ArchiveTreeNode) -> String {
         if node.isDirectory {
             return node.fullPath + "/"
@@ -159,6 +105,96 @@ struct ArchiveListPreview: View {
             } else {
                 selectedEntryPaths = [path]
             }
+        }
+    }
+}
+
+private struct ArchiveListRow: View {
+    let row: ArchiveFlatRow
+    let selectionPath: String
+    let isSelected: Bool
+    let onToggleSelection: (String) -> Void
+    let onToggleExpansion: (String) -> Void
+
+    @State private var isHovered = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    private static let sizeFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useAll]
+        formatter.countStyle = .file
+        return formatter
+    }()
+
+    private var rowBackground: Color {
+        if isSelected {
+            return Color.accentColor.opacity(0.18)
+        }
+        if isHovered {
+            return Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05)
+        }
+        return .clear
+    }
+
+    var body: some View {
+        let node = row.node
+
+        HStack(alignment: .top, spacing: 4) {
+            Color.clear.frame(width: CGFloat(row.depth) * 12)
+
+            disclosureControl
+
+            Image(systemName: node.isDirectory ? "folder" : "doc")
+                .foregroundColor(node.isDirectory ? .accentColor : .secondary)
+                .frame(width: 14)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(node.name)
+                    .font(.system(size: 12, design: .monospaced))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                if let size = node.size, !node.isDirectory {
+                    Text(Self.sizeFormatter.string(fromByteCount: size))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(rowBackground)
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .onTapGesture {
+            onToggleSelection(selectionPath)
+        }
+        .animation(.easeOut(duration: 0.12), value: isHovered)
+        .animation(.easeOut(duration: 0.12), value: isSelected)
+    }
+
+    @ViewBuilder
+    private var disclosureControl: some View {
+        if row.hasChildren {
+            Button {
+                onToggleExpansion(row.node.fullPath)
+            } label: {
+                Image(systemName: row.isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 14, height: 14)
+            }
+            .buttonStyle(.plain)
+            .help(row.isExpanded ? L10n.Preview.Toolbar.archiveCollapse : L10n.Preview.Toolbar.archiveExpand)
+        } else {
+            Color.clear.frame(width: 14, height: 14)
         }
     }
 }

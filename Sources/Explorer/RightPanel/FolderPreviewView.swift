@@ -252,6 +252,16 @@ private struct FolderPreviewChildRow: View {
     let onPreview: () -> Void
     let onOpen: () -> Void
 
+    @State private var isHovered = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var rowBackground: Color {
+        if isHovered {
+            return Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.05)
+        }
+        return .clear
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: iconName)
@@ -280,15 +290,19 @@ private struct FolderPreviewChildRow: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 5)
-        .contentShape(Rectangle())
+        .padding(.vertical, 2)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.001))
+                .fill(rowBackground)
         )
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .onTapGesture(perform: onPreview)
         .simultaneousGesture(TapGesture(count: 2).onEnded { onOpen() })
         .instantHoverTooltip(item.isDirectory ? "双击进入" : "单击预览 · 双击打开")
+        .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 
     private var iconName: String {
