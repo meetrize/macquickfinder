@@ -1,4 +1,5 @@
 import AppKit
+import FileList
 import SwiftUI
 
 @MainActor
@@ -97,7 +98,8 @@ final class PreviewDetachCoordinator: ObservableObject {
     func openStandaloneImagePreview(
         file: FileItem,
         directoryPath: String,
-        directoryItems: [FileItem]
+        directoryItems: [FileItem],
+        sortSnapshot: FileListSortState? = nil
     ) -> PreviewSessionID {
         let hostWindowID = UUID()
         let session = PreviewSession(hostWindowID: hostWindowID, file: file)
@@ -107,10 +109,11 @@ final class PreviewDetachCoordinator: ObservableObject {
         session.adaptImageToWindowOnResize = true
         session.image.zoomScale = 1.0
 
+        let resolvedSort = sortSnapshot ?? FileListPreferencesStore.shared.preferences.sort
         if let context = PreviewBrowserContext.makeSnapshot(
             directoryPath: directoryPath,
             items: directoryItems,
-            sortOrder: .nameAscending,
+            sortSnapshot: resolvedSort,
             showHiddenFiles: false,
             currentFileID: file.id
         ) {

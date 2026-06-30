@@ -135,6 +135,26 @@ final class PreviewBrowserContextTests: XCTestCase {
         XCTAssertEqual(context?.currentIndex, 1)
     }
 
+    func testDateNewestSortUsesSortSnapshot() {
+        let older = Date(timeIntervalSince1970: 1_000)
+        let newer = Date(timeIntervalSince1970: 2_000)
+        let items = [
+            makeFileItem(id: "old", name: "old.png", date: older),
+            makeFileItem(id: "new", name: "new.png", date: newer),
+        ]
+
+        let context = PreviewBrowserContext.makeSnapshot(
+            directoryPath: "/tmp",
+            items: items,
+            sortSnapshot: FileListSortState(column: .dateModified, ascending: false),
+            showHiddenFiles: true,
+            currentFileID: "old"
+        )
+
+        XCTAssertEqual(context?.orderedItems.map(\.id), ["new", "old"])
+        XCTAssertEqual(context?.currentIndex, 1)
+    }
+
     func testSelectPreviousAndNextAtBoundaries() {
         let items = [
             makeFileItem(id: "a", name: "a.png"),
