@@ -10,13 +10,10 @@ extension PreviewSession {
                 id: "archive-reload",
                 title: L10n.Preview.Toolbar.refreshListing,
                 systemImage: "arrow.clockwise",
-                action: { [self] in archive.reloadToken += 1 }
-            ),
-            previewToolbarIconItem(
-                id: "archive-expand",
-                title: archive.expanded ? L10n.Preview.Toolbar.archiveCollapse : L10n.Preview.Toolbar.archiveExpand,
-                systemImage: archive.expanded ? "chevron.down" : "chevron.right",
-                action: { [self] in archive.expanded.toggle() }
+                action: { [self] in
+                    archive.reloadToken += 1
+                    Task { await reloadArchiveListing() }
+                }
             ),
             previewToolbarIconItem(
                 id: "archive-copy",

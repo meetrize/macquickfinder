@@ -48,4 +48,9 @@ final class ArchivePreviewLoaderTests: XCTestCase {
     func testParseTarVerboseListingLineIgnoresHeader() {
         XCTAssertNil(ArchivePreviewLoader.parseTarVerboseListingLine("total 12"))
     }
+
+    func testListingEntryLimits() {
+        XCTAssertEqual(ArchivePreviewLoader.summaryMaxEntries, 200)
+        XCTAssertEqual(ArchivePreviewLoader.verboseMaxEntries, 1_000)
+    }
 }

@@ -42,7 +42,7 @@ final class PreviewSessionTests: XCTestCase {
         session.pdf.currentPage = 3
         session.text.markdownMode = .source
         session.media.isPlaying = true
-        session.archive.expanded = false
+        session.archive.expandedDirectoryPaths = ["docs"]
         session.office.zoomScale = 1.5
         session.office.currentPage = 2
         session.office.pageCount = 5
@@ -63,7 +63,7 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertEqual(session.pdf.currentPage, 0)
         XCTAssertEqual(session.text.markdownMode, .preview)
         XCTAssertFalse(session.media.isPlaying)
-        XCTAssertTrue(session.archive.expanded)
+        XCTAssertTrue(session.archive.expandedDirectoryPaths.isEmpty)
         XCTAssertEqual(session.office.zoomScale, 1.0)
         XCTAssertEqual(session.office.currentPage, 0)
         XCTAssertEqual(session.office.pageCount, 0)

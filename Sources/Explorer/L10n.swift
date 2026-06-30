@@ -505,6 +505,10 @@ enum L10n {
         static var archiveTruncated: String { ModuleLocalization.localized("preview.archive_truncated", bundle: .module) }
 
         enum Archive {
+            static var loadingMore: String {
+                ModuleLocalization.localized("preview.archive.loading_more", bundle: .module)
+            }
+
             static func selectionCount(_ count: Int) -> String {
                 String(
                     format: ModuleLocalization.localizedFromTable("preview.archive.selection_count %lld", bundle: .module),

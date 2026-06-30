@@ -1,6 +1,23 @@
 import Foundation
 
+enum ArchiveListingDetail {
+    /// 仅路径（`tar -tf`），用于折叠首屏。
+    case summary
+    /// 含大小等元数据（`tar -tvf`），用于展开详情。
+    case verbose
+}
+
 enum ArchivePreviewLoader {
+    static let summaryMaxEntries = 200
+    static let verboseMaxEntries = 1_000
+    static let streamBatchSize = 150
+    static let streamTimeoutSeconds = 60
+
+    enum ArchivePreviewStreamEvent: Sendable {
+        case batch([ArchiveEntryPreview])
+        case finished(truncated: Bool, timedOut: Bool)
+    }
+
     enum LoaderError: LocalizedError {
         case emptyListing
         case timedOut
@@ -13,10 +30,10 @@ enum ArchivePreviewLoader {
         }
     }
 
-    /// 使用 bsdtar 列出 ZIP（正确处理 UTF-8 / GBK 等文件名；`unzip -l` 会把中文显示成 `?`）。
-    static func listZipEntries(
+    /// 使用 `tar -tvf` 列出 ZIP 详情（含大小；正确处理 UTF-8 / GBK 等文件名）。
+    static func listZipVerboseEntries(
         at url: URL,
-        maxEntries: Int = 1_000,
+        maxEntries: Int = verboseMaxEntries,
         timeoutSeconds: Int = 8
     ) async throws -> (entries: [ArchiveEntryPreview], truncated: Bool) {
         let output = try await runTarVerboseList(url: url, maxLines: maxEntries * 2 + 60, timeoutSeconds: timeoutSeconds)
@@ -39,19 +56,127 @@ enum ArchivePreviewLoader {
             || lowercasedName.hasSuffix(".tgz")
     }
 
+    /// 流式读取归档路径（`tar -tf`），按批返回以便首屏尽快展示。
+    static func streamArchiveEntryPaths(
+        at url: URL,
+        maxEntries: Int? = nil,
+        timeoutSeconds: Int = streamTimeoutSeconds,
+        batchSize: Int = streamBatchSize
+    ) -> AsyncThrowingStream<ArchivePreviewStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                let command = "/usr/bin/tar -tf \(ShellQuoting.singleQuote(url.path)) 2>&1"
+                var batch: [ArchiveEntryPreview] = []
+                var totalCount = 0
+                var truncated = false
+
+                func flushBatch() {
+                    guard !batch.isEmpty else { return }
+                    continuation.yield(.batch(batch))
+                    batch = []
+                }
+
+                do {
+                    for try await rawLine in ShellProcessRunner.streamCommandLines(
+                        command,
+                        timeoutSeconds: timeoutSeconds
+                    ) {
+                        try Task.checkCancellation()
+                        let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if line.isEmpty || line.hasPrefix("tar:") { continue }
+
+                        batch.append(
+                            ArchiveEntryPreview(
+                                path: line,
+                                isDirectory: line.hasSuffix("/"),
+                                size: nil
+                            )
+                        )
+                        totalCount += 1
+
+                        if batch.count >= batchSize {
+                            flushBatch()
+                        }
+
+                        if let maxEntries, totalCount >= maxEntries {
+                            truncated = true
+                            break
+                        }
+                    }
+
+                    flushBatch()
+                    guard totalCount > 0 else {
+                        continuation.finish(throwing: LoaderError.emptyListing)
+                        return
+                    }
+                    continuation.yield(.finished(truncated: truncated, timedOut: false))
+                    continuation.finish()
+                } catch ShellProcessRunner.RunnerError.timedOut {
+                    flushBatch()
+                    if totalCount > 0 {
+                        continuation.yield(.finished(truncated: true, timedOut: true))
+                        continuation.finish()
+                    } else {
+                        continuation.finish(throwing: LoaderError.timedOut)
+                    }
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
+            }
+        }
+    }
+
     static func listArchiveEntries(
         at url: URL,
-        maxEntries: Int = 1_000,
+        detail: ArchiveListingDetail = .summary,
+        maxEntries: Int? = nil,
         timeoutSeconds: Int = 8
     ) async throws -> (entries: [ArchiveEntryPreview], truncated: Bool) {
+        let limit = maxEntries ?? (detail == .summary ? summaryMaxEntries : verboseMaxEntries)
         let lowerName = url.lastPathComponent.lowercased()
         if lowerName.hasSuffix(".zip") {
-            return try await listZipEntries(at: url, maxEntries: maxEntries, timeoutSeconds: timeoutSeconds)
+            switch detail {
+            case .summary:
+                return try await listPlainTarEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
+            case .verbose:
+                return try await listZipVerboseEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
+            }
         }
         if lowerName.hasSuffix(".tar") || lowerName.hasSuffix(".tar.gz") || lowerName.hasSuffix(".tgz") {
-            return try await listPlainTarEntries(at: url, maxEntries: maxEntries, timeoutSeconds: timeoutSeconds)
+            switch detail {
+            case .summary:
+                return try await listPlainTarEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
+            case .verbose:
+                return try await listTarVerboseEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
+            }
         }
         throw LoaderError.emptyListing
+    }
+
+    static func listTarVerboseEntries(
+        at url: URL,
+        maxEntries: Int = verboseMaxEntries,
+        timeoutSeconds: Int = 8
+    ) async throws -> (entries: [ArchiveEntryPreview], truncated: Bool) {
+        let output = try await runTarVerboseList(
+            url: url,
+            maxLines: maxEntries * 2 + 60,
+            timeoutSeconds: timeoutSeconds
+        )
+        var entries: [ArchiveEntryPreview] = []
+        for rawLine in output.split(whereSeparator: \.isNewline) {
+            if entries.count >= maxEntries { break }
+            let line = String(rawLine)
+            if line.hasPrefix("tar:") { continue }
+            guard let entry = parseTarVerboseListingLine(line) else { continue }
+            entries.append(entry)
+        }
+        guard !entries.isEmpty else { throw LoaderError.emptyListing }
+        return (entries, entries.count >= maxEntries)
     }
 
     static func listPlainTarEntries(

@@ -824,6 +824,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Return to this app and click Restart App to apply the permission.</string>
 	<key>permission.fda.title</key>
 	<string>Full Disk Access Required</string>
+	<key>preview.archive.loading_more</key>
+	<string>Loading more entries…</string>
 	<key>preview.archive.selection_count %lld</key>
 	<string>%lld selected · ⌘-click to multi-select</string>
 	<key>preview.archive_truncated</key>

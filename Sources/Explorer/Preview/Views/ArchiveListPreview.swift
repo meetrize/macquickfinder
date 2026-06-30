@@ -4,7 +4,8 @@ import SwiftUI
 struct ArchiveListPreview: View {
     let entries: [ArchiveEntryPreview]
     let truncated: Bool
-    let expanded: Bool
+    let isLoadingMore: Bool
+    @Binding var expandedDirectoryPaths: Set<String>
     @Binding var selectedEntryPaths: Set<String>
     @Binding var copyAction: ArchivePreviewAction?
 
@@ -15,22 +16,15 @@ struct ArchiveListPreview: View {
         return formatter
     }()
 
-    private var displayedEntries: [ArchiveEntryPreview] {
-        if expanded { return entries }
+    private var treeRoots: [ArchiveTreeNode] {
+        ArchiveTreeBuilder.build(from: entries)
+    }
 
-        var map: [String: Bool] = [:]
-        for entry in entries {
-            let comps = entry.path.split(separator: "/")
-            guard let first = comps.first else { continue }
-            let name = String(first)
-            let isDirAtTop = entry.isDirectory || comps.count > 1
-            map[name] = (map[name] ?? false) || isDirAtTop
-        }
-
-        let dirs = map.keys.filter { map[$0] == true }.sorted()
-        let files = map.keys.filter { map[$0] == false }.sorted()
-        return dirs.map { ArchiveEntryPreview(path: $0, isDirectory: true, size: nil) }
-            + files.map { ArchiveEntryPreview(path: $0, isDirectory: false, size: nil) }
+    private var visibleRows: [ArchiveFlatRow] {
+        ArchiveTreeBuilder.visibleRows(
+            roots: treeRoots,
+            expandedDirectoryPaths: expandedDirectoryPaths
+        )
     }
 
     var body: some View {
@@ -45,22 +39,32 @@ struct ArchiveListPreview: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
-                    ForEach(displayedEntries) { entry in
-                        archiveRow(entry)
+                    ForEach(visibleRows) { row in
+                        archiveRow(row)
                     }
 
-                    if truncated && expanded {
+                    if isLoadingMore {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text(L10n.Preview.Archive.loadingMore)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 6)
+                    } else if truncated {
                         Text(L10n.Preview.archiveTruncated)
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.top, 6)
                     }
                 }
+                .padding(.vertical, 4)
             }
         }
         .onChange(of: copyAction) { action in
             guard case .copyList? = action else { return }
-            let lines = displayedEntries.map { entry in
+            let lines = entries.map { entry in
                 if let size = entry.size, !entry.isDirectory {
                     return "\(entry.path)\t\(Self.sizeFormatter.string(fromByteCount: size))"
                 }
@@ -75,28 +79,34 @@ struct ArchiveListPreview: View {
     }
 
     @ViewBuilder
-    private func archiveRow(_ entry: ArchiveEntryPreview) -> some View {
-        let comps = entry.path.split(separator: "/")
-        let depth = expanded ? max(0, comps.count - 1) : 0
-        let isSelected = selectedEntryPaths.contains(entry.path)
+    private func archiveRow(_ row: ArchiveFlatRow) -> some View {
+        let node = row.node
+        let selectionPath = selectionPath(for: node)
+        let isSelected = selectedEntryPaths.contains(selectionPath)
 
-        HStack(alignment: .top, spacing: 8) {
-            Color.clear.frame(width: CGFloat(depth) * 10)
-            Image(systemName: entry.isDirectory ? "folder" : "doc")
-                .foregroundColor(entry.isDirectory ? .accentColor : .secondary)
+        HStack(alignment: .top, spacing: 4) {
+            Color.clear.frame(width: CGFloat(row.depth) * 12)
+
+            disclosureControl(for: row)
+
+            Image(systemName: node.isDirectory ? "folder" : "doc")
+                .foregroundColor(node.isDirectory ? .accentColor : .secondary)
+                .frame(width: 14)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.path)
+                Text(node.name)
                     .font(.system(size: 12, design: .monospaced))
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                if let size = entry.size, !entry.isDirectory {
+                if let size = node.size, !node.isDirectory {
                     Text(Self.sizeFormatter.string(fromByteCount: size))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
+
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
@@ -106,7 +116,40 @@ struct ArchiveListPreview: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            toggleSelection(for: entry.path)
+            toggleSelection(for: selectionPath)
+        }
+    }
+
+    @ViewBuilder
+    private func disclosureControl(for row: ArchiveFlatRow) -> some View {
+        if row.hasChildren {
+            Button {
+                toggleExpansion(for: row.node.fullPath)
+            } label: {
+                Image(systemName: row.isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 14, height: 14)
+            }
+            .buttonStyle(.plain)
+            .help(row.isExpanded ? L10n.Preview.Toolbar.archiveCollapse : L10n.Preview.Toolbar.archiveExpand)
+        } else {
+            Color.clear.frame(width: 14, height: 14)
+        }
+    }
+
+    private func selectionPath(for node: ArchiveTreeNode) -> String {
+        if node.isDirectory {
+            return node.fullPath + "/"
+        }
+        return node.fullPath
+    }
+
+    private func toggleExpansion(for path: String) {
+        if expandedDirectoryPaths.contains(path) {
+            expandedDirectoryPaths.remove(path)
+        } else {
+            expandedDirectoryPaths.insert(path)
         }
     }
 

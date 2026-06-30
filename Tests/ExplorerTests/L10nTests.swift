@@ -33,6 +33,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Archive.jobCompress, "archive.job.compress")
         XCTAssertNotEqual(L10n.Preview.Toolbar.extract, "preview.toolbar.extract")
         XCTAssertNotEqual(L10n.Preview.Toolbar.extractSelected, "preview.toolbar.extract_selected")
+        XCTAssertNotEqual(L10n.Preview.Archive.loadingMore, "preview.archive.loading_more")
         XCTAssertNotEqual(L10n.Archive.passwordTitle, "archive.password.title")
     }
 

@@ -824,6 +824,8 @@
 	<string>返回本应用后，点击「重启应用」使权限生效。</string>
 	<key>permission.fda.title</key>
 	<string>需要完全磁盘访问权限</string>
+	<key>preview.archive.loading_more</key>
+	<string>正在加载更多条目…</string>
 	<key>preview.archive.selection_count %lld</key>
 	<string>已选 %lld 项 · ⌘ 点击可多选</string>
 	<key>preview.archive_truncated</key>

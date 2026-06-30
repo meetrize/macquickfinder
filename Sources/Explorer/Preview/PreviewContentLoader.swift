@@ -46,11 +46,13 @@ enum PreviewContentLoader {
 
     static func loadArchive(
         at url: URL,
-        maxEntries: Int = 1_000,
+        detail: ArchiveListingDetail = .summary,
+        maxEntries: Int? = nil,
         timeoutSeconds: Int = 8
     ) async throws -> (entries: [ArchiveEntryPreview], truncated: Bool) {
         try await ArchivePreviewLoader.listArchiveEntries(
             at: url,
+            detail: detail,
             maxEntries: maxEntries,
             timeoutSeconds: timeoutSeconds
         )

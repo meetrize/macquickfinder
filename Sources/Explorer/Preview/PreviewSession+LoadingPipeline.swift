@@ -122,17 +122,8 @@ extension PreviewSession {
     }
 
     private func loadArchivePreview(url: URL, itemID: String) async {
-        do {
-            let result = try await PreviewContentLoader.loadArchive(at: url)
-            guard !Task.isCancelled else { return }
-            applyLoadPayload(
-                .archive(entries: result.entries, truncated: result.truncated),
-                expectedItemID: itemID
-            )
-        } catch {
-            if error is CancellationError { return }
-            applyLoadPayload(.failure(error.localizedDescription), expectedItemID: itemID)
-        }
+        guard !Task.isCancelled else { return }
+        await consumeArchiveEntryStream(replacingExisting: true)
     }
 
     private func loadBuiltInText(url: URL, itemID: String, deferSourceLoad: Bool) async {

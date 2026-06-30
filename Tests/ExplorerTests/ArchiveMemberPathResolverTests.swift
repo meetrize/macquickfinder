@@ -9,21 +9,19 @@ final class ArchiveMemberPathResolverTests: XCTestCase {
         ArchiveEntryPreview(path: "photo.png", isDirectory: false, size: 30),
     ]
 
-    func testCollapsedSelectionExpandsDirectoryPrefix() {
+    func testDirectorySelectionExpandsPrefix() {
         let paths = ArchiveMemberPathResolver.resolveMemberPaths(
-            selectedPaths: ["docs"],
-            allEntries: entries,
-            expanded: false
+            selectedPaths: ["docs/"],
+            allEntries: entries
         )
         XCTAssertTrue(paths.contains("docs/readme.md"))
         XCTAssertTrue(paths.contains("docs/guide/page.md"))
     }
 
-    func testExpandedSelectionIncludesDirectoryDescendants() {
+    func testNestedDirectorySelectionIncludesDescendants() {
         let paths = ArchiveMemberPathResolver.resolveMemberPaths(
             selectedPaths: ["docs/guide/"],
-            allEntries: entries,
-            expanded: true
+            allEntries: entries
         )
         XCTAssertEqual(paths, ["docs/guide", "docs/guide/", "docs/guide/page.md"])
     }
@@ -31,8 +29,7 @@ final class ArchiveMemberPathResolverTests: XCTestCase {
     func testSingleFileSelection() {
         let paths = ArchiveMemberPathResolver.resolveMemberPaths(
             selectedPaths: ["photo.png"],
-            allEntries: entries,
-            expanded: true
+            allEntries: entries
         )
         XCTAssertEqual(paths, ["photo.png"])
     }

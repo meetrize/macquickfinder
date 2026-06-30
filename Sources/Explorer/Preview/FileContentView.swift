@@ -180,7 +180,8 @@ struct FileContentView: View {
                 ArchiveListPreview(
                     entries: session.content.archiveEntries,
                     truncated: session.content.archiveTruncated,
-                    expanded: session.archive.expanded,
+                    isLoadingMore: session.archive.isLoadingMore,
+                    expandedDirectoryPaths: $session.archive.expandedDirectoryPaths,
                     selectedEntryPaths: $session.archive.selectedEntryPaths,
                     copyAction: $session.archive.copyAction
                 )
@@ -278,8 +279,7 @@ struct FileContentView: View {
             case .extractSelectedHere, .extractSelectedTo:
                 let members = ArchiveMemberPathResolver.resolveMemberPaths(
                     selectedPaths: session.archive.selectedEntryPaths,
-                    allEntries: session.content.archiveEntries,
-                    expanded: session.archive.expanded
+                    allEntries: session.content.archiveEntries
                 )
                 guard !members.isEmpty else { return }
                 if action == .extractSelectedHere {

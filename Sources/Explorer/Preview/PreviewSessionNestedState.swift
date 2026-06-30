@@ -238,24 +238,31 @@ final class PreviewSessionOfficeState: ObservableObject {
 
 @MainActor
 final class PreviewSessionArchiveState: ObservableObject {
-    @Published var expanded = true
     @Published var reloadToken = 0
     @Published var copyAction: ArchivePreviewAction?
     @Published var extractAction: ArchivePreviewAction?
     @Published var selectedEntryPaths: Set<String> = []
+    @Published var expandedDirectoryPaths: Set<String> = []
+    @Published var isLoadingMore = false
+    var listingGeneration = 0
 
     func resetToolbar() {
-        expanded = true
         reloadToken = 0
         copyAction = nil
         extractAction = nil
         selectedEntryPaths = []
+        expandedDirectoryPaths = []
+        isLoadingMore = false
+        listingGeneration = 0
     }
 
     func prepareForLoad() {
         copyAction = nil
         extractAction = nil
         selectedEntryPaths = []
+        expandedDirectoryPaths = []
+        isLoadingMore = false
+        listingGeneration &+= 1
     }
 }
 
