@@ -5781,6 +5781,40 @@
         }
       }
     },
+    "settings.preview.mode.archive": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive Listing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "压缩包预览"
+          }
+        }
+      }
+    },
+    "settings.preview.mode.archive.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "List ZIP / TAR contents in a tree; supports extract."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以目录树列出 ZIP / TAR 内容，支持解压。"
+          }
+        }
+      }
+    },
     "settings.preview.mode.pdf": {
       "extractionState": "manual",
       "localizations": {

@@ -6,7 +6,7 @@ extension PreviewSession {
     /// 压缩包预览且有选中项时，供顶栏展示的副标题。
     var archiveSelectionCaption: String? {
         guard let item = toolbarFileItem,
-              BuiltinPreviewExtensions.matchesArchive(fileName: item.url.lastPathComponent),
+              PreviewTypeClassifier.isArchivePreviewFile(item),
               !archive.selectedEntryPaths.isEmpty else {
             return nil
         }

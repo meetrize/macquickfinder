@@ -29,7 +29,7 @@ extension PreviewSession {
         if PreviewTypeClassifier.isOfficeFile(ext) {
             return previewOfficeToolbarItems(for: item)
         }
-        if BuiltinPreviewExtensions.matchesArchive(fileName: item.url.lastPathComponent) {
+        if PreviewTypeClassifier.isArchivePreviewFile(item) {
             return previewArchiveToolbarItems()
         }
         return []

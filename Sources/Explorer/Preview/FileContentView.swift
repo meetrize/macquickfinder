@@ -73,11 +73,10 @@ struct FileContentView: View {
                 ProgressView(L10n.Preview.loading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let errorMsg = session.errorMessage {
-                VStack {
+                VStack(spacing: 14) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
                         .foregroundColor(.orange)
-                        .padding()
 
                     Text(L10n.Preview.errorLoading)
                         .font(.headline)
@@ -86,7 +85,16 @@ struct FileContentView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                        .padding()
+                        .padding(.horizontal)
+
+                    PreviewModeActionsRow(
+                        onSelect: { mode in
+                            customPreviewStore.upsertRule(forExtension: fileExtension, mode: mode)
+                        },
+                        onOpenSettings: {
+                            openPreviewSettings(prefillExtension: fileExtension)
+                        }
+                    )
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let image = session.content.image {

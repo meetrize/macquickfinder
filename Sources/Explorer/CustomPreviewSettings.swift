@@ -325,18 +325,30 @@ struct CustomPreviewUnavailableView: View {
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 10) {
-                PreviewModeMenuButton(onSelect: onAddRule)
-
-                Button(L10n.Settings.Preview.customize, action: onOpenSettings)
-                    .buttonStyle(.bordered)
+                PreviewModeActionsRow(onSelect: onAddRule, onOpenSettings: onOpenSettings)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
+/// 预览方式下拉 +「自定义」按钮（不可预览 / 加载失败时复用）。
+struct PreviewModeActionsRow: View {
+    let onSelect: (CustomPreviewMode) -> Void
+    let onOpenSettings: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            PreviewModeMenuButton(onSelect: onSelect)
+
+            Button(L10n.Settings.Preview.customize, action: onOpenSettings)
+                .buttonStyle(.bordered)
+        }
+    }
+}
+
 /// 原生 `NSPopUpButton`（pull-down）：标题在左、系统分隔与箭头在右，样式与「自定义」一致。
-private struct PreviewModeMenuButton: View {
+struct PreviewModeMenuButton: View {
     let onSelect: (CustomPreviewMode) -> Void
 
     var body: some View {

@@ -154,7 +154,8 @@ enum ArchivePreviewLoader {
                 return try await listTarVerboseEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
             }
         }
-        throw LoaderError.emptyListing
+        // 无扩展名或未知后缀：用户指定压缩包预览时仍尝试 `tar -tf`（bsdtar 自动识别格式）。
+        return try await listPlainTarEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
     }
 
     static func listTarVerboseEntries(

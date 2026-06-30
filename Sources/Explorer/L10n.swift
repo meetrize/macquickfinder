@@ -250,6 +250,7 @@ enum L10n {
                 static var image: String { ModuleLocalization.localized("settings.preview.mode.image", bundle: .module) }
                 static var pdf: String { ModuleLocalization.localized("settings.preview.mode.pdf", bundle: .module) }
                 static var media: String { ModuleLocalization.localized("settings.preview.mode.media", bundle: .module) }
+                static var archive: String { ModuleLocalization.localized("settings.preview.mode.archive", bundle: .module) }
 
                 static var textDetail: String { ModuleLocalization.localized("settings.preview.mode.text.detail", bundle: .module) }
                 static var markdownDetail: String { ModuleLocalization.localized("settings.preview.mode.markdown.detail", bundle: .module) }
@@ -258,6 +259,7 @@ enum L10n {
                 static var imageDetail: String { ModuleLocalization.localized("settings.preview.mode.image.detail", bundle: .module) }
                 static var pdfDetail: String { ModuleLocalization.localized("settings.preview.mode.pdf.detail", bundle: .module) }
                 static var mediaDetail: String { ModuleLocalization.localized("settings.preview.mode.media.detail", bundle: .module) }
+                static var archiveDetail: String { ModuleLocalization.localized("settings.preview.mode.archive.detail", bundle: .module) }
             }
         }
     }

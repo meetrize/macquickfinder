@@ -10,6 +10,7 @@ enum CustomPreviewMode: String, Codable, CaseIterable, Identifiable {
     case image
     case pdf
     case media
+    case archive
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ enum CustomPreviewMode: String, Codable, CaseIterable, Identifiable {
         case .image: return L10n.Settings.Preview.Mode.image
         case .pdf: return L10n.Settings.Preview.Mode.pdf
         case .media: return L10n.Settings.Preview.Mode.media
+        case .archive: return L10n.Settings.Preview.Mode.archive
         }
     }
 
@@ -41,6 +43,8 @@ enum CustomPreviewMode: String, Codable, CaseIterable, Identifiable {
             return L10n.Settings.Preview.Mode.pdfDetail
         case .media:
             return L10n.Settings.Preview.Mode.mediaDetail
+        case .archive:
+            return L10n.Settings.Preview.Mode.archiveDetail
         }
     }
 }
@@ -211,6 +215,11 @@ enum PreviewTypeClassifier {
 
     static func isWordDocumentFile(_ ext: String) -> Bool {
         BuiltinPreviewExtensions.wordDocument.contains(ext.lowercased())
+    }
+
+    static func isArchivePreviewFile(_ file: FileItem) -> Bool {
+        if BuiltinPreviewExtensions.matchesArchive(fileName: file.name) { return true }
+        return customMode(forExtension: file.url.pathExtension) == .archive
     }
 
     /// 代码类文本预览（语法高亮场景）；用于标题栏搜索框，替代复制/跳转按钮。

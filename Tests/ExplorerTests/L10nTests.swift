@@ -35,6 +35,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Preview.Toolbar.extractSelected, "preview.toolbar.extract_selected")
         XCTAssertNotEqual(L10n.Preview.Archive.loadingMore, "preview.archive.loading_more")
         XCTAssertNotEqual(L10n.Settings.Preview.customize, "settings.preview.customize")
+        XCTAssertNotEqual(L10n.Settings.Preview.Mode.archive, "settings.preview.mode.archive")
         XCTAssertNotEqual(L10n.Archive.passwordTitle, "archive.password.title")
     }
 

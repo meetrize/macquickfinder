@@ -39,6 +39,8 @@ extension PreviewSession {
                 if error is CancellationError { return }
                 applyLoadPayload(.failure(error.localizedDescription), expectedItemID: itemID)
             }
+        case .archive:
+            await consumeArchiveEntryStream(replacingExisting: true)
         }
     }
 }

@@ -1162,6 +1162,10 @@
 	<string>导入自定义预览规则</string>
 	<key>settings.preview.import_rules</key>
 	<string>导入规则…</string>
+	<key>settings.preview.mode.archive</key>
+	<string>压缩包预览</string>
+	<key>settings.preview.mode.archive.detail</key>
+	<string>以目录树列出 ZIP / TAR 内容，支持解压。</string>
 	<key>settings.preview.mode.html</key>
 	<string>HTML 预览</string>
 	<key>settings.preview.mode.html.detail</key>

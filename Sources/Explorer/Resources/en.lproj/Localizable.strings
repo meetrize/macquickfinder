@@ -1162,6 +1162,10 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Import Custom Preview Rules</string>
 	<key>settings.preview.import_rules</key>
 	<string>Import Rules…</string>
+	<key>settings.preview.mode.archive</key>
+	<string>Archive Listing</string>
+	<key>settings.preview.mode.archive.detail</key>
+	<string>List ZIP / TAR contents in a tree; supports extract.</string>
 	<key>settings.preview.mode.html</key>
 	<string>HTML Preview</string>
 	<key>settings.preview.mode.html.detail</key>
