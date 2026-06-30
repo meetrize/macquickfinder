@@ -82,6 +82,16 @@ final class FileListDragDropSupportTests: XCTestCase {
 
         XCTAssertEqual(frame.midX, mouse.x, accuracy: 0.01)
         XCTAssertEqual(frame.midY, mouse.y, accuracy: 0.01)
+
+        let dragImageLocation = NSPoint(x: frame.origin.x, y: frame.origin.y + frame.height)
+        let offset = NSSize(
+            width: mouse.x - dragImageLocation.x,
+            height: mouse.y - dragImageLocation.y
+        )
+        XCTAssertEqual(offset.width, ghostSize.width / 2, accuracy: 0.01)
+        XCTAssertEqual(offset.height, -ghostSize.height / 2, accuracy: 0.01)
+        XCTAssertEqual(dragImageLocation.x + offset.width, mouse.x, accuracy: 0.01)
+        XCTAssertEqual(dragImageLocation.y + offset.height, mouse.y, accuracy: 0.01)
     }
 
     func testSourceOperationMaskOutsideApplicationIncludesCopyAndGeneric() {

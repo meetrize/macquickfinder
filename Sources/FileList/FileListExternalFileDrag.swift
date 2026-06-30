@@ -62,16 +62,24 @@ enum FileListExternalFileDrag {
         image: NSImage,
         draggingFrame: NSRect,
         mouseLocation: NSPoint,
-        dragImageOffset: NSSize,
         startEvent: NSEvent,
         urls: [URL],
         source: NSDraggingSource
     ) -> Bool {
         let pasteboard = preparePasteboard(urls: urls)
+        // dragImage 的 viewLocation 为图像左上角；draggingFrame 为 AppKit 左下角坐标系下的几何包围框。
+        let dragImageLocation = NSPoint(
+            x: draggingFrame.origin.x,
+            y: draggingFrame.origin.y + draggingFrame.height
+        )
+        let dragImageOffset = NSSize(
+            width: mouseLocation.x - dragImageLocation.x,
+            height: mouseLocation.y - dragImageLocation.y
+        )
         if performLegacyDragImage(
             on: view,
             image: image,
-            at: mouseLocation,
+            at: dragImageLocation,
             offset: dragImageOffset,
             event: startEvent,
             pasteboard: pasteboard,
