@@ -15,11 +15,15 @@ final class PreviewBrowserContextTests: XCTestCase {
             name: name,
             isDirectory: false,
             modificationDate: date,
+            creationDate: date,
             size: size,
             isHidden: false,
             fileType: (name as NSString).pathExtension,
             sizeDisplay: "\(size) B",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
     }
 
@@ -91,11 +95,15 @@ final class PreviewBrowserContextTests: XCTestCase {
             name: "folder",
             isDirectory: true,
             modificationDate: .distantPast,
+            creationDate: .distantPast,
             size: 0,
             isHidden: false,
             fileType: "文件夹",
             sizeDisplay: "--",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
         let items = [
             folder,

@@ -21,7 +21,7 @@ public final class FileListThumbnailController: FileListContentController {
     private var hasInstalledCollectionView = false
     private var preferWorkspaceIcons = false
     private var rowHoverHighlightEnabled = false
-    private let thumbnailGenerator = ThumbnailGenerator()
+    private let thumbnailGenerator = ThumbnailGenerator.shared
     
     // Interaction state
     var mouseDownIndexPath: IndexPath?
@@ -43,7 +43,6 @@ public final class FileListThumbnailController: FileListContentController {
     }
     
     deinit {
-        thumbnailGenerator.shutdown()
         tearDownObservers()
     }
     

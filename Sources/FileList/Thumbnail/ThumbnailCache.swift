@@ -37,7 +37,7 @@ final class ThumbnailCache {
     private let lock = NSLock()
     
     private let maxEntryCount = 500
-    private let maxTotalCost = 150 * 1024 * 1024
+    private let maxTotalCost = 80 * 1024 * 1024
     
     /// 仅查内存 LRU，主线程安全且不做磁盘 I/O。
     func memoryEntry(for key: Key) -> Entry? {

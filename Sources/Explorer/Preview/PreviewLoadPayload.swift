@@ -6,6 +6,8 @@ import PDFKit
 /// 单次预览加载的结果快照，由 pipeline 构造后交给 `PreviewSession.applyLoadPayload`。
 struct PreviewLoadPayload {
     var imageData: Data?
+    /// 图片降采样最长边；nil 表示按会话默认显示预算或全分辨率。
+    var imageMaxPixelSize: Int?
     var pdfData: Data?
     var mediaURL: URL?
     var officeURL: URL?

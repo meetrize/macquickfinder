@@ -55,6 +55,7 @@ extension PreviewSession {
     }
 
     func saveEditedImage() async {
+        await upgradeImageToFullResolutionIfNeeded()
         let item = browseTarget
         guard let sourceImage = content.image else { return }
         let orientedSize = ImagePreviewTransformApplier.orientedPixelSize(

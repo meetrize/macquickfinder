@@ -38,6 +38,8 @@ private final class QLConcurrencyGate {
 
 /// 缩略图生成：Quick Look 为主，系统图标为占位与回退。
 public final class ThumbnailGenerator {
+    public static let shared = ThumbnailGenerator()
+
     public enum Delivery {
         case thumbnail(NSImage)
         case icon(NSImage)
@@ -53,7 +55,7 @@ public final class ThumbnailGenerator {
     private static let placeholderLock = NSLock()
     private static var genericPlaceholders: [String: NSImage] = [:]
 
-    public init() {}
+    private init() {}
     
     func cacheKey(for row: FileListRow, cellSize: CGFloat) -> ThumbnailCache.Key {
         ThumbnailCache.Key(

@@ -18,11 +18,15 @@ final class PreviewBrowserEligibilityTests: XCTestCase {
             name: fileName,
             isDirectory: isDirectory,
             modificationDate: .distantPast,
+            creationDate: .distantPast,
             size: size,
             isHidden: false,
             fileType: ext ?? "txt",
             sizeDisplay: "100 B",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
     }
 

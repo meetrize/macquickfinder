@@ -10,17 +10,20 @@ extension PreviewSession {
         guard !Task.isCancelled, browseTarget.id == expectedItemID else { return false }
 
         if let imageData = payload.imageData {
-            guard let decodedImage = NSImage(data: imageData) else {
-                content.image = nil
-                image.sourcePixelSize = .zero
-                content.loadPhase = .failed("Unable to decode image format")
-                return true
+            let url = browseTarget.url
+            let maxPixelSize = payload.imageMaxPixelSize ?? imagePreviewDisplayMaxPixelSize(for: url)
+            guard applyImagePreview(
+                data: imageData,
+                url: url,
+                maxPixelSize: maxPixelSize,
+                expectedItemID: expectedItemID
+            ) else {
+                return false
             }
-            content.image = decodedImage
-            image.sourcePixelSize = ImagePreviewTransformApplier.pixelSize(of: decodedImage)
         } else {
             content.image = nil
             image.sourcePixelSize = .zero
+            image.decodedMaxPixelSize = 0
         }
 
         if let pdfData = payload.pdfData {
@@ -56,6 +59,8 @@ extension PreviewSession {
 
         if let error = payload.error {
             content.loadPhase = .failed(error)
+        } else if case .failed = content.loadPhase {
+            // 保留图片解码等步骤已写入的失败状态
         } else {
             content.loadPhase = .loaded
         }

@@ -10,11 +10,15 @@ final class PreviewSessionStoreTests: XCTestCase {
             name: "\(id).txt",
             isDirectory: false,
             modificationDate: .distantPast,
+            creationDate: .distantPast,
             size: 0,
             isHidden: false,
             fileType: "txt",
             sizeDisplay: "0 B",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
     }
 

@@ -25,6 +25,9 @@ enum AppMemoryPressure {
     static func respond() {
         TextSyntaxHighlighter.clearCache()
         FileListWorkspaceIconCache.clearAll()
+        PreviewSessionStore.shared.respondToMemoryPressure()
+        ThumbnailGenerator.shared.clearMemoryCache()
+        ThumbnailGenerator.shared.trimDiskCache()
         Task {
             await DirectoryMetadataScheduler.trimCachesOnMemoryPressure()
         }

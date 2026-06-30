@@ -403,9 +403,22 @@ extension FileListTableController {
                 self?.refreshRowHoverHighlightFromCurrentMouseLocation()
             }
         }
+
+        memoryPressureObserver = NotificationCenter.default.addObserver(
+            forName: .meoFindMemoryPressure,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.thumbnailGenerator.clearMemoryCache()
+            self?.thumbnailGenerator.trimDiskCache()
+        }
     }
 
     func tearDownObservers() {
+        if let memoryPressureObserver {
+            NotificationCenter.default.removeObserver(memoryPressureObserver)
+            self.memoryPressureObserver = nil
+        }
         if let columnResizeObserver {
             NotificationCenter.default.removeObserver(columnResizeObserver)
         }

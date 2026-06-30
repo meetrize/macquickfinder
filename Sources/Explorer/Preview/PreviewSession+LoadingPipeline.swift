@@ -57,19 +57,29 @@ extension PreviewSession {
     }
 
     private func loadBuiltInImage(url: URL, itemID: String) async {
+        let maxPixelSize = imagePreviewDisplayMaxPixelSize(for: url)
         if let prefetched = browseContentPrefetcher.consume(for: itemID) {
             guard !Task.isCancelled else { return }
-            applyLoadPayload(PreviewLoadPayload(imageData: prefetched), expectedItemID: itemID)
+            applyLoadPayload(
+                PreviewLoadPayload(imageData: prefetched, imageMaxPixelSize: maxPixelSize),
+                expectedItemID: itemID
+            )
             scheduleBrowseContentPrefetch()
             return
         }
-        let imageData = await PreviewContentLoader.loadMappedData(from: url)
-        guard !Task.isCancelled else { return }
-        if let imageData {
-            applyLoadPayload(PreviewLoadPayload(imageData: imageData), expectedItemID: itemID)
-        } else {
+        guard let decodedImage = await ImagePreviewLoader.loadImage(from: url, maxPixelSize: maxPixelSize) else {
+            guard !Task.isCancelled else { return }
             applyLoadPayload(.failure("Unable to decode image format"), expectedItemID: itemID)
+            scheduleBrowseContentPrefetch()
+            return
         }
+        guard !Task.isCancelled else { return }
+        _ = applyDecodedImage(
+            decodedImage,
+            sourceURL: url,
+            maxPixelSize: maxPixelSize,
+            expectedItemID: itemID
+        )
         scheduleBrowseContentPrefetch()
     }
 

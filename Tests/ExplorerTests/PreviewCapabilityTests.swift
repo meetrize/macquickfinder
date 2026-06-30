@@ -36,11 +36,15 @@ final class PreviewCapabilityTests: XCTestCase {
             name: fileName,
             isDirectory: isDirectory,
             modificationDate: .distantPast,
+            creationDate: .distantPast,
             size: size,
             isHidden: isHidden,
             fileType: ext ?? "txt",
             sizeDisplay: "100 B",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
     }
 
@@ -105,11 +109,15 @@ final class PreviewCapabilityTests: XCTestCase {
             name: "folder",
             isDirectory: true,
             modificationDate: .distantPast,
+            creationDate: .distantPast,
             size: 0,
             isHidden: false,
             fileType: "文件夹",
             sizeDisplay: "--",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
         let session = PreviewSession(hostWindowID: UUID(), file: dir)
         XCTAssertFalse(PreviewCapability.canDetach(session: session, selectedItem: dir))
@@ -122,11 +130,15 @@ final class PreviewCapabilityTests: XCTestCase {
             name: "folder",
             isDirectory: true,
             modificationDate: .distantPast,
+            creationDate: .distantPast,
             size: 0,
             isHidden: false,
             fileType: "文件夹",
             sizeDisplay: "--",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
         let child = makeFileItem(id: "child", ext: "png")
         let session = PreviewSession(hostWindowID: UUID(), file: dir)

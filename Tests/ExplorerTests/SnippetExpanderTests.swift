@@ -9,11 +9,15 @@ final class SnippetExpanderTests: XCTestCase {
             name: (path as NSString).lastPathComponent,
             isDirectory: false,
             modificationDate: Date(),
+            creationDate: Date(),
             size: 100,
             isHidden: false,
             fileType: (path as NSString).pathExtension,
             sizeDisplay: "100",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
     }
 
@@ -44,11 +48,15 @@ final class SnippetExpanderTests: XCTestCase {
             name: "d",
             isDirectory: true,
             modificationDate: Date(),
+            creationDate: Date(),
             size: 0,
             isHidden: false,
             fileType: "文件夹",
             sizeDisplay: "",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
         let ctx = SnippetExecutionContext(cwd: "/", selectedItems: [dir])
         XCTAssertThrowsError(try SnippetExpander.expand("%f", context: ctx)) { error in

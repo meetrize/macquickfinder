@@ -10,13 +10,27 @@ extension PreviewSession {
             guard !Task.isCancelled else { return }
             applyLoadPayload(.media(url: url), expectedItemID: itemID)
         case .image:
-            let imageData = await PreviewContentLoader.loadMappedData(from: url)
-            guard !Task.isCancelled else { return }
-            if let imageData {
-                applyLoadPayload(PreviewLoadPayload(imageData: imageData), expectedItemID: itemID)
-            } else {
-                applyLoadPayload(.failure("Unable to decode image format"), expectedItemID: itemID)
+            let maxPixelSize = imagePreviewDisplayMaxPixelSize(for: url)
+            if let prefetched = browseContentPrefetcher.consume(for: itemID) {
+                guard !Task.isCancelled else { return }
+                applyLoadPayload(
+                    PreviewLoadPayload(imageData: prefetched, imageMaxPixelSize: maxPixelSize),
+                    expectedItemID: itemID
+                )
+                return
             }
+            guard let decodedImage = await ImagePreviewLoader.loadImage(from: url, maxPixelSize: maxPixelSize) else {
+                guard !Task.isCancelled else { return }
+                applyLoadPayload(.failure("Unable to decode image format"), expectedItemID: itemID)
+                return
+            }
+            guard !Task.isCancelled else { return }
+            _ = applyDecodedImage(
+                decodedImage,
+                sourceURL: url,
+                maxPixelSize: maxPixelSize,
+                expectedItemID: itemID
+            )
         case .pdf:
             let pdfData = await PreviewContentLoader.loadMappedData(from: url)
             guard !Task.isCancelled else { return }

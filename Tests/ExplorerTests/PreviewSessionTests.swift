@@ -13,11 +13,15 @@ final class PreviewSessionTests: XCTestCase {
             name: "\(id).txt",
             isDirectory: false,
             modificationDate: .distantPast,
+            creationDate: .distantPast,
             size: 0,
             isHidden: false,
             fileType: "txt",
             sizeDisplay: "0 B",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
     }
 
@@ -79,11 +83,15 @@ final class PreviewSessionTests: XCTestCase {
                 name: "sample.docx",
                 isDirectory: false,
                 modificationDate: .distantPast,
+                creationDate: .distantPast,
                 size: 1024,
                 isHidden: false,
                 fileType: "docx",
                 sizeDisplay: "1 KB",
-                dateDisplay: ""
+                dateDisplay: "",
+                creationDateDisplay: "",
+                finderComment: "",
+                tags: []
             )
         )
         session.content.textContent = "Hello"
@@ -110,11 +118,15 @@ final class PreviewSessionTests: XCTestCase {
                 name: "sample.doc",
                 isDirectory: false,
                 modificationDate: .distantPast,
+                creationDate: .distantPast,
                 size: 1024,
                 isHidden: false,
                 fileType: "doc",
                 sizeDisplay: "1 KB",
-                dateDisplay: ""
+                dateDisplay: "",
+                creationDateDisplay: "",
+                finderComment: "",
+                tags: []
             )
         )
         session.content.textContent = "Hello"
@@ -137,11 +149,15 @@ final class PreviewSessionTests: XCTestCase {
                 name: "sample.pdf",
                 isDirectory: false,
                 modificationDate: .distantPast,
+                creationDate: .distantPast,
                 size: 1024,
                 isHidden: false,
                 fileType: "pdf",
                 sizeDisplay: "1 KB",
-                dateDisplay: ""
+                dateDisplay: "",
+                creationDateDisplay: "",
+                finderComment: "",
+                tags: []
             )
         )
         XCTAssertFalse(pdfSession.showsPreviewTextSearch(for: pdfSession.file))
@@ -156,11 +172,15 @@ final class PreviewSessionTests: XCTestCase {
                 name: "readme.md",
                 isDirectory: false,
                 modificationDate: .distantPast,
+                creationDate: .distantPast,
                 size: 128,
                 isHidden: false,
                 fileType: "md",
                 sizeDisplay: "128 B",
-                dateDisplay: ""
+                dateDisplay: "",
+                creationDateDisplay: "",
+                finderComment: "",
+                tags: []
             )
         )
         mdSession.content.textContent = "# Title"
@@ -174,11 +194,15 @@ final class PreviewSessionTests: XCTestCase {
                 name: "data.xlsx",
                 isDirectory: false,
                 modificationDate: .distantPast,
+                creationDate: .distantPast,
                 size: 1024,
                 isHidden: false,
                 fileType: "xlsx",
                 sizeDisplay: "1 KB",
-                dateDisplay: ""
+                dateDisplay: "",
+                creationDateDisplay: "",
+                finderComment: "",
+                tags: []
             )
         )
         xlsxSession.content.textContent = "A\tB"
@@ -195,11 +219,15 @@ final class PreviewSessionTests: XCTestCase {
                 name: "data.csv",
                 isDirectory: false,
                 modificationDate: .distantPast,
+                creationDate: .distantPast,
                 size: 256,
                 isHidden: false,
                 fileType: "csv",
                 sizeDisplay: "256 B",
-                dateDisplay: ""
+                dateDisplay: "",
+                creationDateDisplay: "",
+                finderComment: "",
+                tags: []
             )
         )
         csvSession.content.textContent = "a,b\n1,2"
@@ -219,11 +247,15 @@ final class PreviewSessionTests: XCTestCase {
                 name: "readme.docx",
                 isDirectory: false,
                 modificationDate: .distantPast,
+                creationDate: .distantPast,
                 size: 128,
                 isHidden: false,
                 fileType: "docx",
                 sizeDisplay: "128 B",
-                dateDisplay: ""
+                dateDisplay: "",
+                creationDateDisplay: "",
+                finderComment: "",
+                tags: []
             )
         )
         docxSession.content.textContent = "Body"
@@ -243,11 +275,15 @@ final class PreviewSessionTests: XCTestCase {
                 name: "sample.pptx",
                 isDirectory: false,
                 modificationDate: .distantPast,
+                creationDate: .distantPast,
                 size: 1024,
                 isHidden: false,
                 fileType: "pptx",
                 sizeDisplay: "1 KB",
-                dateDisplay: ""
+                dateDisplay: "",
+                creationDateDisplay: "",
+                finderComment: "",
+                tags: []
             )
         )
         session.content.officeURL = URL(fileURLWithPath: "/tmp/sample.pptx")

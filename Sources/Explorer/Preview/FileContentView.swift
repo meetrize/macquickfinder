@@ -314,6 +314,10 @@ struct FileContentView: View {
             }
             DispatchQueue.main.async { session.image.previewAction = nil }
         }
+        .onChange(of: session.image.zoomAction) { action in
+            guard action == .actualSize else { return }
+            Task { await session.upgradeImageToFullResolutionIfNeeded() }
+        }
         .alert(L10n.Preview.saveFailedTitle, isPresented: Binding(
             get: { session.content.imageSaveErrorMessage != nil },
             set: { if !$0 { session.content.imageSaveErrorMessage = nil } }

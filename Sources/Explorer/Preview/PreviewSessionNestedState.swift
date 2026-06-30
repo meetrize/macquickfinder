@@ -21,6 +21,8 @@ final class PreviewSessionImageState: ObservableObject {
     @Published var pickedWebColor: String?
     @Published var resizeTargetSize: CGSize?
     @Published var sourcePixelSize: CGSize = .zero
+    /// 解码时使用的最长边像素上限；0 表示已全分辨率或未知。
+    @Published var decodedMaxPixelSize: Int = 0
     @Published var showResizeSheet = false
     @Published var editUndoStack: [ImageEditSnapshot] = []
     @Published var editUndoClearNonce = 0
@@ -50,6 +52,13 @@ final class PreviewSessionImageState: ObservableObject {
         return source
     }
 
+    var isDisplayResolutionLimited: Bool {
+        guard decodedMaxPixelSize > 0 else { return false }
+        let sourceMax = Int(max(sourcePixelSize.width, sourcePixelSize.height).rounded())
+        guard sourceMax > 0 else { return false }
+        return decodedMaxPixelSize < sourceMax
+    }
+
     var resizeDialogSize: (width: Int, height: Int) {
         let oriented = effectiveOrientedPixelSize
         if let target = resizeTargetSize {
@@ -76,6 +85,7 @@ final class PreviewSessionImageState: ObservableObject {
         pickedWebColor = nil
         resizeTargetSize = nil
         sourcePixelSize = .zero
+        decodedMaxPixelSize = 0
         editUndoStack.removeAll()
     }
 
@@ -90,6 +100,7 @@ final class PreviewSessionImageState: ObservableObject {
         eyedropperActive = false
         pickedWebColor = nil
         resizeTargetSize = nil
+        decodedMaxPixelSize = 0
     }
 
     func resetViewTransform() {

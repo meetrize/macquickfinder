@@ -9,11 +9,15 @@ final class SnippetScopeMatcherTests: XCTestCase {
             name: (path as NSString).lastPathComponent,
             isDirectory: isDirectory,
             modificationDate: Date(),
+            creationDate: Date(),
             size: 0,
             isHidden: false,
             fileType: isDirectory ? "文件夹" : (path as NSString).pathExtension,
             sizeDisplay: "",
-            dateDisplay: ""
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
         )
     }
 

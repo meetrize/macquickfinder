@@ -20,6 +20,7 @@ public final class FileListTableController: FileListContentController {
     var columnResizeObserver: NSObjectProtocol?
     var columnMoveObserver: NSObjectProtocol?
     var scrollBoundsObserver: NSObjectProtocol?
+    var memoryPressureObserver: NSObjectProtocol?
     var headerRightClickMonitor: Any?
     var widthSaveWorkItem: DispatchWorkItem?
     var paddingAfterResizeWorkItem: DispatchWorkItem?
@@ -34,7 +35,7 @@ public final class FileListTableController: FileListContentController {
     var contentBackgroundMaxX: CGFloat = 0
 
     var useIconPreview = false
-    let thumbnailGenerator = ThumbnailGenerator()
+    let thumbnailGenerator = ThumbnailGenerator.shared
     var visibleIconPreviewLoadWorkItem: DispatchWorkItem?
 
     let userResizing = NSTableColumn.ResizingOptions(rawValue: 1 << 1)
@@ -45,7 +46,6 @@ public final class FileListTableController: FileListContentController {
     }
 
     deinit {
-        thumbnailGenerator.shutdown()
         tearDownObservers()
     }
 
@@ -141,8 +141,12 @@ public final class FileListTableController: FileListContentController {
                 directoryItemCount: nil
             )
         )
-        if plan.listingChanged, renamingRowID != nil {
-            cancelRenameIfNeededForDataUpdate()
+        if plan.listingChanged {
+            thumbnailGenerator.cancelInFlightRequests()
+            thumbnailGenerator.clearMemoryCache()
+            if renamingRowID != nil {
+                cancelRenameIfNeededForDataUpdate()
+            }
         }
 
         let newDisplay = plan.sortedDisplayRows

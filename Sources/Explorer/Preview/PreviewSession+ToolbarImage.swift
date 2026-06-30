@@ -72,7 +72,7 @@ extension PreviewSession {
                 title: L10n.Preview.Toolbar.rotateCCW,
                 systemImage: "rotate.left",
                 action: { [self] in
-                    image.performEdit {
+                    performImageEdit {
                         image.rotationQuarterTurns = (image.rotationQuarterTurns + 3) % 4
                     }
                 }
@@ -82,7 +82,7 @@ extension PreviewSession {
                 title: L10n.Preview.Toolbar.rotateCW,
                 systemImage: "rotate.right",
                 action: { [self] in
-                    image.performEdit {
+                    performImageEdit {
                         image.rotationQuarterTurns = (image.rotationQuarterTurns + 1) % 4
                     }
                 }
@@ -92,7 +92,7 @@ extension PreviewSession {
                 title: L10n.Preview.Toolbar.flipHorizontal,
                 systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right",
                 action: { [self] in
-                    image.performEdit {
+                    performImageEdit {
                         image.flipHorizontal.toggle()
                     }
                 }
@@ -102,7 +102,7 @@ extension PreviewSession {
                 title: L10n.Preview.Toolbar.flipVertical,
                 systemImage: "arrow.up.and.down.righttriangle.up.righttriangle.down",
                 action: { [self] in
-                    image.performEdit {
+                    performImageEdit {
                         image.flipVertical.toggle()
                     }
                 }

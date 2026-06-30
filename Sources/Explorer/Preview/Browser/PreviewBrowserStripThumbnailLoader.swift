@@ -6,7 +6,7 @@ import Foundation
 final class PreviewBrowserStripThumbnailLoader: ObservableObject {
     @Published private(set) var imageByItemID: [String: NSImage] = [:]
 
-    private let generator = ThumbnailGenerator()
+    private let generator = ThumbnailGenerator.shared
     private var loadGeneration: UInt = 0
 
     func updatePrefetchWindow(items: [FileItem], centerIndex: Int, screenScale: CGFloat) {
@@ -71,20 +71,14 @@ final class PreviewBrowserStripThumbnailLoader: ObservableObject {
 
     func shutdown() {
         loadGeneration &+= 1
-        generator.shutdown()
+        generator.cancelInFlightRequests()
         imageByItemID.removeAll()
     }
 
-    /// 系统内存压力：释放生成器与条带内已解码图像，保留占位后可重新加载。
+    /// 系统内存压力：释放条带内已解码图像；共享 LRU 由全局 handler 清理。
     func respondToMemoryPressure() {
         loadGeneration &+= 1
         generator.cancelInFlightRequests()
-        generator.clearMemoryCache()
-        generator.trimDiskCache()
         imageByItemID.removeAll()
-    }
-
-    deinit {
-        generator.shutdown()
     }
 }

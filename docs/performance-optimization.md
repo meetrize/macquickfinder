@@ -8,7 +8,7 @@
 |------|----------|
 | 列表渲染 | `NSTableView` / `NSCollectionView` 虚拟化，只渲染可见行 |
 | 目录切换 | `loadGeneration` 取消过期任务，避免竞态 |
-| 缩略图 | 内存 LRU（500 条 / 150MB）、磁盘缓存、QL 并发限制（4）、仅加载可见区、分批 8 张 |
+| 缩略图 | 内存 LRU（500 条 / **80MB 共享单例**）、磁盘缓存、QL 并发限制（4）、仅加载可见区、分批 8 张 |
 | 目录元数据 | Actor 队列 + 有界缓存 + 路径切换时 `resetSession` |
 | 预览 | `cancelLoad()`、`clearLoadedContent()`、预取有上限 |
 | 脚本输出 | `JobStore` 最多保留 50 条 |
@@ -95,6 +95,24 @@
 | Phase 5 | Release 编译优化 + Instruments 验证 | 无 | 部分完成（`-O` 已加，Instruments 待手动） |
 | Phase 6 | 磁盘缩略图 LRU + 元数据 trim + 预览会话释放 | 低 | ✅ 已完成 |
 | Phase 7 | 预览胶片条内存压力 + 修复测试编译 | 低 | ✅ 已完成 |
+| Phase 8 | 共享缩略图 LRU + 预览 ImageIO 降采样 + 会话内存压力裁剪 | 低 | ✅ 已完成 |
+
+### Phase 8 实施摘要
+
+1. **ThumbnailGenerator.shared**：网格、列表图标、胶片条共用单一 LRU（80MB），避免三份 150MB 缓存叠加。
+2. **FileListTableController**：目录切换 `clearMemoryCache()`；订阅 `.meoFindMemoryPressure`。
+3. **ImagePreviewLoader**：预览默认 ImageIO 降采样（最长边 4096px）；「实际大小」/ 编辑 / 保存前按需升级全分辨率。
+4. **PreviewSessionStore.respondToMemoryPressure()**：取消预取与进行中的加载；非 key 的 detached 窗口释放已解码内容。
+5. **AppMemoryPressure**：集中调用 shared LRU 清理与会话裁剪。
+
+### Phase 8 Instruments 手动验收清单
+
+在 **Release** 构建下执行：
+
+1. **Allocations**：打开含 20+ 张 4000px 照片的目录，侧栏或独立窗连续预览 10 张；单张 `NSBitmapImageRep` 常驻应明显低于全分辨率（约 96MB/24MP）。
+2. **Memory Graph**：关闭预览面板 / detached 窗口后，无残留 `PreviewSession` 持有超大 bitmap（允许缩略图 LRU 在 80MB 预算内）。
+3. **内存压力**：触发系统 memory warning 后，后台 detached 窗口大图应释放；当前 key 窗口预览仍可显示。
+4. **编辑保存**：对降采样预览图旋转后保存，输出文件像素尺寸应与原图一致。
 
 ### Phase 7 实施摘要
 
@@ -109,6 +127,7 @@ flowchart TD
     D --> E[Phase 5: Instruments 验证]
     E --> F[Phase 6: 磁盘 LRU + 元数据 trim + 预览释放]
     F --> G[Phase 7: 胶片条内存压力 + 测试修复]
+    G --> H[Phase 8: 共享 LRU + 预览降采样 + 会话裁剪]
 ```
 
 ### Phase 6 实施摘要

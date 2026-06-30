@@ -26,12 +26,17 @@ struct PreviewSessionInteractionModifiers: ViewModifier {
                     aspectHeight: max(1, Int(oriented.height.rounded())),
                     onCancel: { session.image.showResizeSheet = false },
                     onApply: { width, height in
-                        session.image.performEdit {
-                            session.image.resizeTargetSize = CGSize(width: width, height: height)
+                        Task {
+                            await session.upgradeImageToFullResolutionIfNeeded()
+                            await MainActor.run {
+                                session.image.performEdit {
+                                    session.image.resizeTargetSize = CGSize(width: width, height: height)
+                                }
+                                session.image.zoomScale = 1.0
+                                session.image.zoomAction = .fit
+                                session.image.showResizeSheet = false
+                            }
                         }
-                        session.image.zoomScale = 1.0
-                        session.image.zoomAction = .fit
-                        session.image.showResizeSheet = false
                     }
                 )
             }

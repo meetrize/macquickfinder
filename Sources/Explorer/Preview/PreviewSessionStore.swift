@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 @MainActor
@@ -45,5 +46,26 @@ final class PreviewSessionStore: ObservableObject {
                 && session.folderInlineChild == nil
                 && !session.location.isDetached
         }
+    }
+
+    /// 系统内存压力：取消预取与进行中的加载；非 key 的 detached 会话释放已解码内容。
+    func respondToMemoryPressure() {
+        let keyWindow = NSApp.keyWindow
+        for session in sessions.values {
+            session.browseContentPrefetcher.cancel()
+            session.cancelLoad()
+            if shouldClearLoadedContent(for: session, keyWindow: keyWindow) {
+                session.clearLoadedContent()
+            }
+        }
+    }
+
+    private func shouldClearLoadedContent(for session: PreviewSession, keyWindow: NSWindow?) -> Bool {
+        guard session.location.isDetached else { return false }
+        let title = session.browseTarget.name
+        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.title == title }) else {
+            return true
+        }
+        return window !== keyWindow
     }
 }
