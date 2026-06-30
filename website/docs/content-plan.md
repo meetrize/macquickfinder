@@ -39,6 +39,17 @@
 
 放入 `public/assets/videos/`，并在 `index.html` 中取消 video 注释。
 
+## 演示项目（截图 / 录屏素材）
+
+仓库内 [`MeoFind-Showcase/`](../../MeoFind-Showcase/) 提供开箱即用的演示目录：
+
+- 示例 Swift / Python / Markdown / JSON / CSV / YAML
+- 可导入的 `snippets-showcase.json`
+- 截图清单 `docs/screenshot-checklist.md`
+- 安装说明 `SETUP.md`
+
+复制到 `~/Documents/` 后在 MeoFind 中打开并加入收藏夹即可开始截图。
+
 ## 版本与下载
 
 编辑 `public/version.json`：
