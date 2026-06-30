@@ -23,6 +23,9 @@ final class PreviewSessionImageState: ObservableObject {
     @Published var sourcePixelSize: CGSize = .zero
     /// 解码时使用的最长边像素上限；0 表示已全分辨率或未知。
     @Published var decodedMaxPixelSize: Int = 0
+    /// 图片内容区尺寸（点），用于动态降采样预算。
+    @Published var displayContainerSize: CGSize = .zero
+    @Published var displayScreenScale: CGFloat = 2.0
     @Published var showResizeSheet = false
     @Published var editUndoStack: [ImageEditSnapshot] = []
     @Published var editUndoClearNonce = 0
@@ -101,6 +104,7 @@ final class PreviewSessionImageState: ObservableObject {
         pickedWebColor = nil
         resizeTargetSize = nil
         decodedMaxPixelSize = 0
+        displayContainerSize = .zero
     }
 
     func resetViewTransform() {

@@ -63,4 +63,24 @@ final class PreviewSessionStoreTests: XCTestCase {
 
         store.remove(session.id)
     }
+
+    func testRemoveInlineSessionsPreservesDetached() {
+        let store = PreviewSessionStore.shared
+        let hostID = UUID()
+        let inline = PreviewSession(hostWindowID: hostID, file: makeFileItem(id: "inline"))
+        let detached = PreviewSession(hostWindowID: hostID, file: makeFileItem(id: "detached"))
+        detached.location = .detached(windowNumber: 42)
+        detached.content.textContent = "detached body"
+
+        store.register(inline)
+        store.register(detached)
+
+        store.removeInlineSessions(forHostWindowID: hostID)
+
+        XCTAssertNil(store.session(for: inline.id))
+        XCTAssertNotNil(store.session(for: detached.id))
+        XCTAssertEqual(detached.content.textContent, "detached body")
+
+        store.remove(detached.id)
+    }
 }

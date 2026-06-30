@@ -101,6 +101,10 @@ struct FilePreviewSessionHost: View {
             detachPreview: detachPreview,
             dockPreview: dockPreview
         ))
+        .onDisappear {
+            guard !session.location.isDetached else { return }
+            PreviewSessionStore.shared.remove(session.id)
+        }
     }
 
     @ViewBuilder

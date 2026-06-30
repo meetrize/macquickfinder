@@ -96,6 +96,7 @@
 | Phase 6 | 磁盘缩略图 LRU + 元数据 trim + 预览会话释放 | 低 | ✅ 已完成 |
 | Phase 7 | 预览胶片条内存压力 + 修复测试编译 | 低 | ✅ 已完成 |
 | Phase 8 | 共享缩略图 LRU + 预览 ImageIO 降采样 + 会话内存压力裁剪 | 低 | ✅ 已完成 |
+| Phase 9 | 侧栏关闭释放 inline session + 动态预览像素预算 | 低 | ✅ 已完成 |
 
 ### Phase 8 实施摘要
 
@@ -104,6 +105,13 @@
 3. **ImagePreviewLoader**：预览默认 ImageIO 降采样（最长边 4096px）；「实际大小」/ 编辑 / 保存前按需升级全分辨率。
 4. **PreviewSessionStore.respondToMemoryPressure()**：取消预取与进行中的加载；非 key 的 detached 窗口释放已解码内容。
 5. **AppMemoryPressure**：集中调用 shared LRU 清理与会话裁剪。
+
+### Phase 9 实施摘要（侧栏释放 + 动态降采样预算）
+
+1. **PreviewSessionStore.removeInlineSessions**：侧栏关闭预览或切换选中时移除内联 session；已分离窗口会话保留。
+2. **FilePreviewSessionHost.onDisappear** + **RightPanelStackView** `showPreview` 监听：双路径确保大图/PDF 不常驻。
+3. **ImagePreviewDisplayMetrics**：`max(宽,高) × Retina × 1.5`，上限 4096、下限 256。
+4. **PreviewImageDisplaySizeReporter**：`FileContentView` 上报容器尺寸；图片类 `loadTaskID` 含尺寸/token，布局就绪后按更小预算重载。
 
 ### Phase 8 Instruments 手动验收清单
 

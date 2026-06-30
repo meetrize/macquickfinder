@@ -87,6 +87,11 @@ struct RightPanelStackView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .animation(nil, value: effectivePreviewHeight)
+            .onChange(of: layout.showPreview) { isVisible in
+                if !isVisible {
+                    PreviewSessionStore.shared.removeInlineSessions(forHostWindowID: hostWindowID)
+                }
+            }
         }
     }
 

@@ -2,9 +2,25 @@ import AppKit
 import Foundation
 
 extension PreviewSession {
+    func currentImagePreviewPixelBudget() -> Int {
+        ImagePreviewDisplayMetrics.pixelBudget(
+            containerSize: image.displayContainerSize,
+            screenScale: image.displayScreenScale
+        )
+    }
+
+    func updateImagePreviewDisplayMetrics(containerSize: CGSize, screenScale: CGFloat) {
+        image.displayContainerSize = containerSize
+        image.displayScreenScale = max(screenScale, 1)
+    }
+
     func imagePreviewDisplayMaxPixelSize(for url: URL) -> Int? {
         let sourceSize = ImageFileDimensionsReader.pixelSize(for: url) ?? .zero
-        return ImagePreviewLoader.recommendedMaxPixelSize(sourcePixelSize: sourceSize)
+        let budget = currentImagePreviewPixelBudget()
+        return ImagePreviewLoader.recommendedMaxPixelSize(
+            sourcePixelSize: sourceSize,
+            displayPixelBudget: budget
+        )
     }
 
     @discardableResult

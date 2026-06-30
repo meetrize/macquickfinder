@@ -39,6 +39,14 @@ final class PreviewSessionStore: ObservableObject {
         ids.forEach { remove($0) }
     }
 
+    /// 侧栏关闭预览等场景：仅移除仍挂载在内联面板的会话，保留已分离窗口会话。
+    func removeInlineSessions(forHostWindowID hostWindowID: UUID) {
+        let ids = sessions.values.filter {
+            $0.hostWindowID == hostWindowID && !$0.location.isDetached
+        }.map(\.id)
+        ids.forEach { remove($0) }
+    }
+
     func existingInlineSession(hostWindowID: UUID, fileID: FileItem.ID) -> PreviewSession? {
         sessions.values.first { session in
             session.hostWindowID == hostWindowID

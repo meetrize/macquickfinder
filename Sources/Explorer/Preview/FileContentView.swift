@@ -64,7 +64,15 @@ struct FileContentView: View {
 
     private var loadTaskID: String {
         let contentID = session.browseTarget.id
-        return "\(contentID)-\(session.archive.reloadToken)-\(customPreviewStore.revision)"
+        var token = "\(contentID)-\(session.archive.reloadToken)-\(Int(customPreviewStore.revision))"
+        if PreviewTypeClassifier.isImageFile(fileExtension) {
+            let size = session.image.displayContainerSize
+            if size.width > 0, size.height > 0 {
+                token += "-\(Int(size.width.rounded()))x\(Int(size.height.rounded()))"
+                token += "-\(session.currentImagePreviewPixelBudget())"
+            }
+        }
+        return token
     }
 
     var body: some View {
@@ -245,6 +253,7 @@ struct FileContentView: View {
         }
         .opacity(contentOpacity)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PreviewImageDisplaySizeReporter(session: session))
         .focusedValue(\.previewTextSelectionActive, previewTextSelectionActive)
         .background(TextEditingKeyMonitor(isActive: previewTextSelectionActive))
         .task(id: loadTaskID) {
