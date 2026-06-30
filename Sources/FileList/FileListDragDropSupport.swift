@@ -60,7 +60,8 @@ enum FileListDragDropSupport {
         let frame = FileListDragSupport.draggingFrame(
             at: ghostAnchorInView,
             ghostSize: ghost.size,
-            index: 0
+            index: 0,
+            showLabel: showLabel
         )
 
         FileListContentInteractionNotifier.notifyDidBegin()

@@ -154,7 +154,8 @@ enum FileListInteractionCoordinator {
             let frame = FileListDragSupport.draggingFrame(
                 at: mousePoint,
                 ghostSize: ghost.size,
-                index: index
+                index: index,
+                showLabel: showLabel
             )
             let url = URL(fileURLWithPath: draggedRow.iconPath) as NSURL
             let draggingItem = NSDraggingItem(pasteboardWriter: url)

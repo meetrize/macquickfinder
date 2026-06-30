@@ -75,12 +75,18 @@ final class FileListDragDropSupportTests: XCTestCase {
         XCTAssertEqual(urls.map(\.path), ["/tmp/active.txt"])
     }
 
-    func testDraggingFrameCentersOnMouse() {
+    func testDraggingFrameAnchorsIconCenterOnMouse() {
         let ghostSize = NSSize(width: 120, height: 40)
         let mouse = NSPoint(x: 200, y: 150)
-        let frame = FileListDragSupport.draggingFrame(at: mouse, ghostSize: ghostSize, index: 0)
+        let frame = FileListDragSupport.draggingFrame(
+            at: mouse,
+            ghostSize: ghostSize,
+            index: 0,
+            showLabel: true
+        )
+        let iconCenterX = frame.origin.x + FileListDragSupport.iconCenterX(showLabel: true)
 
-        XCTAssertEqual(frame.midX, mouse.x, accuracy: 0.01)
+        XCTAssertEqual(iconCenterX, mouse.x, accuracy: 0.01)
         XCTAssertEqual(frame.midY, mouse.y, accuracy: 0.01)
 
         let dragImageLocation = NSPoint(x: frame.origin.x, y: frame.origin.y + frame.height)
@@ -88,7 +94,7 @@ final class FileListDragDropSupportTests: XCTestCase {
             width: mouse.x - dragImageLocation.x,
             height: mouse.y - dragImageLocation.y
         )
-        XCTAssertEqual(offset.width, ghostSize.width / 2, accuracy: 0.01)
+        XCTAssertEqual(offset.width, FileListDragSupport.iconCenterX(showLabel: true), accuracy: 0.01)
         XCTAssertEqual(offset.height, -ghostSize.height / 2, accuracy: 0.01)
         XCTAssertEqual(dragImageLocation.x + offset.width, mouse.x, accuracy: 0.01)
         XCTAssertEqual(dragImageLocation.y + offset.height, mouse.y, accuracy: 0.01)
