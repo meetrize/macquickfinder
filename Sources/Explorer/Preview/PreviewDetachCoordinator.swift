@@ -104,6 +104,7 @@ final class PreviewDetachCoordinator: ObservableObject {
         session.allowsDockBack = false
         session.location = .detached(windowNumber: nil)
         session.isBrowserStripExpanded = true
+        session.adaptImageToWindowOnResize = true
         session.image.zoomScale = 1.0
 
         if let context = PreviewBrowserContext.makeSnapshot(

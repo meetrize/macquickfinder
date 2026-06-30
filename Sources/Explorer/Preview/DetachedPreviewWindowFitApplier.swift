@@ -14,8 +14,9 @@ enum DetachedPreviewWindowFitApplier {
         }
         guard let window else { return }
 
+        session.adaptImageToWindowOnResize = true
         session.image.zoomScale = 1.0
-        DetachedPreviewWindowSizer.apply(
+        DetachedPreviewWindowSizer.applyInitialFit(
             to: window,
             imagePixelSize: pixelSize,
             browserStripExpanded: session.isBrowserStripExpanded,

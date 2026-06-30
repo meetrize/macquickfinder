@@ -9,8 +9,12 @@ enum DetachedPreviewWindowSizer {
         var screen: NSScreen?
     }
 
-    /// 计算窗口内容区尺寸：图片预览区与图片 1:1 贴合，宽或高之一撑满屏幕可用范围。
-    static func contentSize(for input: LayoutInput) -> CGSize {
+    struct FitResult {
+        let contentSize: CGSize
+    }
+
+    /// 计算初始窗口内容区：工具栏 + 胶片条高度固定，图片区尽量撑满可用屏幕。
+    static func fitResult(for input: LayoutInput, window: NSWindow) -> FitResult {
         let screen = input.screen ?? NSScreen.main
         let visibleFrame = screen?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1280, height: 800)
         let backingScale = screen?.backingScaleFactor ?? 2.0
@@ -19,93 +23,108 @@ enum DetachedPreviewWindowSizer {
             height: max(input.imagePixelSize.height / backingScale, 1)
         )
 
-        let belowImageChrome = belowImageChromeHeight(
+        let topChrome = DetachedPreviewWindowLayoutMetrics.previewChromeHeight
+        let belowImageChrome = DetachedPreviewWindowLayoutMetrics.belowImageChromeHeight(
             browserStripExpanded: input.browserStripExpanded,
             canBrowse: input.canBrowse
         )
-        let horizontalMargin: CGFloat = 16
-        let verticalMargin: CGFloat = 16
-        let topChrome = PanelTopBarMetrics.totalHeight + 1
 
-        let maxImageWidth = max(160, visibleFrame.width - horizontalMargin)
-        let maxImageHeight = max(
-            120,
-            visibleFrame.height - verticalMargin - topChrome - belowImageChrome - titleBarAllowance
+        var fitScale = min(
+            visibleFrame.width / imagePoints.width,
+            visibleFrame.height / imagePoints.height
         )
 
-        // 等比缩放至屏幕内，允许放大（宽或高之一触达上限）
-        let fitScale = min(
-            maxImageWidth / imagePoints.width,
-            maxImageHeight / imagePoints.height
-        )
-
-        let fittedImage = CGSize(
+        var fittedImage = CGSize(
             width: imagePoints.width * fitScale,
             height: imagePoints.height * fitScale
         )
-
-        return CGSize(
-            width: max(320, fittedImage.width.rounded(.up)),
-            height: max(
-                240,
-                (topChrome + fittedImage.height + belowImageChrome).rounded(.up)
-            )
+        var currentContentSize = makeContentSize(
+            fittedImage: fittedImage,
+            topChrome: topChrome,
+            belowImageChrome: belowImageChrome
         )
+
+        for _ in 0..<32 {
+            let frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: currentContentSize))
+            if frame.maxY <= visibleFrame.maxY + 0.5,
+               frame.minY >= visibleFrame.minY - 0.5,
+               frame.width <= visibleFrame.width + 0.5 {
+                break
+            }
+            fitScale *= 0.97
+            fittedImage = CGSize(
+                width: imagePoints.width * fitScale,
+                height: imagePoints.height * fitScale
+            )
+            currentContentSize = makeContentSize(
+                fittedImage: fittedImage,
+                topChrome: topChrome,
+                belowImageChrome: belowImageChrome
+            )
+        }
+
+        return FitResult(contentSize: currentContentSize)
     }
 
-    static func apply(
+    @MainActor
+    static func applyInitialFit(
         to window: NSWindow,
         imagePixelSize: CGSize,
         browserStripExpanded: Bool,
         canBrowse: Bool
     ) {
         let screen = window.screen ?? NSScreen.main
-        var contentSize = contentSize(for: LayoutInput(
-            imagePixelSize: imagePixelSize,
+        let visibleFrame = screen?.visibleFrame ?? .zero
+        let result = fitResult(
+            for: LayoutInput(
+                imagePixelSize: imagePixelSize,
+                browserStripExpanded: browserStripExpanded,
+                canBrowse: canBrowse,
+                screen: screen
+            ),
+            window: window
+        )
+
+        window.minSize = DetachedPreviewWindowLayoutMetrics.minimumContentSize(
             browserStripExpanded: browserStripExpanded,
-            canBrowse: canBrowse,
-            screen: screen
-        ))
-
-        // 确保整窗（含标题栏）不超出屏幕
-        if let screen {
-            let visibleFrame = screen.visibleFrame
-            var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: contentSize))
-            if frame.width > visibleFrame.width || frame.height > visibleFrame.height {
-                let scale = min(
-                    visibleFrame.width / max(frame.width, 1),
-                    visibleFrame.height / max(frame.height, 1),
-                    1.0
-                )
-                contentSize = CGSize(
-                    width: max(320, (contentSize.width * scale).rounded(.down)),
-                    height: max(240, (contentSize.height * scale).rounded(.down))
-                )
-            }
-        }
-
-        window.setContentSize(contentSize)
-        center(window, on: screen)
+            canBrowse: canBrowse
+        )
+        window.setContentSize(result.contentSize)
+        alignWithinVisibleArea(window, visibleFrame: visibleFrame)
     }
 
-    static func center(_ window: NSWindow, on screen: NSScreen?) {
-        guard let screen = screen ?? NSScreen.main else { return }
-        let visibleFrame = screen.visibleFrame
+    /// 顶部尽量贴齐菜单栏下沿，且整窗完全落在可用区域内（不遮挡标题栏、不侵入 Dock）。
+    static func alignWithinVisibleArea(_ window: NSWindow, visibleFrame: CGRect) {
+        guard visibleFrame.width > 0, visibleFrame.height > 0 else { return }
         var frame = window.frame
+
         frame.origin.x = visibleFrame.midX - frame.width / 2
-        frame.origin.y = visibleFrame.midY - frame.height / 2
+        frame.origin.y = visibleFrame.maxY - frame.height
+
+        if frame.maxY > visibleFrame.maxY {
+            frame.origin.y -= frame.maxY - visibleFrame.maxY
+        }
+        if frame.minY < visibleFrame.minY {
+            frame.origin.y = visibleFrame.minY
+        }
+        if frame.origin.x < visibleFrame.minX {
+            frame.origin.x = visibleFrame.minX
+        }
+        if frame.maxX > visibleFrame.maxX {
+            frame.origin.x = visibleFrame.maxX - frame.width
+        }
+
         window.setFrame(frame, display: true)
     }
 
-    private static func belowImageChromeHeight(browserStripExpanded: Bool, canBrowse: Bool) -> CGFloat {
-        guard canBrowse else { return 0 }
-        var height = 1 + PreviewBrowserStripMetrics.navBarHeight
-        if browserStripExpanded {
-            height += 1 + PreviewBrowserStripMetrics.stripHeight
-        }
-        return height
+    private static func makeContentSize(
+        fittedImage: CGSize,
+        topChrome: CGFloat,
+        belowImageChrome: CGFloat
+    ) -> CGSize {
+        CGSize(
+            width: max(320, fittedImage.width),
+            height: topChrome + fittedImage.height + belowImageChrome
+        )
     }
-
-    /// unified compact 标题栏在 content rect 之外的部分
-    private static let titleBarAllowance: CGFloat = 28
 }

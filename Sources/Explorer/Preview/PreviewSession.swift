@@ -29,6 +29,8 @@ final class PreviewSession: ObservableObject, Identifiable {
     @Published var isBrowserStripExpanded = false
     /// 外部直接打开的图片预览不支持收回侧栏。
     var allowsDockBack = true
+    /// 外部打开 / 用户缩放窗口时，图片区随窗口弹性缩放（工具栏与胶片条保持完整可见）。
+    var adaptImageToWindowOnResize = false
 
     var loadTask: Task<Void, Never>?
     private var browseContextCancellable: AnyCancellable?

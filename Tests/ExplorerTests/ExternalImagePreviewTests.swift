@@ -34,25 +34,43 @@ final class ExternalImageFileClassifierTests: XCTestCase {
 
 final class DetachedPreviewWindowSizerTests: XCTestCase {
     func testSmallImageUpscaledToAvailableSpace() {
-        let size = DetachedPreviewWindowSizer.contentSize(for: .init(
-            imagePixelSize: CGSize(width: 800, height: 600),
-            browserStripExpanded: false,
-            canBrowse: false,
-            screen: nil
-        ))
-        XCTAssertGreaterThan(size.width, 400)
-        XCTAssertGreaterThan(size.height, 300)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
+            styleMask: .titled,
+            backing: .buffered,
+            defer: true
+        )
+        let result = DetachedPreviewWindowSizer.fitResult(
+            for: .init(
+                imagePixelSize: CGSize(width: 800, height: 600),
+                browserStripExpanded: false,
+                canBrowse: false,
+                screen: nil
+            ),
+            window: window
+        )
+        XCTAssertGreaterThan(result.contentSize.height, 300)
     }
 
     func testLargeImageFitsScreen() {
-        let size = DetachedPreviewWindowSizer.contentSize(for: .init(
-            imagePixelSize: CGSize(width: 8000, height: 6000),
-            browserStripExpanded: true,
-            canBrowse: true,
-            screen: nil
-        ))
-        XCTAssertLessThanOrEqual(size.width, 1280)
-        XCTAssertLessThanOrEqual(size.height, 800)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 100, height: 100),
+            styleMask: .titled,
+            backing: .buffered,
+            defer: true
+        )
+        let result = DetachedPreviewWindowSizer.fitResult(
+            for: .init(
+                imagePixelSize: CGSize(width: 8000, height: 6000),
+                browserStripExpanded: true,
+                canBrowse: true,
+                screen: nil
+            ),
+            window: window
+        )
+        let frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: result.contentSize))
+        XCTAssertLessThanOrEqual(frame.width, 1280)
+        XCTAssertLessThanOrEqual(frame.height, 800)
     }
 
     func testPreviewWindowValueFitFlagRoundTrip() throws {
