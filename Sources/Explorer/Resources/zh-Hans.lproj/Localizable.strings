@@ -474,6 +474,12 @@
 	<string>打开方式</string>
 	<key>help.entry.open_with.shortcut</key>
 	<string>右键</string>
+	<key>help.entry.operation_recording.desc</key>
+	<string>在工具栏录制文件操作，停止后审阅并保存为 Snippet</string>
+	<key>help.entry.operation_recording.name</key>
+	<string>操作录制</string>
+	<key>help.entry.operation_recording.shortcut</key>
+	<string>工具栏</string>
 	<key>help.entry.output_find.desc</key>
 	<string>在输出文本中搜索并高亮匹配</string>
 	<key>help.entry.output_find.name</key>
@@ -786,18 +792,96 @@
 	<string>切换左侧面板</string>
 	<key>menu.toggle_right_panel</key>
 	<string>切换右侧面板</string>
+	<key>operation_recording.banner.discard</key>
+	<string>放弃</string>
+	<key>operation_recording.banner.message</key>
+	<string>正在录制操作 · 已 %lld 步</string>
+	<key>operation_recording.banner.stop</key>
+	<string>停止并审阅</string>
 	<key>operation_recording.close_while_recording.discard</key>
 	<string>放弃录制</string>
 	<key>operation_recording.close_while_recording.message</key>
 	<string>窗口关闭时仍在录制操作。</string>
 	<key>operation_recording.close_while_recording.stop</key>
-	<string>停止并复制脚本</string>
+	<string>停止并审阅</string>
 	<key>operation_recording.close_while_recording.title</key>
 	<string>停止录制？</string>
+	<key>operation_recording.copy_script</key>
+	<string>复制脚本</string>
+	<key>operation_recording.create_snippet</key>
+	<string>创建 Snippet…</string>
+	<key>operation_recording.default_snippet_name</key>
+	<string>录制的 Snippet</string>
+	<key>operation_recording.discard_confirm.message</key>
+	<string>已录制的步骤将被丢弃，且无法恢复。</string>
+	<key>operation_recording.discard_confirm.title</key>
+	<string>放弃录制？</string>
+	<key>operation_recording.discarded</key>
+	<string>已放弃录制</string>
+	<key>operation_recording.generalize_paths</key>
+	<string>将路径泛化为 Snippet 变量（%p、%P、%d）</string>
 	<key>operation_recording.no_steps</key>
 	<string>未记录到文件操作</string>
+	<key>operation_recording.preview_label</key>
+	<string>脚本预览</string>
+	<key>operation_recording.recording_name</key>
+	<string>录制 · %@</string>
+	<key>operation_recording.review_subtitle</key>
+	<string>已记录 %lld 步 · 录制于 %@</string>
+	<key>operation_recording.review_title</key>
+	<string>从录制生成 Snippet</string>
+	<key>operation_recording.scope_suggestion</key>
+	<string>建议作用域：%@</string>
 	<key>operation_recording.script_copied</key>
 	<string>Shell 脚本已复制（%lld 步）</string>
+	<key>operation_recording.short.clipboard</key>
+	<string>剪贴板</string>
+	<key>operation_recording.short.compress</key>
+	<string>压缩</string>
+	<key>operation_recording.short.copy</key>
+	<string>复制</string>
+	<key>operation_recording.short.delete</key>
+	<string>删除</string>
+	<key>operation_recording.short.extract</key>
+	<string>解压</string>
+	<key>operation_recording.short.move</key>
+	<string>移动</string>
+	<key>operation_recording.short.new_file</key>
+	<string>新建文件</string>
+	<key>operation_recording.short.new_folder</key>
+	<string>新建文件夹</string>
+	<key>operation_recording.short.rename</key>
+	<string>重命名</string>
+	<key>operation_recording.snippet_saved</key>
+	<string>Snippet 已保存：%@</string>
+	<key>operation_recording.step.compress</key>
+	<string>压缩 %lld 个项目为 %@</string>
+	<key>operation_recording.step.copy</key>
+	<string>复制 %lld 个项目</string>
+	<key>operation_recording.step.create_directory</key>
+	<string>新建文件夹 %@</string>
+	<key>operation_recording.step.create_file</key>
+	<string>新建文件 %@</string>
+	<key>operation_recording.step.cut</key>
+	<string>剪切 %lld 个项目</string>
+	<key>operation_recording.step.delete_immediately</key>
+	<string>立即删除 %lld 个项目</string>
+	<key>operation_recording.step.drag_copy</key>
+	<string>拖放复制 %lld 个项目到 %@</string>
+	<key>operation_recording.step.drag_move</key>
+	<string>拖放移动 %lld 个项目到 %@</string>
+	<key>operation_recording.step.extract</key>
+	<string>解压 %@ 到 %@</string>
+	<key>operation_recording.step.paste_copy</key>
+	<string>粘贴 %lld 个项目到 %@</string>
+	<key>operation_recording.step.paste_move</key>
+	<string>移动 %lld 个项目到 %@</string>
+	<key>operation_recording.step.rename</key>
+	<string>重命名为 %@</string>
+	<key>operation_recording.step.trash</key>
+	<string>将 %lld 个项目移到废纸篓</string>
+	<key>operation_recording.trash_warning</key>
+	<string>当前在废纸篓内录制：生成的脚本在废纸篓外可能无法正确重放。</string>
 	<key>pathbar.back</key>
 	<string>后退</string>
 	<key>pathbar.clear</key>
@@ -1338,6 +1422,14 @@
 	<string>标准</string>
 	<key>settings.snippets.display_mode</key>
 	<string>面板显示模式</string>
+	<key>settings.snippets.recording_generalize_paths</key>
+	<string>默认开启路径泛化</string>
+	<key>settings.snippets.recording_section</key>
+	<string>操作录制</string>
+	<key>settings.snippets.recording_section_footer</key>
+	<string>审阅面板与录制指示条的默认行为。录制期间执行 Snippet 不会被记录。</string>
+	<key>settings.snippets.recording_show_banner</key>
+	<string>显示录制指示条</string>
 	<key>settings.tab.general</key>
 	<string>通用</string>
 	<key>settings.tab.preview</key>

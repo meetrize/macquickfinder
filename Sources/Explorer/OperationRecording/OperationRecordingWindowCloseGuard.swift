@@ -4,12 +4,12 @@ import AppKit
 final class OperationRecordingWindowCloseGuard: NSObject, NSWindowDelegate {
     private weak var recorder: OperationRecorder?
     private weak var attachedWindow: NSWindow?
-    private var onStopAndGenerate: (([RecordedOperationStep]) -> Void)?
+    private var onStopAndGenerate: (([RecordedOperationStep], String) -> Void)?
 
     func attach(
         to window: NSWindow?,
         recorder: OperationRecorder,
-        onStopAndGenerate: @escaping ([RecordedOperationStep]) -> Void
+        onStopAndGenerate: @escaping ([RecordedOperationStep], String) -> Void
     ) {
         if attachedWindow !== window {
             attachedWindow?.delegate = nil
@@ -40,8 +40,9 @@ final class OperationRecordingWindowCloseGuard: NSObject, NSWindowDelegate {
 
         switch alert.runModal() {
         case .alertFirstButtonReturn:
+            let cwd = recorder.recordingStartCWD ?? ""
             let steps = recorder.stop()
-            onStopAndGenerate?(steps)
+            onStopAndGenerate?(steps, cwd)
             return true
         case .alertSecondButtonReturn:
             recorder.discard()

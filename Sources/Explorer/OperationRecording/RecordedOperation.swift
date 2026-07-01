@@ -21,6 +21,8 @@ enum RecordedOperation: Equatable {
     case rename(source: URL, destination: URL)
     case createDirectory(url: URL)
     case createFile(url: URL)
+    case compress(sources: [URL], archive: URL, command: String)
+    case extract(archive: URL, destination: URL, command: String)
 }
 
 struct RecordedOperationStep: Identifiable, Equatable {

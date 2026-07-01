@@ -21,6 +21,7 @@ struct SnippetEditorSheet: View {
 
     init(
         snippet: Snippet?,
+        draft: SnippetRecordingDraft? = nil,
         onSave: @escaping (Snippet) -> Void,
         onDelete: ((UUID) -> Void)? = nil,
         onExport: ((Snippet) -> Void)? = nil
@@ -31,10 +32,10 @@ struct SnippetEditorSheet: View {
         self.onExport = onExport
 
         let s = snippet ?? Snippet(
-            name: "",
+            name: draft?.suggestedName ?? "",
             scriptType: .shell,
-            scope: .global,
-            content: "",
+            scope: draft?.suggestedScope ?? .global,
+            content: draft?.content ?? "",
             interpreter: SnippetDefaults.shellInterpreter
         )
         _name = State(initialValue: s.name)

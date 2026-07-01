@@ -184,6 +184,16 @@ enum L10n {
             static var pinRecent: String { ModuleLocalization.localized("settings.pin_recent_snippets", bundle: .module) }
             static var autoShowOutput: String { ModuleLocalization.localized("settings.auto_show_output", bundle: .module) }
             static var confirmDestructive: String { ModuleLocalization.localized("settings.confirm_destructive", bundle: .module) }
+            static var recordingSection: String { ModuleLocalization.localized("settings.snippets.recording_section", bundle: .module) }
+            static var recordingSectionFooter: String {
+                ModuleLocalization.localized("settings.snippets.recording_section_footer", bundle: .module)
+            }
+            static var recordingGeneralizePaths: String {
+                ModuleLocalization.localized("settings.snippets.recording_generalize_paths", bundle: .module)
+            }
+            static var recordingShowBanner: String {
+                ModuleLocalization.localized("settings.snippets.recording_show_banner", bundle: .module)
+            }
 
             static func jobConcurrencyLimit(_ count: Int) -> String {
                 ModuleLocalization.localized("settings.job_concurrency_limit \(count)", bundle: .module)
@@ -429,6 +439,26 @@ enum L10n {
 
     enum OperationRecording {
         static var noSteps: String { ModuleLocalization.localized("operation_recording.no_steps", bundle: .module) }
+        static var reviewTitle: String { ModuleLocalization.localized("operation_recording.review_title", bundle: .module) }
+        static var generalizePaths: String { ModuleLocalization.localized("operation_recording.generalize_paths", bundle: .module) }
+        static var previewLabel: String { ModuleLocalization.localized("operation_recording.preview_label", bundle: .module) }
+        static var copyScript: String { ModuleLocalization.localized("operation_recording.copy_script", bundle: .module) }
+        static var createSnippet: String { ModuleLocalization.localized("operation_recording.create_snippet", bundle: .module) }
+        static var defaultSnippetName: String { ModuleLocalization.localized("operation_recording.default_snippet_name", bundle: .module) }
+        static var shortClipboard: String { ModuleLocalization.localized("operation_recording.short.clipboard", bundle: .module) }
+        static var shortCopy: String { ModuleLocalization.localized("operation_recording.short.copy", bundle: .module) }
+        static var shortMove: String { ModuleLocalization.localized("operation_recording.short.move", bundle: .module) }
+        static var shortDelete: String { ModuleLocalization.localized("operation_recording.short.delete", bundle: .module) }
+        static var shortRename: String { ModuleLocalization.localized("operation_recording.short.rename", bundle: .module) }
+        static var shortNewFolder: String { ModuleLocalization.localized("operation_recording.short.new_folder", bundle: .module) }
+        static var shortNewFile: String { ModuleLocalization.localized("operation_recording.short.new_file", bundle: .module) }
+        static var shortCompress: String { ModuleLocalization.localized("operation_recording.short.compress", bundle: .module) }
+        static var shortExtract: String { ModuleLocalization.localized("operation_recording.short.extract", bundle: .module) }
+        static var bannerStop: String { ModuleLocalization.localized("operation_recording.banner.stop", bundle: .module) }
+        static var bannerDiscard: String { ModuleLocalization.localized("operation_recording.banner.discard", bundle: .module) }
+        static var discardConfirmTitle: String { ModuleLocalization.localized("operation_recording.discard_confirm.title", bundle: .module) }
+        static var discardConfirmMessage: String { ModuleLocalization.localized("operation_recording.discard_confirm.message", bundle: .module) }
+        static var discarded: String { ModuleLocalization.localized("operation_recording.discarded", bundle: .module) }
         static var closeWhileRecordingTitle: String {
             ModuleLocalization.localized("operation_recording.close_while_recording.title", bundle: .module)
         }
@@ -441,12 +471,103 @@ enum L10n {
         static var closeDiscard: String {
             ModuleLocalization.localized("operation_recording.close_while_recording.discard", bundle: .module)
         }
+        static var trashWarning: String {
+            ModuleLocalization.localized("operation_recording.trash_warning", bundle: .module)
+        }
+
+        static func scopeSuggestion(_ scopeLabel: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("operation_recording.scope_suggestion", bundle: .module),
+                scopeLabel
+            )
+        }
+
+        static func reviewSubtitle(_ stepCount: Int, recordedAt: Date) -> String {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            formatter.dateStyle = .none
+            return String(
+                format: ModuleLocalization.localizedFromTable("operation_recording.review_subtitle", bundle: .module),
+                stepCount,
+                formatter.string(from: recordedAt)
+            )
+        }
 
         static func scriptCopied(_ stepCount: Int) -> String {
             String(
                 format: ModuleLocalization.localizedFromTable("operation_recording.script_copied", bundle: .module),
                 stepCount
             )
+        }
+
+        static func snippetSaved(_ name: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("operation_recording.snippet_saved", bundle: .module),
+                name
+            )
+        }
+
+        static func recordingName(_ summary: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("operation_recording.recording_name", bundle: .module),
+                summary
+            )
+        }
+
+        static func stepCopy(_ count: Int) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.copy", bundle: .module), count)
+        }
+
+        static func stepCut(_ count: Int) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.cut", bundle: .module), count)
+        }
+
+        static func stepPasteCopy(_ count: Int, _ destination: String) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.paste_copy", bundle: .module), count, destination)
+        }
+
+        static func stepPasteMove(_ count: Int, _ destination: String) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.paste_move", bundle: .module), count, destination)
+        }
+
+        static func stepDragCopy(_ count: Int, _ destination: String) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.drag_copy", bundle: .module), count, destination)
+        }
+
+        static func stepDragMove(_ count: Int, _ destination: String) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.drag_move", bundle: .module), count, destination)
+        }
+
+        static func stepTrash(_ count: Int) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.trash", bundle: .module), count)
+        }
+
+        static func stepDeleteImmediately(_ count: Int) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.delete_immediately", bundle: .module), count)
+        }
+
+        static func stepRename(_ newName: String) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.rename", bundle: .module), newName)
+        }
+
+        static func stepCreateDirectory(_ name: String) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.create_directory", bundle: .module), name)
+        }
+
+        static func stepCreateFile(_ name: String) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.create_file", bundle: .module), name)
+        }
+
+        static func stepCompress(_ count: Int, _ archiveName: String) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.compress", bundle: .module), count, archiveName)
+        }
+
+        static func stepExtract(_ archiveName: String, _ destinationName: String) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.step.extract", bundle: .module), archiveName, destinationName)
+        }
+
+        static func bannerMessage(_ stepCount: Int) -> String {
+            String(format: ModuleLocalization.localizedFromTable("operation_recording.banner.message", bundle: .module), stepCount)
         }
     }
 

@@ -87,6 +87,8 @@ struct ContentView: View {
     @State private var transientNoticeMessage: String?
     @StateObject private var operationRecorder = OperationRecorder()
     @State private var operationRecordingCloseGuard = OperationRecordingWindowCloseGuard()
+    @State private var operationRecordingReview: OperationRecordingReviewContext?
+    @State private var showDiscardRecordingConfirm = false
     
     init(initialPath: String? = nil, windowSceneKind: ExplorerWindowSceneKind = .main) {
         self.initialPath = initialPath
@@ -315,7 +317,12 @@ struct ContentView: View {
             operationRecordingCloseGuard.attach(
                 to: window,
                 recorder: operationRecorder,
-                onStopAndGenerate: finishOperationRecording(steps:)
+                onStopAndGenerate: { steps, cwd in
+                    presentOperationRecordingReview(
+                        steps: steps,
+                        recordingCWD: cwd.isEmpty ? path : cwd
+                    )
+                }
             )
         }
         .onChange(of: path) { newPath in
@@ -384,6 +391,25 @@ struct ContentView: View {
                 path = mountURL.path
                 ConnectServerCenter.shared.requestDevicesRefresh()
             }
+        }
+        .sheet(item: $operationRecordingReview) { context in
+            OperationRecordingReviewSheet(context: context) { snippet in
+                SnippetStore.shared.add(snippet)
+                layout.showSnippets = true
+                showTransientNotice(L10n.OperationRecording.snippetSaved(snippet.name))
+            }
+        }
+        .confirmationDialog(
+            L10n.OperationRecording.discardConfirmTitle,
+            isPresented: $showDiscardRecordingConfirm,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.OperationRecording.bannerDiscard, role: .destructive) {
+                discardOperationRecording()
+            }
+            Button(L10n.Action.cancel, role: .cancel) {}
+        } message: {
+            Text(L10n.OperationRecording.discardConfirmMessage)
         }
         .onChange(of: path) { newPath in
             let wasHistoryNavigation = isApplyingHistoryNavigation
@@ -483,6 +509,12 @@ struct ContentView: View {
             .padding(.vertical, PanelTopBarMetrics.verticalPadding)
             
             Divider()
+            
+            OperationRecordingBanner(
+                recorder: operationRecorder,
+                onStopAndGenerate: stopOperationRecordingAndReview,
+                onDiscard: { showDiscardRecordingConfirm = true }
+            )
             
             explorerFileListSection
         }
@@ -664,27 +696,38 @@ struct ContentView: View {
 
     private func toggleOperationRecording() {
         if operationRecorder.isRecording {
-            finishOperationRecording(steps: operationRecorder.stop())
+            stopOperationRecordingAndReview()
         } else {
             operationRecorder.start(cwd: path)
             OperationRecordingHub.register(operationRecorder)
         }
     }
 
-    private func finishOperationRecording(steps: [RecordedOperationStep]) {
+    private func stopOperationRecordingAndReview() {
+        let cwd = operationRecorder.recordingStartCWD ?? path
+        let steps = operationRecorder.stop()
+        presentOperationRecordingReview(steps: steps, recordingCWD: cwd)
+    }
+
+    private func discardOperationRecording() {
+        operationRecorder.discard()
+        showTransientNotice(L10n.OperationRecording.discarded)
+    }
+
+    private func presentOperationRecordingReview(
+        steps: [RecordedOperationStep],
+        recordingCWD: String
+    ) {
         guard !steps.isEmpty else {
             showTransientNotice(L10n.OperationRecording.noSteps)
             return
         }
-        let script = OperationShellTranslator.translate(steps: steps)
-        guard !script.isEmpty else {
-            showTransientNotice(L10n.OperationRecording.noSteps)
-            return
-        }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(script, forType: .string)
-        showTransientNotice(L10n.OperationRecording.scriptCopied(steps.count))
+        operationRecordingReview = OperationRecordingReviewContext(
+            steps: steps,
+            recordingCWD: recordingCWD,
+            recordedAt: Date(),
+            isInTrash: TrashLoader.isTrashPath(recordingCWD)
+        )
     }
 
     private func editToolbarOpenApp(_ action: CustomOpenAppAction) {

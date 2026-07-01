@@ -90,6 +90,12 @@ enum AppPreferences {
     enum RemoteServer {
         static let recentBookmarks = "remoteServer.recentBookmarks"
     }
+
+    /// 操作录制偏好。
+    enum OperationRecording {
+        static let generalizePaths = "operationRecording.generalizePaths"
+        static let showBanner = "operationRecording.showBanner"
+    }
 }
 
 /// 兼容旧调用方；新代码请使用 `AppPreferences`。

@@ -38,20 +38,20 @@
 
 ### 1.3 首版可录制 vs 延后
 
-#### 首版（Phase 1）— 建议支持
+#### 首版（Phase 1）— 已实现 ✅
 
-| 用户操作 | 录制事件 | Shell 近似 |
-|----------|----------|------------|
-| 复制 → 粘贴 | `copy` + `paste(copy:)` | `cp -R` |
-| 剪切 → 粘贴 | `cut` + `paste(move:)` | `mv` |
-| 拖拽（同应用内） | `dragDrop(copy/move)` | `cp` / `mv` |
-| 删除到废纸篓 | `trash` | `osascript` 移入 Trash 或注释 + `trash` CLI（若存在） |
-| 立即删除 | `deleteImmediately` | `rm` |
-| 重命名 | `rename` | `mv` |
-| 新建文件夹 | `createDirectory` | `mkdir -p` |
-| 新建文件 | `createFile` | `touch` 或 `: >` |
-| 压缩 | `compress` | 复用 `ArchiveCommandBuilder` 生成的命令 |
-| 解压 | `extract` | 同上 |
+| 用户操作 | 录制事件 | Shell 近似 | 状态 |
+|----------|----------|------------|------|
+| 复制 → 粘贴 | `copy` + `paste(copy:)` | `cp -R` | ✅ |
+| 剪切 → 粘贴 | `cut` + `paste(move:)` | `mv` | ✅ |
+| 拖拽（同应用内） | `transferItems`（经 `moveItems`） | `cp` / `mv` | ✅ |
+| 删除到废纸篓 | `trash` | `osascript` 移入 Trash | ✅ |
+| 立即删除 | `deleteImmediately` | `rm` | ✅ |
+| 重命名 | `rename` | `mv` | ✅ |
+| 新建文件夹 | `createDirectory` | `mkdir -p` | ✅ |
+| 新建文件 | `createFile` | `touch` 或 `: >` | ✅ |
+| 压缩 | `compress` | 复用 `ArchiveCommandBuilder` | ✅ |
+| 解压 | `extract` | 同上 | ✅ |
 
 #### Phase 2 — 可选扩展
 
@@ -67,7 +67,7 @@
 | 操作 | 原因 |
 |------|------|
 | 清空废纸篓 / 还原 | 走 Finder AppleScript，Shell 等价物不稳定 |
-| 执行已有 Snippet | 避免递归与混合语义 |
+| 执行已有 Snippet | 避免递归与混合语义；录制期间执行 Snippet **不会**被记录（见设置 → Snippets → 操作录制说明） |
 | 仅 UI 状态变更 | 排序、显示隐藏文件、切换列表/缩略图 — 非文件操作 |
 | 预览面板内只读操作 | 刷新、复制清单等 |
 | 失败或被用户取消的操作 | 只记录 **已成功** 的 mutation |

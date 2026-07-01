@@ -53,6 +53,10 @@ struct SettingsView: View {
 
 private struct SnippetsSettingsTab: View {
     @ObservedObject private var settings = SnippetsSettings.shared
+    @AppStorage(AppPreferences.OperationRecording.generalizePaths)
+    private var generalizePathsByDefault = true
+    @AppStorage(AppPreferences.OperationRecording.showBanner)
+    private var showRecordingBanner = true
 
     var body: some View {
         ScrollView {
@@ -69,6 +73,16 @@ private struct SnippetsSettingsTab: View {
                     }
                     Toggle(L10n.Settings.Snippets.autoShowOutput, isOn: $settings.autoShowOutputPanelOnShellRun)
                     Toggle(L10n.Settings.Snippets.confirmDestructive, isOn: $settings.confirmDestructiveSnippets)
+                }
+
+                Section {
+                    Toggle(L10n.Settings.Snippets.recordingGeneralizePaths, isOn: $generalizePathsByDefault)
+                    Toggle(L10n.Settings.Snippets.recordingShowBanner, isOn: $showRecordingBanner)
+                } header: {
+                    Text(L10n.Settings.Snippets.recordingSection)
+                } footer: {
+                    Text(L10n.Settings.Snippets.recordingSectionFooter)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .formStyle(.grouped)

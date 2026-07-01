@@ -141,6 +141,9 @@ enum ArchiveOperations {
         ) { result in
             switch result {
             case .success:
+                recordOperation(
+                    .compress(sources: itemURLs, archive: destination, command: command)
+                )
                 ArchiveOperationNotifications.postCompleted(resultPaths: [destination.path])
                 onComplete(.success(destination))
             case .failure(let error):
@@ -191,6 +194,9 @@ enum ArchiveOperations {
             volumePaths: volumePaths,
             workingDirectory: workingDirectory,
             archiveLabel: archiveLabel,
+            archiveURLs: files.map(\.url),
+            destinationURLs: destinations,
+            members: members,
             makeCommand: { password in
                 zip(files.map(\.url), destinations)
                     .map { archive, destination in
@@ -307,6 +313,9 @@ enum ArchiveOperations {
         volumePaths: [String],
         workingDirectory: String?,
         archiveLabel: String,
+        archiveURLs: [URL],
+        destinationURLs: [URL],
+        members: [String]?,
         makeCommand: @escaping (String?) -> String,
         resultURLs: [URL],
         navigateIntoResult: Bool,
@@ -325,6 +334,12 @@ enum ArchiveOperations {
             ) { result in
                 switch result {
                 case .success:
+                    recordExtractOperations(
+                        archiveURLs: archiveURLs,
+                        destinationURLs: destinationURLs,
+                        members: members,
+                        password: password
+                    )
                     let paths = resultURLs.map(\.path)
                     ArchiveOperationNotifications.postCompleted(
                         resultPaths: paths,
@@ -361,6 +376,29 @@ enum ArchiveOperations {
             NSAlert(messageText: description).runModal()
         } else {
             NSAlert(error: error).runModal()
+        }
+    }
+
+    @MainActor
+    private static func recordOperation(_ operation: RecordedOperation) {
+        OperationRecordingHub.record(operation)
+    }
+
+    @MainActor
+    private static func recordExtractOperations(
+        archiveURLs: [URL],
+        destinationURLs: [URL],
+        members: [String]?,
+        password: String?
+    ) {
+        for (archive, destination) in zip(archiveURLs, destinationURLs) {
+            let command = ArchiveCommandBuilder.makeExtractCommand(
+                archive: archive,
+                destinationDirectory: destination,
+                members: members,
+                password: password
+            )
+            recordOperation(.extract(archive: archive, destination: destination, command: command))
         }
     }
 }

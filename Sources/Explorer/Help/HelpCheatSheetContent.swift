@@ -29,7 +29,7 @@ enum HelpCheatSheetContent {
             "detach_preview", "preview_browser", "custom_preview_rules",
         ]),
         HelpCheatSheetSection(id: "snippets", entries: [
-            "snippets_panel", "run_snippet", "scope", "variables",
+            "snippets_panel", "operation_recording", "run_snippet", "scope", "variables",
             "create_edit", "import_export", "builtin_snippets",
         ]),
         HelpCheatSheetSection(id: "output", entries: [

@@ -474,6 +474,12 @@
 	<string>Open With</string>
 	<key>help.entry.open_with.shortcut</key>
 	<string>Right-click</string>
+	<key>help.entry.operation_recording.desc</key>
+	<string>Record file operations in the toolbar, then review and save as a Snippet</string>
+	<key>help.entry.operation_recording.name</key>
+	<string>Operation Recording</string>
+	<key>help.entry.operation_recording.shortcut</key>
+	<string>Toolbar</string>
 	<key>help.entry.output_find.desc</key>
 	<string>Search and highlight matches in output text</string>
 	<key>help.entry.output_find.name</key>
@@ -786,18 +792,96 @@
 	<string>Toggle Left Panel</string>
 	<key>menu.toggle_right_panel</key>
 	<string>Toggle Right Panel</string>
+	<key>operation_recording.banner.discard</key>
+	<string>Discard</string>
+	<key>operation_recording.banner.message</key>
+	<string>Recording operations · %lld steps</string>
+	<key>operation_recording.banner.stop</key>
+	<string>Stop and Review</string>
 	<key>operation_recording.close_while_recording.discard</key>
 	<string>Discard Recording</string>
 	<key>operation_recording.close_while_recording.message</key>
 	<string>This window is closing while operation recording is active.</string>
 	<key>operation_recording.close_while_recording.stop</key>
-	<string>Stop and Copy Script</string>
+	<string>Stop and Review</string>
 	<key>operation_recording.close_while_recording.title</key>
 	<string>Stop recording?</string>
+	<key>operation_recording.copy_script</key>
+	<string>Copy Script</string>
+	<key>operation_recording.create_snippet</key>
+	<string>Create Snippet…</string>
+	<key>operation_recording.default_snippet_name</key>
+	<string>Recorded Snippet</string>
+	<key>operation_recording.discard_confirm.message</key>
+	<string>Recorded steps will be lost and cannot be recovered.</string>
+	<key>operation_recording.discard_confirm.title</key>
+	<string>Discard recording?</string>
+	<key>operation_recording.discarded</key>
+	<string>Recording discarded</string>
+	<key>operation_recording.generalize_paths</key>
+	<string>Generalize paths to Snippet variables (%p, %P, %d)</string>
 	<key>operation_recording.no_steps</key>
 	<string>No file operations were recorded</string>
+	<key>operation_recording.preview_label</key>
+	<string>Script preview</string>
+	<key>operation_recording.recording_name</key>
+	<string>Recording · %@</string>
+	<key>operation_recording.review_subtitle</key>
+	<string>%lld steps recorded at %@</string>
+	<key>operation_recording.review_title</key>
+	<string>Create Snippet from Recording</string>
+	<key>operation_recording.scope_suggestion</key>
+	<string>Suggested scope: %@</string>
 	<key>operation_recording.script_copied</key>
 	<string>Shell script copied (%lld steps)</string>
+	<key>operation_recording.short.clipboard</key>
+	<string>Clipboard</string>
+	<key>operation_recording.short.compress</key>
+	<string>Compress</string>
+	<key>operation_recording.short.copy</key>
+	<string>Copy</string>
+	<key>operation_recording.short.delete</key>
+	<string>Delete</string>
+	<key>operation_recording.short.extract</key>
+	<string>Extract</string>
+	<key>operation_recording.short.move</key>
+	<string>Move</string>
+	<key>operation_recording.short.new_file</key>
+	<string>New file</string>
+	<key>operation_recording.short.new_folder</key>
+	<string>New folder</string>
+	<key>operation_recording.short.rename</key>
+	<string>Rename</string>
+	<key>operation_recording.snippet_saved</key>
+	<string>Snippet saved: %@</string>
+	<key>operation_recording.step.compress</key>
+	<string>Compress %lld item(s) to %@</string>
+	<key>operation_recording.step.copy</key>
+	<string>Copy %lld item(s)</string>
+	<key>operation_recording.step.create_directory</key>
+	<string>Create folder %@</string>
+	<key>operation_recording.step.create_file</key>
+	<string>Create file %@</string>
+	<key>operation_recording.step.cut</key>
+	<string>Cut %lld item(s)</string>
+	<key>operation_recording.step.delete_immediately</key>
+	<string>Delete %lld item(s) immediately</string>
+	<key>operation_recording.step.drag_copy</key>
+	<string>Drag-copy %lld item(s) to %@</string>
+	<key>operation_recording.step.drag_move</key>
+	<string>Drag-move %lld item(s) to %@</string>
+	<key>operation_recording.step.extract</key>
+	<string>Extract %@ to %@</string>
+	<key>operation_recording.step.paste_copy</key>
+	<string>Paste %lld item(s) to %@</string>
+	<key>operation_recording.step.paste_move</key>
+	<string>Move %lld item(s) to %@</string>
+	<key>operation_recording.step.rename</key>
+	<string>Rename to %@</string>
+	<key>operation_recording.step.trash</key>
+	<string>Move %lld item(s) to Trash</string>
+	<key>operation_recording.trash_warning</key>
+	<string>Recorded in Trash: generated scripts may not replay correctly outside Trash.</string>
 	<key>pathbar.back</key>
 	<string>Back</string>
 	<key>pathbar.clear</key>
@@ -1338,6 +1422,14 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Standard</string>
 	<key>settings.snippets.display_mode</key>
 	<string>Panel display mode</string>
+	<key>settings.snippets.recording_generalize_paths</key>
+	<string>Generalize paths by default</string>
+	<key>settings.snippets.recording_section</key>
+	<string>Operation Recording</string>
+	<key>settings.snippets.recording_section_footer</key>
+	<string>Defaults for the review sheet and recording banner. Snippet execution during recording is not captured.</string>
+	<key>settings.snippets.recording_show_banner</key>
+	<string>Show recording banner</string>
 	<key>settings.tab.general</key>
 	<string>General</string>
 	<key>settings.tab.preview</key>

@@ -82,4 +82,63 @@ final class OperationShellTranslatorTests: XCTestCase {
         XCTAssertFalse(script.contains("/tmp/a"))
         XCTAssertTrue(script.contains("/tmp/c"))
     }
+
+    func testGeneralizeSingleSourceRename() {
+        let cwd = "/tmp/project"
+        let source = URL(fileURLWithPath: "/tmp/project/old.txt")
+        let destination = URL(fileURLWithPath: "/tmp/project/new.txt")
+        let steps = [step(.rename(source: source, destination: destination))]
+        let script = OperationShellTranslator.translate(
+            steps: steps,
+            options: OperationShellTranslationOptions(generalizePaths: true, recordingCWD: cwd)
+        )
+
+        XCTAssertTrue(script.contains("%p"))
+        XCTAssertTrue(script.contains("%d/new.txt"))
+        XCTAssertFalse(script.contains("/tmp/project/old.txt"))
+    }
+
+    func testGeneralizeCreateDirectoryUnderCWD() {
+        let cwd = "/tmp/project"
+        let steps = [step(.createDirectory(url: URL(fileURLWithPath: "/tmp/project/backup")))]
+        let script = OperationShellTranslator.translate(
+            steps: steps,
+            options: OperationShellTranslationOptions(generalizePaths: true, recordingCWD: cwd)
+        )
+
+        XCTAssertTrue(script.contains("'%d/backup'"))
+    }
+
+    func testLiteralPathsWhenGeneralizationDisabled() {
+        let cwd = "/tmp/project"
+        let source = URL(fileURLWithPath: "/tmp/project/old.txt")
+        let destination = URL(fileURLWithPath: "/tmp/project/new.txt")
+        let steps = [step(.rename(source: source, destination: destination))]
+        let script = OperationShellTranslator.translate(
+            steps: steps,
+            options: OperationShellTranslationOptions(generalizePaths: false, recordingCWD: cwd)
+        )
+
+        XCTAssertEqual(script, "/bin/mv '/tmp/project/old.txt' '/tmp/project/new.txt'")
+    }
+
+    func testCompressUsesStoredCommand() {
+        let source = URL(fileURLWithPath: "/tmp/project/file.txt")
+        let archive = URL(fileURLWithPath: "/tmp/project/file.txt.zip")
+        let command = "/usr/bin/ditto -c -k --keepParent '/tmp/project/file.txt' '/tmp/project/file.txt.zip'"
+        let steps = [step(.compress(sources: [source], archive: archive, command: command))]
+        let script = OperationShellTranslator.translate(steps: steps)
+        XCTAssertEqual(script, command)
+        XCTAssertTrue(script.contains("ditto"))
+    }
+
+    func testExtractUsesStoredCommand() {
+        let archive = URL(fileURLWithPath: "/tmp/project/archive.zip")
+        let destination = URL(fileURLWithPath: "/tmp/project/archive")
+        let command = "/bin/mkdir -p '/tmp/project/archive' && /usr/bin/unzip -o -q '/tmp/project/archive.zip' -d '/tmp/project/archive'"
+        let steps = [step(.extract(archive: archive, destination: destination, command: command))]
+        let script = OperationShellTranslator.translate(steps: steps)
+        XCTAssertEqual(script, command)
+        XCTAssertTrue(script.contains("unzip"))
+    }
 }
