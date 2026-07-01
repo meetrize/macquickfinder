@@ -14,9 +14,19 @@ enum ShellRunner {
         switch snippet.scriptType {
         case .shell:
             let interpreter = snippet.interpreter ?? SnippetDefaults.shellInterpreter
-            let command = wrapShellCommand(expandedContent, workingDirectory: workingDirectory)
-            process.executableURL = URL(fileURLWithPath: interpreter)
-            process.arguments = ["-ilc", command]
+            if expandedContent.contains("\n") {
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("snippet-\(jobID.uuidString).sh")
+                let script = "#!\(interpreter)\n\(expandedContent)"
+                try? script.write(to: tempURL, atomically: true, encoding: .utf8)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempURL.path)
+                process.executableURL = URL(fileURLWithPath: interpreter)
+                process.arguments = [tempURL.path]
+            } else {
+                let command = wrapShellCommand(expandedContent, workingDirectory: workingDirectory)
+                process.executableURL = URL(fileURLWithPath: interpreter)
+                process.arguments = ["-lc", command]
+            }
         case .python3:
             process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
             if expandedContent.contains("\n") {

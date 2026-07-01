@@ -993,6 +993,18 @@ enum L10n {
             static func commandFailed(_ code: Int) -> String {
                 ModuleLocalization.localized("snippets.output.command_failed \(code)", bundle: .module)
             }
+
+            static func completedWithExitCode(_ code: Int) -> String {
+                ModuleLocalization.localized("snippets.output.completed_with_exit_code \(code)", bundle: .module)
+            }
+
+            static var statusBannerDismiss: String { ModuleLocalization.localized("snippets.output.status_banner.dismiss", bundle: .module) }
+            static var statusBannerShowDetails: String { ModuleLocalization.localized("snippets.output.status_banner.show_details", bundle: .module) }
+            static var statusBannerHideDetails: String { ModuleLocalization.localized("snippets.output.status_banner.hide_details", bundle: .module) }
+            static var fullCommandTitle: String { ModuleLocalization.localized("snippets.output.full_command_title", bundle: .module) }
+            static var expandCommand: String { ModuleLocalization.localized("snippets.output.expand_command", bundle: .module) }
+            static var collapseCommand: String { ModuleLocalization.localized("snippets.output.collapse_command", bundle: .module) }
+            static var runCommand: String { ModuleLocalization.localized("snippets.output.run_command", bundle: .module) }
         }
 
         enum Scope {

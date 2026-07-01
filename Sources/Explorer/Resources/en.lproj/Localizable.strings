@@ -1584,10 +1584,14 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Close Output Panel</string>
 	<key>snippets.output.collapse</key>
 	<string>Collapse Output Panel</string>
+	<key>snippets.output.collapse_command</key>
+	<string>Collapse</string>
 	<key>snippets.output.command_failed %lld</key>
 	<string>Command failed with exit code %lld</string>
 	<key>snippets.output.command_placeholder</key>
 	<string>Expanded command; press Return to rerun</string>
+	<key>snippets.output.completed_with_exit_code %lld</key>
+	<string>Output received, but exit code is %lld (you can ignore this if the result above looks fine)</string>
 	<key>snippets.output.copy</key>
 	<string>Copy</string>
 	<key>snippets.output.empty_hint</key>
@@ -1596,16 +1600,28 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Exit code %lld</string>
 	<key>snippets.output.expand</key>
 	<string>Expand Output Panel</string>
+	<key>snippets.output.expand_command</key>
+	<string>Show full command</string>
 	<key>snippets.output.find</key>
 	<string>Find</string>
+	<key>snippets.output.full_command_title</key>
+	<string>Full command</string>
 	<key>snippets.output.no_output</key>
 	<string>(no output)</string>
 	<key>snippets.output.queued</key>
 	<string>Queued</string>
+	<key>snippets.output.run_command</key>
+	<string>Run</string>
 	<key>snippets.output.run_history_command</key>
 	<string>Run this command</string>
 	<key>snippets.output.running</key>
 	<string>Running…</string>
+	<key>snippets.output.status_banner.dismiss</key>
+	<string>Dismiss</string>
+	<key>snippets.output.status_banner.hide_details</key>
+	<string>Hide</string>
+	<key>snippets.output.status_banner.show_details</key>
+	<string>Details</string>
 	<key>snippets.output.stop</key>
 	<string>Stop</string>
 	<key>snippets.output.truncated</key>

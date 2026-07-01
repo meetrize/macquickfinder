@@ -159,6 +159,11 @@ final class JobStore: ObservableObject {
         if jobs[idx].status == .cancelled {
             return
         }
+        JobOutputSanitizer.stripEmbeddedScriptEcho(
+            from: &jobs[idx].stdout,
+            scriptBody: jobs[idx].expandedContent
+        )
+        jobs[idx].stderr = ""
         jobs[idx].exitCode = exitCode
         jobs[idx].endedAt = Date()
         jobs[idx].process = nil
@@ -500,6 +505,9 @@ final class JobStore: ObservableObject {
         chunk: String,
         truncationNotice: String
     ) {
+        if JobOutputSanitizer.shouldSuppressStderrChunk(chunk, scriptBody: job.expandedContent) {
+            return
+        }
         var state = stderrStreamStates[jobID] ?? StreamProgressOutput.StreamState()
         let hadPending = !state.pending.isEmpty
         let committed = StreamProgressOutput.ingest(chunk: chunk, state: &state)

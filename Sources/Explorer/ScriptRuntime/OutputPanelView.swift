@@ -30,6 +30,7 @@ struct OutputPanelView: View {
     @FocusState private var focusedField: OutputPanelFocusField?
     @State private var prefersCommandFieldFocus = false
     @State private var commandRefocusToken: UInt = 0
+    @State private var isCommandFullTextExpanded = false
 
     private var desiredPanelHeight: CGFloat {
         if layout.isOutputPanelContentCollapsed {
@@ -115,10 +116,24 @@ struct OutputPanelView: View {
     private var panelContent: some View {
         VStack(spacing: 0) {
             if !layout.isOutputPanelContentCollapsed, let job = jobStore.selectedJob {
-                VStack(spacing: 0) {
-                    jobTabBar
-                    outputArea(job: job)
-                        .frame(minHeight: 0, maxHeight: .infinity)
+                ZStack(alignment: .bottom) {
+                    VStack(spacing: 0) {
+                        jobTabBar
+                        outputArea(job: job)
+                            .frame(minHeight: 0, maxHeight: .infinity)
+                    }
+                    .frame(minHeight: 0, maxHeight: .infinity)
+
+                    if isCommandFullTextExpanded, OutputCommandPreview.needsCollapse(commandDraft) {
+                        OutputCommandFullTextPanel(
+                            text: $commandDraft,
+                            onClose: { isCommandFullTextExpanded = false },
+                            onRun: {
+                                isCommandFullTextExpanded = false
+                                rerunCommand(for: job)
+                            }
+                        )
+                    }
                 }
                 .frame(minHeight: 0, maxHeight: .infinity)
                 .clipped()
@@ -266,6 +281,7 @@ struct OutputPanelView: View {
             isOutputAreaActive = true
             focusedField = nil
             prefersCommandFieldFocus = false
+            isCommandFullTextExpanded = false
         }
     }
 
@@ -282,7 +298,7 @@ struct OutputPanelView: View {
                     .lineLimit(3)
             }
             HStack(alignment: .center, spacing: 10) {
-                commandTextField(for: job)
+                commandBarGroup(for: job)
                 findTextField
             }
             .padding(.horizontal, 8)
@@ -291,6 +307,54 @@ struct OutputPanelView: View {
         .background(Color(nsColor: .controlBackgroundColor))
         .focusedValue(\.textFieldEditing, focusedField != nil)
         .background(TextEditingKeyMonitor(isActive: focusedField != nil))
+    }
+
+    private func commandBarGroup(for job: JobRecord) -> some View {
+        HStack(spacing: 0) {
+            commandInputContent(for: job)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipped()
+            commandHistoryButton(job: job)
+        }
+        .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
+        .modifier(OutputCommandCapsuleFieldStyle())
+    }
+
+    @ViewBuilder
+    private func commandInputContent(for job: JobRecord) -> some View {
+        if OutputCommandPreview.needsCollapse(commandDraft) {
+            collapsedCommandPreview(for: job)
+        } else {
+            commandTextField(for: job)
+        }
+    }
+
+    private func collapsedCommandPreview(for job: JobRecord) -> some View {
+        HStack(spacing: 0) {
+            Button {
+                isCommandFullTextExpanded = true
+            } label: {
+                Text(OutputCommandPreview.collapsedLine(commandDraft))
+                    .font(.system(size: NSFont.systemFontSize, design: .monospaced))
+                    .foregroundStyle(OutputPanelStyle.commandFieldTextColor)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .help(L10n.Snippets.Output.expandCommand)
+
+            Button {
+                isCommandFullTextExpanded = true
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: NSFont.systemFontSize, weight: .medium))
+                    .foregroundStyle(OutputPanelStyle.commandFieldTextColor.opacity(0.85))
+                    .frame(width: 28, height: 22)
+            }
+            .buttonStyle(.plain)
+            .help(L10n.Snippets.Output.expandCommand)
+        }
     }
 
     private func commandTextField(for job: JobRecord) -> some View {
@@ -324,12 +388,7 @@ struct OutputPanelView: View {
                 handleCommandControlC(action, jobID: job.id)
             }
         )
-        .padding(.trailing, 28)
-        .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
-        .modifier(OutputCommandCapsuleFieldStyle())
-        .overlay(alignment: .trailing) {
-            commandHistoryButton(job: job)
-        }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
     }
 
     private func commandHistoryButton(job: JobRecord) -> some View {
@@ -345,7 +404,8 @@ struct OutputPanelView: View {
                 .frame(width: 22, height: 22)
         }
         .buttonStyle(.plain)
-        .padding(.trailing, 10)
+        .frame(width: 28, height: 22)
+        .padding(.trailing, 4)
         .disabled(isDisabled)
         .popover(isPresented: $isHistoryPopoverPresented, arrowEdge: .top) {
             commandHistoryPopoverContent(jobID: job.id)
@@ -545,6 +605,7 @@ struct OutputPanelView: View {
 
     private func syncCommandDraft(for job: JobRecord) {
         commandDraft = job.expandedContent
+        isCommandFullTextExpanded = false
     }
 
     private func rerunCommand(for job: JobRecord) {

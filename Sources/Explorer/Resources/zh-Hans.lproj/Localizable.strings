@@ -1584,10 +1584,14 @@
 	<string>关闭输出面板</string>
 	<key>snippets.output.collapse</key>
 	<string>折叠输出面板</string>
+	<key>snippets.output.collapse_command</key>
+	<string>收起</string>
 	<key>snippets.output.command_failed %lld</key>
 	<string>命令失败，退出码 %lld</string>
 	<key>snippets.output.command_placeholder</key>
 	<string>展开后的命令，回车重新执行</string>
+	<key>snippets.output.completed_with_exit_code %lld</key>
+	<string>已有输出，但退出码为 %lld（若上方结果正常可忽略）</string>
 	<key>snippets.output.copy</key>
 	<string>复制</string>
 	<key>snippets.output.empty_hint</key>
@@ -1596,16 +1600,28 @@
 	<string>退出码 %lld</string>
 	<key>snippets.output.expand</key>
 	<string>展开输出面板</string>
+	<key>snippets.output.expand_command</key>
+	<string>查看命令全文</string>
 	<key>snippets.output.find</key>
 	<string>查找</string>
+	<key>snippets.output.full_command_title</key>
+	<string>命令全文</string>
 	<key>snippets.output.no_output</key>
 	<string>（无输出）</string>
 	<key>snippets.output.queued</key>
 	<string>排队中</string>
+	<key>snippets.output.run_command</key>
+	<string>执行</string>
 	<key>snippets.output.run_history_command</key>
 	<string>直接执行此命令</string>
 	<key>snippets.output.running</key>
 	<string>运行中…</string>
+	<key>snippets.output.status_banner.dismiss</key>
+	<string>关闭</string>
+	<key>snippets.output.status_banner.hide_details</key>
+	<string>收起</string>
+	<key>snippets.output.status_banner.show_details</key>
+	<string>详情</string>
 	<key>snippets.output.stop</key>
 	<string>停止</string>
 	<key>snippets.output.truncated</key>
