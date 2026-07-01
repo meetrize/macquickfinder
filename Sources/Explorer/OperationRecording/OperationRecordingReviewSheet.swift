@@ -61,6 +61,11 @@ struct OperationRecordingReviewSheet: View {
                     UserDefaults.standard.set(newValue, forKey: AppPreferences.OperationRecording.generalizePaths)
                 }
 
+            SnippetVariableReferenceView(
+                title: L10n.OperationRecording.variablesTitle,
+                footer: generalizePaths ? L10n.OperationRecording.variablesFooter : nil
+            )
+
             Text(L10n.OperationRecording.scopeSuggestion(
                 SnippetRecordingDraftBuilder.scopeLabel(for: suggestedScope)
             ))
@@ -107,7 +112,7 @@ struct OperationRecordingReviewSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 520)
+        .frame(width: 560)
         .sheet(isPresented: $isSnippetEditorPresented) {
             if let snippetDraft {
                 SnippetEditorSheet(

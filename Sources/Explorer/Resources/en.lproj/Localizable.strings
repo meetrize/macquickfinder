@@ -833,7 +833,7 @@
 	<key>operation_recording.discarded</key>
 	<string>Recording discarded</string>
 	<key>operation_recording.generalize_paths</key>
-	<string>Generalize paths to Snippet variables (%p, %P, %d)</string>
+	<string>Generalize paths to Snippet variables</string>
 	<key>operation_recording.no_steps</key>
 	<string>No file operations were recorded</string>
 	<key>operation_recording.preview_label</key>
@@ -896,6 +896,10 @@
 	<string>Move %lld item(s) to Trash</string>
 	<key>operation_recording.trash_warning</key>
 	<string>Recorded in Trash: generated scripts may not replay correctly outside Trash.</string>
+	<key>operation_recording.variables_footer</key>
+	<string>When generalization is on, paths may become %p, %d, %n, %b, etc. Edit the preview before saving if needed.</string>
+	<key>operation_recording.variables_title</key>
+	<string>Snippet variables (hover ? for help)</string>
 	<key>pathbar.back</key>
 	<string>Back</string>
 	<key>pathbar.clear</key>
@@ -1628,6 +1632,38 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Skip</string>
 	<key>snippets.title</key>
 	<string>Snippets</string>
+	<key>snippets.variable.b</key>
+	<string>File name without extension (basename)</string>
+	<key>snippets.variable.capital_f</key>
+	<string>All selected files, space-separated</string>
+	<key>snippets.variable.capital_n</key>
+	<string>Number of selected items</string>
+	<key>snippets.variable.capital_p</key>
+	<string>All selected item paths, space-separated</string>
+	<key>snippets.variable.capital_q</key>
+	<string>Each selected path shell-quoted, space-separated</string>
+	<key>snippets.variable.d</key>
+	<string>Current browsing directory (cwd)</string>
+	<key>snippets.variable.date</key>
+	<string>ISO8601 timestamp at run time</string>
+	<key>snippets.variable.e</key>
+	<string>File extension without dot, lowercase (e.g. pdf)</string>
+	<key>snippets.variable.f</key>
+	<string>Selected file path (single file, not a folder)</string>
+	<key>snippets.variable.h</key>
+	<string>User home directory path</string>
+	<key>snippets.variable.n</key>
+	<string>Selected item file name including extension (e.g. report.pdf)</string>
+	<key>snippets.variable.p</key>
+	<string>Selected item path (single selection)</string>
+	<key>snippets.variable.q</key>
+	<string>Shell single-quoted path for %p (safe for spaces)</string>
+	<key>snippets.variable.u</key>
+	<string>Short user name</string>
+	<key>snippets.variable.uuid</key>
+	<string>New UUID generated on each run</string>
+	<key>snippets.variable.w</key>
+	<string>Current directory name (last path component)</string>
 	<key>sort.date_newest</key>
 	<string>Date (Newest First)</string>
 	<key>sort.date_oldest</key>

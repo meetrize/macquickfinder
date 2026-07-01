@@ -7348,6 +7348,118 @@
         }
       }
     },
+    "snippets.variable.p": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Selected item path (single selection)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前选中项的完整路径（须单选）" } }
+      }
+    },
+    "snippets.variable.d": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Current browsing directory (cwd)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前浏览目录（工作目录）" } }
+      }
+    },
+    "snippets.variable.capital_p": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "All selected item paths, space-separated" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "所有选中项路径，空格分隔" } }
+      }
+    },
+    "snippets.variable.f": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Selected file path (single file, not a folder)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选中文件的路径（须单选且为文件）" } }
+      }
+    },
+    "snippets.variable.capital_f": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "All selected files, space-separated" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "所有选中的文件路径，空格分隔" } }
+      }
+    },
+    "snippets.variable.n": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Selected item file name including extension (e.g. report.pdf)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选中项文件名（含扩展名，如 report.pdf）" } }
+      }
+    },
+    "snippets.variable.b": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "File name without extension (basename)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "不含扩展名的文件名" } }
+      }
+    },
+    "snippets.variable.e": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "File extension without dot, lowercase (e.g. pdf)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "扩展名（小写、不含点，如 pdf）" } }
+      }
+    },
+    "snippets.variable.capital_n": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Number of selected items" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选中项数量" } }
+      }
+    },
+    "snippets.variable.q": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shell single-quoted path for %p (safe for spaces)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%p 的 Shell 单引号转义路径（含空格时安全）" } }
+      }
+    },
+    "snippets.variable.capital_q": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Each selected path shell-quoted, space-separated" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "每个选中路径分别 Shell 转义后空格拼接" } }
+      }
+    },
+    "snippets.variable.h": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "User home directory path" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "用户主目录路径" } }
+      }
+    },
+    "snippets.variable.u": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Short user name" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前短用户名" } }
+      }
+    },
+    "snippets.variable.w": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Current directory name (last path component)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前目录名（路径最后一段）" } }
+      }
+    },
+    "snippets.variable.date": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "ISO8601 timestamp at run time" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "执行时的 ISO8601 时间戳" } }
+      }
+    },
+    "snippets.variable.uuid": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "New UUID generated on each run" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "每次执行生成的新 UUID" } }
+      }
+    },
     "snippets.editor.edit_title": {
       "extractionState": "manual",
       "localizations": {
@@ -9320,8 +9432,32 @@
     "operation_recording.generalize_paths": {
       "extractionState": "manual",
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "Generalize paths to Snippet variables (%p, %P, %d)" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "将路径泛化为 Snippet 变量（%p、%P、%d）" } }
+        "en": { "stringUnit": { "state": "translated", "value": "Generalize paths to Snippet variables" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "将路径泛化为 Snippet 变量" } }
+      }
+    },
+    "operation_recording.variables_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Snippet variables (hover ? for help)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Snippet 变量（悬停 ? 查看说明）" } }
+      }
+    },
+    "operation_recording.variables_footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When generalization is on, paths may become %p, %d, %n, %b, etc. Edit the preview before saving if needed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启泛化后，路径可能替换为 %p、%d、%n、%b 等变量；保存前可在预览中继续编辑。"
+          }
+        }
       }
     },
     "operation_recording.preview_label": {

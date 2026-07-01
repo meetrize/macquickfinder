@@ -47,17 +47,82 @@ struct OperationPathGeneralizer {
     func pairDestinationToken(source: URL, destination: URL) -> String {
         let destPath = Self.standardize(destination.path)
         let sourcePath = Self.standardize(source.path)
+        let destName = (destPath as NSString).lastPathComponent
+        let sourceName = (sourcePath as NSString).lastPathComponent
+        let sourceBase = (sourceName as NSString).deletingPathExtension
+        let destBase = (destName as NSString).deletingPathExtension
+        let destExt = (destName as NSString).pathExtension
+        let sourceExt = (sourceName as NSString).pathExtension
+        let destDir = (destPath as NSString).deletingLastPathComponent
+        let sourceDir = (sourcePath as NSString).deletingLastPathComponent
 
-        if primarySources.count == 1,
-           sourcePath == Self.standardize(primarySources[0].path),
-           destPath.hasPrefix(recordingCWD + "/") {
+        let isPrimarySource = primarySources.count == 1
+            && sourcePath == Self.standardize(primarySources[0].path)
+
+        guard isPrimarySource else {
+            return pathToken(for: destPath)
+        }
+
+        if destPath.hasPrefix(recordingCWD + "/") {
             let relative = String(destPath.dropFirst(recordingCWD.count + 1))
             if !relative.isEmpty {
-                return "'%d/\(relative)'"
+                let suffix = generalizedFilenameSuffix(
+                    destName: destName,
+                    sourceName: sourceName,
+                    sourceBase: sourceBase,
+                    destBase: destBase,
+                    destExt: destExt,
+                    sourceExt: sourceExt
+                )
+                if relative == destName {
+                    return quotedPathWithSuffix(parent: "%d", suffix: suffix)
+                }
+                if relative.hasSuffix("/\(destName)") || relative == destName {
+                    let parentRelative = (relative as NSString).deletingLastPathComponent
+                    if parentRelative.isEmpty {
+                        return quotedPathWithSuffix(parent: "%d", suffix: suffix)
+                    }
+                }
+                return quotedPathWithSuffix(parent: "%d", suffix: relative)
             }
         }
 
+        if destName == sourceName, destDir != sourceDir {
+            return quotedPathWithSuffix(parentPath: destDir, suffix: "%n")
+        }
+
+        if destBase == sourceBase, destExt.lowercased() != sourceExt.lowercased() {
+            let suffix = destExt.isEmpty ? "%b" : "%b.\(destExt)"
+            return quotedPathWithSuffix(parentPath: destDir, suffix: suffix)
+        }
+
         return pathToken(for: destPath)
+    }
+
+    private func generalizedFilenameSuffix(
+        destName: String,
+        sourceName: String,
+        sourceBase: String,
+        destBase: String,
+        destExt: String,
+        sourceExt: String
+    ) -> String {
+        if destName == sourceName {
+            return "%n"
+        }
+        if destBase == sourceBase, destExt.lowercased() != sourceExt.lowercased() {
+            return destExt.isEmpty ? "%b" : "%b.\(destExt)"
+        }
+        return destName
+    }
+
+    private func quotedPathWithSuffix(parent: String, suffix: String) -> String {
+        "'\(parent)/\(suffix)'"
+    }
+
+    private func quotedPathWithSuffix(parentPath: String, suffix: String) -> String {
+        let escaped = parentPath.replacingOccurrences(of: "'", with: "'\\''")
+        return "'\(escaped)/\(suffix)'"
     }
 
     private static func standardize(_ path: String) -> String {

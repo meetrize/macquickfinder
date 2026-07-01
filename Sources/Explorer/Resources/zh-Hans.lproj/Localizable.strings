@@ -833,7 +833,7 @@
 	<key>operation_recording.discarded</key>
 	<string>已放弃录制</string>
 	<key>operation_recording.generalize_paths</key>
-	<string>将路径泛化为 Snippet 变量（%p、%P、%d）</string>
+	<string>将路径泛化为 Snippet 变量</string>
 	<key>operation_recording.no_steps</key>
 	<string>未记录到文件操作</string>
 	<key>operation_recording.preview_label</key>
@@ -896,6 +896,10 @@
 	<string>将 %lld 个项目移到废纸篓</string>
 	<key>operation_recording.trash_warning</key>
 	<string>当前在废纸篓内录制：生成的脚本在废纸篓外可能无法正确重放。</string>
+	<key>operation_recording.variables_footer</key>
+	<string>开启泛化后，路径可能替换为 %p、%d、%n、%b 等变量；保存前可在预览中继续编辑。</string>
+	<key>operation_recording.variables_title</key>
+	<string>Snippet 变量（悬停 ? 查看说明）</string>
 	<key>pathbar.back</key>
 	<string>后退</string>
 	<key>pathbar.clear</key>
@@ -1628,6 +1632,38 @@
 	<string>跳过</string>
 	<key>snippets.title</key>
 	<string>Snippets</string>
+	<key>snippets.variable.b</key>
+	<string>不含扩展名的文件名</string>
+	<key>snippets.variable.capital_f</key>
+	<string>所有选中的文件路径，空格分隔</string>
+	<key>snippets.variable.capital_n</key>
+	<string>选中项数量</string>
+	<key>snippets.variable.capital_p</key>
+	<string>所有选中项路径，空格分隔</string>
+	<key>snippets.variable.capital_q</key>
+	<string>每个选中路径分别 Shell 转义后空格拼接</string>
+	<key>snippets.variable.d</key>
+	<string>当前浏览目录（工作目录）</string>
+	<key>snippets.variable.date</key>
+	<string>执行时的 ISO8601 时间戳</string>
+	<key>snippets.variable.e</key>
+	<string>扩展名（小写、不含点，如 pdf）</string>
+	<key>snippets.variable.f</key>
+	<string>选中文件的路径（须单选且为文件）</string>
+	<key>snippets.variable.h</key>
+	<string>用户主目录路径</string>
+	<key>snippets.variable.n</key>
+	<string>选中项文件名（含扩展名，如 report.pdf）</string>
+	<key>snippets.variable.p</key>
+	<string>当前选中项的完整路径（须单选）</string>
+	<key>snippets.variable.q</key>
+	<string>%p 的 Shell 单引号转义路径（含空格时安全）</string>
+	<key>snippets.variable.u</key>
+	<string>当前短用户名</string>
+	<key>snippets.variable.uuid</key>
+	<string>每次执行生成的新 UUID</string>
+	<key>snippets.variable.w</key>
+	<string>当前目录名（路径最后一段）</string>
 	<key>sort.date_newest</key>
 	<string>日期 (最新优先)</string>
 	<key>sort.date_oldest</key>

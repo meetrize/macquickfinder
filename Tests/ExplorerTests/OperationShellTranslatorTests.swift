@@ -94,8 +94,52 @@ final class OperationShellTranslatorTests: XCTestCase {
         )
 
         XCTAssertTrue(script.contains("%p"))
-        XCTAssertTrue(script.contains("%d/new.txt"))
+        XCTAssertTrue(script.contains("'%d/new.txt'"))
         XCTAssertFalse(script.contains("/tmp/project/old.txt"))
+    }
+
+    func testGeneralizeRenameExtensionChangeUnderCWD() {
+        let cwd = "/tmp/project"
+        let source = URL(fileURLWithPath: "/tmp/project/photo.jpg")
+        let destination = URL(fileURLWithPath: "/tmp/project/photo.png")
+        let steps = [step(.rename(source: source, destination: destination))]
+        let script = OperationShellTranslator.translate(
+            steps: steps,
+            options: OperationShellTranslationOptions(generalizePaths: true, recordingCWD: cwd)
+        )
+
+        XCTAssertTrue(script.contains("/bin/mv %p '%d/%b.png'"))
+    }
+
+    func testGeneralizeMoveToDesktopKeepsFileName() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let cwd = "/tmp/project"
+        let source = URL(fileURLWithPath: "/tmp/project/photo.jpg")
+        let destination = URL(fileURLWithPath: "\(home)/Desktop/photo.jpg")
+        let steps = [step(.rename(source: source, destination: destination))]
+        let script = OperationShellTranslator.translate(
+            steps: steps,
+            options: OperationShellTranslationOptions(generalizePaths: true, recordingCWD: cwd)
+        )
+
+        XCTAssertTrue(script.contains("/bin/mv %p"))
+        XCTAssertTrue(script.contains("/%n'"))
+        XCTAssertFalse(script.contains("photo.jpg'"))
+    }
+
+    func testGeneralizeMoveToDesktopChangesExtension() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let cwd = "/tmp/project"
+        let source = URL(fileURLWithPath: "/tmp/project/photo.jpg")
+        let destination = URL(fileURLWithPath: "\(home)/Desktop/photo.png")
+        let steps = [step(.rename(source: source, destination: destination))]
+        let script = OperationShellTranslator.translate(
+            steps: steps,
+            options: OperationShellTranslationOptions(generalizePaths: true, recordingCWD: cwd)
+        )
+
+        XCTAssertTrue(script.contains("/bin/mv %p"))
+        XCTAssertTrue(script.contains("/%b.png'"))
     }
 
     func testGeneralizeCreateDirectoryUnderCWD() {

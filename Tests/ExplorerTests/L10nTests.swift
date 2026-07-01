@@ -33,6 +33,8 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.OperationRecording.scopeSuggestion("test"), "operation_recording.scope_suggestion")
         XCTAssertNotEqual(L10n.OperationRecording.trashWarning, "operation_recording.trash_warning")
         XCTAssertNotEqual(L10n.Settings.Snippets.recordingSection, "settings.snippets.recording_section")
+        XCTAssertNotEqual(L10n.Snippets.Variable.n, "snippets.variable.n")
+        XCTAssertNotEqual(L10n.OperationRecording.variablesTitle, "operation_recording.variables_title")
         XCTAssertNotEqual(L10n.Toolbar.newTab, "toolbar.new_tab")
         XCTAssertNotEqual(L10n.Toolbar.showAllTabs, "toolbar.show_all_tabs")
         XCTAssertNotEqual(L10n.Toolbar.showTabBar, "toolbar.show_tab_bar")

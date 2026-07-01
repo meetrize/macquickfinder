@@ -474,6 +474,12 @@ enum L10n {
         static var trashWarning: String {
             ModuleLocalization.localized("operation_recording.trash_warning", bundle: .module)
         }
+        static var variablesTitle: String {
+            ModuleLocalization.localized("operation_recording.variables_title", bundle: .module)
+        }
+        static var variablesFooter: String {
+            ModuleLocalization.localized("operation_recording.variables_footer", bundle: .module)
+        }
 
         static func scopeSuggestion(_ scopeLabel: String) -> String {
             String(
@@ -877,6 +883,25 @@ enum L10n {
             static var useSystemTerminal: String { ModuleLocalization.localized("snippets.editor.use_system_terminal", bundle: .module) }
             static var terminalHint: String { ModuleLocalization.localized("snippets.editor.terminal_hint", bundle: .module) }
             static var content: String { ModuleLocalization.localized("snippets.editor.content", bundle: .module) }
+        }
+
+        enum Variable {
+            static var p: String { ModuleLocalization.localized("snippets.variable.p", bundle: .module) }
+            static var d: String { ModuleLocalization.localized("snippets.variable.d", bundle: .module) }
+            static var capitalP: String { ModuleLocalization.localized("snippets.variable.capital_p", bundle: .module) }
+            static var f: String { ModuleLocalization.localized("snippets.variable.f", bundle: .module) }
+            static var capitalF: String { ModuleLocalization.localized("snippets.variable.capital_f", bundle: .module) }
+            static var n: String { ModuleLocalization.localized("snippets.variable.n", bundle: .module) }
+            static var b: String { ModuleLocalization.localized("snippets.variable.b", bundle: .module) }
+            static var e: String { ModuleLocalization.localized("snippets.variable.e", bundle: .module) }
+            static var capitalN: String { ModuleLocalization.localized("snippets.variable.capital_n", bundle: .module) }
+            static var q: String { ModuleLocalization.localized("snippets.variable.q", bundle: .module) }
+            static var capitalQ: String { ModuleLocalization.localized("snippets.variable.capital_q", bundle: .module) }
+            static var h: String { ModuleLocalization.localized("snippets.variable.h", bundle: .module) }
+            static var u: String { ModuleLocalization.localized("snippets.variable.u", bundle: .module) }
+            static var w: String { ModuleLocalization.localized("snippets.variable.w", bundle: .module) }
+            static var date: String { ModuleLocalization.localized("snippets.variable.date", bundle: .module) }
+            static var uuid: String { ModuleLocalization.localized("snippets.variable.uuid", bundle: .module) }
         }
 
         enum Confirm {
