@@ -33,6 +33,15 @@ enum ImagePreviewLoader {
         }
     }
 
+    static func decodeImage(data: Data, maxPixelSize: Int?) async -> NSImage? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let image = decode(data: data, maxPixelSize: maxPixelSize)
+                continuation.resume(returning: image)
+            }
+        }
+    }
+
     private static func decodeFromURL(_ url: URL, maxPixelSize: Int?) -> NSImage? {
         autoreleasepool {
             guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }

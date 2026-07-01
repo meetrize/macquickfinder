@@ -31,6 +31,7 @@ extension PreviewSession {
         content.archiveEntries = []
         content.archiveTruncated = false
         content.loadPhase = .idle
+        contentLoadedItemID = nil
     }
 
     func loadTextContentIfNeeded() async {

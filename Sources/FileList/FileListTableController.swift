@@ -97,7 +97,7 @@ public final class FileListTableController: FileListContentController {
         self.tableView = tableView
         self.scrollView = scrollView
 
-        (tableView as? FileListTableView)?.installRowHoverTrackingIfNeeded()
+        tableView.installRowHoverTrackingIfNeeded()
         installObservers()
         ensureTableViewFillsClipViewIfNeeded()
         return scrollView

@@ -107,7 +107,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
 
     /// 在 `NSWindow` 挂到视图层级时尽早合并，避免独立窗口闪现。
     func attemptTabMerge(for window: NSWindow) {
-        guard var pending = pendingNewTab else { return }
+        guard let pending = pendingNewTab else { return }
         guard pending.sourceWindow !== window else { return }
         guard let anchor = pending.sourceWindow else {
             pendingNewTab = nil

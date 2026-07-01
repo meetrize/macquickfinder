@@ -64,13 +64,17 @@ extension PreviewSession {
                 PreviewLoadPayload(imageData: prefetched, imageMaxPixelSize: maxPixelSize),
                 expectedItemID: itemID
             )
-            scheduleBrowseContentPrefetch()
+            scheduleBrowseContentPrefetch(
+                settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+            )
             return
         }
         guard let decodedImage = await ImagePreviewLoader.loadImage(from: url, maxPixelSize: maxPixelSize) else {
             guard !Task.isCancelled else { return }
             applyLoadPayload(.failure("Unable to decode image format"), expectedItemID: itemID)
-            scheduleBrowseContentPrefetch()
+            scheduleBrowseContentPrefetch(
+                settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+            )
             return
         }
         guard !Task.isCancelled else { return }
@@ -80,14 +84,18 @@ extension PreviewSession {
             maxPixelSize: maxPixelSize,
             expectedItemID: itemID
         )
-        scheduleBrowseContentPrefetch()
+        scheduleBrowseContentPrefetch(
+            settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+        )
     }
 
     private func loadBuiltInPDF(url: URL, itemID: String) async {
         if let prefetched = browseContentPrefetcher.consume(for: itemID) {
             guard !Task.isCancelled else { return }
             applyLoadPayload(PreviewLoadPayload(pdfData: prefetched), expectedItemID: itemID)
-            scheduleBrowseContentPrefetch()
+            scheduleBrowseContentPrefetch(
+                settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+            )
             return
         }
         let pdfData = await PreviewContentLoader.loadMappedData(from: url)
@@ -97,7 +105,9 @@ extension PreviewSession {
         } else {
             applyLoadPayload(.failure("Unable to load PDF document"), expectedItemID: itemID)
         }
-        scheduleBrowseContentPrefetch()
+        scheduleBrowseContentPrefetch(
+            settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+        )
     }
 
     private func loadDOCXPreview(url: URL, itemID: String) async {

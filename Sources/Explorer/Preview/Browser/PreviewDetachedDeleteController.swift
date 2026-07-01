@@ -48,7 +48,9 @@ enum PreviewDetachedDeleteController {
             )
             session.cancelLoad()
             session.resetControls()
-            session.scheduleBrowseContentPrefetch()
+            session.scheduleBrowseContentPrefetch(
+                settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+            )
             return
         }
 

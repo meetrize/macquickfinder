@@ -63,6 +63,7 @@ extension PreviewSession {
             // 保留图片解码等步骤已写入的失败状态
         } else {
             content.loadPhase = .loaded
+            contentLoadedItemID = expectedItemID
         }
         return true
     }

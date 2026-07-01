@@ -62,17 +62,14 @@ struct FileContentView: View {
         return "image-resize-\(Int(size.width.rounded()))x\(Int(size.height.rounded()))"
     }
 
-    private var loadTaskID: String {
-        let contentID = session.browseTarget.id
-        var token = "\(contentID)-\(session.archive.reloadToken)-\(Int(customPreviewStore.revision))"
-        if PreviewTypeClassifier.isImageFile(fileExtension) {
-            let size = session.image.displayContainerSize
-            if size.width > 0, size.height > 0 {
-                token += "-\(Int(size.width.rounded()))x\(Int(size.height.rounded()))"
-                token += "-\(session.currentImagePreviewPixelBudget())"
-            }
-        }
-        return token
+    private var contentLoadTaskID: String {
+        "\(session.browseTarget.id)-\(session.archive.reloadToken)-\(Int(customPreviewStore.revision))"
+    }
+
+    private var imageDisplayMetricsToken: String {
+        let size = session.image.displayContainerSize
+        guard size.width > 0, size.height > 0 else { return "image-metrics-pending" }
+        return "\(Int(size.width.rounded()))x\(Int(size.height.rounded()))-\(session.currentImagePreviewPixelBudget())"
     }
 
     var body: some View {
@@ -256,8 +253,12 @@ struct FileContentView: View {
         .background(PreviewImageDisplaySizeReporter(session: session))
         .focusedValue(\.previewTextSelectionActive, previewTextSelectionActive)
         .background(TextEditingKeyMonitor(isActive: previewTextSelectionActive))
-        .task(id: loadTaskID) {
+        .task(id: contentLoadTaskID) {
             await applyLoadTaskIfNeeded()
+        }
+        .onChange(of: imageDisplayMetricsToken) { _ in
+            guard PreviewTypeClassifier.isImageFile(fileExtension) else { return }
+            session.scheduleImagePreviewResolutionUpgradeIfNeeded()
         }
         .onChange(of: session.browseTarget.id) { _ in
             previewTextSelectionActive = false
@@ -339,7 +340,9 @@ struct FileContentView: View {
 
     @MainActor
     private func applyLoadTaskIfNeeded() async {
-        if lastAppliedLoadTaskID == loadTaskID {
+        let taskID = contentLoadTaskID
+
+        if lastAppliedLoadTaskID == taskID {
             // 上次 beginLoadTask 已登记，但任务可能被 cancel 导致永远停在 .loading。
             if case .loading = session.content.loadPhase {
                 lastAppliedLoadTaskID = nil
@@ -348,11 +351,18 @@ struct FileContentView: View {
             }
         }
 
-        if lastAppliedLoadTaskID == nil,
-           session.content.loadPhase == .loaded,
-           !session.isLoading {
-            lastAppliedLoadTaskID = loadTaskID
+        if session.content.loadPhase == .loaded,
+           !session.isLoading,
+           session.contentLoadedItemID == session.browseTarget.id {
+            lastAppliedLoadTaskID = taskID
             return
+        }
+
+        if session.browseContext != nil {
+            if await session.tryApplyPrefetchedBrowseContent() {
+                lastAppliedLoadTaskID = taskID
+                return
+            }
         }
 
         if session.browseContext != nil, lastAppliedLoadTaskID != nil {
@@ -360,9 +370,9 @@ struct FileContentView: View {
             guard !Task.isCancelled else { return }
         }
 
-        guard lastAppliedLoadTaskID != loadTaskID else { return }
+        guard lastAppliedLoadTaskID != taskID else { return }
 
-        lastAppliedLoadTaskID = loadTaskID
+        lastAppliedLoadTaskID = taskID
         session.cancelLoad()
         session.resetControls()
         session.beginLoadTask(customPreviewRevision: Int(customPreviewStore.revision))

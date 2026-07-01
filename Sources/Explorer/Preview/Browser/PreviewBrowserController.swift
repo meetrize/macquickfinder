@@ -18,7 +18,9 @@ enum PreviewBrowserController {
         }
 
         if handled {
-            session.scheduleBrowseContentPrefetch()
+            session.scheduleBrowseContentPrefetch(
+                settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+            )
         }
         return handled
     }

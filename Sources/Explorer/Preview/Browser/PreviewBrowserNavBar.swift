@@ -9,7 +9,9 @@ struct PreviewBrowserNavBar: View {
         HStack(spacing: 8) {
             Button {
                 session.browsePrevious()
-                session.scheduleBrowseContentPrefetch()
+                session.scheduleBrowseContentPrefetch(
+                    settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+                )
             } label: {
                 Image(systemName: "chevron.left")
             }
@@ -30,7 +32,9 @@ struct PreviewBrowserNavBar: View {
 
             Button {
                 session.browseNext()
-                session.scheduleBrowseContentPrefetch()
+                session.scheduleBrowseContentPrefetch(
+                    settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+                )
             } label: {
                 Image(systemName: "chevron.right")
             }

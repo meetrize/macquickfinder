@@ -48,8 +48,18 @@ private struct DetachedPreviewWindowContent: View {
         return PreviewBrowseCommands(
             canBrowsePrevious: context.currentIndex > 0,
             canBrowseNext: context.currentIndex + 1 < context.count,
-            browsePrevious: { session.browsePrevious(); session.scheduleBrowseContentPrefetch() },
-            browseNext: { session.browseNext(); session.scheduleBrowseContentPrefetch() },
+            browsePrevious: {
+                session.browsePrevious()
+                session.scheduleBrowseContentPrefetch(
+                    settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+                )
+            },
+            browseNext: {
+                session.browseNext()
+                session.scheduleBrowseContentPrefetch(
+                    settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+                )
+            },
             canToggleStrip: true,
             isStripExpanded: session.isBrowserStripExpanded,
             toggleStrip: { session.isBrowserStripExpanded.toggle() }
@@ -131,7 +141,9 @@ private struct DetachedPreviewWindowContent: View {
             session.browseContext?.setSameTypeOnly(newValue)
         }
         .onChange(of: session.browseContext?.currentIndex) { _ in
-            session.scheduleBrowseContentPrefetch()
+            session.scheduleBrowseContentPrefetch(
+                settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+            )
         }
         .onChange(of: session.isBrowserStripExpanded) { _ in
             guard fitImageToScreen || session.adaptImageToWindowOnResize else { return }

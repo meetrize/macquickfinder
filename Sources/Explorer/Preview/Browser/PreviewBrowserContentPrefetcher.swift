@@ -10,7 +10,15 @@ final class PreviewBrowserContentPrefetcher {
     private var entries: [CacheEntry] = []
     private var scheduledTask: Task<Void, Never>?
 
-    func schedulePrefetch(items: [FileItem], centerIndex: Int) {
+    func hasCached(for itemID: String) -> Bool {
+        entries.contains { $0.itemID == itemID }
+    }
+
+    func schedulePrefetch(
+        items: [FileItem],
+        centerIndex: Int,
+        settleDelayMilliseconds: UInt64 = PreviewBrowserStripMetrics.contentPrefetchSettleMilliseconds
+    ) {
         guard items.indices.contains(centerIndex) else { return }
         guard !DirectorySizeVolumeFilter.isNetworkVolume(path: items[centerIndex].url.path) else {
             cancel()
@@ -18,8 +26,10 @@ final class PreviewBrowserContentPrefetcher {
         }
         scheduledTask?.cancel()
         scheduledTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: PreviewBrowserStripMetrics.contentPrefetchSettleMilliseconds * 1_000_000)
-            guard !Task.isCancelled else { return }
+            if settleDelayMilliseconds > 0 {
+                try? await Task.sleep(nanoseconds: settleDelayMilliseconds * 1_000_000)
+                guard !Task.isCancelled else { return }
+            }
             await self?.prefetchAdjacent(items: items, centerIndex: centerIndex)
         }
     }
@@ -33,6 +43,11 @@ final class PreviewBrowserContentPrefetcher {
         scheduledTask?.cancel()
         scheduledTask = nil
         entries.removeAll()
+    }
+
+    /// 仅供单元测试注入预取缓存。
+    func seedEntryForTesting(itemID: String, data: Data) {
+        entries = [CacheEntry(itemID: itemID, data: data)]
     }
 
     static func isPrefetchEligible(_ item: FileItem) -> Bool {

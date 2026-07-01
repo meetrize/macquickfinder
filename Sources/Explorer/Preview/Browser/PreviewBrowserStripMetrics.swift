@@ -24,7 +24,12 @@ enum PreviewBrowserStripMetrics {
     static let scrollAnimationDuration: Double = 0.22
     static let switchDebounceMilliseconds: UInt64 = 120
     static let contentCrossfadeDuration: Double = 0.15
+    /// 窗口/预览区尺寸变化后合并分辨率升级请求。
+    static let imageResolutionUpgradeDebounceMilliseconds: UInt64 = 80
+    /// 胶片条快速滑动时合并预取请求，避免连续触发磁盘读取。
     static let contentPrefetchSettleMilliseconds: UInt64 = 300
+    /// 键盘/导航切换或当前项加载完成后立即预取相邻项。
+    static let contentPrefetchImmediateDelay: UInt64 = 0
     static let contentPrefetchMaxFileSize: Int64 = 8 * 1024 * 1024
     static let contentPrefetchMaxBuffers = 2
     static let stripSpringResponse: Double = 0.28

@@ -33,6 +33,9 @@ final class PreviewSession: ObservableObject, Identifiable {
     var adaptImageToWindowOnResize = false
 
     var loadTask: Task<Void, Never>?
+    var imageResolutionUpgradeTask: Task<Void, Never>?
+    /// 当前 `content` 所对应的文件 ID；用于避免同一文件重复整页重载。
+    var contentLoadedItemID: String?
     private var browseContextCancellable: AnyCancellable?
     private var nestedStateCancellables = Set<AnyCancellable>()
     let browseContentPrefetcher = PreviewBrowserContentPrefetcher()
@@ -95,6 +98,8 @@ final class PreviewSession: ObservableObject, Identifiable {
         let hadActiveTask = loadTask != nil
         loadTask?.cancel()
         loadTask = nil
+        imageResolutionUpgradeTask?.cancel()
+        imageResolutionUpgradeTask = nil
         content.mediaPlayer?.pause()
         if hadActiveTask, case .loading = content.loadPhase {
             content.loadPhase = .idle
@@ -107,7 +112,9 @@ final class PreviewSession: ObservableObject, Identifiable {
         browseContextCancellable = context.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.objectWillChange.send() }
-        scheduleBrowseContentPrefetch()
+        scheduleBrowseContentPrefetch(
+            settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
+        )
     }
 
     func clearBrowserContext() {
@@ -118,7 +125,9 @@ final class PreviewSession: ObservableObject, Identifiable {
         browseContentPrefetcher.cancel()
     }
 
-    func scheduleBrowseContentPrefetch() {
+    func scheduleBrowseContentPrefetch(
+        settleDelayMilliseconds: UInt64 = PreviewBrowserStripMetrics.contentPrefetchSettleMilliseconds
+    ) {
         guard let browseContext else { return }
         guard !DirectorySizeVolumeFilter.isNetworkVolume(path: browseContext.directoryPath) else {
             browseContentPrefetcher.cancel()
@@ -126,7 +135,8 @@ final class PreviewSession: ObservableObject, Identifiable {
         }
         browseContentPrefetcher.schedulePrefetch(
             items: browseContext.orderedItems,
-            centerIndex: browseContext.currentIndex
+            centerIndex: browseContext.currentIndex,
+            settleDelayMilliseconds: settleDelayMilliseconds
         )
     }
 
@@ -152,5 +162,6 @@ final class PreviewSession: ObservableObject, Identifiable {
     deinit {
         browseContextCancellable?.cancel()
         loadTask?.cancel()
+        imageResolutionUpgradeTask?.cancel()
     }
 }
