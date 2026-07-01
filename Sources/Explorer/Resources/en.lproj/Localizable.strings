@@ -899,7 +899,7 @@
 	<key>operation_recording.variables_footer</key>
 	<string>When generalization is on, paths may become %p, %d, %n, %b, etc. Edit the preview before saving if needed.</string>
 	<key>operation_recording.variables_title</key>
-	<string>Snippet variables (hover ? for help)</string>
+	<string>Snippet Variable Reference</string>
 	<key>pathbar.back</key>
 	<string>Back</string>
 	<key>pathbar.clear</key>
@@ -1664,6 +1664,12 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>New UUID generated on each run</string>
 	<key>snippets.variable.w</key>
 	<string>Current directory name (last path component)</string>
+	<key>snippets.variable_help.column_description</key>
+	<string>Description</string>
+	<key>snippets.variable_help.column_token</key>
+	<string>Variable</string>
+	<key>snippets.variable_help.show_reference</key>
+	<string>Show Snippet variable reference</string>
 	<key>sort.date_newest</key>
 	<string>Date (Newest First)</string>
 	<key>sort.date_oldest</key>

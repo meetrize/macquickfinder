@@ -7460,6 +7460,27 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "每次执行生成的新 UUID" } }
       }
     },
+    "snippets.variable_help.show_reference": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show Snippet variable reference" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "查看 Snippet 变量说明" } }
+      }
+    },
+    "snippets.variable_help.column_token": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Variable" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "变量" } }
+      }
+    },
+    "snippets.variable_help.column_description": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Description" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "说明" } }
+      }
+    },
     "snippets.editor.edit_title": {
       "extractionState": "manual",
       "localizations": {
@@ -9439,8 +9460,8 @@
     "operation_recording.variables_title": {
       "extractionState": "manual",
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "Snippet variables (hover ? for help)" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Snippet 变量（悬停 ? 查看说明）" } }
+        "en": { "stringUnit": { "state": "translated", "value": "Snippet Variable Reference" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Snippet 变量参考" } }
       }
     },
     "operation_recording.variables_footer": {

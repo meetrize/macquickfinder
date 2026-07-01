@@ -899,7 +899,7 @@
 	<key>operation_recording.variables_footer</key>
 	<string>开启泛化后，路径可能替换为 %p、%d、%n、%b 等变量；保存前可在预览中继续编辑。</string>
 	<key>operation_recording.variables_title</key>
-	<string>Snippet 变量（悬停 ? 查看说明）</string>
+	<string>Snippet 变量参考</string>
 	<key>pathbar.back</key>
 	<string>后退</string>
 	<key>pathbar.clear</key>
@@ -1664,6 +1664,12 @@
 	<string>每次执行生成的新 UUID</string>
 	<key>snippets.variable.w</key>
 	<string>当前目录名（路径最后一段）</string>
+	<key>snippets.variable_help.column_description</key>
+	<string>说明</string>
+	<key>snippets.variable_help.column_token</key>
+	<string>变量</string>
+	<key>snippets.variable_help.show_reference</key>
+	<string>查看 Snippet 变量说明</string>
 	<key>sort.date_newest</key>
 	<string>日期 (最新优先)</string>
 	<key>sort.date_oldest</key>

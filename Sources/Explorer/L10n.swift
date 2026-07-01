@@ -904,6 +904,14 @@ enum L10n {
             static var uuid: String { ModuleLocalization.localized("snippets.variable.uuid", bundle: .module) }
         }
 
+        enum VariableHelp {
+            static var showReference: String { ModuleLocalization.localized("snippets.variable_help.show_reference", bundle: .module) }
+            static var columnToken: String { ModuleLocalization.localized("snippets.variable_help.column_token", bundle: .module) }
+            static var columnDescription: String {
+                ModuleLocalization.localized("snippets.variable_help.column_description", bundle: .module)
+            }
+        }
+
         enum Confirm {
             static var destructiveTitle: String { ModuleLocalization.localized("snippets.confirm.destructive_title", bundle: .module) }
             static var destructiveMessage: String { ModuleLocalization.localized("snippets.confirm.destructive_message", bundle: .module) }

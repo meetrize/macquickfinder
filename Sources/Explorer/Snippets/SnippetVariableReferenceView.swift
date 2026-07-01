@@ -1,60 +1,58 @@
 import SwiftUI
 
-struct SnippetVariableReferenceView: View {
-    let title: String
-    let footer: String?
-
-    init(title: String, footer: String? = nil) {
-        self.title = title
-        self.footer = footer
-    }
-
-    private let columns = [
-        GridItem(.flexible(minimum: 72), spacing: 8, alignment: .leading),
-        GridItem(.flexible(minimum: 72), spacing: 8, alignment: .leading),
-        GridItem(.flexible(minimum: 72), spacing: 8, alignment: .leading),
-        GridItem(.flexible(minimum: 72), spacing: 8, alignment: .leading),
-    ]
+struct SnippetVariableHelpButton: View {
+    @State private var isReferencePresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.subheadline)
-
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
-                ForEach(SnippetVariableCatalog.all) { variable in
-                    SnippetVariableChipView(definition: variable)
-                }
-            }
-
-            if let footer {
-                Text(footer)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        Button {
+            isReferencePresented.toggle()
+        } label: {
+            Image(systemName: "questionmark.circle")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.Snippets.VariableHelp.showReference)
+        .popover(isPresented: $isReferencePresented, arrowEdge: .bottom) {
+            SnippetVariableReferencePopover(onDismiss: { isReferencePresented = false })
         }
     }
 }
 
-private struct SnippetVariableChipView: View {
-    let definition: SnippetVariableDefinition
+private struct SnippetVariableReferencePopover: View {
+    let onDismiss: () -> Void
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Text(definition.token)
-                .font(.system(.caption, design: .monospaced))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .frame(maxWidth: .infinity)
-                .background(Color.secondary.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.OperationRecording.variablesTitle)
+                .font(.headline)
 
-            Image(systemName: "questionmark.circle.fill")
-                .font(.system(size: 9))
+            Table(SnippetVariableCatalog.all) {
+                TableColumn(L10n.Snippets.VariableHelp.columnToken) { variable in
+                    Text(variable.token)
+                        .font(.system(.body, design: .monospaced))
+                }
+                .width(min: 56, ideal: 72, max: 88)
+
+                TableColumn(L10n.Snippets.VariableHelp.columnDescription) { variable in
+                    Text(variable.description)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tableStyle(.inset(alternatesRowBackgrounds: true))
+
+            Text(L10n.OperationRecording.variablesFooter)
+                .font(.caption)
                 .foregroundStyle(.secondary)
-                .offset(x: 4, y: -4)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
+                Spacer()
+                Button(L10n.Action.ok, action: onDismiss)
+                    .keyboardShortcut(.defaultAction)
+            }
         }
-        .help(definition.description)
+        .padding(16)
+        .frame(width: 500, height: 440)
     }
 }
