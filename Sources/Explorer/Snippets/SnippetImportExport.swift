@@ -27,7 +27,7 @@ enum SnippetImportExport {
 
     static func parseImportItems(from url: URL, existing: [Snippet]) throws -> [SnippetImportItem] {
         let data = try Data(contentsOf: url)
-        let decoder = JSONDecoder()
+        let decoder = makeImportDecoder()
         let snippets: [Snippet]
         if let envelope = try? decoder.decode(SnippetsFileEnvelope.self, from: data) {
             guard envelope.schemaVersion <= SnippetDefaults.schemaVersion else {
@@ -74,6 +74,36 @@ enum SnippetImportExport {
         s.lastExecutedAt = nil
         s.executionCount = 0
         return s
+    }
+
+    /// 导入时兼容 Swift 默认数值时间戳、Unix 秒与 ISO8601 字符串（设计文档示例格式）。
+    private static func makeImportDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            if let ts = try? container.decode(Double.self) {
+                if ts > 1_000_000_000 {
+                    return Date(timeIntervalSince1970: ts)
+                }
+                return Date(timeIntervalSinceReferenceDate: ts)
+            }
+            if let string = try? container.decode(String.self) {
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let date = formatter.date(from: string) { return date }
+                formatter.formatOptions = [.withInternetDateTime]
+                if let date = formatter.date(from: string) { return date }
+                throw DecodingError.dataCorruptedError(
+                    in: container,
+                    debugDescription: "Unrecognized date string: \(string)"
+                )
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Expected date as number or ISO8601 string"
+            )
+        }
+        return decoder
     }
 }
 
