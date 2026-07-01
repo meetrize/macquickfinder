@@ -124,6 +124,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
             }
             if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: true) as? FavoriteSidebarCellView {
                 cell.configure(item: item, showsTitle: parent.showsTitle, isSelected: selected)
+                cell.isDropTargetRow = row == dropHighlightRow
             }
         }
     }
@@ -151,6 +152,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
             showsTitle: parent.showsTitle,
             isSelected: parent.isSelected(item.path)
         )
+        cell.isDropTargetRow = row == dropHighlightRow
         return cell
     }
     
@@ -294,9 +296,14 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         
         let urls = FileDragDrop.fileURLs(from: pasteboard)
         if !urls.isEmpty {
+            let insertBefore = pendingInsertBeforeIndex >= 0 ? pendingInsertBeforeIndex : nil
+            if insertBefore == nil, pendingDropRow >= 0,
+               !canDropOntoRow(pendingDropRow, urls: urls) {
+                clearDropIndicator()
+                return false
+            }
             let destinationPath = destinationPathForPendingDrop()
             let copy = FileDragDrop.shouldCopyFromDraggingInfo(info)
-            let insertBefore = pendingInsertBeforeIndex >= 0 ? pendingInsertBeforeIndex : nil
             parent.onDropURLs(urls, destinationPath, copy, insertBefore)
             clearDropIndicator()
             return true
@@ -339,10 +346,12 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         let row = tableView.row(at: location)
         
         if row >= 0,
-           isDropOntoRowCenter(location, row: row, in: tableView),
-           canDropOntoRow(row, urls: urls) {
+           isDropOntoRowCenter(location, row: row, in: tableView) {
             applyRowDropIndicator(row: row, in: tableView)
-            return FileDragDrop.dragOperation(for: info)
+            if canDropOntoRow(row, urls: urls) {
+                return FileDragDrop.dragOperation(for: info)
+            }
+            return []
         }
         
         let addableDirectories = addableFavoriteDirectoryURLs(from: urls)
@@ -388,12 +397,21 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         dropHighlightRow = row
         
         if let previous, let tableView {
-            (tableView.rowView(atRow: previous, makeIfNecessary: false) as? FavoriteSidebarRowView)?
-                .isDropTargetRow = false
+            applyDropTargetHighlight(false, row: previous, in: tableView)
         }
         if let row, let tableView {
-            (tableView.rowView(atRow: row, makeIfNecessary: true) as? FavoriteSidebarRowView)?
-                .isDropTargetRow = true
+            applyDropTargetHighlight(true, row: row, in: tableView)
+        }
+    }
+    
+    private func applyDropTargetHighlight(_ highlighted: Bool, row: Int, in tableView: FavoritesTableView) {
+        if let rowView = tableView.rowView(atRow: row, makeIfNecessary: highlighted) as? FavoriteSidebarRowView {
+            rowView.isDropTargetRow = highlighted
+            rowView.needsDisplay = true
+        }
+        if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: highlighted) as? FavoriteSidebarCellView {
+            cell.isDropTargetRow = highlighted
+            cell.layoutSubtreeIfNeeded()
         }
     }
     
@@ -553,6 +571,12 @@ private final class FavoriteSidebarCellView: NSTableCellView {
     private let titleView = FavoriteSidebarTruncatingTitleView()
     private var showsSidebarTitle = true
     private var isFavoriteSelected = false
+    var isDropTargetRow = false {
+        didSet {
+            guard oldValue != isDropTargetRow else { return }
+            needsLayout = true
+        }
+    }
     
     override var isFlipped: Bool { true }
     
@@ -595,6 +619,11 @@ private final class FavoriteSidebarCellView: NSTableCellView {
         needsLayout = true
     }
     
+    override var backgroundStyle: NSView.BackgroundStyle {
+        get { .normal }
+        set { }
+    }
+    
     private func favoritesTableView() -> FavoritesTableView? {
         var view: NSView? = self
         while let current = view {
@@ -626,8 +655,10 @@ private final class FavoriteSidebarCellView: NSTableCellView {
                 height / 2
             )
             
-            selectionBackgroundView.isHidden = !isFavoriteSelected
-            if isFavoriteSelected, radius > 0 {
+            // 与 SidebarRow 一致：拖放目标高亮优先于选中灰色背景。
+            let showsHighlightBackground = isDropTargetRow || isFavoriteSelected
+            selectionBackgroundView.isHidden = !showsHighlightBackground
+            if showsHighlightBackground, radius > 0 {
                 selectionBackgroundView.frame = NSRect(
                     x: FavoriteSidebarMetrics.selectionBackgroundLeadingOffset,
                     y: 0,
@@ -635,9 +666,16 @@ private final class FavoriteSidebarCellView: NSTableCellView {
                     height: height
                 )
                 selectionBackgroundView.layer?.cornerRadius = radius
-                selectionBackgroundView.layer?.backgroundColor = NSColor
-                    .unemphasizedSelectedContentBackgroundColor
-                    .cgColor
+                if isDropTargetRow {
+                    selectionBackgroundView.layer?.backgroundColor = NSColor
+                        .controlAccentColor
+                        .withAlphaComponent(0.18)
+                        .cgColor
+                } else {
+                    selectionBackgroundView.layer?.backgroundColor = NSColor
+                        .unemphasizedSelectedContentBackgroundColor
+                        .cgColor
+                }
             }
             
             iconView.frame = NSRect(
@@ -695,7 +733,11 @@ private final class FavoriteSidebarRowView: NSTableRowView {
     }
     
     override func drawSelection(in dirtyRect: NSRect) {
-        // 选中高亮由 drawBackground 统一绘制。
+        // 选中高亮由 FavoriteSidebarCellView 绘制；拖放高亮亦在 Cell 层优先于选中态。
+    }
+    
+    override func viewWillDraw() {
+        // 阻止 NSTableRowView 在选中行上改写 Cell 的 backgroundStyle，避免覆盖自定义背景。
     }
     
     /// 拖放目标高亮矩形（选中高亮改在 `FavoriteSidebarCellView` 内绘制）。

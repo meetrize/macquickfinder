@@ -27,13 +27,11 @@ enum FavoritesSidebarDropPolicy {
     }
 
     static func canDropOntoFavorite(destinationPath: String, sourcePaths: [String]) -> Bool {
-        let destination = (destinationPath as NSString).standardizingPath
         for source in sourcePaths {
-            let sourcePath = (source as NSString).standardizingPath
-            if FavoritePathNormalization.pathsRepresentSameLocation(sourcePath, destination) {
+            if FavoritePathNormalization.pathsRepresentSameLocation(source, destinationPath) {
                 return false
             }
-            if sourcePath.hasPrefix(destination + "/") {
+            if FavoritePathNormalization.isDescendant(path: source, of: destinationPath) {
                 return false
             }
         }
