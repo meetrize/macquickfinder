@@ -32,14 +32,21 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
         let leadingIDs = layout.items(in: .leading).map(\.id)
         XCTAssertEqual(leadingIDs, [ToolbarBuiltinID.leftPanel.rawValue])
 
-        let trailingIDs = layout.items(in: .trailing).map(\.id)
+        let mainIDs = layout.items(in: .main).map(\.id)
         XCTAssertEqual(
-            trailingIDs,
+            mainIDs.prefix(4).map { $0 },
             [
                 ToolbarBuiltinID.newWindow.rawValue,
                 ToolbarBuiltinID.newTab.rawValue,
                 ToolbarBuiltinID.showAllTabs.rawValue,
                 ToolbarBuiltinID.toggleTabBar.rawValue,
+            ]
+        )
+
+        let trailingIDs = layout.items(in: .trailing).map(\.id)
+        XCTAssertEqual(
+            trailingIDs,
+            [
                 ToolbarBuiltinID.thumbnailSizeSlider.rawValue,
                 ToolbarBuiltinID.sortMenu.rawValue,
                 ToolbarBuiltinID.browseSettingsMenu.rawValue,
