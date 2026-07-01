@@ -35,6 +35,14 @@ enum PreviewDetachedDeleteController {
         in session: PreviewSession,
         onNoItemsRemaining: () -> Void
     ) {
+        let directoryPath = session.browseContext?.directoryPath
+            ?? item.url.deletingLastPathComponent().path
+        PreviewDetachCoordinator.shared.notifyDirectoryItemsInvalidated(
+            hostWindowID: session.hostWindowID,
+            directoryPath: directoryPath,
+            invalidatedPaths: [item.id]
+        )
+
         if let context = session.browseContext {
             context.removeItem(withID: item.id)
             if context.orderedItems.isEmpty {

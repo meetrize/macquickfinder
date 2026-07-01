@@ -2,16 +2,39 @@ import AppKit
 import FileList
 import SwiftUI
 
+struct DirectoryItemsInvalidatedEvent: Equatable {
+    let hostWindowID: UUID
+    let directoryPath: String
+    let invalidatedPaths: [String]
+}
+
 @MainActor
 final class PreviewDetachCoordinator: ObservableObject {
     static let shared = PreviewDetachCoordinator()
 
     @Published private(set) var placement: PreviewPlacement = .inline
+    @Published private(set) var directoryItemsInvalidatedRevision: UInt = 0
+    private(set) var lastDirectoryItemsInvalidatedEvent: DirectoryItemsInvalidatedEvent?
 
     private var detachedWindow: NSWindow?
     private var isDockingBackSessionID: PreviewSessionID?
 
     private init() {}
+
+    func notifyDirectoryItemsInvalidated(
+        hostWindowID: UUID,
+        directoryPath: String,
+        invalidatedPaths: [String]
+    ) {
+        guard !invalidatedPaths.isEmpty else { return }
+        let event = DirectoryItemsInvalidatedEvent(
+            hostWindowID: hostWindowID,
+            directoryPath: directoryPath,
+            invalidatedPaths: invalidatedPaths
+        )
+        lastDirectoryItemsInvalidatedEvent = event
+        directoryItemsInvalidatedRevision &+= 1
+    }
 
     func detach(
         session: PreviewSession,

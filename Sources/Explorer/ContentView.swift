@@ -78,6 +78,7 @@ struct ContentView: View {
     @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
     @ObservedObject private var shortcutSettings = ShortcutSettingsStore.shared
     @ObservedObject private var windowTabCenter = ExplorerWindowTabCenter.shared
+    @ObservedObject private var detachCoordinator = PreviewDetachCoordinator.shared
     @State private var explorerTabBarState = ExplorerTabBarState.unavailable
     @State private var pendingExternalSelectionPath: String?
     @State private var showConnectServerSheet = false
@@ -407,6 +408,10 @@ struct ContentView: View {
             }
             let navigateIntoResult = notification.userInfo?[ArchiveOperationNotifications.navigateIntoResultKey] as? Bool ?? false
             handleArchiveOperationCompleted(paths: paths, navigateIntoResult: navigateIntoResult)
+        }
+        .onChange(of: detachCoordinator.directoryItemsInvalidatedRevision) { _ in
+            guard let event = detachCoordinator.lastDirectoryItemsInvalidatedEvent else { return }
+            handleDirectoryItemsInvalidatedFromDetachedPreview(event)
         }
         .overlay(alignment: .bottom) {
             if let transientNoticeMessage {
@@ -951,6 +956,27 @@ struct ContentView: View {
     private func handleFileListItemsChanged(_ invalidatedPaths: [String]) {
         selection.removeAll()
         loadItems(invalidatingPaths: invalidatedPaths)
+    }
+
+    private func handleDirectoryItemsInvalidatedFromDetachedPreview(_ event: DirectoryItemsInvalidatedEvent) {
+        guard pathsReferToSameDirectory(event.directoryPath, path) else { return }
+
+        let isHostWindow = event.hostWindowID == previewHostWindowID
+        let pathsVisibleInList = event.invalidatedPaths.filter { invalidatedPath in
+            items.contains { $0.id == invalidatedPath }
+        }
+        guard isHostWindow || !pathsVisibleInList.isEmpty else { return }
+
+        let pathsToRefresh = isHostWindow ? event.invalidatedPaths : pathsVisibleInList
+        selection.subtract(pathsToRefresh)
+        items.removeAll { pathsToRefresh.contains($0.id) }
+        loadItems(invalidatingPaths: pathsToRefresh)
+    }
+
+    private func pathsReferToSameDirectory(_ lhs: String, _ rhs: String) -> Bool {
+        let left = URL(fileURLWithPath: lhs).resolvingSymlinksInPath().standardizedFileURL.path
+        let right = URL(fileURLWithPath: rhs).resolvingSymlinksInPath().standardizedFileURL.path
+        return left == right
     }
     
     private func handleAutoCalculateDirectorySizesChanged(_ enabled: Bool) {
