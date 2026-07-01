@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": 804589200.0,
+  "app": "MeoFind",
+  "kind": "snippet-bundle",
+  "snippets": [
+    {
+      "id": "B1000001-0001-4001-8001-000000000001",
+      "name": "AI 测试 · 预设提示",
+      "scriptType": "shell",
+      "scope": {
+        "kind": "anytime"
+      },
+      "content": "# 解析 claude CLI 路径（GUI 应用 PATH 常不含 nvm）\nif command -v claude >/dev/null 2>&1; then\n  CLAUDE=claude\nelif [[ -x \"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\" ]]; then\n  CLAUDE=\"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\"\nelse\n  echo \"错误：未找到 claude CLI。请安装 Claude Code 或在脚本顶部设置 CLAUDE 变量。\" >&2\n  exit 127\nfi\n\n# 预设提示词（可改成你的常用任务）\nPROMPT=\"请用中文简洁回答：Mac 上 batch rename 文件有哪些常见做法？只列 3 条。\"\n\necho \">>> 发送提示词...\"\necho \"$PROMPT\"\necho \"---\"\n\"$CLAUDE\" -p \"$PROMPT\" < /dev/null\n",
+      "variableHints": [],
+      "sortOrder": 0,
+      "executionCount": 0,
+      "createdAt": 804589200.0,
+      "updatedAt": 804589200.0,
+      "isBuiltin": false,
+      "useSystemTerminal": false
+    },
+    {
+      "id": "B1000001-0001-4001-8001-000000000002",
+      "name": "AI · 总结选中文件",
+      "scriptType": "shell",
+      "scope": {
+        "kind": "singleSelection"
+      },
+      "content": "# 解析 claude CLI 路径（GUI 应用 PATH 常不含 nvm）\nif command -v claude >/dev/null 2>&1; then\n  CLAUDE=claude\nelif [[ -x \"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\" ]]; then\n  CLAUDE=\"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\"\nelse\n  echo \"错误：未找到 claude CLI。请安装 Claude Code 或在脚本顶部设置 CLAUDE 变量。\" >&2\n  exit 127\nfi\n\nPROMPT=\"$(cat <<EOF\n请阅读并总结以下文件，用中文输出：\n- 路径：%f\n- 文件名：%n\n\n要求：\n1. 用 3-5 句话概括内容\n2. 说明文件类型/用途\n3. 如有明显问题或改进点，列 1-2 条\nEOF\n)\"\n\necho \">>> 分析文件: %n\"\n\"$CLAUDE\" -p \"$PROMPT\" < /dev/null\n",
+      "variableHints": [],
+      "sortOrder": 1,
+      "executionCount": 0,
+      "createdAt": 804589200.001,
+      "updatedAt": 804589200.001,
+      "isBuiltin": false,
+      "useSystemTerminal": false
+    },
+    {
+      "id": "B1000001-0001-4001-8001-000000000003",
+      "name": "AI · 分析当前目录",
+      "scriptType": "shell",
+      "scope": {
+        "kind": "anytime"
+      },
+      "content": "# 解析 claude CLI 路径（GUI 应用 PATH 常不含 nvm）\nif command -v claude >/dev/null 2>&1; then\n  CLAUDE=claude\nelif [[ -x \"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\" ]]; then\n  CLAUDE=\"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\"\nelse\n  echo \"错误：未找到 claude CLI。请安装 Claude Code 或在脚本顶部设置 CLAUDE 变量。\" >&2\n  exit 127\nfi\n\nPROMPT=\"$(cat <<EOF\n当前目录：%d\n目录名：%w\n\n请根据目录名和常见项目结构，给出 3 条「这个目录可能适合做什么整理/自动化」的建议。\n只输出建议列表，不要执行任何操作。\nEOF\n)\"\n\necho \">>> 分析目录: %w\"\n\"$CLAUDE\" -p \"$PROMPT\" < /dev/null\n",
+      "variableHints": [],
+      "sortOrder": 2,
+      "executionCount": 0,
+      "createdAt": 804589200.002,
+      "updatedAt": 804589200.002,
+      "isBuiltin": false,
+      "useSystemTerminal": false
+    },
+    {
+      "id": "B1000001-0001-4001-8001-000000000004",
+      "name": "AI · 交互会话（终端）",
+      "scriptType": "shell",
+      "scope": {
+        "kind": "anytime"
+      },
+      "content": "# 解析 claude CLI 路径（GUI 应用 PATH 常不含 nvm）\nif command -v claude >/dev/null 2>&1; then\n  CLAUDE=claude\nelif [[ -x \"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\" ]]; then\n  CLAUDE=\"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\"\nelse\n  echo \"错误：未找到 claude CLI。请安装 Claude Code 或在脚本顶部设置 CLAUDE 变量。\" >&2\n  exit 127\nfi\n\n# 在系统终端中启动交互式 Claude（适合多轮对话）\necho \"启动 Claude 交互会话，工作目录: %d\"\nexec \"$CLAUDE\"\n",
+      "variableHints": [],
+      "sortOrder": 3,
+      "executionCount": 0,
+      "createdAt": 804589200.003,
+      "updatedAt": 804589200.003,
+      "isBuiltin": false,
+      "useSystemTerminal": true
+    },
+    {
+      "id": "B1000001-0001-4001-8001-000000000005",
+      "name": "AI · 带文件上下文提问",
+      "scriptType": "shell",
+      "scope": {
+        "kind": "filesOnly"
+      },
+      "content": "# 解析 claude CLI 路径（GUI 应用 PATH 常不含 nvm）\nif command -v claude >/dev/null 2>&1; then\n  CLAUDE=claude\nelif [[ -x \"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\" ]]; then\n  CLAUDE=\"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\"\nelse\n  echo \"错误：未找到 claude CLI。请安装 Claude Code 或在脚本顶部设置 CLAUDE 变量。\" >&2\n  exit 127\nfi\n\nPROMPT=\"$(cat <<EOF\n我选中了 %N 个文件，当前目录是 %d。\n文件列表：\n%F\n\n请用中文回答：这些文件看起来属于什么类型的工作流？建议如何命名/归档？\nEOF\n)\"\n\necho \">>> 已选 %N 个文件\"\n\"$CLAUDE\" -p \"$PROMPT\" < /dev/null\n",
+      "variableHints": [],
+      "sortOrder": 4,
+      "executionCount": 0,
+      "createdAt": 804589200.004,
+      "updatedAt": 804589200.004,
+      "isBuiltin": false,
+      "useSystemTerminal": false
+    }
+  ]
+}
