@@ -6,6 +6,7 @@ import SwiftUI
 struct DetachedPreviewWindowView: View {
     let sessionID: PreviewSessionID
     var fitImageToScreen: Bool = false
+    var initialWindowSize: CGSize? = nil
 
     @ObservedObject private var store = PreviewSessionStore.shared
     @Environment(\.dismiss) private var dismiss
@@ -19,7 +20,8 @@ struct DetachedPreviewWindowView: View {
             if let session {
                 DetachedPreviewWindowContent(
                     session: session,
-                    fitImageToScreen: fitImageToScreen
+                    fitImageToScreen: fitImageToScreen,
+                    initialWindowSize: initialWindowSize
                 )
             } else {
                 Text(L10n.Preview.sessionClosed)
@@ -37,6 +39,7 @@ struct DetachedPreviewWindowView: View {
 private struct DetachedPreviewWindowContent: View {
     @ObservedObject var session: PreviewSession
     var fitImageToScreen: Bool
+    var initialWindowSize: CGSize?
     @Environment(\.dismiss) private var dismiss
     @AppStorage(AppPreferences.Preview.browserSameTypeOnly)
     private var previewBrowserSameTypeOnly = false
@@ -113,7 +116,11 @@ private struct DetachedPreviewWindowContent: View {
         .background(
             PreviewDetachedKeyboardMonitor(session: session, onCloseWindow: closeDetachedWindow)
         )
-        .background(DetachedPreviewWindowTracker(sessionID: session.id, fitImageToScreen: fitImageToScreen))
+        .background(DetachedPreviewWindowTracker(
+            sessionID: session.id,
+            fitImageToScreen: fitImageToScreen,
+            initialWindowSize: initialWindowSize
+        ))
         .background(
             DetachedPreviewWindowResizeMonitor(sessionID: session.id)
         )
@@ -184,16 +191,19 @@ private struct DetachedPreviewWindowTitleModifier: ViewModifier {
 private struct DetachedPreviewWindowTracker: NSViewRepresentable {
     let sessionID: PreviewSessionID
     var fitImageToScreen: Bool
+    var initialWindowSize: CGSize?
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
             if let window = view.window {
                 PreviewDetachCoordinator.shared.trackDetachedWindow(window)
-                ExternalImagePreviewOpenCenter.shared.clearSuppressExplorerWindows()
-                if fitImageToScreen {
-                    context.coordinator.beginInitialFit(window: window)
-                }
+                ExternalPreviewOpenCenter.shared.clearSuppressExplorerWindows()
+                context.coordinator.configureWindow(
+                    window,
+                    fitImageToScreen: fitImageToScreen,
+                    initialWindowSize: initialWindowSize
+                )
             }
         }
         return view
@@ -203,32 +213,79 @@ private struct DetachedPreviewWindowTracker: NSViewRepresentable {
         DispatchQueue.main.async {
             if let window = nsView.window {
                 PreviewDetachCoordinator.shared.trackDetachedWindow(window)
-                ExternalImagePreviewOpenCenter.shared.clearSuppressExplorerWindows()
-                if fitImageToScreen {
-                    context.coordinator.beginInitialFit(window: window)
-                }
+                ExternalPreviewOpenCenter.shared.clearSuppressExplorerWindows()
+                context.coordinator.configureWindow(
+                    window,
+                    fitImageToScreen: fitImageToScreen,
+                    initialWindowSize: initialWindowSize
+                )
             }
         }
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(sessionID: sessionID, fitImageToScreen: fitImageToScreen)
+        Coordinator(sessionID: sessionID)
     }
 
     @MainActor
     final class Coordinator {
         let sessionID: PreviewSessionID
-        let fitImageToScreen: Bool
+        private var didApplyInitialWindowSize = false
         private var didBeginInitialFit = false
         private var imageLoadCancellable: AnyCancellable?
+        private var fitImageToScreen = false
+        private var closeObserver: NSObjectProtocol?
 
-        init(sessionID: PreviewSessionID, fitImageToScreen: Bool) {
+        init(sessionID: PreviewSessionID) {
             self.sessionID = sessionID
+        }
+
+        deinit {
+            if let closeObserver {
+                NotificationCenter.default.removeObserver(closeObserver)
+            }
+        }
+
+        func configureWindow(
+            _ window: NSWindow,
+            fitImageToScreen: Bool,
+            initialWindowSize: CGSize?
+        ) {
             self.fitImageToScreen = fitImageToScreen
+            installCloseObserver(for: window)
+
+            if fitImageToScreen {
+                beginInitialFit(window: window)
+            } else if let initialWindowSize, !didApplyInitialWindowSize {
+                DetachedPreviewWindowSizer.applyInitialContentSize(to: window, contentSize: initialWindowSize)
+                didApplyInitialWindowSize = true
+            }
+        }
+
+        private func installCloseObserver(for window: NSWindow) {
+            if let closeObserver {
+                NotificationCenter.default.removeObserver(closeObserver)
+            }
+            closeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: window,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.persistWindowFrame(window)
+                }
+            }
+        }
+
+        private func persistWindowFrame(_ window: NSWindow) {
+            guard !fitImageToScreen else { return }
+            guard let session = PreviewSessionStore.shared.session(for: sessionID) else { return }
+            let kind = PreviewDetachedWindowContentKind.from(file: session.file)
+            PreviewDetachedWindowFrameStore.saveContentSize(window.contentLayoutRect.size, for: kind)
         }
 
         func beginInitialFit(window: NSWindow) {
-            guard fitImageToScreen, !didBeginInitialFit else { return }
+            guard !didBeginInitialFit else { return }
             guard let session = PreviewSessionStore.shared.session(for: sessionID) else { return }
 
             if let pixelSize = ImageFileDimensionsReader.pixelSize(for: session.file.url) {

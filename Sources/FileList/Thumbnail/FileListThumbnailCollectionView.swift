@@ -135,7 +135,7 @@ final class FileListThumbnailCollectionView: NSCollectionView {
         if event.clickCount >= 2 {
             interactionController?.willHandleItemMouseDown(event, indexPath: indexPath)
             interactionController?.skipNextItemMouseUp = true
-            interactionController?.openRow(at: indexPath)
+            interactionController?.openRow(at: indexPath, event: event)
             interactionController?.finishPointerInteractionIfNeeded()
             return
         }

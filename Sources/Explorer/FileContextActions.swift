@@ -3,6 +3,8 @@ import FileList
 
 struct FileContextActions {
     var open: (FileItem) -> Void = { _ in }
+    var openInDetachedPreview: (FileItem) -> Void = { _ in }
+    var canOpenInDetachedPreview: (FileItem) -> Bool = { _ in false }
     var openWith: (FileItem) -> Void = { _ in }
     var openWithApplication: ([FileItem], URL) -> Void = { _, _ in }
     var cut: ([FileItem]) -> Void = { _ in }

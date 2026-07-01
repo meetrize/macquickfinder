@@ -38,6 +38,8 @@
 	<string>好</string>
 	<key>action.open</key>
 	<string>打开</string>
+	<key>action.open_in_detached_preview</key>
+	<string>在独立预览窗口中打开</string>
 	<key>action.open_in_new_window</key>
 	<string>在新窗口中打开</string>
 	<key>action.open_terminal_here</key>
@@ -152,6 +154,14 @@
 	<string>无法写入系统偏好设置。</string>
 	<key>error.default_image_viewer.preview_not_found</key>
 	<string>未找到 Preview 应用。</string>
+	<key>error.default_preview_handler.defaults_command %lld</key>
+	<string>defaults 命令失败（代码 %lld）。</string>
+	<key>error.default_preview_handler.fallback_not_found %@</key>
+	<string>未找到系统默认应用：%@</string>
+	<key>error.default_preview_handler.launch_services %lld</key>
+	<string>Launch Services 失败（代码 %lld）。</string>
+	<key>error.default_preview_handler.preferences_sync</key>
+	<string>无法写入系统偏好设置。</string>
 	<key>error.default_viewer.defaults_command %lld</key>
 	<string>系统命令执行失败（退出码 %lld）。</string>
 	<key>error.default_viewer.finder_not_found</key>
@@ -860,6 +870,10 @@
 	<string>展开预览</string>
 	<key>preview.focus_window</key>
 	<string>聚焦窗口</string>
+	<key>preview.folder_inline.open_directory</key>
+	<string>双击进入</string>
+	<key>preview.folder_inline.preview_file</key>
+	<string>单击预览 · 双击打开 · ⌥双击独立预览</string>
 	<key>preview.image.confirm</key>
 	<string>确定</string>
 	<key>preview.image.height</key>
@@ -1114,6 +1128,12 @@
 	<string>添加规则…</string>
 	<key>settings.preview.add_rule_title</key>
 	<string>添加预览规则</string>
+	<key>settings.preview.archive_double_click</key>
+	<string>应用内双击压缩包（默认应用模式）</string>
+	<key>settings.preview.archive_double_click.extract</key>
+	<string>解压到当前目录</string>
+	<key>settings.preview.archive_double_click.preview</key>
+	<string>在独立预览窗口中打开</string>
 	<key>settings.preview.builtin_catalog</key>
 	<string>内置预览类型（只读）</string>
 	<key>settings.preview.code_line_numbers</key>
@@ -1134,6 +1154,14 @@
 	<string>独立窗口浏览条仅显示同扩展名</string>
 	<key>settings.preview.disabled</key>
 	<string>已禁用</string>
+	<key>settings.preview.double_click</key>
+	<string>应用内双击可预览文件</string>
+	<key>settings.preview.double_click.default_app</key>
+	<string>用默认应用打开</string>
+	<key>settings.preview.double_click.sidebar_preview</key>
+	<string>在侧栏预览</string>
+	<key>settings.preview.double_click.standalone_preview</key>
+	<string>在独立预览窗口中打开</string>
 	<key>settings.preview.edit_rule_title</key>
 	<string>编辑预览规则</string>
 	<key>settings.preview.enabled_toggle</key>
@@ -1148,6 +1176,42 @@
 	<string>（无扩展名）</string>
 	<key>settings.preview.extensions_field</key>
 	<string>扩展名（逗号分隔）</string>
+	<key>settings.preview.external_multi_image</key>
+	<string>外部打开多张图片</string>
+	<key>settings.preview.external_multi_image.one_window_per_file</key>
+	<string>每张图片单独窗口</string>
+	<key>settings.preview.external_multi_image.single_window_with_strip</key>
+	<string>单窗 + 胶片条</string>
+	<key>settings.preview.external_open</key>
+	<string>外部打开可预览文件</string>
+	<key>settings.preview.external_open.browser_and_select</key>
+	<string>打开浏览窗口并选中该文件</string>
+	<key>settings.preview.external_open.standalone_only</key>
+	<string>仅独立预览窗</string>
+	<key>settings.preview.handler_group.current_handler %@</key>
+	<string>当前：%@</string>
+	<key>settings.preview.handler_group.footer</key>
+	<string>开启后，Finder 双击该组文件将由 MeoFind 打开。可能需要重启 MeoFind 或重新登录后系统才会生效。</string>
+	<key>settings.preview.handler_group.image</key>
+	<string>图片</string>
+	<key>settings.preview.handler_group.image.hint</key>
+	<string>双击图片时以预览独立窗打开，并自动适应屏幕大小。</string>
+	<key>settings.preview.handler_group.media</key>
+	<string>音视频</string>
+	<key>settings.preview.handler_group.office</key>
+	<string>Office 文档</string>
+	<key>settings.preview.handler_group.pdf</key>
+	<string>PDF</string>
+	<key>settings.preview.handler_group.restart_hint</key>
+	<string>若 Finder 未立即使用新默认程序，请重启 MeoFind。</string>
+	<key>settings.preview.handler_group.restore_success %@</key>
+	<string>已恢复 %@ 的系统默认程序。</string>
+	<key>settings.preview.handler_group.set_success %@</key>
+	<string>已将 %@ 设为默认打开程序。</string>
+	<key>settings.preview.handler_group.text_and_code</key>
+	<string>文本与代码</string>
+	<key>settings.preview.handler_group.title</key>
+	<string>注册为默认打开程序</string>
 	<key>settings.preview.import.merge</key>
 	<string>合并</string>
 	<key>settings.preview.import.replace</key>
@@ -1198,6 +1262,10 @@
 	<string>以纯文本显示，并根据扩展名做语法高亮。</string>
 	<key>settings.preview.no_rules_hint</key>
 	<string>尚未添加自定义规则。选中无法预览的文件时，可直接在预览面板一键添加。</string>
+	<key>settings.preview.open_behavior</key>
+	<string>双击与外部打开</string>
+	<key>settings.preview.open_behavior.footer</key>
+	<string>⌥ 双击与 ⌘↩ 始终打开独立预览窗。外部打开在 MeoFind 被设为某类型默认程序时生效。</string>
 	<key>settings.preview.open_in_settings</key>
 	<string>在设置中自定义…</string>
 	<key>settings.preview.override_builtin</key>

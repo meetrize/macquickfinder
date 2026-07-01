@@ -30,6 +30,11 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Settings.Shortcuts.newTab, "settings.shortcut.new_tab")
         XCTAssertNotEqual(L10n.Action.compressOne("demo"), "action.compress_one demo")
         XCTAssertNotEqual(L10n.Action.extractHere, "action.extract_here")
+        XCTAssertNotEqual(L10n.Action.openInDetachedPreview, "action.open_in_detached_preview")
+        XCTAssertNotEqual(L10n.Settings.Preview.DoubleClick.defaultApp, "settings.preview.double_click.default_app")
+        XCTAssertNotEqual(L10n.Settings.Preview.ArchiveDoubleClick.extract, "settings.preview.archive_double_click.extract")
+        XCTAssertNotEqual(L10n.Settings.Preview.ExternalMultiImage.singleWindowWithStrip, "settings.preview.external_multi_image.single_window_with_strip")
+        XCTAssertNotEqual(L10n.Settings.Preview.HandlerGroup.pdf, "settings.preview.handler_group.pdf")
         XCTAssertNotEqual(L10n.Archive.jobCompress, "archive.job.compress")
         XCTAssertNotEqual(L10n.Preview.Toolbar.extract, "preview.toolbar.extract")
         XCTAssertNotEqual(L10n.Preview.Toolbar.extractSelected, "preview.toolbar.extract_selected")
@@ -115,10 +120,11 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertTrue(L10n.Error.DefaultViewer.launchServices(-50).contains("-50"))
     }
 
-    func testDefaultImageViewerStringsResolve() {
-        XCTAssertNotEqual(L10n.Settings.DefaultImageViewer.title, "settings.default_image_viewer.title")
-        XCTAssertNotEqual(L10n.Settings.DefaultImageViewer.setSuccess, "settings.default_image_viewer.set_success")
-        XCTAssertNotEqual(L10n.Settings.DefaultImageViewer.footer, "settings.default_image_viewer.footer")
+    func testPreviewHandlerGroupImageHintResolves() {
+        XCTAssertNotEqual(
+            L10n.Settings.Preview.HandlerGroup.imageHint,
+            "settings.preview.handler_group.image.hint"
+        )
     }
 
     func testWordDocumentPreviewToolbarStringsResolve() {

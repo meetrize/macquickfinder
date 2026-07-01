@@ -245,16 +245,22 @@ extension FileListThumbnailController {
             return true
         }
         
-        if event.keyCode == 36 || event.keyCode == 76 {
-            guard !event.modifierFlags.contains(.command),
-                  !event.modifierFlags.contains(.control),
-                  !event.modifierFlags.contains(.option),
-                  let collectionView
-            else { return false }
+        if event.keyCode == 36 || event.keyCode == 76, let collectionView {
             guard let indexPath = collectionView.selectionIndexPaths.sorted(by: { $0.item < $1.item }).first,
                   indexPath.item >= 0,
                   indexPath.item < displayRows.count else { return false }
-            onOpenRow?(displayRows[indexPath.item])
+            let flags = event.modifierFlags
+            if flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
+                onOpenRow?(FileListRowOpenIntent(
+                    row: displayRows[indexPath.item],
+                    openInDetachedPreview: true
+                ))
+                return true
+            }
+            guard !flags.contains(.command),
+                  !flags.contains(.control),
+                  !flags.contains(.option) else { return false }
+            onOpenRow?(FileListRowOpenIntent(row: displayRows[indexPath.item]))
             return true
         }
         

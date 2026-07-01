@@ -34,7 +34,7 @@ public class FileListContentController: NSObject {
     var lastDirectoryItemCountRevision: UInt = 0
     var pendingDirectoryItemCountRefresh = false
 
-    public var onOpenRow: ((FileListRow) -> Void)?
+    public var onOpenRow: ((FileListRowOpenIntent) -> Void)?
     public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
 
     var visiblePathsNotifyWorkItem: DispatchWorkItem?

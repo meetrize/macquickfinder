@@ -15,17 +15,3 @@ enum ImageFileDimensionsReader {
         return CGSize(width: width, height: height)
     }
 }
-
-enum ExternalImageFileClassifier {
-    static func isExternalImagePreviewCandidate(_ url: URL) -> Bool {
-        guard !url.hasDirectoryPath else { return false }
-        let ext = url.pathExtension.lowercased()
-        if BuiltinPreviewExtensions.image.contains(ext) { return true }
-        if BuiltinPreviewExtensions.quickLookImage.contains(ext) { return true }
-        return false
-    }
-
-    static func imageURLs(from urls: [URL]) -> [URL] {
-        urls.filter(isExternalImagePreviewCandidate)
-    }
-}

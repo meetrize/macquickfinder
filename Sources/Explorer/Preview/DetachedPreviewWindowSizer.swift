@@ -299,4 +299,24 @@ enum DetachedPreviewWindowSizer {
             height: topChrome + fittedImage.height.rounded(.down) + belowImageChrome
         )
     }
+
+    /// 非图片类型独立预览窗的初始内容区尺寸（居中于可见屏幕）。
+    static func applyInitialContentSize(to window: NSWindow, contentSize: CGSize) {
+        guard contentSize.width > 0, contentSize.height > 0 else { return }
+
+        let screen = window.screen ?? NSScreen.main
+        let visibleFrame = screen?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1280, height: 800)
+        let placementBounds = DetachedPreviewWindowLayoutMetrics.placementBounds(for: visibleFrame)
+
+        var fittedSize = contentSize
+        fittedSize.width = min(fittedSize.width, placementBounds.width)
+        fittedSize.height = min(fittedSize.height, max(120, placementBounds.height))
+
+        var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: fittedSize))
+        frame.origin = NSPoint(
+            x: visibleFrame.midX - frame.width / 2,
+            y: visibleFrame.midY - frame.height / 2
+        )
+        window.setFrame(frame, display: true, animate: false)
+    }
 }

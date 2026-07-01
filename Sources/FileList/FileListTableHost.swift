@@ -7,7 +7,7 @@ public struct FileListTableHost: NSViewRepresentable {
     public let interaction: FileListTableInteraction
     @Binding public var selection: Set<String>
     @ObservedObject public var preferencesStore: FileListPreferencesStore
-    public let onOpenRow: (FileListRow) -> Void
+    public let onOpenRow: (FileListRowOpenIntent) -> Void
     public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
     public var directorySizeProvider: DirectorySizeColumnProvider?
     public var useIconPreview: Bool
@@ -18,7 +18,7 @@ public struct FileListTableHost: NSViewRepresentable {
         interaction: FileListTableInteraction,
         selection: Binding<Set<String>>,
         preferencesStore: FileListPreferencesStore,
-        onOpenRow: @escaping (FileListRow) -> Void,
+        onOpenRow: @escaping (FileListRowOpenIntent) -> Void,
         onVisibleDirectoryPathsChanged: (([String]) -> Void)? = nil,
         directorySizeProvider: DirectorySizeColumnProvider? = nil,
         useIconPreview: Bool = false,

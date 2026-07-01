@@ -70,6 +70,15 @@ enum FileListRowContextMenuBuilder {
         
         if fileSelection.count == 1, let item = fileSelection.first {
             menu.addItem(menuItem(title: L10n.Action.open) { actions.open(item) })
+            if actions.canOpenInDetachedPreview(item) {
+                menu.addItem(menuItem(
+                    title: L10n.Action.openInDetachedPreview,
+                    keyEquivalent: "p",
+                    modifierMask: [.command, .option]
+                ) {
+                    actions.openInDetachedPreview(item)
+                })
+            }
             if isNavigableFolder(item) {
                 menu.addItem(menuItem(title: L10n.Action.openInNewWindow) { actions.openInNewWindow(item) })
             }
@@ -276,22 +285,38 @@ enum FileListRowContextMenuBuilder {
     private static func menuItem(
         title: String,
         destructive: Bool = false,
+        keyEquivalent: String = "",
+        modifierMask: NSEvent.ModifierFlags = [],
         action: @escaping () -> Void
     ) -> NSMenuItem {
-        let item = CallbackMenuItem(title: title, isDestructive: destructive, action: action)
-        return item
+        CallbackMenuItem(
+            title: title,
+            isDestructive: destructive,
+            keyEquivalent: keyEquivalent,
+            modifierMask: modifierMask,
+            action: action
+        )
     }
 }
 
 private final class CallbackMenuItem: NSMenuItem {
     private let callback: () -> Void
-    
-    init(title: String, isDestructive: Bool, action: @escaping () -> Void) {
+
+    init(
+        title: String,
+        isDestructive: Bool,
+        keyEquivalent: String = "",
+        modifierMask: NSEvent.ModifierFlags = [],
+        action: @escaping () -> Void
+    ) {
         callback = action
-        super.init(title: title, action: #selector(performAction), keyEquivalent: "")
+        super.init(title: title, action: #selector(performAction), keyEquivalent: keyEquivalent)
         target = self
+        if !keyEquivalent.isEmpty {
+            keyEquivalentModifierMask = modifierMask
+        }
         if isDestructive {
-            self.attributedTitle = NSAttributedString(
+            attributedTitle = NSAttributedString(
                 string: title,
                 attributes: [.foregroundColor: NSColor.systemRed]
             )

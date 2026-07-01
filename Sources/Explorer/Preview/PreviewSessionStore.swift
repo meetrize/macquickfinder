@@ -34,6 +34,15 @@ final class PreviewSessionStore: ObservableObject {
         sessions.values.first { $0.hostWindowID == hostWindowID && $0.location.isDetached }
     }
 
+    func detachedSession(forFileID fileID: FileItem.ID) -> PreviewSession? {
+        sessions.values.first { session in
+            guard session.location.isDetached else { return false }
+            if session.file.id == fileID { return true }
+            if session.browseTarget.id == fileID { return true }
+            return false
+        }
+    }
+
     func removeAll(forHostWindowID hostWindowID: UUID) {
         let ids = sessions.values.filter { $0.hostWindowID == hostWindowID }.map(\.id)
         ids.forEach { remove($0) }

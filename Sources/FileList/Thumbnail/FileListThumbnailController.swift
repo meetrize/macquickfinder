@@ -501,17 +501,24 @@ public final class FileListThumbnailController: FileListContentController {
     
     // MARK: - Actions
     
-    func openSelectedRow() {
+    func openSelectedRow(openInDetachedPreview: Bool = false) {
         guard let collectionView,
               let indexPath = collectionView.selectionIndexPaths.sorted(by: { $0.item < $1.item }).first,
               indexPath.item >= 0,
               indexPath.item < displayRows.count else { return }
-        onOpenRow?(displayRows[indexPath.item])
+        onOpenRow?(FileListRowOpenIntent(
+            row: displayRows[indexPath.item],
+            openInDetachedPreview: openInDetachedPreview
+        ))
     }
-    
-    func openRow(at indexPath: IndexPath) {
+
+    func openRow(at indexPath: IndexPath, event: NSEvent? = nil) {
         guard indexPath.item >= 0, indexPath.item < displayRows.count else { return }
-        onOpenRow?(displayRows[indexPath.item])
+        let openInDetachedPreview = event?.modifierFlags.contains(.option) ?? false
+        onOpenRow?(FileListRowOpenIntent(
+            row: displayRows[indexPath.item],
+            openInDetachedPreview: openInDetachedPreview
+        ))
     }
     
     override func visibleDirectoryPaths() -> [String] {

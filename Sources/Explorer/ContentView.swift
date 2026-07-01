@@ -46,6 +46,8 @@ struct ContentView: View {
     @StateObject private var layout = ExplorerWindowLayoutState()
     @AppStorage("blankDoubleClickAction")
     private var blankDoubleClickActionRaw = BlankDoubleClickAction.navigateToParent.rawValue
+    @AppStorage(AppPreferences.Preview.doubleClickAction)
+    private var previewDoubleClickActionRaw = PreviewDoubleClickAction.defaultValue.rawValue
     @State private var path: String
     @State private var items: [FileItem] = []
     @State private var selection: Set<FileItem.ID> = []
@@ -686,7 +688,7 @@ struct ContentView: View {
             directoryMetadataOverlay: directoryMetadataOverlay,
             panelWidth: livePreviewPanelWidth,
             onNavigate: { path = $0 },
-            onOpenItem: openItem,
+            onOpenItem: { openItem($0) },
             onOpenTerminalAtPath: { TerminalHelper.open(at: $0) }
         )
         .frame(width: livePreviewPanelWidth)
@@ -714,7 +716,9 @@ struct ContentView: View {
             preferWorkspaceIconsInThumbnail: isNetworkVolume,
             isLoading: isLoading,
             onThumbnailCellSizeChange: { layout.thumbnailCellSizeValue = $0 },
-            onItemOpen: openItem,
+            onItemOpen: { item, openInDetachedPreview in
+                openItem(item, openInDetachedPreview: openInDetachedPreview)
+            },
             onBlankDoubleClick: handleBlankDoubleClick,
             onItemsChanged: handleFileListItemsChanged,
             onScheduleVisibleDirectorySizes: scheduleVisibleDirectorySizes,
@@ -1077,12 +1081,36 @@ struct ContentView: View {
         }
     }
     
-    private func openItem(_ item: FileItem) {
+    private func openItem(_ item: FileItem, openInDetachedPreview: Bool = false) {
+        if openInDetachedPreview {
+            openItemInDetachedPreview(item)
+            return
+        }
         if item.isParentDirectoryEntry {
             navigateUp()
             return
         }
+
+        let doubleClickAction = PreviewDoubleClickAction(rawValue: previewDoubleClickActionRaw)
+            ?? .defaultValue
+
+        switch doubleClickAction {
+        case .standalonePreview:
+            openItemInDetachedPreview(item)
+        case .sidebarPreview:
+            openItemInSidebarPreview(item)
+        case .defaultApp:
+            openItemWithDefaultApp(item)
+        }
+    }
+
+    private func openItemWithDefaultApp(_ item: FileItem) {
         if ArchiveOperations.isArchive(item), !TrashLoader.isTrashPath(path) {
+            if PreviewOpenPreferences.archiveDoubleClickAction == .preview,
+               PreviewCapability.canLoadPreview(for: item) {
+                openItemInDetachedPreview(item)
+                return
+            }
             ArchiveOperations.extract(
                 archives: [item],
                 mode: .here,
@@ -1091,6 +1119,70 @@ struct ContentView: View {
             return
         }
         FileOperations.open([item]) { path = $0 }
+    }
+
+    private func openItemInSidebarPreview(_ item: FileItem) {
+        if item.isDirectory {
+            path = item.url.path
+            selection.removeAll()
+            layout.showPreview = true
+            return
+        }
+        if ArchiveOperations.isArchive(item),
+           !TrashLoader.isTrashPath(path),
+           !PreviewCapability.canLoadPreview(for: item) {
+            ArchiveOperations.extract(
+                archives: [item],
+                mode: .here,
+                navigateIntoResult: true
+            ) { _ in }
+            return
+        }
+        guard PreviewCapability.canLoadPreview(for: item) else {
+            FileOperations.open([item]) { path = $0 }
+            return
+        }
+        selection = [item.id]
+        layout.showPreview = true
+    }
+
+    private func openItemInDetachedPreview(_ item: FileItem) {
+        if item.isParentDirectoryEntry {
+            navigateUp()
+            return
+        }
+        if item.isDirectory {
+            path = item.url.path
+            return
+        }
+        if ArchiveOperations.isArchive(item),
+           !TrashLoader.isTrashPath(path),
+           !PreviewCapability.canLoadPreview(for: item) {
+            ArchiveOperations.extract(
+                archives: [item],
+                mode: .here,
+                navigateIntoResult: true
+            ) { _ in }
+            return
+        }
+        guard PreviewCapability.canLoadPreview(for: item) else {
+            FileOperations.open([item]) { path = $0 }
+            return
+        }
+        ExplorerStandalonePreviewOpener.open(
+            file: item,
+            context: ExplorerStandalonePreviewOpener.Context(
+                hostWindowID: previewHostWindowID,
+                directoryPath: path,
+                directoryItems: items,
+                sortOrder: sortOrder,
+                showHiddenFiles: showHiddenFiles,
+                showPreviewPanel: layout.showPreview,
+                selectionContainsFile: { selection.contains($0) },
+                openWindow: openWindow,
+                detachCoordinator: detachCoordinator
+            )
+        )
     }
     
     private var selectedItems: [FileItem] {
@@ -1201,6 +1293,12 @@ struct ContentView: View {
         let isNetworkVolume = DirectorySizeVolumeFilter.isNetworkVolume(path: path)
         return FileContextActions(
             open: { openItem($0) },
+            openInDetachedPreview: { openItem($0, openInDetachedPreview: true) },
+            canOpenInDetachedPreview: { item in
+                !item.isDirectory
+                    && !item.isParentDirectoryEntry
+                    && PreviewCapability.canLoadPreview(for: item)
+            },
             openWith: FileOperations.openWith,
             openWithApplication: FileOperations.openWithApplication,
             cut: FileOperations.cut,

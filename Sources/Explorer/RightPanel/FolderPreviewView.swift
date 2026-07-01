@@ -301,7 +301,7 @@ private struct FolderPreviewChildRow: View {
         }
         .onTapGesture(perform: onPreview)
         .simultaneousGesture(TapGesture(count: 2).onEnded { onOpen() })
-        .instantHoverTooltip(item.isDirectory ? "双击进入" : "单击预览 · 双击打开")
+        .instantHoverTooltip(item.isDirectory ? L10n.Preview.FolderInlineChild.openDirectory : L10n.Preview.FolderInlineChild.previewFile)
         .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 

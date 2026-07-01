@@ -9,7 +9,7 @@ public struct FileListThumbnailHost: NSViewRepresentable {
     @ObservedObject public var preferencesStore: FileListPreferencesStore
     public let cellSize: CGFloat
     public var onCellSizeChange: ((CGFloat) -> Void)?
-    public let onOpenRow: (FileListRow) -> Void
+    public let onOpenRow: (FileListRowOpenIntent) -> Void
     public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
     public var directorySizeProvider: DirectorySizeColumnProvider?
     public var directoryItemCountProvider: DirectoryItemCountColumnProvider?
@@ -23,7 +23,7 @@ public struct FileListThumbnailHost: NSViewRepresentable {
         preferencesStore: FileListPreferencesStore,
         cellSize: CGFloat,
         onCellSizeChange: ((CGFloat) -> Void)? = nil,
-        onOpenRow: @escaping (FileListRow) -> Void,
+        onOpenRow: @escaping (FileListRowOpenIntent) -> Void,
         onVisibleDirectoryPathsChanged: (([String]) -> Void)? = nil,
         directorySizeProvider: DirectorySizeColumnProvider? = nil,
         directoryItemCountProvider: DirectoryItemCountColumnProvider? = nil,

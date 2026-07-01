@@ -21,6 +21,15 @@ struct PreviewSettingsTab: View {
     private var previewBrowserSameTypeOnly = false
     @AppStorage(AppPreferences.Preview.codeShowLineNumbers)
     private var codePreviewShowLineNumbers = false
+    @AppStorage(AppPreferences.Preview.doubleClickAction)
+    private var doubleClickActionRaw = PreviewDoubleClickAction.defaultValue.rawValue
+    @AppStorage(AppPreferences.Preview.externalOpenAction)
+    private var externalOpenActionRaw = PreviewExternalOpenAction.defaultValue.rawValue
+    @AppStorage(AppPreferences.Preview.archiveDoubleClickAction)
+    private var archiveDoubleClickActionRaw = PreviewArchiveDoubleClickAction.defaultValue.rawValue
+    @AppStorage(AppPreferences.Preview.externalMultiImageOpen)
+    private var externalMultiImageOpenRaw = PreviewExternalMultiImageOpenStrategy.defaultValue.rawValue
+    @StateObject private var handlerSettings = DefaultPreviewHandlerSettingsModel()
 
     @State private var editingRule: CustomPreviewRule?
     @State private var showBuiltInCatalog = false
@@ -28,6 +37,15 @@ struct PreviewSettingsTab: View {
 
     var body: some View {
         Form {
+            PreviewOpenBehaviorSettingsSection(
+                doubleClickActionRaw: $doubleClickActionRaw,
+                externalOpenActionRaw: $externalOpenActionRaw,
+                archiveDoubleClickActionRaw: $archiveDoubleClickActionRaw,
+                externalMultiImageOpenRaw: $externalMultiImageOpenRaw
+            )
+
+            PreviewHandlerGroupsSettingsSection(model: handlerSettings)
+
             Section {
                 Toggle(L10n.Settings.Preview.detachedBrowseToggle, isOn: $previewBrowserSameTypeOnly)
             } header: {
@@ -89,6 +107,9 @@ struct PreviewSettingsTab: View {
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            handlerSettings.refresh()
+        }
         .sheet(isPresented: $showEditor, onDismiss: { prefillExtension = nil }) {
             CustomPreviewRuleEditorSheet(
                 rule: editingRule,
@@ -414,5 +435,138 @@ private struct PreviewModePopUpButtonRepresentable: NSViewRepresentable {
             onSelect(mode)
             popup?.selectItem(at: 0)
         }
+    }
+}
+
+private struct PreviewOpenBehaviorSettingsSection: View {
+    @Binding var doubleClickActionRaw: String
+    @Binding var externalOpenActionRaw: String
+    @Binding var archiveDoubleClickActionRaw: String
+    @Binding var externalMultiImageOpenRaw: String
+
+    var body: some View {
+        Section {
+            Picker(L10n.Settings.Preview.doubleClick, selection: $doubleClickActionRaw) {
+                ForEach(PreviewDoubleClickAction.allCases) { action in
+                    Text(action.displayName).tag(action.rawValue)
+                }
+            }
+            .pickerStyle(.radioGroup)
+
+            Picker(L10n.Settings.Preview.archiveDoubleClick, selection: $archiveDoubleClickActionRaw) {
+                ForEach(PreviewArchiveDoubleClickAction.allCases) { action in
+                    Text(action.displayName).tag(action.rawValue)
+                }
+            }
+            .pickerStyle(.radioGroup)
+
+            Picker(L10n.Settings.Preview.externalOpen, selection: $externalOpenActionRaw) {
+                ForEach(PreviewExternalOpenAction.allCases) { action in
+                    Text(action.displayName).tag(action.rawValue)
+                }
+            }
+            .pickerStyle(.radioGroup)
+
+            Picker(L10n.Settings.Preview.externalMultiImage, selection: $externalMultiImageOpenRaw) {
+                ForEach(PreviewExternalMultiImageOpenStrategy.allCases) { strategy in
+                    Text(strategy.displayName).tag(strategy.rawValue)
+                }
+            }
+            .pickerStyle(.radioGroup)
+        } header: {
+            Text(L10n.Settings.Preview.openBehavior)
+        } footer: {
+            Text(L10n.Settings.Preview.openBehaviorFooter)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct PreviewHandlerGroupsSettingsSection: View {
+    @ObservedObject var model: DefaultPreviewHandlerSettingsModel
+
+    var body: some View {
+        Section {
+            ForEach(PreviewHandlerGroup.allCases) { group in
+                PreviewHandlerGroupRow(group: group, model: model)
+            }
+
+            if model.showsRestartReminder {
+                Text(L10n.Settings.Preview.HandlerGroup.restartHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text(L10n.Settings.Preview.HandlerGroup.title)
+        } footer: {
+            Text(L10n.Settings.Preview.HandlerGroup.footer)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .alert(L10n.Settings.Preview.HandlerGroup.title, isPresented: alertBinding) {
+            Button(L10n.Action.ok, role: .cancel) {
+                model.alertMessage = nil
+            }
+        } message: {
+            if let alertMessage = model.alertMessage {
+                Text(alertMessage)
+            }
+        }
+    }
+
+    private var alertBinding: Binding<Bool> {
+        Binding(
+            get: { model.alertMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    model.alertMessage = nil
+                }
+            }
+        )
+    }
+}
+
+private struct PreviewHandlerGroupRow: View {
+    let group: PreviewHandlerGroup
+    @ObservedObject var model: DefaultPreviewHandlerSettingsModel
+
+    private var state: DefaultPreviewHandlerSettingsModel.GroupState? {
+        model.groupStates[group]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: binding) {
+                Text(group.displayName)
+            }
+            .disabled(model.isApplying)
+
+            if group == .image {
+                Text(L10n.Settings.Preview.HandlerGroup.imageHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let state {
+                Text(L10n.Settings.Preview.HandlerGroup.currentHandler(state.currentHandlerName))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var binding: Binding<Bool> {
+        Binding(
+            get: { state?.isDefault ?? false },
+            set: { enabled in
+                if enabled {
+                    model.setAsDefault(group)
+                } else {
+                    model.restoreSystemDefault(group)
+                }
+            }
+        )
     }
 }

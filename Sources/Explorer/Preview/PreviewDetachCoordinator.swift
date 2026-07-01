@@ -116,21 +116,29 @@ final class PreviewDetachCoordinator: ObservableObject {
         detachedWindow = nil
     }
 
-    /// 从 Finder 等外部入口直接打开图片独立预览窗。
+    /// 从 Finder 等外部入口直接打开独立预览窗。
     @discardableResult
-    func openStandaloneImagePreview(
+    func openStandalonePreview(
         file: FileItem,
         directoryPath: String,
         directoryItems: [FileItem],
-        sortSnapshot: FileListSortState? = nil
+        sortSnapshot: FileListSortState? = nil,
+        options: PreviewStandaloneOpenOptions = .externalDefault
     ) -> PreviewSessionID {
+        if let existing = PreviewSessionStore.shared.detachedSession(forFileID: file.id) {
+            focusDetachedSession(existing)
+            return existing.id
+        }
+
         let hostWindowID = UUID()
         let session = PreviewSession(hostWindowID: hostWindowID, file: file)
-        session.allowsDockBack = false
+        session.allowsDockBack = options.allowsDockBack
         session.location = .detached(windowNumber: nil)
         session.isBrowserStripExpanded = true
-        session.adaptImageToWindowOnResize = true
-        session.image.zoomScale = 1.0
+        session.adaptImageToWindowOnResize = options.fitImageToScreen
+        if options.fitImageToScreen {
+            session.image.zoomScale = 1.0
+        }
 
         let resolvedSort = sortSnapshot ?? FileListPreferencesStore.shared.preferences.sort
         if let context = PreviewBrowserContext.makeSnapshot(
@@ -145,6 +153,27 @@ final class PreviewDetachCoordinator: ObservableObject {
 
         PreviewSessionStore.shared.register(session)
         return session.id
+    }
+
+    /// 从 Finder 等外部入口直接打开图片独立预览窗。
+    @discardableResult
+    func openStandaloneImagePreview(
+        file: FileItem,
+        directoryPath: String,
+        directoryItems: [FileItem],
+        sortSnapshot: FileListSortState? = nil
+    ) -> PreviewSessionID {
+        openStandalonePreview(
+            file: file,
+            directoryPath: directoryPath,
+            directoryItems: directoryItems,
+            sortSnapshot: sortSnapshot,
+            options: PreviewStandaloneOpenPreferences.options(for: file)
+        )
+    }
+
+    func focusDetachedSession(_ session: PreviewSession) {
+        focusWindow(for: session)
     }
 
     func onHostWindowWillClose(hostWindowID: UUID) {

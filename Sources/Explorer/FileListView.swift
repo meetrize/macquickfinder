@@ -53,7 +53,7 @@ struct FileListView: View {
     let preferWorkspaceIconsInThumbnail: Bool
     let isLoading: Bool
     let onThumbnailCellSizeChange: (CGFloat) -> Void
-    let onItemOpen: (FileItem) -> Void
+    let onItemOpen: (FileItem, Bool) -> Void
     let onBlankDoubleClick: () -> Void
     let onItemsChanged: ([String]) -> Void
     let onScheduleVisibleDirectorySizes: ([String]) -> Void
@@ -202,9 +202,9 @@ struct FileListView: View {
                     set: { selection = $0 }
                 ),
                 preferencesStore: preferencesStore,
-                onOpenRow: { row in
-                    guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
-                    onItemOpen(item)
+                onOpenRow: { intent in
+                    guard let item = tableRowItems.first(where: { $0.id == intent.row.id }) else { return }
+                    onItemOpen(item, intent.openInDetachedPreview)
                 },
                 onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
                 directorySizeProvider: sizeProvider,
@@ -234,9 +234,9 @@ struct FileListView: View {
                 preferencesStore: preferencesStore,
                 cellSize: thumbnailCellSize,
                 onCellSizeChange: onThumbnailCellSizeChange,
-                onOpenRow: { row in
-                    guard let item = tableRowItems.first(where: { $0.id == row.id }) else { return }
-                    onItemOpen(item)
+                onOpenRow: { intent in
+                    guard let item = tableRowItems.first(where: { $0.id == intent.row.id }) else { return }
+                    onItemOpen(item, intent.openInDetachedPreview)
                 },
                 onVisibleDirectoryPathsChanged: { paths in
                     onScheduleVisibleDirectorySizes(paths)

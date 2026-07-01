@@ -33,6 +33,7 @@ enum L10n {
     enum Action {
         static var open: String { ModuleLocalization.localized("action.open", bundle: .module) }
         static var openInNewWindow: String { ModuleLocalization.localized("action.open_in_new_window", bundle: .module) }
+        static var openInDetachedPreview: String { ModuleLocalization.localized("action.open_in_detached_preview", bundle: .module) }
         static var openWith: String { ModuleLocalization.localized("action.open_with", bundle: .module) }
         static var openWithNone: String { ModuleLocalization.localized("action.open_with_none", bundle: .module) }
         static var openWithOther: String { ModuleLocalization.localized("action.open_with_other", bundle: .module) }
@@ -173,17 +174,6 @@ enum L10n {
             static var restoreSuccess: String { ModuleLocalization.localized("settings.default_viewer.restore_success", bundle: .module) }
         }
 
-        enum DefaultImageViewer {
-            static var title: String { ModuleLocalization.localized("settings.default_image_viewer.title", bundle: .module) }
-            static var current: String { ModuleLocalization.localized("settings.default_image_viewer.current", bundle: .module) }
-            static var set: String { ModuleLocalization.localized("settings.default_image_viewer.set", bundle: .module) }
-            static var restorePreview: String { ModuleLocalization.localized("settings.default_image_viewer.restore_preview", bundle: .module) }
-            static var restartHint: String { ModuleLocalization.localized("settings.default_image_viewer.restart_hint", bundle: .module) }
-            static var setSuccess: String { ModuleLocalization.localized("settings.default_image_viewer.set_success", bundle: .module) }
-            static var restoreSuccess: String { ModuleLocalization.localized("settings.default_image_viewer.restore_success", bundle: .module) }
-            static var footer: String { ModuleLocalization.localized("settings.default_image_viewer.footer", bundle: .module) }
-        }
-
         enum Snippets {
             static var displayMode: String { ModuleLocalization.localized("settings.snippets.display_mode", bundle: .module) }
             static var displayStandard: String { ModuleLocalization.localized("settings.snippets.display.standard", bundle: .module) }
@@ -242,6 +232,57 @@ enum L10n {
             static var previewQuickLook: String { ModuleLocalization.localized("settings.preview.preview_quicklook", bundle: .module) }
             static var openInSettings: String { ModuleLocalization.localized("settings.preview.open_in_settings", bundle: .module) }
             static var customize: String { ModuleLocalization.localized("settings.preview.customize", bundle: .module) }
+            static var openBehavior: String { ModuleLocalization.localized("settings.preview.open_behavior", bundle: .module) }
+            static var openBehaviorFooter: String { ModuleLocalization.localized("settings.preview.open_behavior.footer", bundle: .module) }
+            static var doubleClick: String { ModuleLocalization.localized("settings.preview.double_click", bundle: .module) }
+            static var archiveDoubleClick: String { ModuleLocalization.localized("settings.preview.archive_double_click", bundle: .module) }
+            static var externalOpen: String { ModuleLocalization.localized("settings.preview.external_open", bundle: .module) }
+            static var externalMultiImage: String { ModuleLocalization.localized("settings.preview.external_multi_image", bundle: .module) }
+
+            enum DoubleClick {
+                static var defaultApp: String { ModuleLocalization.localized("settings.preview.double_click.default_app", bundle: .module) }
+                static var standalonePreview: String { ModuleLocalization.localized("settings.preview.double_click.standalone_preview", bundle: .module) }
+                static var sidebarPreview: String { ModuleLocalization.localized("settings.preview.double_click.sidebar_preview", bundle: .module) }
+            }
+
+            enum ArchiveDoubleClick {
+                static var extract: String { ModuleLocalization.localized("settings.preview.archive_double_click.extract", bundle: .module) }
+                static var preview: String { ModuleLocalization.localized("settings.preview.archive_double_click.preview", bundle: .module) }
+            }
+
+            enum ExternalOpen {
+                static var standaloneOnly: String { ModuleLocalization.localized("settings.preview.external_open.standalone_only", bundle: .module) }
+                static var browserAndSelect: String { ModuleLocalization.localized("settings.preview.external_open.browser_and_select", bundle: .module) }
+            }
+
+            enum ExternalMultiImage {
+                static var singleWindowWithStrip: String { ModuleLocalization.localized("settings.preview.external_multi_image.single_window_with_strip", bundle: .module) }
+                static var oneWindowPerFile: String { ModuleLocalization.localized("settings.preview.external_multi_image.one_window_per_file", bundle: .module) }
+            }
+
+            enum HandlerGroup {
+                static var title: String { ModuleLocalization.localized("settings.preview.handler_group.title", bundle: .module) }
+                static var footer: String { ModuleLocalization.localized("settings.preview.handler_group.footer", bundle: .module) }
+                static var restartHint: String { ModuleLocalization.localized("settings.preview.handler_group.restart_hint", bundle: .module) }
+                static var image: String { ModuleLocalization.localized("settings.preview.handler_group.image", bundle: .module) }
+                static var imageHint: String { ModuleLocalization.localized("settings.preview.handler_group.image.hint", bundle: .module) }
+                static var pdf: String { ModuleLocalization.localized("settings.preview.handler_group.pdf", bundle: .module) }
+                static var textAndCode: String { ModuleLocalization.localized("settings.preview.handler_group.text_and_code", bundle: .module) }
+                static var media: String { ModuleLocalization.localized("settings.preview.handler_group.media", bundle: .module) }
+                static var office: String { ModuleLocalization.localized("settings.preview.handler_group.office", bundle: .module) }
+
+                static func currentHandler(_ name: String) -> String {
+                    ModuleLocalization.localized("settings.preview.handler_group.current_handler \(name)", bundle: .module)
+                }
+
+                static func setSuccess(_ groupName: String) -> String {
+                    ModuleLocalization.localized("settings.preview.handler_group.set_success \(groupName)", bundle: .module)
+                }
+
+                static func restoreSuccess(_ groupName: String) -> String {
+                    ModuleLocalization.localized("settings.preview.handler_group.restore_success \(groupName)", bundle: .module)
+                }
+            }
 
             enum Mode {
                 static var text: String { ModuleLocalization.localized("settings.preview.mode.text", bundle: .module) }
@@ -508,6 +549,15 @@ enum L10n {
         static var saveFailedTitle: String { ModuleLocalization.localized("preview.save_failed_title", bundle: .module) }
         static var archiveTruncated: String { ModuleLocalization.localized("preview.archive_truncated", bundle: .module) }
 
+        enum FolderInlineChild {
+            static var openDirectory: String {
+                ModuleLocalization.localized("preview.folder_inline.open_directory", bundle: .module)
+            }
+            static var previewFile: String {
+                ModuleLocalization.localized("preview.folder_inline.preview_file", bundle: .module)
+            }
+        }
+
         enum Archive {
             static var loadingMore: String {
                 ModuleLocalization.localized("preview.archive.loading_more", bundle: .module)
@@ -764,20 +814,23 @@ enum L10n {
             }
         }
 
-        enum DefaultImageViewer {
-            static var preferencesSync: String { ModuleLocalization.localized("error.default_image_viewer.preferences_sync", bundle: .module) }
-            static var previewNotFound: String { ModuleLocalization.localized("error.default_image_viewer.preview_not_found", bundle: .module) }
+        enum DefaultPreviewHandler {
+            static var preferencesSync: String { ModuleLocalization.localized("error.default_preview_handler.preferences_sync", bundle: .module) }
 
             static func defaultsCommand(_ code: Int32) -> String {
                 String(
-                    format: ModuleLocalization.localizedFromTable("error.default_image_viewer.defaults_command %lld", bundle: .module),
+                    format: ModuleLocalization.localizedFromTable("error.default_preview_handler.defaults_command %lld", bundle: .module),
                     Int64(code)
                 )
             }
 
+            static func fallbackNotFound(_ bundleID: String) -> String {
+                ModuleLocalization.localized("error.default_preview_handler.fallback_not_found \(bundleID)", bundle: .module)
+            }
+
             static func launchServices(_ status: OSStatus) -> String {
                 String(
-                    format: ModuleLocalization.localizedFromTable("error.default_image_viewer.launch_services %lld", bundle: .module),
+                    format: ModuleLocalization.localizedFromTable("error.default_preview_handler.launch_services %lld", bundle: .module),
                     Int64(status)
                 )
             }

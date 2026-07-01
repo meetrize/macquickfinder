@@ -229,17 +229,19 @@ extension FileListTableController {
 
     func handleKeyDown(_ event: NSEvent) -> Bool {
         if isRenaming { return false }
-        
-        // Return / Enter: 打开当前高亮行（与双击行为一致）。
-        if event.keyCode == 36 || event.keyCode == 76 {
-            guard !event.modifierFlags.contains(.command),
-                  !event.modifierFlags.contains(.control),
-                  !event.modifierFlags.contains(.option),
-                  let tableView
-            else { return false }
+
+        if event.keyCode == 36 || event.keyCode == 76, let tableView {
             let row = tableView.selectedRow
             guard row >= 0, row < displayRows.count else { return false }
-            onOpenRow?(displayRows[row])
+            let flags = event.modifierFlags
+            if flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
+                onOpenRow?(FileListRowOpenIntent(row: displayRows[row], openInDetachedPreview: true))
+                return true
+            }
+            guard !flags.contains(.command),
+                  !flags.contains(.control),
+                  !flags.contains(.option) else { return false }
+            onOpenRow?(FileListRowOpenIntent(row: displayRows[row]))
             return true
         }
         

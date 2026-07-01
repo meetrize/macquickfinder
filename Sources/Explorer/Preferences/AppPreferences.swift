@@ -47,6 +47,10 @@ enum AppPreferences {
         static let customRules = "preview.customRules"
         static let browserSameTypeOnly = "previewBrowser.sameTypeOnly"
         static let codeShowLineNumbers = "preview.codeShowLineNumbers"
+        static let doubleClickAction = "preview.doubleClickAction"
+        static let externalOpenAction = "preview.externalOpenAction"
+        static let archiveDoubleClickAction = "preview.archiveDoubleClickAction"
+        static let externalMultiImageOpen = "preview.externalMultiImageOpen"
     }
 
     /// 目录元数据。

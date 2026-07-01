@@ -38,6 +38,8 @@
 	<string>OK</string>
 	<key>action.open</key>
 	<string>Open</string>
+	<key>action.open_in_detached_preview</key>
+	<string>Open in Detached Preview Window</string>
 	<key>action.open_in_new_window</key>
 	<string>Open in New Window</string>
 	<key>action.open_terminal_here</key>
@@ -152,6 +154,14 @@
 	<string>Unable to write system preferences.</string>
 	<key>error.default_image_viewer.preview_not_found</key>
 	<string>Preview.app was not found on this Mac.</string>
+	<key>error.default_preview_handler.defaults_command %lld</key>
+	<string>defaults command failed (code %lld).</string>
+	<key>error.default_preview_handler.fallback_not_found %@</key>
+	<string>Fallback app not found: %@</string>
+	<key>error.default_preview_handler.launch_services %lld</key>
+	<string>Launch Services failed (code %lld).</string>
+	<key>error.default_preview_handler.preferences_sync</key>
+	<string>Unable to write system preferences.</string>
 	<key>error.default_viewer.defaults_command %lld</key>
 	<string>System command failed (exit code %lld).</string>
 	<key>error.default_viewer.finder_not_found</key>
@@ -860,6 +870,10 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Expand Preview</string>
 	<key>preview.focus_window</key>
 	<string>Focus Window</string>
+	<key>preview.folder_inline.open_directory</key>
+	<string>Double-click to open</string>
+	<key>preview.folder_inline.preview_file</key>
+	<string>Click to preview · Double-click to open · Option-double-click for detached preview</string>
 	<key>preview.image.confirm</key>
 	<string>OK</string>
 	<key>preview.image.height</key>
@@ -1114,6 +1128,12 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Add Rule…</string>
 	<key>settings.preview.add_rule_title</key>
 	<string>Add Preview Rule</string>
+	<key>settings.preview.archive_double_click</key>
+	<string>Double-click archives (default app mode)</string>
+	<key>settings.preview.archive_double_click.extract</key>
+	<string>Extract here</string>
+	<key>settings.preview.archive_double_click.preview</key>
+	<string>Open in detached preview</string>
 	<key>settings.preview.builtin_catalog</key>
 	<string>Built-in Preview Types (Read-only)</string>
 	<key>settings.preview.code_line_numbers</key>
@@ -1134,6 +1154,14 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Show only same extension in detached browser strip</string>
 	<key>settings.preview.disabled</key>
 	<string>Disabled</string>
+	<key>settings.preview.double_click</key>
+	<string>Double-click previewable files</string>
+	<key>settings.preview.double_click.default_app</key>
+	<string>Open with default app</string>
+	<key>settings.preview.double_click.sidebar_preview</key>
+	<string>Preview in sidebar</string>
+	<key>settings.preview.double_click.standalone_preview</key>
+	<string>Open in detached preview window</string>
 	<key>settings.preview.edit_rule_title</key>
 	<string>Edit Preview Rule</string>
 	<key>settings.preview.enabled_toggle</key>
@@ -1148,6 +1176,42 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>(no extension)</string>
 	<key>settings.preview.extensions_field</key>
 	<string>Extensions (comma-separated)</string>
+	<key>settings.preview.external_multi_image</key>
+	<string>External open for multiple images</string>
+	<key>settings.preview.external_multi_image.one_window_per_file</key>
+	<string>One window per image</string>
+	<key>settings.preview.external_multi_image.single_window_with_strip</key>
+	<string>Single window with filmstrip</string>
+	<key>settings.preview.external_open</key>
+	<string>External open for previewable files</string>
+	<key>settings.preview.external_open.browser_and_select</key>
+	<string>Open browser window and select file</string>
+	<key>settings.preview.external_open.standalone_only</key>
+	<string>Detached preview window only</string>
+	<key>settings.preview.handler_group.current_handler %@</key>
+	<string>Current: %@</string>
+	<key>settings.preview.handler_group.footer</key>
+	<string>When enabled, Finder double-click opens MeoFind for that file group. You may need to restart MeoFind or log out for macOS to apply changes.</string>
+	<key>settings.preview.handler_group.image</key>
+	<string>Images</string>
+	<key>settings.preview.handler_group.image.hint</key>
+	<string>Opens images in the detached preview window, sized to fit the screen.</string>
+	<key>settings.preview.handler_group.media</key>
+	<string>Audio &amp; video</string>
+	<key>settings.preview.handler_group.office</key>
+	<string>Office documents</string>
+	<key>settings.preview.handler_group.pdf</key>
+	<string>PDF</string>
+	<key>settings.preview.handler_group.restart_hint</key>
+	<string>Restart MeoFind if Finder does not use the new default immediately.</string>
+	<key>settings.preview.handler_group.restore_success %@</key>
+	<string>Restored system default for %@.</string>
+	<key>settings.preview.handler_group.set_success %@</key>
+	<string>%@ registered as default.</string>
+	<key>settings.preview.handler_group.text_and_code</key>
+	<string>Text &amp; code</string>
+	<key>settings.preview.handler_group.title</key>
+	<string>Register as default app</string>
 	<key>settings.preview.import.merge</key>
 	<string>Merge</string>
 	<key>settings.preview.import.replace</key>
@@ -1198,6 +1262,10 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Display as plain text with syntax highlighting by extension.</string>
 	<key>settings.preview.no_rules_hint</key>
 	<string>No custom rules yet. Select an unpreviewable file to add one from the preview panel.</string>
+	<key>settings.preview.open_behavior</key>
+	<string>Double-click &amp; External Open</string>
+	<key>settings.preview.open_behavior.footer</key>
+	<string>Option-double-click and ⌘Return always open a detached preview window. External open applies when MeoFind is the default app for a file type.</string>
 	<key>settings.preview.open_in_settings</key>
 	<string>Customize in Settings…</string>
 	<key>settings.preview.override_builtin</key>

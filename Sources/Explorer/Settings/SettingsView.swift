@@ -85,8 +85,7 @@ private struct GeneralSettingsTab: View {
     @AppStorage(AppPreferences.FileList.rowHoverHighlight)
     private var rowHoverHighlight = true
     @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
-    @StateObject private var defaultImageViewerSettings = DefaultImageViewerSettingsModel()
-    
+
     var body: some View {
         Form {
             Section {
@@ -116,13 +115,11 @@ private struct GeneralSettingsTab: View {
             }
 
             DefaultFileViewerSettingsSection(model: defaultFileViewerSettings)
-            DefaultImageViewerSettingsSection(model: defaultImageViewerSettings)
         }
         .formStyle(.grouped)
         .padding()
         .onAppear {
             defaultFileViewerSettings.refresh()
-            defaultImageViewerSettings.refresh()
         }
     }
 }
@@ -163,68 +160,6 @@ private struct DefaultFileViewerSettingsSection: View {
             Text(L10n.Settings.DefaultViewer.title)
         }
         .alert(L10n.Settings.DefaultViewer.title, isPresented: alertBinding) {
-            Button(L10n.Action.ok, role: .cancel) {
-                model.alertMessage = nil
-            }
-        } message: {
-            if let alertMessage = model.alertMessage {
-                Text(alertMessage)
-            }
-        }
-    }
-
-    private var alertBinding: Binding<Bool> {
-        Binding(
-            get: { model.alertMessage != nil },
-            set: { isPresented in
-                if !isPresented {
-                    model.alertMessage = nil
-                }
-            }
-        )
-    }
-}
-
-private struct DefaultImageViewerSettingsSection: View {
-    @ObservedObject var model: DefaultImageViewerSettingsModel
-
-    var body: some View {
-        Section {
-            LabeledContent(L10n.Settings.DefaultImageViewer.current) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(model.isDefault ? Color.green : Color.secondary.opacity(0.5))
-                        .frame(width: 8, height: 8)
-                    Text(model.currentHandlerName)
-                }
-            }
-
-            HStack {
-                Button(L10n.Settings.DefaultImageViewer.set) {
-                    model.setAsDefault()
-                }
-                .disabled(model.isDefault || model.isApplying)
-
-                Button(L10n.Settings.DefaultImageViewer.restorePreview) {
-                    model.restorePreview()
-                }
-                .disabled(model.isPreviewDefault || model.isApplying)
-            }
-
-            if model.showsRestartReminder {
-                Text(L10n.Settings.DefaultImageViewer.restartHint)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-        } header: {
-            Text(L10n.Settings.DefaultImageViewer.title)
-        } footer: {
-            Text(L10n.Settings.DefaultImageViewer.footer)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .alert(L10n.Settings.DefaultImageViewer.title, isPresented: alertBinding) {
             Button(L10n.Action.ok, role: .cancel) {
                 model.alertMessage = nil
             }

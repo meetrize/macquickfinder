@@ -4,7 +4,7 @@ import SwiftUI
 enum FileListContentHostSupport {
     static func wireCallbacks<C: FileListContentController>(
         _ controller: C,
-        onOpenRow: @escaping (FileListRow) -> Void,
+        onOpenRow: @escaping (FileListRowOpenIntent) -> Void,
         onVisibleDirectoryPathsChanged: (([String]) -> Void)?
     ) {
         controller.onOpenRow = onOpenRow

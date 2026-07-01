@@ -328,7 +328,11 @@ public final class FileListTableController: FileListContentController {
     @objc func handleDoubleClick(_ sender: NSTableView) {
         let row = sender.clickedRow
         guard row >= 0, row < displayRows.count else { return }
-        onOpenRow?(displayRows[row])
+        let openInDetachedPreview = NSEvent.modifierFlags.contains(.option)
+        onOpenRow?(FileListRowOpenIntent(
+            row: displayRows[row],
+            openInDetachedPreview: openInDetachedPreview
+        ))
     }
 
     // MARK: - Selection

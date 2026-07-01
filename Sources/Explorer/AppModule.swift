@@ -575,7 +575,8 @@ struct ExplorerApp: App {
                 if let value {
                     DetachedPreviewWindowView(
                         sessionID: value.sessionID,
-                        fitImageToScreen: value.fitImageToScreen
+                        fitImageToScreen: value.fitImageToScreen,
+                        initialWindowSize: value.initialWindowSize
                     )
                 } else {
                     EmptyView()
@@ -790,7 +791,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         ModuleLocalization.applyAppleLanguagesOverride()
         DefaultFileViewerManager.registerWithLaunchServicesIfNeeded()
-        DefaultImageViewerManager.registerWithLaunchServicesIfNeeded()
+        DefaultPreviewHandlerManager.registerWithLaunchServicesIfNeeded()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -810,7 +811,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func application(_ application: NSApplication, open urls: [URL]) {
-        if ExternalImagePreviewOpenCenter.shared.tryOpen(urls: urls) {
+        if ExternalPreviewOpenCenter.shared.tryOpen(urls: urls) {
             return
         }
         ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
@@ -819,7 +820,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
         let urls = filenames.map { URL(fileURLWithPath: $0) }
-        if ExternalImagePreviewOpenCenter.shared.tryOpen(urls: urls) {
+        if ExternalPreviewOpenCenter.shared.tryOpen(urls: urls) {
             sender.reply(toOpenOrPrint: .success)
             return
         }
@@ -830,7 +831,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
         let urls = [URL(fileURLWithPath: filename)]
-        if ExternalImagePreviewOpenCenter.shared.tryOpen(urls: urls) {
+        if ExternalPreviewOpenCenter.shared.tryOpen(urls: urls) {
             return true
         }
         ExternalFolderOpenCenter.shared.requestOpen(urls: urls)

@@ -23,7 +23,7 @@ struct ExternalFolderOpenBridge: View {
                     openWindow(id: ExplorerWindowScene.preview, value: value)
                 }
                 ExplorerWindowOpenBridge.shared.openPreviewWindow = openPreview
-                ExternalImagePreviewOpenCenter.shared.setOpenPreviewWindowHandler(openPreview)
+                ExternalPreviewOpenCenter.shared.setOpenPreviewWindowHandler(openPreview)
             }
     }
 }

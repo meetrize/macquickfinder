@@ -324,6 +324,23 @@
         }
       }
     },
+    "action.open_in_detached_preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Detached Preview Window"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在独立预览窗口中打开"
+          }
+        }
+      }
+    },
     "action.open_terminal_here": {
       "extractionState": "manual",
       "localizations": {
@@ -1342,6 +1359,34 @@
             "value": "无法写入系统偏好设置。"
           }
         }
+      }
+    },
+    "error.default_preview_handler.preferences_sync": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unable to write system preferences." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法写入系统偏好设置。" } }
+      }
+    },
+    "error.default_preview_handler.defaults_command %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "defaults command failed (code %lld)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "defaults 命令失败（代码 %lld）。" } }
+      }
+    },
+    "error.default_preview_handler.fallback_not_found %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fallback app not found: %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未找到系统默认应用：%@" } }
+      }
+    },
+    "error.default_preview_handler.launch_services %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Launch Services failed (code %lld)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Launch Services 失败（代码 %lld）。" } }
       }
     },
     "error.directory_not_found": {
@@ -3091,6 +3136,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "聚焦窗口"
+          }
+        }
+      }
+    },
+    "preview.folder_inline.open_directory": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double-click to open"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "双击进入"
+          }
+        }
+      }
+    },
+    "preview.folder_inline.preview_file": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to preview · Double-click to open · Option-double-click for detached preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单击预览 · 双击打开 · ⌥双击独立预览"
           }
         }
       }
@@ -5320,6 +5399,205 @@
             "value": "自定义文件类型"
           }
         }
+      }
+    },
+    "settings.preview.open_behavior": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Double-click & External Open" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "双击与外部打开" } }
+      }
+    },
+    "settings.preview.open_behavior.footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Option-double-click and ⌘Return always open a detached preview window. External open applies when MeoFind is the default app for a file type." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "⌥ 双击与 ⌘↩ 始终打开独立预览窗。外部打开在 MeoFind 被设为某类型默认程序时生效。" } }
+      }
+    },
+    "settings.preview.double_click": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Double-click previewable files" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "应用内双击可预览文件" } }
+      }
+    },
+    "settings.preview.double_click.default_app": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Open with default app" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "用默认应用打开" } }
+      }
+    },
+    "settings.preview.double_click.standalone_preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Open in detached preview window" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在独立预览窗口中打开" } }
+      }
+    },
+    "settings.preview.double_click.sidebar_preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Preview in sidebar" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在侧栏预览" } }
+      }
+    },
+    "settings.preview.archive_double_click": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Double-click archives (default app mode)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "应用内双击压缩包（默认应用模式）" } }
+      }
+    },
+    "settings.preview.archive_double_click.extract": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Extract here" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "解压到当前目录" } }
+      }
+    },
+    "settings.preview.archive_double_click.preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Open in detached preview" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在独立预览窗口中打开" } }
+      }
+    },
+    "settings.preview.external_open": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "External open for previewable files" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "外部打开可预览文件" } }
+      }
+    },
+    "settings.preview.external_open.standalone_only": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Detached preview window only" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅独立预览窗" } }
+      }
+    },
+    "settings.preview.external_open.browser_and_select": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Open browser window and select file" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "打开浏览窗口并选中该文件" } }
+      }
+    },
+    "settings.preview.external_multi_image": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "External open for multiple images" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "外部打开多张图片" } }
+      }
+    },
+    "settings.preview.external_multi_image.single_window_with_strip": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Single window with filmstrip" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "单窗 + 胶片条" } }
+      }
+    },
+    "settings.preview.external_multi_image.one_window_per_file": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "One window per image" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "每张图片单独窗口" } }
+      }
+    },
+    "settings.preview.handler_group.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Register as default app" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "注册为默认打开程序" } }
+      }
+    },
+    "settings.preview.handler_group.footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "When enabled, Finder double-click opens MeoFind for that file group. You may need to restart MeoFind or log out for macOS to apply changes." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "开启后，Finder 双击该组文件将由 MeoFind 打开。可能需要重启 MeoFind 或重新登录后系统才会生效。" } }
+      }
+    },
+    "settings.preview.handler_group.restart_hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restart MeoFind if Finder does not use the new default immediately." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "若 Finder 未立即使用新默认程序，请重启 MeoFind。" } }
+      }
+    },
+    "settings.preview.handler_group.image": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Images" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "图片" } }
+      }
+    },
+    "settings.preview.handler_group.image.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens images in the detached preview window, sized to fit the screen."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "双击图片时以预览独立窗打开，并自动适应屏幕大小。"
+          }
+        }
+      }
+    },
+    "settings.preview.handler_group.pdf": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "PDF" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "PDF" } }
+      }
+    },
+    "settings.preview.handler_group.text_and_code": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Text & code" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "文本与代码" } }
+      }
+    },
+    "settings.preview.handler_group.media": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Audio & video" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "音视频" } }
+      }
+    },
+    "settings.preview.handler_group.office": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Office documents" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Office 文档" } }
+      }
+    },
+    "settings.preview.handler_group.current_handler %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Current: %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前：%@" } }
+      }
+    },
+    "settings.preview.handler_group.set_success %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%@ registered as default." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已将 %@ 设为默认打开程序。" } }
+      }
+    },
+    "settings.preview.handler_group.restore_success %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restored system default for %@." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已恢复 %@ 的系统默认程序。" } }
       }
     },
     "settings.preview.detached_browse": {
