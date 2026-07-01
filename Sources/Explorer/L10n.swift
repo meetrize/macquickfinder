@@ -480,6 +480,54 @@ enum L10n {
         static var variablesFooter: String {
             ModuleLocalization.localized("operation_recording.variables_footer", bundle: .module)
         }
+        static var testScript: String {
+            ModuleLocalization.localized("operation_recording.test_script", bundle: .module)
+        }
+
+        enum Validation {
+            static var passed: String { ModuleLocalization.localized("operation_recording.validation.passed", bundle: .module) }
+            static var emptyScript: String { ModuleLocalization.localized("operation_recording.validation.empty", bundle: .module) }
+            static var invalidShell: String { ModuleLocalization.localized("operation_recording.validation.invalid_shell", bundle: .module) }
+
+            static func unsupportedVariable(_ token: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("operation_recording.validation.unsupported_variable", bundle: .module),
+                    token
+                )
+            }
+
+            static func variableExpansion(_ message: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("operation_recording.validation.variable_expansion", bundle: .module),
+                    message
+                )
+            }
+
+            static func shellSyntax(_ message: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("operation_recording.validation.shell_syntax", bundle: .module),
+                    message
+                )
+            }
+        }
+
+        enum Security {
+            static var rmRf: String { ModuleLocalization.localized("operation_recording.security.rm_rf", bundle: .module) }
+            static var rmR: String { ModuleLocalization.localized("operation_recording.security.rm_r", bundle: .module) }
+            static var rm: String { ModuleLocalization.localized("operation_recording.security.rm", bundle: .module) }
+            static var mv: String { ModuleLocalization.localized("operation_recording.security.mv", bundle: .module) }
+            static var mkfs: String { ModuleLocalization.localized("operation_recording.security.mkfs", bundle: .module) }
+            static var dd: String { ModuleLocalization.localized("operation_recording.security.dd", bundle: .module) }
+            static var sudo: String { ModuleLocalization.localized("operation_recording.security.sudo", bundle: .module) }
+            static var eval: String { ModuleLocalization.localized("operation_recording.security.eval", bundle: .module) }
+            static var chmod777: String { ModuleLocalization.localized("operation_recording.security.chmod_777", bundle: .module) }
+            static var chmod777Recursive: String {
+                ModuleLocalization.localized("operation_recording.security.chmod_777_recursive", bundle: .module)
+            }
+            static var writeDev: String { ModuleLocalization.localized("operation_recording.security.write_dev", bundle: .module) }
+            static var curlPipe: String { ModuleLocalization.localized("operation_recording.security.curl_pipe", bundle: .module) }
+            static var wgetPipe: String { ModuleLocalization.localized("operation_recording.security.wget_pipe", bundle: .module) }
+        }
 
         static func scopeSuggestion(_ scopeLabel: String) -> String {
             String(

@@ -848,6 +848,32 @@
 	<string>Suggested scope: %@</string>
 	<key>operation_recording.script_copied</key>
 	<string>Shell script copied (%lld steps)</string>
+	<key>operation_recording.security.chmod_777</key>
+	<string>Contains permissive permissions (chmod 777).</string>
+	<key>operation_recording.security.chmod_777_recursive</key>
+	<string>Contains recursive permissive permissions (chmod -R 777).</string>
+	<key>operation_recording.security.curl_pipe</key>
+	<string>Pipes curl output into another command, which can execute remote code.</string>
+	<key>operation_recording.security.dd</key>
+	<string>Contains low-level disk write (dd).</string>
+	<key>operation_recording.security.eval</key>
+	<string>Contains dynamic evaluation (eval).</string>
+	<key>operation_recording.security.mkfs</key>
+	<string>Contains filesystem formatting (mkfs).</string>
+	<key>operation_recording.security.mv</key>
+	<string>Contains move/rename commands (mv), which can overwrite files.</string>
+	<key>operation_recording.security.rm</key>
+	<string>Contains delete commands (rm).</string>
+	<key>operation_recording.security.rm_r</key>
+	<string>Contains recursive delete (rm -r).</string>
+	<key>operation_recording.security.rm_rf</key>
+	<string>Contains recursive delete (rm -rf), which may permanently remove files.</string>
+	<key>operation_recording.security.sudo</key>
+	<string>Contains elevated privileges (sudo).</string>
+	<key>operation_recording.security.wget_pipe</key>
+	<string>Pipes wget output into another command, which can execute remote code.</string>
+	<key>operation_recording.security.write_dev</key>
+	<string>Writes directly to a device node under /dev/.</string>
 	<key>operation_recording.short.clipboard</key>
 	<string>Clipboard</string>
 	<key>operation_recording.short.compress</key>
@@ -894,8 +920,22 @@
 	<string>Rename to %@</string>
 	<key>operation_recording.step.trash</key>
 	<string>Move %lld item(s) to Trash</string>
+	<key>operation_recording.test_script</key>
+	<string>Test</string>
 	<key>operation_recording.trash_warning</key>
 	<string>Recorded in Trash: generated scripts may not replay correctly outside Trash.</string>
+	<key>operation_recording.validation.empty</key>
+	<string>Script is empty.</string>
+	<key>operation_recording.validation.invalid_shell</key>
+	<string>Shell syntax check failed.</string>
+	<key>operation_recording.validation.passed</key>
+	<string>Script syntax and variables look good.</string>
+	<key>operation_recording.validation.shell_syntax</key>
+	<string>Shell syntax error: %@</string>
+	<key>operation_recording.validation.unsupported_variable</key>
+	<string>Unsupported variable: %@</string>
+	<key>operation_recording.validation.variable_expansion</key>
+	<string>Variable expansion failed: %@</string>
 	<key>operation_recording.variables_footer</key>
 	<string>When generalization is on, paths may become %p, %d, %n, %b, etc. Edit the preview before saving if needed.</string>
 	<key>operation_recording.variables_title</key>

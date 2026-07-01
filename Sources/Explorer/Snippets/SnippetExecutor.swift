@@ -149,8 +149,6 @@ final class SnippetExecutor: ObservableObject {
     }
 
     private func isDestructive(_ content: String) -> Bool {
-        let lowered = content.lowercased()
-        let patterns = ["rm -rf", "rm -r", "rm ", "mv ", "mkfs", "dd if="]
-        return patterns.contains { lowered.contains($0) }
+        SnippetShellSecurityChecker.isDestructive(content)
     }
 }

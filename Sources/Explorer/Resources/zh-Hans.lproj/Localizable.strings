@@ -848,6 +848,32 @@
 	<string>建议作用域：%@</string>
 	<key>operation_recording.script_copied</key>
 	<string>Shell 脚本已复制（%lld 步）</string>
+	<key>operation_recording.security.chmod_777</key>
+	<string>包含过于宽松的权限设置（chmod 777）。</string>
+	<key>operation_recording.security.chmod_777_recursive</key>
+	<string>包含递归宽松权限设置（chmod -R 777）。</string>
+	<key>operation_recording.security.curl_pipe</key>
+	<string>将 curl 输出管道到其它命令，可能执行远程代码。</string>
+	<key>operation_recording.security.dd</key>
+	<string>包含底层磁盘写入命令（dd）。</string>
+	<key>operation_recording.security.eval</key>
+	<string>包含动态执行（eval）。</string>
+	<key>operation_recording.security.mkfs</key>
+	<string>包含格式化文件系统命令（mkfs）。</string>
+	<key>operation_recording.security.mv</key>
+	<string>包含移动/重命名命令（mv），可能覆盖已有文件。</string>
+	<key>operation_recording.security.rm</key>
+	<string>包含删除命令（rm）。</string>
+	<key>operation_recording.security.rm_r</key>
+	<string>包含递归删除（rm -r）。</string>
+	<key>operation_recording.security.rm_rf</key>
+	<string>包含递归删除（rm -rf），可能永久删除文件。</string>
+	<key>operation_recording.security.sudo</key>
+	<string>包含提权命令（sudo）。</string>
+	<key>operation_recording.security.wget_pipe</key>
+	<string>将 wget 输出管道到其它命令，可能执行远程代码。</string>
+	<key>operation_recording.security.write_dev</key>
+	<string>直接向 /dev/ 设备节点写入。</string>
 	<key>operation_recording.short.clipboard</key>
 	<string>剪贴板</string>
 	<key>operation_recording.short.compress</key>
@@ -894,8 +920,22 @@
 	<string>重命名为 %@</string>
 	<key>operation_recording.step.trash</key>
 	<string>将 %lld 个项目移到废纸篓</string>
+	<key>operation_recording.test_script</key>
+	<string>测试</string>
 	<key>operation_recording.trash_warning</key>
 	<string>当前在废纸篓内录制：生成的脚本在废纸篓外可能无法正确重放。</string>
+	<key>operation_recording.validation.empty</key>
+	<string>脚本为空。</string>
+	<key>operation_recording.validation.invalid_shell</key>
+	<string>Shell 语法检查失败。</string>
+	<key>operation_recording.validation.passed</key>
+	<string>脚本语法与变量检查通过。</string>
+	<key>operation_recording.validation.shell_syntax</key>
+	<string>Shell 语法错误：%@</string>
+	<key>operation_recording.validation.unsupported_variable</key>
+	<string>不支持的变量：%@</string>
+	<key>operation_recording.validation.variable_expansion</key>
+	<string>变量展开失败：%@</string>
 	<key>operation_recording.variables_footer</key>
 	<string>开启泛化后，路径可能替换为 %p、%d、%n、%b 等变量；保存前可在预览中继续编辑。</string>
 	<key>operation_recording.variables_title</key>

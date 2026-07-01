@@ -25,4 +25,6 @@ enum SnippetVariableCatalog {
         SnippetVariableDefinition(token: "%date", description: L10n.Snippets.Variable.date),
         SnippetVariableDefinition(token: "%uuid", description: L10n.Snippets.Variable.uuid),
     ]
+
+    static let supportedTokens: [String] = all.map(\.token).sorted { $0.count > $1.count }
 }

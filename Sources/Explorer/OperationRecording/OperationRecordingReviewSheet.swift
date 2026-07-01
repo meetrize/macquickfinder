@@ -6,6 +6,9 @@ struct OperationRecordingReviewSheet: View {
 
     @State private var steps: [RecordedOperationStep]
     @State private var generalizePaths: Bool
+    @State private var editedScript: String
+    @State private var isScriptManuallyEdited = false
+    @State private var validationResult: RecordedScriptValidationResult?
     @State private var snippetDraft: SnippetRecordingDraft?
     @State private var isSnippetEditorPresented = false
 
@@ -18,12 +21,20 @@ struct OperationRecordingReviewSheet: View {
         context: OperationRecordingReviewContext,
         onSaveSnippet: @escaping (Snippet) -> Void
     ) {
-        _steps = State(initialValue: context.steps)
-        _generalizePaths = State(
-            initialValue: UserDefaults.standard.object(
-                forKey: AppPreferences.OperationRecording.generalizePaths
-            ) as? Bool ?? true
+        let generalizePaths = UserDefaults.standard.object(
+            forKey: AppPreferences.OperationRecording.generalizePaths
+        ) as? Bool ?? true
+        let initialScript = OperationShellTranslator.translate(
+            steps: context.steps,
+            options: OperationShellTranslationOptions(
+                generalizePaths: generalizePaths,
+                recordingCWD: context.recordingCWD
+            )
         )
+
+        _steps = State(initialValue: context.steps)
+        _generalizePaths = State(initialValue: generalizePaths)
+        _editedScript = State(initialValue: initialScript)
         recordingCWD = context.recordingCWD
         recordedAt = context.recordedAt
         isInTrash = context.isInTrash
@@ -35,7 +46,7 @@ struct OperationRecordingReviewSheet: View {
         return SnippetRecordingDraftBuilder.inferScope(from: operations, recordingCWD: recordingCWD)
     }
 
-    private var previewScript: String {
+    private var generatedScript: String {
         OperationShellTranslator.translate(
             steps: steps,
             options: OperationShellTranslationOptions(
@@ -43,6 +54,10 @@ struct OperationRecordingReviewSheet: View {
                 recordingCWD: recordingCWD
             )
         )
+    }
+
+    private var trimmedScript: String {
+        editedScript.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
@@ -58,8 +73,9 @@ struct OperationRecordingReviewSheet: View {
 
             HStack(alignment: .center, spacing: 8) {
                 Toggle(L10n.OperationRecording.generalizePaths, isOn: $generalizePaths)
-                    .onChange(of: generalizePaths) { newValue in
-                        UserDefaults.standard.set(newValue, forKey: AppPreferences.OperationRecording.generalizePaths)
+                    .onChange(of: generalizePaths) { _ in
+                        syncGeneratedScriptIfNeeded()
+                        UserDefaults.standard.set(generalizePaths, forKey: AppPreferences.OperationRecording.generalizePaths)
                     }
                 SnippetVariableHelpButton()
             }
@@ -70,23 +86,34 @@ struct OperationRecordingReviewSheet: View {
             .font(.caption)
             .foregroundStyle(.secondary)
 
-            Text(L10n.OperationRecording.previewLabel)
-                .font(.subheadline)
-
-            ScrollView {
-                Text(previewScript.isEmpty ? " " : previewScript)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-                    .padding(8)
+            HStack {
+                Text(L10n.OperationRecording.previewLabel)
+                    .font(.subheadline)
+                Spacer()
+                Button(L10n.OperationRecording.testScript) {
+                    runValidation()
+                }
+                .disabled(trimmedScript.isEmpty)
             }
-            .frame(minHeight: 140, maxHeight: 220)
-            .background(Color(nsColor: .textBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
-            )
+
+            TextEditor(text: $editedScript)
+                .font(.system(.body, design: .monospaced))
+                .frame(minHeight: 140, maxHeight: 220)
+                .padding(4)
+                .background(Color(nsColor: .textBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.secondary.opacity(0.25), lineWidth: 1)
+                )
+                .onChange(of: editedScript) { _ in
+                    isScriptManuallyEdited = true
+                    validationResult = nil
+                }
+
+            if let validationResult {
+                RecordedScriptValidationResultView(result: validationResult)
+            }
 
             if isInTrash {
                 Text(L10n.OperationRecording.trashWarning)
@@ -101,16 +128,19 @@ struct OperationRecordingReviewSheet: View {
                 Button(L10n.OperationRecording.copyScript) {
                     copyScriptToPasteboard()
                 }
-                .disabled(previewScript.isEmpty)
+                .disabled(trimmedScript.isEmpty)
                 Button(L10n.OperationRecording.createSnippet) {
                     presentSnippetEditor()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(previewScript.isEmpty)
+                .disabled(trimmedScript.isEmpty)
             }
         }
         .padding(20)
         .frame(width: 520)
+        .onChange(of: steps) { _ in
+            syncGeneratedScriptIfNeeded()
+        }
         .sheet(isPresented: $isSnippetEditorPresented) {
             if let snippetDraft {
                 SnippetEditorSheet(
@@ -157,17 +187,30 @@ struct OperationRecordingReviewSheet: View {
         }
     }
 
+    private func syncGeneratedScriptIfNeeded() {
+        guard !isScriptManuallyEdited else { return }
+        editedScript = generatedScript
+        validationResult = nil
+    }
+
+    private func runValidation() {
+        validationResult = RecordedScriptValidator.validate(
+            content: editedScript,
+            recordingCWD: recordingCWD
+        )
+    }
+
     private func copyScriptToPasteboard() {
-        guard !previewScript.isEmpty else { return }
+        guard !trimmedScript.isEmpty else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(previewScript, forType: .string)
+        pasteboard.setString(trimmedScript, forType: .string)
     }
 
     private func presentSnippetEditor() {
         snippetDraft = SnippetRecordingDraftBuilder.build(
             steps: steps,
-            script: previewScript,
+            script: trimmedScript,
             recordingCWD: recordingCWD
         )
         isSnippetEditorPresented = true

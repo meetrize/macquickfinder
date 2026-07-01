@@ -9481,6 +9481,146 @@
         }
       }
     },
+    "operation_recording.test_script": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Test" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "测试" } }
+      }
+    },
+    "operation_recording.validation.passed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Script syntax and variables look good." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "脚本语法与变量检查通过。" } }
+      }
+    },
+    "operation_recording.validation.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Script is empty." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "脚本为空。" } }
+      }
+    },
+    "operation_recording.validation.invalid_shell": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shell syntax check failed." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Shell 语法检查失败。" } }
+      }
+    },
+    "operation_recording.validation.unsupported_variable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unsupported variable: %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "不支持的变量：%@" } }
+      }
+    },
+    "operation_recording.validation.variable_expansion": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Variable expansion failed: %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "变量展开失败：%@" } }
+      }
+    },
+    "operation_recording.validation.shell_syntax": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shell syntax error: %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Shell 语法错误：%@" } }
+      }
+    },
+    "operation_recording.security.rm_rf": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains recursive delete (rm -rf), which may permanently remove files." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含递归删除（rm -rf），可能永久删除文件。" } }
+      }
+    },
+    "operation_recording.security.rm_r": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains recursive delete (rm -r)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含递归删除（rm -r）。" } }
+      }
+    },
+    "operation_recording.security.rm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains delete commands (rm)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含删除命令（rm）。" } }
+      }
+    },
+    "operation_recording.security.mv": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains move/rename commands (mv), which can overwrite files." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含移动/重命名命令（mv），可能覆盖已有文件。" } }
+      }
+    },
+    "operation_recording.security.mkfs": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains filesystem formatting (mkfs)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含格式化文件系统命令（mkfs）。" } }
+      }
+    },
+    "operation_recording.security.dd": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains low-level disk write (dd)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含底层磁盘写入命令（dd）。" } }
+      }
+    },
+    "operation_recording.security.sudo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains elevated privileges (sudo)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含提权命令（sudo）。" } }
+      }
+    },
+    "operation_recording.security.eval": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains dynamic evaluation (eval)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含动态执行（eval）。" } }
+      }
+    },
+    "operation_recording.security.chmod_777": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains permissive permissions (chmod 777)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含过于宽松的权限设置（chmod 777）。" } }
+      }
+    },
+    "operation_recording.security.chmod_777_recursive": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Contains recursive permissive permissions (chmod -R 777)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含递归宽松权限设置（chmod -R 777）。" } }
+      }
+    },
+    "operation_recording.security.write_dev": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Writes directly to a device node under /dev/." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "直接向 /dev/ 设备节点写入。" } }
+      }
+    },
+    "operation_recording.security.curl_pipe": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Pipes curl output into another command, which can execute remote code." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "将 curl 输出管道到其它命令，可能执行远程代码。" } }
+      }
+    },
+    "operation_recording.security.wget_pipe": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Pipes wget output into another command, which can execute remote code." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "将 wget 输出管道到其它命令，可能执行远程代码。" } }
+      }
+    },
     "operation_recording.preview_label": {
       "extractionState": "manual",
       "localizations": {
