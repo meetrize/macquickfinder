@@ -27,15 +27,7 @@ enum FavoritesSidebarDropPolicy {
     }
 
     static func canDropOntoFavorite(destinationPath: String, sourcePaths: [String]) -> Bool {
-        for source in sourcePaths {
-            if FavoritePathNormalization.pathsRepresentSameLocation(source, destinationPath) {
-                return false
-            }
-            if FavoritePathNormalization.isDescendant(path: source, of: destinationPath) {
-                return false
-            }
-        }
-        return true
+        FavoritePathNormalization.moveBlockReason(moving: sourcePaths, to: destinationPath) == nil
     }
 
     static func filterAddableDirectoryURLs(
@@ -55,9 +47,8 @@ enum FavoritesSidebarDropPolicy {
     }
 
     static func destinationPath(for items: [FavoriteItem], pendingDropRow: Int) -> String {
-        guard !items.isEmpty else { return "" }
-        let row = pendingDropRow < 0 ? 0 : min(pendingDropRow, items.count - 1)
-        return items[row].path
+        guard pendingDropRow >= 0, pendingDropRow < items.count else { return "" }
+        return items[pendingDropRow].resolvedDirectoryPath
     }
 
     static func clampedInsertIndex(_ insertBefore: Int, itemCount: Int) -> Int {

@@ -96,6 +96,22 @@ struct FavoriteItem: Codable, Identifiable, Equatable {
             return (.custom, name)
         }
     }
+
+    /// 系统收藏项解析为当前用户真实目录（如 iCloud 桌面），供导航与拖放使用。
+    var resolvedDirectoryPath: String {
+        switch kind {
+        case .home:
+            return FileManager.default.homeDirectoryForCurrentUser.path
+        case .desktop:
+            return FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first?.path ?? path
+        case .documents:
+            return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.path ?? path
+        case .downloads:
+            return FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? path
+        case .custom:
+            return path
+        }
+    }
 }
 
 @MainActor

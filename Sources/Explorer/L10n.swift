@@ -638,6 +638,7 @@ enum L10n {
 
     enum Alert {
         static var operationFailed: String { ModuleLocalization.localized("alert.operation_failed", bundle: .module) }
+        static var moveBlockedTitle: String { ModuleLocalization.localized("alert.move_blocked.title", bundle: .module) }
         static var emptyTrashTitle: String { ModuleLocalization.localized("alert.empty_trash.title", bundle: .module) }
         static var emptyTrashMessage: String { ModuleLocalization.localized("alert.empty_trash.message", bundle: .module) }
         static var putBackFailedTitle: String { ModuleLocalization.localized("alert.put_back_failed.title", bundle: .module) }
@@ -675,6 +676,23 @@ enum L10n {
 
         static func selectedItems(_ count: Int) -> String {
             ModuleLocalization.localized("alert.selected_items \(count)", bundle: .module)
+        }
+
+        static func moveBlockedMessage(_ reason: FavoritePathNormalization.MoveBlockReason) -> String {
+            switch reason {
+            case .sourceMissing:
+                return ModuleLocalization.localized("alert.move_blocked.source_missing", bundle: .module)
+            case .destinationUnavailable:
+                return ModuleLocalization.localized("alert.move_blocked.destination_unavailable", bundle: .module)
+            case .destinationNotDirectory:
+                return ModuleLocalization.localized("alert.move_blocked.destination_not_directory", bundle: .module)
+            case .sameLocation:
+                return ModuleLocalization.localized("alert.move_blocked.same_location", bundle: .module)
+            case .destinationInsideSource:
+                return ModuleLocalization.localized("alert.move_blocked.destination_inside_source", bundle: .module)
+            case .alreadyInDestination:
+                return ModuleLocalization.localized("alert.move_blocked.already_in_destination", bundle: .module)
+            }
         }
     }
 

@@ -22,4 +22,21 @@ final class FavoritePathNormalizationTests: XCTestCase {
         XCTAssertFalse(FavoritePathNormalization.isDescendant(path: desktop, of: desktop))
         XCTAssertFalse(FavoritePathNormalization.isDescendant(path: "/tmp/other", of: desktop))
     }
+
+    func testMoveBlockReasonAllowsDesktopSubfolderToDesktop() {
+        let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!.path
+        let nested = (desktop as NSString).appendingPathComponent("eeee/eee.png")
+        XCTAssertNil(
+            FavoritePathNormalization.moveBlockReason(moving: [nested], to: desktop)
+        )
+    }
+
+    func testMoveBlockReasonRejectsItemAlreadyInDestination() {
+        let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!.path
+        let onDesktop = (desktop as NSString).appendingPathComponent("eee.png")
+        XCTAssertEqual(
+            FavoritePathNormalization.moveBlockReason(moving: [onDesktop], to: desktop),
+            .alreadyInDestination
+        )
+    }
 }

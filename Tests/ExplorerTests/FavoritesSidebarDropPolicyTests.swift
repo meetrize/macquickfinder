@@ -52,7 +52,7 @@ final class FavoritesSidebarDropPolicyTests: XCTestCase {
         )
     }
 
-    func testCanDropOntoFavoriteRejectsSamePathAndDescendants() {
+    func testCanDropOntoFavoriteRejectsInvalidMoves() {
         XCTAssertFalse(
             FavoritesSidebarDropPolicy.canDropOntoFavorite(
                 destinationPath: "/tmp/a",
@@ -62,6 +62,18 @@ final class FavoritesSidebarDropPolicyTests: XCTestCase {
         XCTAssertFalse(
             FavoritesSidebarDropPolicy.canDropOntoFavorite(
                 destinationPath: "/tmp/a",
+                sourcePaths: ["/tmp/a/file.txt"]
+            )
+        )
+        XCTAssertFalse(
+            FavoritesSidebarDropPolicy.canDropOntoFavorite(
+                destinationPath: "/tmp/a",
+                sourcePaths: ["/tmp/a/sub"]
+            )
+        )
+        XCTAssertTrue(
+            FavoritesSidebarDropPolicy.canDropOntoFavorite(
+                destinationPath: "/tmp/a",
                 sourcePaths: ["/tmp/a/sub/file.txt"]
             )
         )
@@ -69,6 +81,31 @@ final class FavoritesSidebarDropPolicyTests: XCTestCase {
             FavoritesSidebarDropPolicy.canDropOntoFavorite(
                 destinationPath: "/tmp/a",
                 sourcePaths: ["/tmp/b/file.txt"]
+            )
+        )
+    }
+
+    func testCanDropOntoDesktopAllowsMovingFromSubfolder() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!.path
+        let nestedFile = (desktop as NSString).appendingPathComponent("eeee/eee.png")
+        let desktopFile = (desktop as NSString).appendingPathComponent("eee.png")
+        XCTAssertTrue(
+            FavoritesSidebarDropPolicy.canDropOntoFavorite(
+                destinationPath: desktop,
+                sourcePaths: [nestedFile]
+            )
+        )
+        XCTAssertFalse(
+            FavoritesSidebarDropPolicy.canDropOntoFavorite(
+                destinationPath: desktop,
+                sourcePaths: [desktopFile]
+            )
+        )
+        XCTAssertTrue(
+            FavoritesSidebarDropPolicy.canDropOntoFavorite(
+                destinationPath: desktop,
+                sourcePaths: [(home as NSString).appendingPathComponent("Documents/note.txt")]
             )
         )
     }
@@ -84,11 +121,25 @@ final class FavoritesSidebarDropPolicyTests: XCTestCase {
         )
         XCTAssertEqual(
             FavoritesSidebarDropPolicy.destinationPath(for: items, pendingDropRow: -1),
-            "/a"
+            ""
         )
         XCTAssertEqual(
             FavoritesSidebarDropPolicy.destinationPath(for: [], pendingDropRow: 0),
             ""
+        )
+    }
+
+    func testDestinationPathUsesResolvedSystemDirectory() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let desktopURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first!
+        let item = FavoriteItem(
+            path: (home as NSString).appendingPathComponent("Desktop"),
+            kind: .desktop,
+            icon: "desktopcomputer"
+        )
+        XCTAssertEqual(
+            FavoritesSidebarDropPolicy.destinationPath(for: [item], pendingDropRow: 0),
+            desktopURL.path
         )
     }
 

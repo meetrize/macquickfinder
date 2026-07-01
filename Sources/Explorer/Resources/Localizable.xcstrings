@@ -749,6 +749,125 @@
         }
       }
     },
+    "alert.move_blocked.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot Move"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法移动"
+          }
+        }
+      }
+    },
+    "alert.move_blocked.source_missing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected items could not be found."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找不到要移动的文件或文件夹。"
+          }
+        }
+      }
+    },
+    "alert.move_blocked.destination_unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The destination folder is not available."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标文件夹不可用。"
+          }
+        }
+      }
+    },
+    "alert.move_blocked.destination_not_directory": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The destination is not a folder."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目标位置不是文件夹。"
+          }
+        }
+      }
+    },
+    "alert.move_blocked.same_location": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The item is the destination folder itself."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不能将文件夹移动到其自身。"
+          }
+        }
+      }
+    },
+    "alert.move_blocked.destination_inside_source": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot move a folder into one of its own subfolders."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不能将文件夹移动到其自身的子文件夹中。"
+          }
+        }
+      }
+    },
+    "alert.move_blocked.already_in_destination": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The item is already in this folder."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该项目已在此文件夹中。"
+          }
+        }
+      }
+    },
     "alert.put_back_failed.multiple %lld": {
       "extractionState": "manual",
       "localizations": {

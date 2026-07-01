@@ -145,6 +145,18 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Preview.Toolbar.wordDocumentToText, "preview.toolbar.word_document_to_text")
     }
 
+    func testMoveBlockedAlertStringsResolve() {
+        XCTAssertNotEqual(L10n.Alert.moveBlockedTitle, "alert.move_blocked.title")
+        XCTAssertNotEqual(
+            L10n.Alert.moveBlockedMessage(.alreadyInDestination),
+            "alert.move_blocked.already_in_destination"
+        )
+        XCTAssertNotEqual(
+            L10n.Alert.moveBlockedMessage(.sourceMissing),
+            "alert.move_blocked.source_missing"
+        )
+    }
+
     private func localizedBundle(language: String, parent: Bundle) -> Bundle? {
         guard let path = parent.path(forResource: language, ofType: "lproj") else {
             return nil

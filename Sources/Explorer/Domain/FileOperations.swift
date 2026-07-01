@@ -42,27 +42,39 @@ enum FileOperations {
         to destinationDirectory: URL,
         allowSameDirectory: Bool = false
     ) -> Bool {
-        let destURL = destinationDirectory.standardizedFileURL
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: destURL.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else {
-            return false
-        }
-        
-        let destPath = destURL.path
-        for sourceURL in sourceURLs {
-            let srcURL = sourceURL.standardizedFileURL
-            guard FileManager.default.fileExists(atPath: srcURL.path) else { return false }
-            
-            let srcPath = srcURL.path
-            if srcPath == destPath { return false }
-            if destPath.hasPrefix(srcPath + "/") { return false }
-            if !allowSameDirectory,
-               srcURL.deletingLastPathComponent().standardizedFileURL.path == destPath {
+        if allowSameDirectory {
+            let destURL = destinationDirectory.standardizedFileURL
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: destURL.path, isDirectory: &isDirectory),
+                  isDirectory.boolValue else {
                 return false
             }
+            for sourceURL in sourceURLs {
+                guard FileManager.default.fileExists(atPath: sourceURL.standardizedFileURL.path) else {
+                    return false
+                }
+            }
+            return true
         }
-        return true
+        return moveBlockReason(for: sourceURLs, to: destinationDirectory) == nil
+    }
+
+    static func presentMoveBlockedAlert(_ reason: FavoritePathNormalization.MoveBlockReason) {
+        let alert = NSAlert()
+        alert.messageText = L10n.Alert.moveBlockedTitle
+        alert.informativeText = L10n.Alert.moveBlockedMessage(reason)
+        alert.alertStyle = .warning
+        alert.runModal()
+    }
+
+    private static func moveBlockReason(
+        for sourceURLs: [URL],
+        to destinationDirectory: URL
+    ) -> FavoritePathNormalization.MoveBlockReason? {
+        FavoritePathNormalization.moveBlockReason(
+            moving: sourceURLs.map { $0.standardizedFileURL.path },
+            to: destinationDirectory.standardizedFileURL.path
+        )
     }
     
     static func moveItems(
@@ -71,7 +83,10 @@ enum FileOperations {
         copy: Bool,
         completion: @escaping () -> Void
     ) {
-        guard canMoveItems(sourceURLs, to: destinationDirectory) else { return }
+        if let reason = moveBlockReason(for: sourceURLs, to: destinationDirectory) {
+            presentMoveBlockedAlert(reason)
+            return
+        }
         
         let fileManager = FileManager.default
         var hadError = false

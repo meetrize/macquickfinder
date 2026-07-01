@@ -41,9 +41,21 @@ enum FavoritesSidebarDropHandler {
             }
         }
 
-        guard !filesToMove.isEmpty else { return }
+        guard !filesToMove.isEmpty else {
+            if insertBefore == nil, !urls.isEmpty {
+                FileOperations.presentMoveBlockedAlert(.sourceMissing)
+            }
+            return
+        }
         if TrashLoader.isTrashPath(destinationPath) {
             FileOperations.trashItems(filesToMove, completion: onItemsChanged)
+            return
+        }
+        if let reason = FavoritePathNormalization.moveBlockReason(
+            moving: filesToMove.map(\.path),
+            to: destinationPath
+        ) {
+            FileOperations.presentMoveBlockedAlert(reason)
             return
         }
         let destination = URL(fileURLWithPath: destinationPath, isDirectory: true)

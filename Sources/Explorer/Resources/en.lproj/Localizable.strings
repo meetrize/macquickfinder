@@ -84,6 +84,20 @@
 	<string>All items in the Trash will be permanently deleted. This action cannot be undone.</string>
 	<key>alert.empty_trash.title</key>
 	<string>Empty Trash?</string>
+	<key>alert.move_blocked.already_in_destination</key>
+	<string>The item is already in this folder.</string>
+	<key>alert.move_blocked.destination_inside_source</key>
+	<string>Cannot move a folder into one of its own subfolders.</string>
+	<key>alert.move_blocked.destination_not_directory</key>
+	<string>The destination is not a folder.</string>
+	<key>alert.move_blocked.destination_unavailable</key>
+	<string>The destination folder is not available.</string>
+	<key>alert.move_blocked.same_location</key>
+	<string>The item is the destination folder itself.</string>
+	<key>alert.move_blocked.source_missing</key>
+	<string>The selected items could not be found.</string>
+	<key>alert.move_blocked.title</key>
+	<string>Cannot Move</string>
 	<key>alert.open_with.choose_app %@</key>
 	<string>Choose an app to open "%@"</string>
 	<key>alert.open_with.prompt</key>

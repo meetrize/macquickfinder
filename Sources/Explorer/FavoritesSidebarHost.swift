@@ -59,6 +59,8 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     private var pendingInsertBeforeIndex = -1
     private var dropHighlightRow: Int?
     private var reorderDragRow = -1
+    /// 鼠标放下瞬间 `draggingUpdated` 可能清掉 `pendingDropRow`，保留最后一次有效的移入目录行。
+    private var lastValidFileDropRow = -1
     
     init(parent: FavoritesSidebarHost) {
         self.parent = parent
@@ -282,6 +284,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     }
     
     func draggingExited() {
+        lastValidFileDropRow = -1
         clearDropIndicator()
     }
     
@@ -290,6 +293,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         
         if isReorderDrag(pasteboard) {
             let result = acceptReorderDrop(pasteboard)
+            lastValidFileDropRow = -1
             clearDropIndicator()
             return result
         }
@@ -297,24 +301,32 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         let urls = FileDragDrop.fileURLs(from: pasteboard)
         if !urls.isEmpty {
             let insertBefore = pendingInsertBeforeIndex >= 0 ? pendingInsertBeforeIndex : nil
-            if insertBefore == nil, pendingDropRow >= 0,
-               !canDropOntoRow(pendingDropRow, urls: urls) {
+            guard let dropRow = effectiveFileDropRow(),
+                  let item = item(at: dropRow) else {
+                lastValidFileDropRow = -1
                 clearDropIndicator()
                 return false
             }
-            let destinationPath = destinationPathForPendingDrop()
+            if insertBefore == nil, !canDropOntoRow(dropRow, urls: urls) {
+                lastValidFileDropRow = -1
+                clearDropIndicator()
+                return false
+            }
+            let destinationPath = item.resolvedDirectoryPath
             let copy = FileDragDrop.shouldCopyFromDraggingInfo(info)
             parent.onDropURLs(urls, destinationPath, copy, insertBefore)
+            lastValidFileDropRow = -1
             clearDropIndicator()
             return true
         }
         
+        lastValidFileDropRow = -1
         clearDropIndicator()
         return false
     }
     
     private func isReorderDrag(_ pasteboard: NSPasteboard) -> Bool {
-        pasteboard.canReadItem(withDataConformingToTypes: [FavoriteSidebarPasteboard.reorderType.rawValue])
+        pasteboard.string(forType: FavoriteSidebarPasteboard.reorderType) != nil
     }
     
     private func updateReorderDrop(_ info: NSDraggingInfo, in tableView: FavoritesTableView) -> NSDragOperation {
@@ -345,8 +357,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         let location = tableView.convert(info.draggingLocation, from: nil)
         let row = tableView.row(at: location)
         
-        if row >= 0,
-           isDropOntoRowCenter(location, row: row, in: tableView) {
+        if row >= 0, shouldDropFilesOntoFavoriteRow(location, row: row, in: tableView, urls: urls) {
             applyRowDropIndicator(row: row, in: tableView)
             if canDropOntoRow(row, urls: urls) {
                 return FileDragDrop.dragOperation(for: info)
@@ -365,6 +376,22 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         return []
     }
     
+    /// 移入收藏目录：可移入时整行有效；否则仅中央区域用于无效目标的视觉反馈。
+    private func shouldDropFilesOntoFavoriteRow(
+        _ location: NSPoint,
+        row: Int,
+        in tableView: NSTableView,
+        urls: [URL]
+    ) -> Bool {
+        let rowRect = tableView.rect(ofRow: row)
+        guard rowRect.contains(location) else { return false }
+        
+        if canDropOntoRow(row, urls: urls) {
+            return true
+        }
+        return isDropOntoRowCenter(location, row: row, in: tableView)
+    }
+    
     private func isDropOntoRowCenter(_ location: NSPoint, row: Int, in tableView: NSTableView) -> Bool {
         let rowRect = tableView.rect(ofRow: row)
         guard rowRect.contains(location) else { return false }
@@ -378,14 +405,41 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     private func canDropOntoRow(_ row: Int, urls: [URL]) -> Bool {
         guard let item = item(at: row) else { return false }
         return FavoritesSidebarDropPolicy.canDropOntoFavorite(
-            destinationPath: item.path,
+            destinationPath: item.resolvedDirectoryPath,
             sourcePaths: urls.map(\.path)
         )
+    }
+    
+    func prepareForFileDrop(_ info: NSDraggingInfo) -> Bool {
+        _ = draggingUpdated(info)
+        let urls = FileDragDrop.fileURLs(from: info.draggingPasteboard)
+        guard !urls.isEmpty else { return false }
+        if pendingInsertBeforeIndex >= 0 { return true }
+        guard let row = effectiveFileDropRow() else { return false }
+        return canDropOntoRow(row, urls: urls)
+    }
+    
+    /// 解析当前应移入的收藏行；`pendingDropRow` 被放下时的最后一次 `draggingUpdated` 清掉时回退到 `lastValidFileDropRow`。
+    private func effectiveFileDropRow() -> Int? {
+        let rowCount = tableView?.numberOfRows ?? parent.favoritesStore.items.count
+        guard rowCount > 0 else { return nil }
+        
+        if pendingInsertBeforeIndex >= 0 {
+            return min(pendingInsertBeforeIndex, rowCount - 1)
+        }
+        if pendingDropRow >= 0 {
+            return pendingDropRow
+        }
+        if lastValidFileDropRow >= 0, lastValidFileDropRow < rowCount {
+            return lastValidFileDropRow
+        }
+        return nil
     }
     
     private func applyRowDropIndicator(row: Int, in tableView: FavoritesTableView) {
         pendingDropRow = row
         pendingInsertBeforeIndex = -1
+        lastValidFileDropRow = row
         tableView.hideDropInsertionLine()
         tableView.setDropRow(row, dropOperation: .on)
         setDropHighlight(row: row)
@@ -445,7 +499,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     private func applyInsertDropIndicator(insertBefore: Int, in tableView: FavoritesTableView) {
         let clamped = min(max(insertBefore, 0), tableView.numberOfRows)
         pendingInsertBeforeIndex = clamped
-        pendingDropRow = clamped > 0 ? clamped - 1 : 0
+        pendingDropRow = tableView.numberOfRows > 0 ? min(clamped, tableView.numberOfRows - 1) : -1
         clearDropHighlight()
         tableView.setDropRow(clamped, dropOperation: .above)
         tableView.showDropInsertionLine(beforeRow: clamped)
@@ -478,13 +532,6 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         return true
     }
 
-    private func destinationPathForPendingDrop() -> String {
-        FavoritesSidebarDropPolicy.destinationPath(
-            for: parent.favoritesStore.items,
-            pendingDropRow: pendingDropRow
-        )
-    }
-    
     private func clearDropIndicator() {
         pendingDropRow = -1
         pendingInsertBeforeIndex = -1
@@ -1032,7 +1079,7 @@ final class FavoritesTableView: NSTableView {
     }
     
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        controller?.draggingUpdated(sender) != []
+        controller?.prepareForFileDrop(sender) ?? false
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {

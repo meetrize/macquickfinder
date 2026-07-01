@@ -84,6 +84,20 @@
 	<string>废纸篓中的所有项目将被永久删除，此操作无法撤销。</string>
 	<key>alert.empty_trash.title</key>
 	<string>清倒废纸篓？</string>
+	<key>alert.move_blocked.already_in_destination</key>
+	<string>该项目已在此文件夹中。</string>
+	<key>alert.move_blocked.destination_inside_source</key>
+	<string>不能将文件夹移动到其自身的子文件夹中。</string>
+	<key>alert.move_blocked.destination_not_directory</key>
+	<string>目标位置不是文件夹。</string>
+	<key>alert.move_blocked.destination_unavailable</key>
+	<string>目标文件夹不可用。</string>
+	<key>alert.move_blocked.same_location</key>
+	<string>不能将文件夹移动到其自身。</string>
+	<key>alert.move_blocked.source_missing</key>
+	<string>找不到要移动的文件或文件夹。</string>
+	<key>alert.move_blocked.title</key>
+	<string>无法移动</string>
 	<key>alert.open_with.choose_app %@</key>
 	<string>选择用于打开「%@」的应用</string>
 	<key>alert.open_with.prompt</key>
