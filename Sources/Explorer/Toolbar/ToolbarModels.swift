@@ -132,10 +132,6 @@ struct ToolbarLayoutConfig: Codable, Equatable {
     static var `default`: ToolbarLayoutConfig {
         let builtins: [(ToolbarBuiltinID, ToolbarZone)] = [
             (.leftPanel, .leading),
-            (.newWindow, .leading),
-            (.newTab, .leading),
-            (.showAllTabs, .leading),
-            (.toggleTabBar, .leading),
             (.preview, .main),
             (.snippets, .main),
             (.recordOperations, .main),
@@ -145,6 +141,10 @@ struct ToolbarLayoutConfig: Codable, Equatable {
             (.toggleHiddenFiles, .main),
             (.listView, .main),
             (.thumbnailView, .main),
+            (.newWindow, .trailing),
+            (.newTab, .trailing),
+            (.showAllTabs, .trailing),
+            (.toggleTabBar, .trailing),
             (.thumbnailSizeSlider, .trailing),
             (.sortMenu, .trailing),
             (.browseSettingsMenu, .trailing),

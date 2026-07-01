@@ -28,6 +28,23 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
         XCTAssertEqual(layout.visibleItems.count, ToolbarBuiltinID.allCases.count)
         XCTAssertEqual(layout.visibleItems.first?.id, ToolbarBuiltinID.leftPanel.rawValue)
         XCTAssertEqual(layout.visibleItems.last?.id, ToolbarBuiltinID.browseSettingsMenu.rawValue)
+
+        let leadingIDs = layout.items(in: .leading).map(\.id)
+        XCTAssertEqual(leadingIDs, [ToolbarBuiltinID.leftPanel.rawValue])
+
+        let trailingIDs = layout.items(in: .trailing).map(\.id)
+        XCTAssertEqual(
+            trailingIDs,
+            [
+                ToolbarBuiltinID.newWindow.rawValue,
+                ToolbarBuiltinID.newTab.rawValue,
+                ToolbarBuiltinID.showAllTabs.rawValue,
+                ToolbarBuiltinID.toggleTabBar.rawValue,
+                ToolbarBuiltinID.thumbnailSizeSlider.rawValue,
+                ToolbarBuiltinID.sortMenu.rawValue,
+                ToolbarBuiltinID.browseSettingsMenu.rawValue,
+            ]
+        )
     }
 
     func testPaletteExcludesVisibleItems() {
