@@ -130,6 +130,9 @@ enum L10n {
     }
 
     enum Settings {
+        static var windowTitle: String { ModuleLocalization.localized("settings.window_title", bundle: .module) }
+        static var menuItem: String { ModuleLocalization.localized("settings.menu_item", bundle: .module) }
+
         enum Tab {
             static var general: String { ModuleLocalization.localized("settings.tab.general", bundle: .module) }
             static var snippets: String { ModuleLocalization.localized("settings.tab.snippets", bundle: .module) }

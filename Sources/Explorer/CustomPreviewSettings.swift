@@ -36,8 +36,9 @@ struct PreviewSettingsTab: View {
     @State private var importExportMessage: String?
 
     var body: some View {
-        Form {
-            PreviewOpenBehaviorSettingsSection(
+        ScrollView {
+            Form {
+                PreviewOpenBehaviorSettingsSection(
                 doubleClickActionRaw: $doubleClickActionRaw,
                 externalOpenActionRaw: $externalOpenActionRaw,
                 archiveDoubleClickActionRaw: $archiveDoubleClickActionRaw,
@@ -107,6 +108,7 @@ struct PreviewSettingsTab: View {
         }
         .formStyle(.grouped)
         .padding()
+        }
         .onAppear {
             handlerSettings.refresh()
         }

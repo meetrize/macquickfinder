@@ -34,9 +34,8 @@ struct SettingsView: View {
                     Label(L10n.Settings.Tab.shortcuts, systemImage: "keyboard")
                 }
                 .tag(SettingsTab.shortcuts)
-
         }
-        .frame(width: 520, height: 500)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             if let ext = SettingsWindowPresenter.shared.consumePendingPrefillExtension() {
                 selectedTab = .preview
@@ -56,23 +55,25 @@ private struct SnippetsSettingsTab: View {
     @ObservedObject private var settings = SnippetsSettings.shared
 
     var body: some View {
-        Form {
-            Section {
-                Picker(L10n.Settings.Snippets.displayMode, selection: $settings.displayMode) {
-                    ForEach(SnippetsDisplayMode.allCases) { mode in
-                        Text(mode.displayName).tag(mode)
+        ScrollView {
+            Form {
+                Section {
+                    Picker(L10n.Settings.Snippets.displayMode, selection: $settings.displayMode) {
+                        ForEach(SnippetsDisplayMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
                     }
+                    Toggle(L10n.Settings.Snippets.pinRecent, isOn: $settings.pinRecentlyExecutedSnippets)
+                    Stepper(value: $settings.maxConcurrentJobs, in: 1...4) {
+                        Text(L10n.Settings.Snippets.jobConcurrencyLimit(settings.maxConcurrentJobs))
+                    }
+                    Toggle(L10n.Settings.Snippets.autoShowOutput, isOn: $settings.autoShowOutputPanelOnShellRun)
+                    Toggle(L10n.Settings.Snippets.confirmDestructive, isOn: $settings.confirmDestructiveSnippets)
                 }
-                Toggle(L10n.Settings.Snippets.pinRecent, isOn: $settings.pinRecentlyExecutedSnippets)
-                Stepper(value: $settings.maxConcurrentJobs, in: 1...4) {
-                    Text(L10n.Settings.Snippets.jobConcurrencyLimit(settings.maxConcurrentJobs))
-                }
-                Toggle(L10n.Settings.Snippets.autoShowOutput, isOn: $settings.autoShowOutputPanelOnShellRun)
-                Toggle(L10n.Settings.Snippets.confirmDestructive, isOn: $settings.confirmDestructiveSnippets)
             }
+            .formStyle(.grouped)
+            .padding()
         }
-        .formStyle(.grouped)
-        .padding()
     }
 }
 
@@ -87,37 +88,39 @@ private struct GeneralSettingsTab: View {
     @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
 
     var body: some View {
-        Form {
-            Section {
-                Picker(L10n.Settings.General.interfaceLanguage, selection: $languageSettings.language) {
-                    ForEach(InterfaceLanguage.allCases) { language in
-                        Text(language.pickerLabel).tag(language)
+        ScrollView {
+            Form {
+                Section {
+                    Picker(L10n.Settings.General.interfaceLanguage, selection: $languageSettings.language) {
+                        ForEach(InterfaceLanguage.allCases) { language in
+                            Text(language.pickerLabel).tag(language)
+                        }
                     }
+                    Text(L10n.Settings.General.interfaceLanguageFooter)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Text(L10n.Settings.General.interfaceLanguageFooter)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
 
-            Section {
-                Picker(L10n.Settings.General.blankDoubleClick, selection: $blankDoubleClickAction) {
-                    ForEach(BlankDoubleClickAction.allCases) { action in
-                        Text(action.displayName).tag(action.rawValue)
+                Section {
+                    Picker(L10n.Settings.General.blankDoubleClick, selection: $blankDoubleClickAction) {
+                        ForEach(BlankDoubleClickAction.allCases) { action in
+                            Text(action.displayName).tag(action.rawValue)
+                        }
                     }
+                    .pickerStyle(.radioGroup)
                 }
-                .pickerStyle(.radioGroup)
-            }
 
-            Section {
-                Toggle(L10n.Settings.General.windowSnap, isOn: $windowSnapEnabled)
-                Toggle(L10n.Settings.General.fileListRowHover, isOn: $rowHoverHighlight)
-            }
+                Section {
+                    Toggle(L10n.Settings.General.windowSnap, isOn: $windowSnapEnabled)
+                    Toggle(L10n.Settings.General.fileListRowHover, isOn: $rowHoverHighlight)
+                }
 
-            DefaultFileViewerSettingsSection(model: defaultFileViewerSettings)
+                DefaultFileViewerSettingsSection(model: defaultFileViewerSettings)
+            }
+            .formStyle(.grouped)
+            .padding()
         }
-        .formStyle(.grouped)
-        .padding()
         .onAppear {
             defaultFileViewerSettings.refresh()
         }

@@ -1122,6 +1122,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Applies immediately to most of the app. Restart MeoFind if menu bar items look unchanged.</string>
 	<key>settings.job_concurrency_limit %lld</key>
 	<string>Job Concurrency Limit: %lld</string>
+	<key>settings.menu_item</key>
+	<string>Settings…</string>
 	<key>settings.pin_recent_snippets</key>
 	<string>Pin Recently Executed</string>
 	<key>settings.preview.add_rule</key>
@@ -1334,6 +1336,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Snippets</string>
 	<key>settings.window_snap</key>
 	<string>Enable window snap and linked movement</string>
+	<key>settings.window_title</key>
+	<string>Settings</string>
 	<key>sidebar.devices</key>
 	<string>Devices</string>
 	<key>sidebar.disconnect_device %@</key>

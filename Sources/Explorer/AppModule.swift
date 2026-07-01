@@ -555,6 +555,12 @@ struct ExplorerApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
         .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button(L10n.Settings.menuItem) {
+                    SettingsWindowPresenter.shared.show()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
             explorerCommands
         }
 
@@ -588,11 +594,6 @@ struct ExplorerApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
         .defaultSize(width: 640, height: 480)
-        
-        Settings {
-            SettingsView()
-                .applyInterfaceLanguageEnvironment()
-        }
     }
 
     @CommandsBuilder

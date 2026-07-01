@@ -32,6 +32,8 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Action.extractHere, "action.extract_here")
         XCTAssertNotEqual(L10n.Action.openInDetachedPreview, "action.open_in_detached_preview")
         XCTAssertNotEqual(L10n.Settings.Preview.DoubleClick.defaultApp, "settings.preview.double_click.default_app")
+        XCTAssertNotEqual(L10n.Settings.menuItem, "settings.menu_item")
+        XCTAssertNotEqual(L10n.Settings.windowTitle, "settings.window_title")
         XCTAssertNotEqual(L10n.Settings.Preview.ArchiveDoubleClick.extract, "settings.preview.archive_double_click.extract")
         XCTAssertNotEqual(L10n.Settings.Preview.ExternalMultiImage.singleWindowWithStrip, "settings.preview.external_multi_image.single_window_with_strip")
         XCTAssertNotEqual(L10n.Settings.Preview.HandlerGroup.pdf, "settings.preview.handler_group.pdf")

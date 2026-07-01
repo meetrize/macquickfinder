@@ -319,7 +319,6 @@ struct ContentView: View {
                   closingWindow == hostWindow else { return }
             PreviewDetachCoordinator.shared.onHostWindowWillClose(hostWindowID: previewHostWindowID)
         }
-        .settingsWindowOpenBridge()
         .background(
             BarFieldOutsideClickHandler(
                 activeField: $activeBarField,

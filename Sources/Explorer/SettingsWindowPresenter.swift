@@ -1,17 +1,22 @@
 import AppKit
 import SwiftUI
 
+enum SettingsWindowMetrics {
+    static let defaultWidth: CGFloat = 520
+    static let defaultHeight: CGFloat = 500
+    static let minWidth: CGFloat = 480
+    static let minHeight: CGFloat = 400
+}
+
 @MainActor
-final class SettingsWindowPresenter {
+final class SettingsWindowPresenter: NSObject {
     static let shared = SettingsWindowPresenter()
 
-    private var openHandler: (() -> Void)?
+    private var window: NSWindow?
     private(set) var pendingPrefillExtension: String?
 
-    private init() {}
-
-    func registerOpenHandler(_ handler: @escaping () -> Void) {
-        openHandler = handler
+    private override init() {
+        super.init()
     }
 
     func stagePrefillExtension(_ ext: String?) {
@@ -23,48 +28,69 @@ final class SettingsWindowPresenter {
         return pendingPrefillExtension
     }
 
-    func openSettingsWindow() {
+    func show() {
+        if let window {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let newWindow = makeWindow()
+        window = newWindow
+        newWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        if let openHandler {
-            openHandler()
-            return
-        }
-        openLegacySettingsWindow()
     }
 
-    private func openLegacySettingsWindow() {
-        let settingsSelector = Selector(("showSettingsWindow:"))
-        if NSApp.sendAction(settingsSelector, to: nil, from: nil) {
-            return
-        }
-        _ = NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+    func openSettingsWindow() {
+        show()
     }
 }
 
-@available(macOS 14.0, *)
-struct SettingsWindowOpenBridge: View {
-    @Environment(\.openSettings) private var openSettings
+@MainActor
+private extension SettingsWindowPresenter {
+    func makeWindow() -> NSWindow {
+        let initialSize = NSSize(
+            width: SettingsWindowMetrics.defaultWidth,
+            height: SettingsWindowMetrics.defaultHeight
+        )
+        let newWindow = NSWindow(
+            contentRect: NSRect(origin: .zero, size: initialSize),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
 
-    var body: some View {
-        Color.clear
-            .frame(width: 0, height: 0)
-            .accessibilityHidden(true)
-            .onAppear {
-                SettingsWindowPresenter.shared.registerOpenHandler {
-                    openSettings()
-                }
-            }
+        newWindow.delegate = self
+        newWindow.title = L10n.Settings.windowTitle
+        newWindow.minSize = NSSize(
+            width: SettingsWindowMetrics.minWidth,
+            height: SettingsWindowMetrics.minHeight
+        )
+        newWindow.center()
+        newWindow.isReleasedWhenClosed = false
+        installContent(in: newWindow)
+        return newWindow
+    }
+
+    func installContent(in window: NSWindow) {
+        let rootView = SettingsView()
+            .applyInterfaceLanguageEnvironment()
+            .frame(
+                minWidth: SettingsWindowMetrics.minWidth,
+                minHeight: SettingsWindowMetrics.minHeight
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        let hostingView = NSHostingView(rootView: rootView)
+        window.contentView = hostingView
+        hostingView.frame = window.contentView?.bounds ?? .zero
+        hostingView.autoresizingMask = [.width, .height]
     }
 }
 
-extension View {
-    @ViewBuilder
-    func settingsWindowOpenBridge() -> some View {
-        if #available(macOS 14.0, *) {
-            background(SettingsWindowOpenBridge())
-        } else {
-            self
-        }
+extension SettingsWindowPresenter: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        window = nil
     }
 }
 

@@ -6433,6 +6433,20 @@
         }
       }
     },
+    "settings.window_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Settings" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "设置" } }
+      }
+    },
+    "settings.menu_item": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Settings…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "设置…" } }
+      }
+    },
     "settings.tab.general": {
       "extractionState": "manual",
       "localizations": {
