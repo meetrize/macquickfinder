@@ -786,6 +786,18 @@
 	<string>Toggle Left Panel</string>
 	<key>menu.toggle_right_panel</key>
 	<string>Toggle Right Panel</string>
+	<key>operation_recording.close_while_recording.discard</key>
+	<string>Discard Recording</string>
+	<key>operation_recording.close_while_recording.message</key>
+	<string>This window is closing while operation recording is active.</string>
+	<key>operation_recording.close_while_recording.stop</key>
+	<string>Stop and Copy Script</string>
+	<key>operation_recording.close_while_recording.title</key>
+	<string>Stop recording?</string>
+	<key>operation_recording.no_steps</key>
+	<string>No file operations were recorded</string>
+	<key>operation_recording.script_copied</key>
+	<string>Shell script copied (%lld steps)</string>
 	<key>pathbar.back</key>
 	<string>Back</string>
 	<key>pathbar.clear</key>
@@ -1590,6 +1602,10 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Open with %@</string>
 	<key>toolbar.open_app.use_app_icon</key>
 	<string>Use application icon</string>
+	<key>toolbar.record_operations</key>
+	<string>Record operations to create a Snippet</string>
+	<key>toolbar.record_operations_active</key>
+	<string>Recording — click to stop</string>
 	<key>toolbar.show_all_tabs</key>
 	<string>Show All Tabs</string>
 	<key>toolbar.show_left_panel</key>

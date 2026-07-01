@@ -1,4 +1,5 @@
 import XCTest
+import FileList
 @testable import Explorer
 
 final class ExplorerL10nTests: XCTestCase {
@@ -22,6 +23,9 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Toolbar.openAppSelectionCurrentFolder, "toolbar.open_app.selection_current_folder")
         XCTAssertNotEqual(L10n.Toolbar.openAppEdit, "toolbar.open_app.edit")
         XCTAssertNotEqual(L10n.Toolbar.newWindow, "toolbar.new_window")
+        XCTAssertNotEqual(L10n.Toolbar.recordOperations, "toolbar.record_operations")
+        XCTAssertNotEqual(L10n.Toolbar.recordOperationsActive, "toolbar.record_operations_active")
+        XCTAssertNotEqual(L10n.OperationRecording.noSteps, "operation_recording.no_steps")
         XCTAssertNotEqual(L10n.Toolbar.newTab, "toolbar.new_tab")
         XCTAssertNotEqual(L10n.Toolbar.showAllTabs, "toolbar.show_all_tabs")
         XCTAssertNotEqual(L10n.Toolbar.showTabBar, "toolbar.show_tab_bar")

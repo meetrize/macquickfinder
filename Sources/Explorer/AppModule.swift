@@ -219,6 +219,9 @@ private enum LucideSVG {
     static let arrowUpDown = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>
 """)
+    static let circle = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+""")
 }
 
 struct LucideIcon: View {
@@ -226,6 +229,7 @@ struct LucideIcon: View {
     var size: CGFloat = ExplorerToolbarMetrics.iconSize
     var isActive: Bool = false
     var isSecondary: Bool = false
+    var isRecording: Bool = false
 
     static let panelLeft = LucideIcon(svgData: LucideSVG.panelLeft)
     static let panelTop = LucideIcon(svgData: LucideSVG.panelTop)
@@ -261,6 +265,10 @@ struct LucideIcon: View {
         LucideIcon(svgData: LucideSVG.layoutGrid, isActive: isActive)
     }
 
+    static func record(isRecording: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.circle, isRecording: isRecording)
+    }
+
     static let appWindow = LucideIcon(svgData: LucideSVG.appWindow)
     static let squarePlus = LucideIcon(svgData: LucideSVG.squarePlus)
     static let galleryHorizontalEnd = LucideIcon(svgData: LucideSVG.galleryHorizontalEnd)
@@ -281,6 +289,7 @@ struct LucideIcon: View {
     }
 
     private var foregroundColor: Color {
+        if isRecording { return .red }
         if isActive { return .accentColor }
         if isSecondary { return .secondary }
         return .primary

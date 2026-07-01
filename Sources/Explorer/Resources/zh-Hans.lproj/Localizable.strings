@@ -786,6 +786,18 @@
 	<string>切换左侧面板</string>
 	<key>menu.toggle_right_panel</key>
 	<string>切换右侧面板</string>
+	<key>operation_recording.close_while_recording.discard</key>
+	<string>放弃录制</string>
+	<key>operation_recording.close_while_recording.message</key>
+	<string>窗口关闭时仍在录制操作。</string>
+	<key>operation_recording.close_while_recording.stop</key>
+	<string>停止并复制脚本</string>
+	<key>operation_recording.close_while_recording.title</key>
+	<string>停止录制？</string>
+	<key>operation_recording.no_steps</key>
+	<string>未记录到文件操作</string>
+	<key>operation_recording.script_copied</key>
+	<string>Shell 脚本已复制（%lld 步）</string>
 	<key>pathbar.back</key>
 	<string>后退</string>
 	<key>pathbar.clear</key>
@@ -1590,6 +1602,10 @@
 	<string>用 %@ 打开</string>
 	<key>toolbar.open_app.use_app_icon</key>
 	<string>使用应用图标</string>
+	<key>toolbar.record_operations</key>
+	<string>录制操作用于生成 Snippet</string>
+	<key>toolbar.record_operations_active</key>
+	<string>正在录制 — 点击停止</string>
 	<key>toolbar.show_all_tabs</key>
 	<string>显示所有标签页</string>
 	<key>toolbar.show_left_panel</key>

@@ -375,6 +375,8 @@ enum L10n {
         static var tabBarCannotHideMultiple: String { ModuleLocalization.localized("toolbar.tab_bar.cannot_hide_multiple", bundle: .module) }
         static var tabBarUnavailable: String { ModuleLocalization.localized("toolbar.tab_bar.unavailable", bundle: .module) }
         static var newFolder: String { ModuleLocalization.localized("toolbar.new_folder", bundle: .module) }
+        static var recordOperations: String { ModuleLocalization.localized("toolbar.record_operations", bundle: .module) }
+        static var recordOperationsActive: String { ModuleLocalization.localized("toolbar.record_operations_active", bundle: .module) }
         static var delete: String { ModuleLocalization.localized("toolbar.delete", bundle: .module) }
         static var listView: String { ModuleLocalization.localized("toolbar.list_view", bundle: .module) }
         static var thumbnailView: String { ModuleLocalization.localized("toolbar.thumbnail_view", bundle: .module) }
@@ -422,6 +424,29 @@ enum L10n {
                     name
                 )
             }
+        }
+    }
+
+    enum OperationRecording {
+        static var noSteps: String { ModuleLocalization.localized("operation_recording.no_steps", bundle: .module) }
+        static var closeWhileRecordingTitle: String {
+            ModuleLocalization.localized("operation_recording.close_while_recording.title", bundle: .module)
+        }
+        static var closeWhileRecordingMessage: String {
+            ModuleLocalization.localized("operation_recording.close_while_recording.message", bundle: .module)
+        }
+        static var closeStopAndGenerate: String {
+            ModuleLocalization.localized("operation_recording.close_while_recording.stop", bundle: .module)
+        }
+        static var closeDiscard: String {
+            ModuleLocalization.localized("operation_recording.close_while_recording.discard", bundle: .module)
+        }
+
+        static func scriptCopied(_ stepCount: Int) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("operation_recording.script_copied", bundle: .module),
+                stepCount
+            )
         }
     }
 

@@ -175,6 +175,10 @@ struct ExplorerToolbarItemView: View {
             return environment.layout.showPreview ? L10n.Menu.hidePreview : L10n.Menu.showPreview
         case .snippets:
             return environment.layout.showSnippets ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets
+        case .recordOperations:
+            return environment.isOperationRecording
+                ? L10n.Toolbar.recordOperationsActive
+                : L10n.Toolbar.recordOperations
         case .outputPanel:
             return environment.layout.isOutputPanelVisible
                 ? L10n.Menu.hideOutputPanel
@@ -247,6 +251,8 @@ extension ToolbarBuiltinID {
             return .fileImage(isActive: environment.layout.showPreview)
         case .snippets:
             return .braces(isActive: environment.layout.showSnippets)
+        case .recordOperations:
+            return .record(isRecording: environment.isOperationRecording)
         case .outputPanel:
             return .terminal(isActive: environment.layout.isOutputPanelVisible)
         case .newFolder:

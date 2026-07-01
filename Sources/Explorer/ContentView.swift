@@ -85,6 +85,8 @@ struct ContentView: View {
     @State private var pendingExternalSelectionPath: String?
     @State private var showConnectServerSheet = false
     @State private var transientNoticeMessage: String?
+    @StateObject private var operationRecorder = OperationRecorder()
+    @State private var operationRecordingCloseGuard = OperationRecordingWindowCloseGuard()
     
     init(initialPath: String? = nil, windowSceneKind: ExplorerWindowSceneKind = .main) {
         self.initialPath = initialPath
@@ -297,7 +299,10 @@ struct ContentView: View {
             .accessibilityHidden(true)
         )
         .onChange(of: hostWindow) { window in
-            guard let window else { return }
+            guard let window else {
+                operationRecordingCloseGuard.detach()
+                return
+            }
             ExplorerWindowTabCenter.shared.attemptTabMerge(for: window)
             if let initialPath = ExplorerWindowTabCenter.shared.consumeInitialPathForNewTab(in: window) {
                 path = initialPath
@@ -306,6 +311,12 @@ struct ContentView: View {
             ExplorerWindowTabCenter.shared.registerWindow(window, path: path, sceneKind: windowSceneKind)
             ExplorerWindowTabCenter.shared.handleExplorerWindowDidAppear(window)
             syncExplorerTabBarState()
+            OperationRecordingHub.register(operationRecorder)
+            operationRecordingCloseGuard.attach(
+                to: window,
+                recorder: operationRecorder,
+                onStopAndGenerate: finishOperationRecording(steps:)
+            )
         }
         .onChange(of: path) { newPath in
             guard let hostWindow else { return }
@@ -313,6 +324,11 @@ struct ContentView: View {
         }
         .onChange(of: windowTabCenter.tabBarRevision) { _ in
             syncExplorerTabBarState()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+            guard let keyWindow = notification.object as? NSWindow,
+                  keyWindow == hostWindow else { return }
+            OperationRecordingHub.register(operationRecorder)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             guard let closingWindow = notification.object as? NSWindow,
@@ -347,6 +363,10 @@ struct ContentView: View {
             layout.recordLastOpenedPath(path)
             loadItems()
             syncExplorerTabBarState()
+        }
+        .onDisappear {
+            OperationRecordingHub.unregister(operationRecorder)
+            operationRecordingCloseGuard.detach()
         }
         .onReceive(externalFolderOpenCenter.$openRequestGeneration.dropFirst()) { _ in
             guard let request = externalFolderOpenCenter.targetRequest else { return }
@@ -621,6 +641,7 @@ struct ContentView: View {
             leftPanelMode: leftPanelMode,
             isCustomizing: toolbarStore.isCustomizing,
             tabBarState: explorerTabBarState,
+            isOperationRecording: operationRecorder.isRecording,
             toggleLeftPanelVisibility: toggleLeftPanelVisibility,
             openNewWindow: openNewExplorerWindow,
             openNewTab: openNewExplorerTab,
@@ -636,8 +657,34 @@ struct ContentView: View {
             toggleAutoCalculateDirectorySizes: { autoCalculateDirectorySizes.toggle() },
             toggleUseIconPreview: { useIconPreview.toggle() },
             performOpenApp: performToolbarOpenApp,
-            editOpenApp: editToolbarOpenApp
+            editOpenApp: editToolbarOpenApp,
+            toggleOperationRecording: toggleOperationRecording
         )
+    }
+
+    private func toggleOperationRecording() {
+        if operationRecorder.isRecording {
+            finishOperationRecording(steps: operationRecorder.stop())
+        } else {
+            operationRecorder.start(cwd: path)
+            OperationRecordingHub.register(operationRecorder)
+        }
+    }
+
+    private func finishOperationRecording(steps: [RecordedOperationStep]) {
+        guard !steps.isEmpty else {
+            showTransientNotice(L10n.OperationRecording.noSteps)
+            return
+        }
+        let script = OperationShellTranslator.translate(steps: steps)
+        guard !script.isEmpty else {
+            showTransientNotice(L10n.OperationRecording.noSteps)
+            return
+        }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(script, forType: .string)
+        showTransientNotice(L10n.OperationRecording.scriptCopied(steps.count))
     }
 
     private func editToolbarOpenApp(_ action: CustomOpenAppAction) {
@@ -1422,6 +1469,7 @@ struct ContentView: View {
                 
                 do {
                     try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: false)
+                    OperationRecordingHub.record(.createDirectory(url: folderURL))
                     loadItems()
                 } catch {
                     let errorAlert = NSAlert(error: error)
@@ -1458,6 +1506,7 @@ struct ContentView: View {
                     errorAlert.runModal()
                     return
                 }
+                OperationRecordingHub.record(.createFile(url: fileURL))
                 loadItems()
             }
         }

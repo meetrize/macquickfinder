@@ -13,6 +13,7 @@ struct ExplorerToolbarEnvironment {
     var leftPanelMode: LeftPanelMode
     var isCustomizing: Bool
     var tabBarState: ExplorerTabBarState
+    var isOperationRecording: Bool
 
     var toggleLeftPanelVisibility: () -> Void
     var openNewWindow: () -> Void
@@ -27,6 +28,7 @@ struct ExplorerToolbarEnvironment {
     var toggleUseIconPreview: () -> Void
     var performOpenApp: (CustomOpenAppAction) -> Void
     var editOpenApp: (CustomOpenAppAction) -> Void
+    var toggleOperationRecording: () -> Void
 }
 
 enum ToolbarBuiltinDispatcher {
@@ -49,6 +51,8 @@ enum ToolbarBuiltinDispatcher {
             environment.layout.showPreview.toggle()
         case .snippets:
             environment.layout.showSnippets.toggle()
+        case .recordOperations:
+            environment.toggleOperationRecording()
         case .outputPanel:
             environment.layout.toggleOutputPanel()
         case .newFolder:

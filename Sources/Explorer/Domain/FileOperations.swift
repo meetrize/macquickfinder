@@ -75,6 +75,7 @@ enum FileOperations {
         
         let fileManager = FileManager.default
         var hadError = false
+        var completedPairs: [RecordedFilePair] = []
         
         for sourceURL in sourceURLs {
             let destinationURL = uniqueDestinationURL(
@@ -88,6 +89,7 @@ enum FileOperations {
                 } else {
                     try fileManager.moveItem(at: sourceURL, to: destinationURL)
                 }
+                completedPairs.append(RecordedFilePair(source: sourceURL, destination: destinationURL))
             } catch {
                 NSAlert(error: error).runModal()
                 hadError = true
@@ -96,6 +98,12 @@ enum FileOperations {
         }
         
         if !hadError {
+            recordOperation(
+                .transferItems(
+                    pairs: completedPairs,
+                    mode: copy ? .copy : .move
+                )
+            )
             completion()
         }
     }
@@ -117,6 +125,7 @@ enum FileOperations {
             }
         }
         if !hadError {
+            recordOperation(.trash(urls: sourceURLs))
             completion()
         }
     }
@@ -229,6 +238,7 @@ enum FileOperations {
         
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         
+        let urls = items.map(\.url)
         for item in items {
             do {
                 try FileManager.default.removeItem(at: item.url)
@@ -238,6 +248,7 @@ enum FileOperations {
                 return
             }
         }
+        recordOperation(.deleteImmediately(urls: urls))
         completion()
     }
     
@@ -270,6 +281,7 @@ enum FileOperations {
         
         let fileManager = FileManager.default
         var hadError = false
+        var completedPairs: [RecordedFilePair] = []
         
         for sourceURL in state.urls {
             let destinationURL = uniqueDestinationURL(
@@ -283,6 +295,7 @@ enum FileOperations {
                 } else {
                     try fileManager.copyItem(at: sourceURL, to: destinationURL)
                 }
+                completedPairs.append(RecordedFilePair(source: sourceURL, destination: destinationURL))
             } catch {
                 NSAlert(error: error).runModal()
                 hadError = true
@@ -294,6 +307,12 @@ enum FileOperations {
             clearCutPasteboard()
         }
         if !hadError {
+            recordOperation(
+                .paste(
+                    pairs: completedPairs,
+                    mode: state.isCut ? .move : .copy
+                )
+            )
             completion()
         }
     }
@@ -352,12 +371,15 @@ enum FileOperations {
             urls.map(\.path),
             forType: finderCopyPasteboardType
         )
+        recordOperation(.cut(sources: urls))
     }
     
     static func copy(_ items: [FileItem]) {
+        let urls = items.map(\.url)
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects(items.map(\.url) as [NSURL])
+        pasteboard.writeObjects(urls as [NSURL])
+        recordOperation(.copy(sources: urls))
     }
     
     static func copyFilename(_ item: FileItem) {
@@ -388,6 +410,7 @@ enum FileOperations {
         
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         
+        let urls = items.map(\.url)
         for item in items {
             do {
                 var resultingURL: NSURL?
@@ -401,6 +424,7 @@ enum FileOperations {
                 return
             }
         }
+        recordOperation(.trash(urls: urls))
         completion()
     }
     
@@ -421,6 +445,7 @@ enum FileOperations {
         let newURL = item.url.deletingLastPathComponent().appendingPathComponent(trimmed)
         do {
             try FileManager.default.moveItem(at: item.url, to: newURL)
+            recordOperation(.rename(source: item.url, destination: newURL))
             return .success(newURL)
         } catch {
             return .failure(error)
@@ -539,5 +564,19 @@ enum FileOperations {
     
     private static func clearCutPasteboard() {
         NSPasteboard.general.clearContents()
+    }
+
+    private static func recordOperation(_ operation: RecordedOperation) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                OperationRecordingHub.record(operation)
+            }
+        } else {
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    OperationRecordingHub.record(operation)
+                }
+            }
+        }
     }
 }
