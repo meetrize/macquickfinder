@@ -15,3 +15,4 @@ MeoFind.app/
 # Website (Vite)
 website/node_modules/
 website/dist/
+__pycache__/smart-commit.cpython-313.pyc

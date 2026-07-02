@@ -21,15 +21,34 @@ def git_diff_size() -> int:
     return len(run(["git", "diff", "HEAD"]))
 
 
-def get_file_summary():
-    """Get concise per-file change summary."""
+def has_pending_changes() -> bool:
+    """Return True if there are staged, unstaged, or untracked changes."""
+    staged = run(["git", "diff", "--cached", "--name-only"])
+    modified = run(["git", "diff", "--name-only"])
+    untracked = run(["git", "ls-files", "--others", "--exclude-standard"])
+    return bool(staged.strip() or modified.strip() or untracked.strip())
+
+
+def get_changed_files() -> list[str]:
+    """Return sorted list of changed file paths."""
     staged = set(run(["git", "diff", "--cached", "--name-only"]).splitlines())
     untracked = set(run(["git", "ls-files", "--others", "--exclude-standard"]).splitlines())
     modified = set(run(["git", "diff", "--name-only"]).splitlines())
-    all_files = sorted(set(staged) | set(untracked) | set(modified))
+    return sorted(set(staged) | set(untracked) | set(modified))
+
+
+def get_file_summary():
+    """Get concise per-file change summary."""
+    all_files = get_changed_files()
+    if not all_files:
+        return ""
 
     summaries = []
     total_diff_size = git_diff_size()
+
+    staged = set(run(["git", "diff", "--cached", "--name-only"]).splitlines())
+    untracked = set(run(["git", "ls-files", "--others", "--exclude-standard"]).splitlines())
+    modified = set(run(["git", "diff", "--name-only"]).splitlines())
 
     for f in all_files:
         numstat_str = run(["git", "diff", "HEAD", "--numstat", f])
@@ -74,20 +93,21 @@ def get_file_summary():
 
 def build_api_payload(context_text: str, scope: str):
     system_prompt = (
-        "You are a professional Git commit message writer following Conventional Commits.\n"
-        "Rules:\n"
-        "- First line: <type>(<scope>): <description>\n"
-        "- Type: feat|fix|chore|refactor|docs|style|test|build|ci\n"
-        "- Present tense imperative mood, max 72 chars first line\n"
-        "- Optional brief body explaining WHAT and WHY\n"
-        "- Output ONLY the commit message, no backticks, no explanation"
+        "你是专业的 Git 提交信息撰写助手，遵循 Conventional Commits 规范。\n"
+        "规则：\n"
+        "- 第一行格式：<type>(<scope>): <中文描述>\n"
+        "- type 使用 feat|fix|chore|refactor|docs|style|test|build|ci\n"
+        "- 标题与正文必须使用简体中文，冒号后的描述必须为中文\n"
+        "- 标题使用祈使语气，第一行不超过 72 个字符\n"
+        "- 可选正文简要说明做了什么、为什么\n"
+        "- 只输出提交信息本身，不要反引号，不要额外解释"
     )
     user_prompt = (
-        f"Recent commits:\n```\n"
+        f"最近提交：\n```\n"
         f"{run(['git', 'log', '--oneline', '-5'])}\n```"
         f"\n\n{context_text}"
-        f"\n\nScope hint: {scope}"
-        f"\n\nGenerate a Conventional Commits formatted commit message."
+        f"\n\n范围提示：{scope}"
+        f"\n\n请生成符合 Conventional Commits 规范的简体中文提交信息。"
     )
 
     return {
@@ -141,6 +161,11 @@ def call_deepseek(payload: dict, api_key: str, proxy: str | None = None) -> str:
 
 def main():
     scope = sys.argv[1] if len(sys.argv) > 1 else "general"
+
+    if not has_pending_changes():
+        print("没有检测到任何变更，已跳过提交。")
+        sys.exit(0)
+
     api_key = os.environ.get("DEEPSEEK_API_KEY")
     proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("http_proxy")
 
@@ -164,15 +189,8 @@ def main():
         sys.exit(1)
 
     # Build context
+    changed_files = get_changed_files()
     file_context = get_file_summary()
-    file_count = len(file_context.splitlines())
-
-    if file_count == 1:
-        print("No changes detected.")
-        sys.exit(0)
-
-    changed_files = file_context.split("\n")[1:]
-    changed_files = [f for f in changed_files if f.startswith("  ")]
     print(f"Detected {len(changed_files)} changed file(s)")
 
     payload = build_api_payload(file_context, scope)
@@ -181,25 +199,26 @@ def main():
         generated_msg = call_deepseek(payload, api_key, proxy)
     except Exception as e:
         print(f"AI request failed: {e}")
-        generated_msg = "chore: update code"
+        generated_msg = "chore: 更新代码"
 
     if not generated_msg:
-        generated_msg = "chore: update code"
+        generated_msg = "chore: 更新代码"
 
     # Show and confirm
     print()
-    print("Generated commit message:")
+    print("生成的提交信息：")
     print("=" * 42)
     for line in generated_msg.split("\n"):
         print(f"  {line}")
     print("=" * 42)
 
-    confirm = input("Use this message? [Y/n]: ").strip().lower()
+    confirm = input("使用此提交信息？[Y/n]: ").strip().lower()
     if confirm in ("n", "no", "f"):
-        custom = input("Enter custom message (or Enter to cancel): ").strip()
+        custom = input("输入自定义提交信息（留空取消）：").strip()
         if custom:
             auto_push(custom, api_key, proxy)
-        print("Cancelled.")
+            return
+        print("已取消。")
         return
 
     auto_push(generated_msg, api_key, proxy)
