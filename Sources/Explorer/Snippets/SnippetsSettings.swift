@@ -53,7 +53,7 @@ final class SnippetsSettings: ObservableObject {
     private init() {
         pinRecentlyExecutedSnippets = UserDefaultsStorage.bool(
             forKey: AppPreferences.Snippets.pinRecentlyExecuted,
-            default: true
+            default: false
         )
         maxConcurrentJobs = UserDefaultsStorage.int(
             forKey: AppPreferences.Snippets.maxConcurrentJobs,
