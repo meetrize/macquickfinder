@@ -3,13 +3,68 @@ import SwiftUI
 
 public enum RailTooltipPresenter {
     private static let panel = RailTooltipPanel()
+    private static var suppression: TooltipDismissSuppression?
 
     public static func show(text: String, anchor: NSView) {
         panel.present(text: text, anchor: anchor)
+        beginDismissSuppressionIfNeeded()
     }
 
     public static func hide() {
+        endDismissSuppression()
         panel.dismiss()
+    }
+
+    private static func beginDismissSuppressionIfNeeded() {
+        guard suppression == nil else { return }
+        suppression = TooltipDismissSuppression {
+            hide()
+        }
+    }
+
+    private static func endDismissSuppression() {
+        let current = suppression
+        suppression = nil
+        current?.teardown()
+    }
+}
+
+/// Hides the active hover tooltip when a context menu opens or the user right-clicks.
+private final class TooltipDismissSuppression {
+    private var rightClickMonitor: Any?
+    private var menuTrackingObserver: NSObjectProtocol?
+    private let onDismiss: () -> Void
+
+    init(onDismiss: @escaping () -> Void) {
+        self.onDismiss = onDismiss
+
+        rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
+            self?.onDismiss()
+            return event
+        }
+
+        menuTrackingObserver = NotificationCenter.default.addObserver(
+            forName: NSMenu.didBeginTrackingNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onDismiss()
+        }
+    }
+
+    func teardown() {
+        if let rightClickMonitor {
+            NSEvent.removeMonitor(rightClickMonitor)
+            self.rightClickMonitor = nil
+        }
+        if let menuTrackingObserver {
+            NotificationCenter.default.removeObserver(menuTrackingObserver)
+            self.menuTrackingObserver = nil
+        }
+    }
+
+    deinit {
+        teardown()
     }
 }
 
@@ -34,7 +89,8 @@ private final class RailTooltipPanel: NSPanel {
             defer: false
         )
         isFloatingPanel = true
-        level = .popUpMenu
+        // Below .popUpMenu so context menus always render above tooltips.
+        level = .floating
         backgroundColor = .clear
         hasShadow = true
         ignoresMouseEvents = true
@@ -176,6 +232,11 @@ public final class HoverTooltipAnchorView: NSView {
 
     public override func mouseExited(with event: NSEvent) {
         RailTooltipPresenter.hide()
+    }
+
+    public override func rightMouseDown(with event: NSEvent) {
+        RailTooltipPresenter.hide()
+        super.rightMouseDown(with: event)
     }
 
     deinit {
