@@ -36,7 +36,7 @@ enum SnippetEditorWindowController {
         )
 
         let hostingView = NSHostingView(rootView: rootView)
-        let windowSize = NSSize(width: 560, height: 640)
+        let windowSize = NSSize(width: 820, height: 790)
 
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: windowSize),
