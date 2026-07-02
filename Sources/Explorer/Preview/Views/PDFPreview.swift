@@ -8,11 +8,17 @@ struct PDFPreview: NSViewRepresentable {
     @Binding var previewTextSelectionActive: Bool
     @Binding var searchQuery: String
     @Binding var searchNextToken: UInt
+    @Binding var searchPrevToken: UInt
     @Binding var searchMatchCount: Int
+    @Binding var searchCurrentIndex: Int
     var onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(searchMatchCount: $searchMatchCount, onStateChanged: onStateChanged)
+        Coordinator(
+            searchMatchCount: $searchMatchCount,
+            searchCurrentIndex: $searchCurrentIndex,
+            onStateChanged: onStateChanged
+        )
     }
 
     func makeNSView(context: Context) -> PDFView {
@@ -83,12 +89,14 @@ struct PDFPreview: NSViewRepresentable {
         context.coordinator.updateSearchIfNeeded(
             pdfView: nsView,
             searchQuery: searchQuery,
-            searchNextToken: searchNextToken
+            searchNextToken: searchNextToken,
+            searchPrevToken: searchPrevToken
         )
     }
 
     final class Coordinator: NSObject, PDFViewDelegate {
         @Binding var searchMatchCount: Int
+        var searchCurrentIndexBinding: Binding<Int>
         var onStateChanged: (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
         var previewTextSelectionActive: Binding<Bool>?
         private var pageChangedObserver: NSObjectProtocol?
@@ -97,15 +105,24 @@ struct PDFPreview: NSViewRepresentable {
         private weak var observedView: PDFView?
         private var lastSearchQuery: String = ""
         private var lastSearchNextToken: UInt = 0
+        private var lastSearchPrevToken: UInt = 0
         private var searchCurrentIndex: Int = 0
         private var searchSelections: [PDFSelection] = []
 
         init(
             searchMatchCount: Binding<Int>,
+            searchCurrentIndex: Binding<Int>,
             onStateChanged: @escaping (_ currentPage: Int, _ pageCount: Int, _ scalePercent: Int) -> Void
         ) {
             _searchMatchCount = searchMatchCount
+            searchCurrentIndexBinding = searchCurrentIndex
             self.onStateChanged = onStateChanged
+        }
+
+        private func publishSearchCurrentIndex() {
+            if searchCurrentIndexBinding.wrappedValue != searchCurrentIndex {
+                searchCurrentIndexBinding.wrappedValue = searchCurrentIndex
+            }
         }
 
         deinit {
@@ -189,20 +206,44 @@ struct PDFPreview: NSViewRepresentable {
         func clearSearchState() {
             lastSearchQuery = ""
             lastSearchNextToken = 0
+            lastSearchPrevToken = 0
             searchCurrentIndex = 0
             searchSelections = []
             if searchMatchCount != 0 { searchMatchCount = 0 }
+            publishSearchCurrentIndex()
         }
 
-        func updateSearchIfNeeded(pdfView: PDFView, searchQuery: String, searchNextToken: UInt) {
+        func updateSearchIfNeeded(
+            pdfView: PDFView,
+            searchQuery: String,
+            searchNextToken: UInt,
+            searchPrevToken: UInt
+        ) {
             if lastSearchQuery != searchQuery {
                 lastSearchQuery = searchQuery
                 searchCurrentIndex = 0
                 applySearch(in: pdfView, scrollToCurrent: !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            } else if lastSearchNextToken != searchNextToken {
+            }
+
+            if lastSearchNextToken != searchNextToken {
                 lastSearchNextToken = searchNextToken
                 guard !searchSelections.isEmpty else { return }
-                searchCurrentIndex = (searchCurrentIndex + 1) % searchSelections.count
+                searchCurrentIndex = PreviewTextSearchHighlighter.advanceMatchIndex(
+                    current: searchCurrentIndex,
+                    matchCount: searchSelections.count,
+                    backward: false
+                )
+                applySearch(in: pdfView, scrollToCurrent: true)
+            }
+
+            if lastSearchPrevToken != searchPrevToken {
+                lastSearchPrevToken = searchPrevToken
+                guard !searchSelections.isEmpty else { return }
+                searchCurrentIndex = PreviewTextSearchHighlighter.advanceMatchIndex(
+                    current: searchCurrentIndex,
+                    matchCount: searchSelections.count,
+                    backward: true
+                )
                 applySearch(in: pdfView, scrollToCurrent: true)
             }
         }
@@ -216,6 +257,7 @@ struct PDFPreview: NSViewRepresentable {
                 searchSelections = []
                 searchCurrentIndex = 0
                 if searchMatchCount != 0 { searchMatchCount = 0 }
+                publishSearchCurrentIndex()
                 return
             }
 
@@ -246,6 +288,7 @@ struct PDFPreview: NSViewRepresentable {
             if searchMatchCount != searchSelections.count {
                 searchMatchCount = searchSelections.count
             }
+            publishSearchCurrentIndex()
 
             guard !searchSelections.isEmpty else {
                 pdfView.highlightedSelections = nil

@@ -79,8 +79,32 @@ struct PreviewImageColorSwatch: View {
     }
 }
 
+private enum PreviewToolbarSearchFieldMetrics {
+    static let height: CGFloat = 24
+    static let horizontalPadding: CGFloat = 8
+}
+
 struct PreviewTextSearchToolbarControls: View {
     @ObservedObject var session: PreviewSession
+
+    private var trimmedQuery: String {
+        session.text.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var hasQuery: Bool { !trimmedQuery.isEmpty }
+    private var matchCount: Int { session.text.searchMatchCount }
+    private var hasMatches: Bool { matchCount > 0 }
+    private var currentDisplayIndex: Int { session.text.searchCurrentIndex + 1 }
+
+    private var matchStatusLabel: String? {
+        guard hasQuery else { return nil }
+        if hasMatches {
+            return matchCount > 1
+                ? "\(currentDisplayIndex)/\(matchCount)"
+                : "\(matchCount)"
+        }
+        return L10n.Preview.Toolbar.searchNoResults
+    }
 
     var body: some View {
         HStack(spacing: 4) {
@@ -91,12 +115,33 @@ struct PreviewTextSearchToolbarControls: View {
             PreviewFocuslessTextField(
                 text: $session.text.searchQuery,
                 placeholder: L10n.Preview.Toolbar.searchPrompt,
-                width: 120,
-                onSubmit: { session.text.findNextSearchMatch() }
+                isInline: true,
+                onSubmit: { session.text.findNextSearchMatch() },
+                onShiftSubmit: { session.text.findPreviousSearchMatch() }
             )
-            .frame(minWidth: 88, maxWidth: 120)
+            .frame(minWidth: 96, maxWidth: 160)
 
-            if session.text.searchMatchCount > 1 {
+            if let matchStatusLabel {
+                Text(matchStatusLabel)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(hasMatches ? Color.secondary : Color.orange)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .instantHoverTooltip(
+                        hasMatches
+                            ? L10n.Preview.Toolbar.searchInPreview
+                            : L10n.Preview.Toolbar.searchNoResults
+                    )
+            }
+
+            if hasMatches {
+                PreviewFocuslessIconButton(
+                    systemImageName: "chevron.up",
+                    accessibilityLabel: L10n.Preview.Toolbar.previousMatch,
+                    action: { session.text.findPreviousSearchMatch() }
+                )
+                .instantHoverTooltip(L10n.Preview.Toolbar.previousMatch)
+
                 PreviewFocuslessIconButton(
                     systemImageName: "chevron.down",
                     accessibilityLabel: L10n.Preview.Toolbar.nextMatch,
@@ -104,9 +149,31 @@ struct PreviewTextSearchToolbarControls: View {
                 )
                 .instantHoverTooltip(L10n.Preview.Toolbar.nextMatch)
             }
+
+            if hasQuery {
+                Button {
+                    session.text.clearSearchQuery()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .instantHoverTooltip(L10n.Preview.Toolbar.clearSearch)
+            }
         }
-        .frame(minWidth: 120, alignment: .trailing)
-        .instantHoverTooltip(L10n.Preview.Toolbar.searchInPreview)
+        .padding(.horizontal, PreviewToolbarSearchFieldMetrics.horizontalPadding)
+        .frame(height: PreviewToolbarSearchFieldMetrics.height)
+        .background {
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.05))
+        }
+        .overlay {
+            Capsule(style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.22), lineWidth: 1)
+        }
+        .frame(minWidth: 168, maxWidth: 280, alignment: .trailing)
     }
 }
 

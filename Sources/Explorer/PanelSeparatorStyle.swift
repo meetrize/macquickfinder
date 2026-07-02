@@ -5,14 +5,14 @@ import SwiftUI
 enum PanelSeparatorStyle {
     private static let colorName = NSColor.Name("MeoFind.PanelSeparator")
 
-    /// 比系统 `gridColor` / `separatorColor` 更深，避免与面板底色对比不足。
+    /// 接近系统分隔线观感，略浅、不透明，避免与面板底色混合发虚。
     static var nsColor: NSColor {
         NSColor(name: colorName, dynamicProvider: { appearance in
             let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             if isDark {
-                return NSColor(calibratedWhite: 0.55, alpha: 1)
+                return NSColor(calibratedWhite: 0.38, alpha: 1)
             }
-            return NSColor(calibratedWhite: 0.38, alpha: 1)
+            return NSColor(calibratedWhite: 0.87, alpha: 1)
         })
     }
 
@@ -34,6 +34,16 @@ enum PanelSeparatorStyle {
             draw()
         }
     }
+
+    static func fillWindowBackground(_ rect: NSRect, in view: NSView) {
+        view.effectiveAppearance.performAsCurrentDrawingAppearance {
+            NSColor.windowBackgroundColor.setFill()
+            rect.fill()
+        }
+    }
+
+    /// 顶部遮罩带高度：覆盖工具栏底部阴影渗漏，再在其下缘绘制 1 物理像素线。
+    static let toolbarSeparatorMaskHeight: CGFloat = 1
 }
 
 struct PanelSolidSeparatorView: NSViewRepresentable {
@@ -53,25 +63,28 @@ final class PanelSolidSeparatorNSView: NSView {
     }
 }
 
-/// 顶部工具栏下方等需要最细 1px 实线的场景。
-struct PanelHairlineSeparatorView: NSViewRepresentable {
-    func makeNSView(context: Context) -> PanelHairlineSeparatorNSView {
-        PanelHairlineSeparatorNSView()
+/// 顶部工具栏下方：先用窗口底色遮住系统阴影，再绘制 1 物理像素实线。
+struct PanelToolbarBottomSeparatorOverlay: NSViewRepresentable {
+    func makeNSView(context: Context) -> PanelToolbarBottomSeparatorOverlayNSView {
+        PanelToolbarBottomSeparatorOverlayNSView()
     }
 
-    func updateNSView(_ nsView: PanelHairlineSeparatorNSView, context: Context) {}
+    func updateNSView(_ nsView: PanelToolbarBottomSeparatorOverlayNSView, context: Context) {}
 }
 
-final class PanelHairlineSeparatorNSView: NSView {
-    override var isOpaque: Bool { false }
+final class PanelToolbarBottomSeparatorOverlayNSView: NSView {
+    override var isOpaque: Bool { true }
     override var isFlipped: Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2.0
         let thickness = PanelSeparatorStyle.hairlineThickness(for: scale)
+        let snappedBottom = floor(bounds.maxY * scale) / scale
+        let maskRect = NSRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: bounds.height)
+        PanelSeparatorStyle.fillWindowBackground(dirtyRect.intersection(maskRect), in: self)
         let lineRect = NSRect(
             x: bounds.minX,
-            y: bounds.maxY - thickness,
+            y: snappedBottom - thickness,
             width: bounds.width,
             height: thickness
         )

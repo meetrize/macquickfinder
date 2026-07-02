@@ -1074,6 +1074,8 @@
 	<string>折叠到第一层</string>
 	<key>preview.toolbar.archive_expand</key>
 	<string>展开到全部层级</string>
+	<key>preview.toolbar.clear_search</key>
+	<string>清除搜索</string>
 	<key>preview.toolbar.color_hex %@</key>
 	<string>颜色 %@</string>
 	<key>preview.toolbar.color_picker</key>
@@ -1136,6 +1138,8 @@
 	<string>暂停</string>
 	<key>preview.toolbar.play</key>
 	<string>播放</string>
+	<key>preview.toolbar.previous_match</key>
+	<string>上一个</string>
 	<key>preview.toolbar.previous_page</key>
 	<string>上一页</string>
 	<key>preview.toolbar.refresh_listing</key>
@@ -1154,6 +1158,8 @@
 	<string>保存编辑结果</string>
 	<key>preview.toolbar.search_in_preview</key>
 	<string>在预览中搜索</string>
+	<key>preview.toolbar.search_no_results</key>
+	<string>无结果</string>
 	<key>preview.toolbar.search_prompt</key>
 	<string>搜索</string>
 	<key>preview.toolbar.source_mode</key>

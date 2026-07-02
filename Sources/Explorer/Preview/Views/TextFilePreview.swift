@@ -12,10 +12,15 @@ struct TextFilePreview: NSViewRepresentable {
     @Binding var action: TextPreviewAction?
     @Binding var searchQuery: String
     @Binding var searchNextToken: UInt
+    @Binding var searchPrevToken: UInt
     @Binding var searchMatchCount: Int
+    @Binding var searchCurrentIndex: Int
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(searchMatchCount: $searchMatchCount)
+        Coordinator(
+            searchMatchCount: $searchMatchCount,
+            searchCurrentIndex: $searchCurrentIndex
+        )
     }
     
     func makeNSView(context: Context) -> NSScrollView {
@@ -175,10 +180,38 @@ struct TextFilePreview: NSViewRepresentable {
                 textView: textView,
                 scrollToCurrent: !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             )
-        } else if coordinator.lastSearchNextToken != searchNextToken {
+        }
+
+        if coordinator.lastSearchNextToken != searchNextToken {
             coordinator.lastSearchNextToken = searchNextToken
+            if coordinator.searchMatchRanges.isEmpty,
+               !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                coordinator.applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+            }
             guard !coordinator.searchMatchRanges.isEmpty else { return }
-            coordinator.searchCurrentIndex = (coordinator.searchCurrentIndex + 1) % coordinator.searchMatchRanges.count
+            coordinator.searchCurrentIndex = PreviewTextSearchHighlighter.advanceMatchIndex(
+                current: coordinator.searchCurrentIndex,
+                matchCount: coordinator.searchMatchRanges.count,
+                backward: false
+            )
+            coordinator.applySearchHighlightsInPlace(
+                textView: textView,
+                scrollToCurrent: true
+            )
+        }
+
+        if coordinator.lastSearchPrevToken != searchPrevToken {
+            coordinator.lastSearchPrevToken = searchPrevToken
+            if coordinator.searchMatchRanges.isEmpty,
+               !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                coordinator.applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+            }
+            guard !coordinator.searchMatchRanges.isEmpty else { return }
+            coordinator.searchCurrentIndex = PreviewTextSearchHighlighter.advanceMatchIndex(
+                current: coordinator.searchCurrentIndex,
+                matchCount: coordinator.searchMatchRanges.count,
+                backward: true
+            )
             coordinator.applySearchHighlightsInPlace(
                 textView: textView,
                 scrollToCurrent: true
@@ -188,6 +221,7 @@ struct TextFilePreview: NSViewRepresentable {
     
     final class Coordinator {
         @Binding var searchMatchCount: Int
+        var searchCurrentIndexBinding: Binding<Int>
         var previewTextSelectionActive: Binding<Bool>?
         weak var textView: NSTextView?
         weak var lineNumberRuler: CodePreviewLineNumberRulerView?
@@ -196,6 +230,7 @@ struct TextFilePreview: NSViewRepresentable {
         var lastHighlightKey: String?
         var lastSearchQuery: String = ""
         var lastSearchNextToken: UInt = 0
+        var lastSearchPrevToken: UInt = 0
         var searchCurrentIndex: Int = 0
         var searchMatchRanges: [NSRange] = []
         var lastHighlightedSearchRanges: [NSRange] = []
@@ -205,8 +240,15 @@ struct TextFilePreview: NSViewRepresentable {
         private var selectionObserver: NSObjectProtocol?
         private var firstResponderObserver: NSObjectProtocol?
 
-        init(searchMatchCount: Binding<Int>) {
+        init(searchMatchCount: Binding<Int>, searchCurrentIndex: Binding<Int>) {
             _searchMatchCount = searchMatchCount
+            searchCurrentIndexBinding = searchCurrentIndex
+        }
+
+        private func publishSearchCurrentIndex() {
+            if searchCurrentIndexBinding.wrappedValue != searchCurrentIndex {
+                searchCurrentIndexBinding.wrappedValue = searchCurrentIndex
+            }
         }
 
         deinit {
@@ -265,6 +307,7 @@ struct TextFilePreview: NSViewRepresentable {
                 searchMatchRanges = []
                 searchCurrentIndex = 0
                 if searchMatchCount != 0 { searchMatchCount = 0 }
+                publishSearchCurrentIndex()
                 lineNumberRuler?.needsDisplay = true
                 return
             }
@@ -279,6 +322,7 @@ struct TextFilePreview: NSViewRepresentable {
             if searchMatchCount != searchMatchRanges.count {
                 searchMatchCount = searchMatchRanges.count
             }
+            publishSearchCurrentIndex()
 
             guard !searchMatchRanges.isEmpty else {
                 lineNumberRuler?.needsDisplay = true

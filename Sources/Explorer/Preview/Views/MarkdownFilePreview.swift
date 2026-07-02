@@ -9,7 +9,9 @@ struct MarkdownFilePreview: NSViewRepresentable {
     @Binding var previewTextSelectionActive: Bool
     @Binding var searchQuery: String
     @Binding var searchNextToken: UInt
+    @Binding var searchPrevToken: UInt
     @Binding var searchMatchCount: Int
+    @Binding var searchCurrentIndex: Int
 
     private static let tableSeparatorRegex: NSRegularExpression? = {
         try? NSRegularExpression(
@@ -19,7 +21,10 @@ struct MarkdownFilePreview: NSViewRepresentable {
     }()
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(searchMatchCount: $searchMatchCount)
+        Coordinator(
+            searchMatchCount: $searchMatchCount,
+            searchCurrentIndex: $searchCurrentIndex
+        )
     }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -102,7 +107,8 @@ struct MarkdownFilePreview: NSViewRepresentable {
         context.coordinator.updateSearchIfNeeded(
             textView: textView,
             searchQuery: searchQuery,
-            searchNextToken: searchNextToken
+            searchNextToken: searchNextToken,
+            searchPrevToken: searchPrevToken
         )
     }
 
@@ -537,22 +543,36 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
     final class Coordinator {
         @Binding var searchMatchCount: Int
+        var searchCurrentIndexBinding: Binding<Int>
         weak var textView: NSTextView?
         var previewTextSelectionActive: Binding<Bool>?
         var lastMarkdown: String = ""
         var currentScale: CGFloat = 1.0
         var lastSearchQuery: String = ""
         var lastSearchNextToken: UInt = 0
+        var lastSearchPrevToken: UInt = 0
         var searchCurrentIndex: Int = 0
         var searchMatchRanges: [NSRange] = []
         var lastHighlightedSearchRanges: [NSRange] = []
         private var firstResponderObserver: NSObjectProtocol?
 
-        init(searchMatchCount: Binding<Int>) {
+        init(searchMatchCount: Binding<Int>, searchCurrentIndex: Binding<Int>) {
             _searchMatchCount = searchMatchCount
+            searchCurrentIndexBinding = searchCurrentIndex
         }
 
-        func updateSearchIfNeeded(textView: NSTextView, searchQuery: String, searchNextToken: UInt) {
+        private func publishSearchCurrentIndex() {
+            if searchCurrentIndexBinding.wrappedValue != searchCurrentIndex {
+                searchCurrentIndexBinding.wrappedValue = searchCurrentIndex
+            }
+        }
+
+        func updateSearchIfNeeded(
+            textView: NSTextView,
+            searchQuery: String,
+            searchNextToken: UInt,
+            searchPrevToken: UInt
+        ) {
             if lastSearchQuery != searchQuery {
                 lastSearchQuery = searchQuery
                 searchCurrentIndex = 0
@@ -560,10 +580,27 @@ struct MarkdownFilePreview: NSViewRepresentable {
                     textView: textView,
                     scrollToCurrent: !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 )
-            } else if lastSearchNextToken != searchNextToken {
+            }
+
+            if lastSearchNextToken != searchNextToken {
                 lastSearchNextToken = searchNextToken
                 guard !searchMatchRanges.isEmpty else { return }
-                searchCurrentIndex = (searchCurrentIndex + 1) % searchMatchRanges.count
+                searchCurrentIndex = PreviewTextSearchHighlighter.advanceMatchIndex(
+                    current: searchCurrentIndex,
+                    matchCount: searchMatchRanges.count,
+                    backward: false
+                )
+                applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
+            }
+
+            if lastSearchPrevToken != searchPrevToken {
+                lastSearchPrevToken = searchPrevToken
+                guard !searchMatchRanges.isEmpty else { return }
+                searchCurrentIndex = PreviewTextSearchHighlighter.advanceMatchIndex(
+                    current: searchCurrentIndex,
+                    matchCount: searchMatchRanges.count,
+                    backward: true
+                )
                 applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
             }
         }
@@ -579,6 +616,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 searchMatchRanges = []
                 searchCurrentIndex = 0
                 if searchMatchCount != 0 { searchMatchCount = 0 }
+                publishSearchCurrentIndex()
                 return
             }
 
@@ -592,6 +630,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
             if searchMatchCount != searchMatchRanges.count {
                 searchMatchCount = searchMatchRanges.count
             }
+            publishSearchCurrentIndex()
 
             guard !searchMatchRanges.isEmpty else { return }
 

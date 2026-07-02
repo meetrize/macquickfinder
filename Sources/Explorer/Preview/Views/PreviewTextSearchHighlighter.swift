@@ -66,4 +66,12 @@ enum PreviewTextSearchHighlighter {
     static func scrollToRange(_ range: NSRange, in textView: NSTextView) {
         textView.scrollRangeToVisible(range)
     }
+
+    static func advanceMatchIndex(current: Int, matchCount: Int, backward: Bool) -> Int {
+        guard matchCount > 0 else { return 0 }
+        if backward {
+            return (current - 1 + matchCount) % matchCount
+        }
+        return (current + 1) % matchCount
+    }
 }

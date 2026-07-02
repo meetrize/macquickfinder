@@ -806,6 +806,9 @@ enum L10n {
             static var previousPage: String { ModuleLocalization.localized("preview.toolbar.previous_page", bundle: .module) }
             static var nextPage: String { ModuleLocalization.localized("preview.toolbar.next_page", bundle: .module) }
             static var nextMatch: String { ModuleLocalization.localized("preview.toolbar.next_match", bundle: .module) }
+            static var previousMatch: String { ModuleLocalization.localized("preview.toolbar.previous_match", bundle: .module) }
+            static var clearSearch: String { ModuleLocalization.localized("preview.toolbar.clear_search", bundle: .module) }
+            static var searchNoResults: String { ModuleLocalization.localized("preview.toolbar.search_no_results", bundle: .module) }
             static var reset: String { ModuleLocalization.localized("preview.toolbar.reset", bundle: .module) }
             static var pageNumber: String { ModuleLocalization.localized("preview.toolbar.page_number", bundle: .module) }
             static var jumpToPage: String { ModuleLocalization.localized("preview.toolbar.jump_to_page", bundle: .module) }

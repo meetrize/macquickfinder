@@ -1074,6 +1074,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Collapse to Top Level</string>
 	<key>preview.toolbar.archive_expand</key>
 	<string>Expand All Levels</string>
+	<key>preview.toolbar.clear_search</key>
+	<string>Clear Search</string>
 	<key>preview.toolbar.color_hex %@</key>
 	<string>Color %@</string>
 	<key>preview.toolbar.color_picker</key>
@@ -1136,6 +1138,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Pause</string>
 	<key>preview.toolbar.play</key>
 	<string>Play</string>
+	<key>preview.toolbar.previous_match</key>
+	<string>Previous</string>
 	<key>preview.toolbar.previous_page</key>
 	<string>Previous Page</string>
 	<key>preview.toolbar.refresh_listing</key>
@@ -1154,6 +1158,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Save Edits</string>
 	<key>preview.toolbar.search_in_preview</key>
 	<string>Search in Preview</string>
+	<key>preview.toolbar.search_no_results</key>
+	<string>No results</string>
 	<key>preview.toolbar.search_prompt</key>
 	<string>Search</string>
 	<key>preview.toolbar.source_mode</key>

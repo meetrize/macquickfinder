@@ -120,6 +120,17 @@ struct InlineToolbarTitleModifier: ViewModifier {
     }
 }
 
+/// 隐藏 unified 工具栏背景与系统底部分隔/阴影，改由内容区 overlay 绘制单像素线。
+struct HiddenToolbarChromeSeparatorModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        } else {
+            content
+        }
+    }
+}
+
 // Lucide icons (ISC License) — https://lucide.dev
 private enum LucideSVG {
     static func make(_ svg: String) -> Data {

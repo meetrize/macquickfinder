@@ -184,10 +184,7 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { outer in
-            let toolbarSeparatorHeight = PanelSeparatorStyle.hairlineThickness(
-                for: hostWindow?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2.0
-            )
-            let containerHeight = outer.size.height - toolbarSeparatorHeight
+            let containerHeight = outer.size.height
             let containerWidth = outer.size.width
             let maxPreviewWidth = max(
                 minPreviewPanelWidth,
@@ -195,11 +192,7 @@ struct ContentView: View {
             )
             let outputMaxHeight = OutputPanelMetrics.maxPanelHeight(forContainerHeight: containerHeight)
 
-            VStack(spacing: 0) {
-                PanelHairlineSeparatorView()
-                    .frame(height: toolbarSeparatorHeight)
-
-                HStack(spacing: 0) {
+            HStack(spacing: 0) {
                 if leftPanelMode != .hidden {
                     Group {
                         Group {
@@ -289,9 +282,13 @@ struct ContentView: View {
                     .zIndex(1)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
             }
             .frame(width: outer.size.width, height: outer.size.height)
+            .overlay(alignment: .top) {
+                PanelToolbarBottomSeparatorOverlay()
+                    .frame(height: PanelSeparatorStyle.toolbarSeparatorMaskHeight)
+                    .allowsHitTesting(false)
+            }
             .focusedValue(\.textFieldEditing, isAnyTextFieldEditing)
             .background(TextEditingKeyMonitor(isActive: isAnyTextFieldEditing))
         }
@@ -300,6 +297,7 @@ struct ContentView: View {
             HostWindowReader(
                 window: $hostWindow,
                 onWindowAttached: { window in
+                    ExplorerWindowTabCenter.shared.configureExplorerWindow(window)
                     ExplorerWindowTabCenter.shared.attemptTabMerge(for: window)
                 }
             )
@@ -311,6 +309,7 @@ struct ContentView: View {
                 operationRecordingCloseGuard.detach()
                 return
             }
+            ExplorerWindowTabCenter.shared.configureExplorerWindow(window)
             ExplorerWindowTabCenter.shared.attemptTabMerge(for: window)
             if let initialPath = ExplorerWindowTabCenter.shared.consumeInitialPathForNewTab(in: window) {
                 path = initialPath
@@ -542,6 +541,7 @@ struct ContentView: View {
         .background(BarTextFieldFocusSync(activeField: $activeBarField))
         .navigationTitle(currentDirectoryTitle)
         .modifier(InlineToolbarTitleModifier())
+        .modifier(HiddenToolbarChromeSeparatorModifier())
         .toolbar {
             ExplorerDynamicToolbar(
                 store: toolbarStore,

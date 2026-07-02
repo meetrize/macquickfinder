@@ -179,7 +179,9 @@ final class PreviewSessionTextState: ObservableObject {
     @Published var previewAction: TextPreviewAction?
     @Published var searchQuery = ""
     @Published var searchNextToken: UInt = 0
+    @Published var searchPrevToken: UInt = 0
     @Published var searchMatchCount = 0
+    @Published var searchCurrentIndex = 0
     @Published var markdownMode: MarkdownDisplayMode = .preview
     @Published var markdownPreviewScale: CGFloat = 1.0
     @Published var markdownSourceFontSize: CGFloat = 13
@@ -190,7 +192,9 @@ final class PreviewSessionTextState: ObservableObject {
         previewAction = nil
         searchQuery = ""
         searchNextToken = 0
+        searchPrevToken = 0
         searchMatchCount = 0
+        searchCurrentIndex = 0
         markdownMode = .preview
         markdownPreviewScale = 1.0
         markdownSourceFontSize = 13
@@ -199,6 +203,14 @@ final class PreviewSessionTextState: ObservableObject {
 
     func findNextSearchMatch() {
         searchNextToken &+= 1
+    }
+
+    func findPreviousSearchMatch() {
+        searchPrevToken &+= 1
+    }
+
+    func clearSearchQuery() {
+        searchQuery = ""
     }
 }
 

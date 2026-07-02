@@ -156,6 +156,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
     }
 
     func configureExplorerWindow(_ window: NSWindow) {
+        // unifiedCompact 工具栏默认带阴影分隔，会与内容区自定义 hairline 叠加显得偏粗。
+        window.titlebarSeparatorStyle = .none
         guard window.tabbingMode != .disallowed else { return }
         window.tabbingMode = .preferred
     }

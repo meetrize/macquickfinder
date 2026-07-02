@@ -162,7 +162,9 @@ struct FileContentView: View {
                     previewTextSelectionActive: $previewTextSelectionActive,
                     searchQuery: $session.text.searchQuery,
                     searchNextToken: $session.text.searchNextToken,
-                    searchMatchCount: $session.text.searchMatchCount
+                    searchPrevToken: $session.text.searchPrevToken,
+                    searchMatchCount: $session.text.searchMatchCount,
+                    searchCurrentIndex: $session.text.searchCurrentIndex
                 ) { currentPage, pageCount, scalePercent in
                     session.pdf.currentPage = currentPage
                     session.pdf.pageCount = pageCount
@@ -187,7 +189,9 @@ struct FileContentView: View {
                     previewTextSelectionActive: $previewTextSelectionActive,
                     searchQuery: $session.text.searchQuery,
                     searchNextToken: $session.text.searchNextToken,
-                    searchMatchCount: $session.text.searchMatchCount
+                    searchPrevToken: $session.text.searchPrevToken,
+                    searchMatchCount: $session.text.searchMatchCount,
+                    searchCurrentIndex: $session.text.searchCurrentIndex
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if usesSpreadsheetQuickLook {
@@ -254,7 +258,9 @@ struct FileContentView: View {
                         previewTextSelectionActive: $previewTextSelectionActive,
                         searchQuery: $session.text.searchQuery,
                         searchNextToken: $session.text.searchNextToken,
-                        searchMatchCount: $session.text.searchMatchCount
+                        searchPrevToken: $session.text.searchPrevToken,
+                        searchMatchCount: $session.text.searchMatchCount,
+                        searchCurrentIndex: $session.text.searchCurrentIndex
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -269,7 +275,9 @@ struct FileContentView: View {
                         action: $session.text.previewAction,
                         searchQuery: $session.text.searchQuery,
                         searchNextToken: $session.text.searchNextToken,
-                        searchMatchCount: $session.text.searchMatchCount
+                        searchPrevToken: $session.text.searchPrevToken,
+                        searchMatchCount: $session.text.searchMatchCount,
+                        searchCurrentIndex: $session.text.searchCurrentIndex
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
