@@ -1486,6 +1486,14 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Standard</string>
 	<key>settings.snippets.display_mode</key>
 	<string>Panel display mode</string>
+	<key>settings.snippets.output_color.dark</key>
+	<string>Dark</string>
+	<key>settings.snippets.output_color.gray</key>
+	<string>Gray</string>
+	<key>settings.snippets.output_color.light</key>
+	<string>Light</string>
+	<key>settings.snippets.output_color_scheme</key>
+	<string>Output panel color scheme</string>
 	<key>settings.snippets.recording_generalize_paths</key>
 	<string>Generalize paths by default</string>
 	<key>settings.snippets.recording_section</key>

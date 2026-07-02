@@ -67,6 +67,11 @@ private struct SnippetsSettingsTab: View {
                             Text(mode.displayName).tag(mode)
                         }
                     }
+                    Picker(L10n.Settings.Snippets.outputColorScheme, selection: $settings.outputColorScheme) {
+                        ForEach(OutputPanelColorScheme.allCases) { scheme in
+                            Text(scheme.displayName).tag(scheme)
+                        }
+                    }
                     Toggle(L10n.Settings.Snippets.pinRecent, isOn: $settings.pinRecentlyExecutedSnippets)
                     Stepper(value: $settings.maxConcurrentJobs, in: 1...4) {
                         Text(L10n.Settings.Snippets.jobConcurrencyLimit(settings.maxConcurrentJobs))

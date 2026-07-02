@@ -50,6 +50,15 @@ final class SnippetsSettings: ObservableObject {
         }
     }
 
+    @Published var outputColorScheme: OutputPanelColorScheme {
+        didSet {
+            UserDefaultsStorage.set(
+                outputColorScheme.rawValue,
+                forKey: AppPreferences.Snippets.outputColorScheme
+            )
+        }
+    }
+
     private init() {
         pinRecentlyExecutedSnippets = UserDefaultsStorage.bool(
             forKey: AppPreferences.Snippets.pinRecentlyExecuted,
@@ -72,6 +81,12 @@ final class SnippetsSettings: ObservableObject {
             displayMode = mode
         } else {
             displayMode = .standard
+        }
+        if let raw = UserDefaults.standard.string(forKey: AppPreferences.Snippets.outputColorScheme),
+           let scheme = OutputPanelColorScheme(rawValue: raw) {
+            outputColorScheme = scheme
+        } else {
+            outputColorScheme = .dark
         }
     }
 

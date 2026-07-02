@@ -40,6 +40,7 @@ enum AppPreferences {
         static let autoShowOutputPanelOnShellRun = "snippets.autoShowOutputPanel"
         static let confirmDestructive = "snippets.confirmDestructive"
         static let displayMode = "snippets.displayMode"
+        static let outputColorScheme = "snippets.outputColorScheme"
     }
 
     /// 预览与 Quick Look 相关。

@@ -448,6 +448,7 @@ struct OutputCommandField: NSViewRepresentable {
     @Binding var text: String
     var isEnabled: Bool
     var refocusToken: UInt = 0
+    var colorScheme: OutputPanelColorScheme = .dark
     var onFocusChange: (Bool) -> Void
     var onSubmit: () -> Void
     var onHistoryNavigate: (OutputCommandHistoryDirection) -> String?
@@ -469,6 +470,10 @@ struct OutputCommandField: NSViewRepresentable {
     func updateNSView(_ nsView: OutputCommandTextField, context: Context) {
         wire(nsView, context: context)
         nsView.isEnabled = isEnabled
+        if context.coordinator.lastColorScheme != colorScheme {
+            context.coordinator.lastColorScheme = colorScheme
+            OutputPanelStyle.applyCommandFieldAppearance(to: nsView)
+        }
         let shouldRefocus = context.coordinator.syncIfNeeded(field: nsView, text: text)
         if shouldRefocus || context.coordinator.lastRefocusToken != refocusToken {
             context.coordinator.lastRefocusToken = refocusToken
@@ -489,6 +494,7 @@ struct OutputCommandField: NSViewRepresentable {
     final class Coordinator {
         @Binding var text: String
         var lastRefocusToken: UInt = 0
+        var lastColorScheme: OutputPanelColorScheme?
 
         init(text: Binding<String>) {
             _text = text

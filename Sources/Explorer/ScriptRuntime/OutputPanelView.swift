@@ -14,6 +14,7 @@ struct OutputPanelView: View {
     let executionContext: OutputExecutionContext
     var onNavigateToDirectory: (String) -> Void = { _ in }
     @ObservedObject private var jobStore = JobStore.shared
+    @ObservedObject private var settings = SnippetsSettings.shared
     @State private var findText = ""
     @State private var findNextToken: UInt = 0
     @State private var findMatchCount = 0
@@ -440,6 +441,7 @@ struct OutputPanelView: View {
             text: $commandDraft,
             isEnabled: true,
             refocusToken: multilineRefocusToken,
+            colorScheme: settings.outputColorScheme,
             onFocusChange: { focused in
                 if focused {
                     focusedField = .command
@@ -463,6 +465,7 @@ struct OutputPanelView: View {
             text: $commandDraft,
             isEnabled: true,
             refocusToken: commandRefocusToken,
+            colorScheme: settings.outputColorScheme,
             onFocusChange: { focused in
                 if focused {
                     focusedField = .command
@@ -660,6 +663,7 @@ struct OutputPanelView: View {
                         }
                     }
                 ),
+                colorScheme: settings.outputColorScheme,
                 onSubmit: {
                     requestFindNextMatch()
                 }
@@ -701,7 +705,8 @@ struct OutputPanelView: View {
             job: job,
             findText: findText,
             findNextToken: findNextToken,
-            findMatchCount: $findMatchCount
+            findMatchCount: $findMatchCount,
+            colorScheme: settings.outputColorScheme
         )
     }
 
@@ -869,6 +874,7 @@ private struct OutputPanelOutputScrollView: View {
     let findText: String
     let findNextToken: UInt
     @Binding var findMatchCount: Int
+    let colorScheme: OutputPanelColorScheme
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -880,7 +886,8 @@ private struct OutputPanelOutputScrollView: View {
                 findText: findText,
                 findNextToken: findNextToken,
                 findMatchCount: $findMatchCount,
-                emptyPlaceholder: L10n.Snippets.Output.noOutput
+                emptyPlaceholder: L10n.Snippets.Output.noOutput,
+                colorScheme: colorScheme
             )
 
             if job.stdout.isEmpty, job.stderr.isEmpty {
@@ -919,7 +926,7 @@ private struct OutputCommandInputChromeStyle: ViewModifier {
                     .strokeBorder(
                         isExpanded
                             ? OutputPanelStyle.commandFocusBorderColor.opacity(0.5)
-                            : Color.white.opacity(0.08),
+                            : OutputPanelStyle.commandFieldInactiveBorderColor,
                         lineWidth: 1
                     )
             )

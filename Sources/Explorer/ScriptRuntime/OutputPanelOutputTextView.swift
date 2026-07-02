@@ -17,6 +17,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
     let findNextToken: UInt
     @Binding var findMatchCount: Int
     let emptyPlaceholder: String
+    let colorScheme: OutputPanelColorScheme
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -66,6 +67,15 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
 
         let coordinator = context.coordinator
         coordinator.jobID = jobID
+
+        if coordinator.lastColorScheme != colorScheme {
+            coordinator.lastColorScheme = colorScheme
+            coordinator.lastRenderedStdout = ""
+            coordinator.lastRenderedStderr = ""
+            coordinator.renderStyledSnapshot = false
+            coordinator.styledSnapshotKey = ""
+        }
+
         let trimmedFindText = findText.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasActiveFind = !trimmedFindText.isEmpty
         let findJustCleared = coordinator.lastHadActiveFind && !hasActiveFind
@@ -154,6 +164,7 @@ struct OutputPanelOutputTextView: NSViewRepresentable {
         var renderedStderrLength = 0
         var lastRenderedStdout = ""
         var lastRenderedStderr = ""
+        var lastColorScheme: OutputPanelColorScheme?
         var renderStyledSnapshot = false
         var styledSnapshotKey = ""
         var lastStatusTabLocation: CGFloat = 0

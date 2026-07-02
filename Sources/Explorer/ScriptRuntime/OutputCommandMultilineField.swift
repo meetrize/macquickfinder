@@ -6,6 +6,7 @@ struct OutputCommandMultilineField: NSViewRepresentable {
     @Binding var text: String
     var isEnabled: Bool
     var refocusToken: UInt = 0
+    var colorScheme: OutputPanelColorScheme = .dark
     var onFocusChange: (Bool) -> Void
     var onSubmit: () -> Void
 
@@ -58,6 +59,11 @@ struct OutputCommandMultilineField: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = context.coordinator.textView else { return }
         textView.isEditable = isEnabled
+        if context.coordinator.lastColorScheme != colorScheme {
+            context.coordinator.lastColorScheme = colorScheme
+            OutputPanelStyle.applyCommandFieldAppearance(to: textView)
+            scrollView.verticalScroller?.needsDisplay = true
+        }
         context.coordinator.syncTextIfNeeded(text)
         if context.coordinator.lastRefocusToken != refocusToken {
             context.coordinator.lastRefocusToken = refocusToken
@@ -71,6 +77,7 @@ struct OutputCommandMultilineField: NSViewRepresentable {
         let onSubmit: () -> Void
         weak var textView: NSTextView?
         var lastRefocusToken: UInt = 0
+        var lastColorScheme: OutputPanelColorScheme?
         private var suppressSync = false
         private var selectionObserver: NSObjectProtocol?
         private var keyMonitor: Any?

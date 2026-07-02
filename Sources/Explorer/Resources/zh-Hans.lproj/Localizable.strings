@@ -1486,6 +1486,14 @@
 	<string>标准</string>
 	<key>settings.snippets.display_mode</key>
 	<string>面板显示模式</string>
+	<key>settings.snippets.output_color.dark</key>
+	<string>深色</string>
+	<key>settings.snippets.output_color.gray</key>
+	<string>灰色</string>
+	<key>settings.snippets.output_color.light</key>
+	<string>浅色</string>
+	<key>settings.snippets.output_color_scheme</key>
+	<string>输出面板配色</string>
 	<key>settings.snippets.recording_generalize_paths</key>
 	<string>默认开启路径泛化</string>
 	<key>settings.snippets.recording_section</key>

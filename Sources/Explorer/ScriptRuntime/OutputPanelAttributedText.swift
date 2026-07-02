@@ -171,7 +171,7 @@ enum OutputPanelAttributedText {
         for range in findMatchRanges(of: findText, in: attr.string) {
             guard range.location != NSNotFound, NSMaxRange(range) <= attr.length else { continue }
             attr.addAttribute(.backgroundColor, value: highlight, range: range)
-            attr.addAttribute(.foregroundColor, value: NSColor.black, range: range)
+            attr.addAttribute(.foregroundColor, value: OutputPanelStyle.findHighlightForegroundNSColor, range: range)
         }
     }
 }

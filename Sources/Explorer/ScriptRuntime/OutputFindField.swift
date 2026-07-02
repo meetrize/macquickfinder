@@ -85,6 +85,7 @@ final class OutputFindTextField: NSTextField {
 struct OutputFindField: NSViewRepresentable {
     @Binding var text: String
     @Binding var isFocused: Bool
+    var colorScheme: OutputPanelColorScheme = .dark
     var onSubmit: () -> Void = {}
 
     func makeCoordinator() -> Coordinator {
@@ -104,6 +105,10 @@ struct OutputFindField: NSViewRepresentable {
         context.coordinator.onTextChange = { text = $0 }
         context.coordinator.isFocusedBinding = $isFocused
         context.coordinator.onSubmit = onSubmit
+        if context.coordinator.lastColorScheme != colorScheme {
+            context.coordinator.lastColorScheme = colorScheme
+            OutputPanelStyle.applyFindFieldAppearance(to: nsView, placeholder: L10n.Snippets.Output.find)
+        }
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
@@ -116,6 +121,7 @@ struct OutputFindField: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var onTextChange: (String) -> Void = { _ in }
         var onSubmit: () -> Void = {}
+        var lastColorScheme: OutputPanelColorScheme?
         var isFocusedBinding: Binding<Bool>?
         var isFocused = false {
             didSet {

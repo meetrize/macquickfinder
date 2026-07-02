@@ -181,6 +181,10 @@ enum L10n {
             static var displayMode: String { ModuleLocalization.localized("settings.snippets.display_mode", bundle: .module) }
             static var displayStandard: String { ModuleLocalization.localized("settings.snippets.display.standard", bundle: .module) }
             static var displayMinimal: String { ModuleLocalization.localized("settings.snippets.display.minimal", bundle: .module) }
+            static var outputColorScheme: String { ModuleLocalization.localized("settings.snippets.output_color_scheme", bundle: .module) }
+            static var outputColorDark: String { ModuleLocalization.localized("settings.snippets.output_color.dark", bundle: .module) }
+            static var outputColorLight: String { ModuleLocalization.localized("settings.snippets.output_color.light", bundle: .module) }
+            static var outputColorGray: String { ModuleLocalization.localized("settings.snippets.output_color.gray", bundle: .module) }
             static var pinRecent: String { ModuleLocalization.localized("settings.pin_recent_snippets", bundle: .module) }
             static var autoShowOutput: String { ModuleLocalization.localized("settings.auto_show_output", bundle: .module) }
             static var confirmDestructive: String { ModuleLocalization.localized("settings.confirm_destructive", bundle: .module) }

@@ -2,66 +2,73 @@ import AppKit
 import SwiftUI
 
 enum OutputPanelStyle {
-    static let backgroundColor = Color(red: 0.118, green: 0.118, blue: 0.118)
-    static let stdoutColor = Color(red: 0.86, green: 0.86, blue: 0.86)
-    static let stderrColor = Color(red: 1.0, green: 0.55, blue: 0.55)
-
-    static var stdoutNSColor: NSColor {
-        NSColor(red: 0.86, green: 0.86, blue: 0.86, alpha: 1)
+    static var currentScheme: OutputPanelColorScheme {
+        if let raw = UserDefaults.standard.string(forKey: AppPreferences.Snippets.outputColorScheme),
+           let scheme = OutputPanelColorScheme(rawValue: raw) {
+            return scheme
+        }
+        return .dark
     }
 
-    static var stderrNSColor: NSColor {
-        NSColor(red: 1.0, green: 0.55, blue: 0.55, alpha: 1)
+    static var theme: OutputPanelTheme { currentScheme.theme }
+
+    static var backgroundColor: Color { theme.background.color }
+    static var stdoutColor: Color { theme.stdout.color }
+    static var stderrColor: Color { theme.stderr.color }
+
+    static var stdoutNSColor: NSColor { theme.stdout.nsColor }
+    static var stderrNSColor: NSColor { theme.stderr.nsColor }
+    static var promptPathNSColor: NSColor { theme.promptPath.nsColor }
+    static var promptCommandNSColor: NSColor { theme.promptCommand.nsColor }
+    static var backgroundNSColor: NSColor { theme.background.nsColor }
+
+    static var promptPathColor: Color { theme.promptPath.color }
+    static var promptCommandColor: Color { theme.promptCommand.color }
+    static var placeholderColor: Color { theme.placeholder.color }
+    static var findHighlightColor: Color { theme.findHighlight.color }
+
+    static var findHighlightNSColor: NSColor { theme.findHighlight.nsColor }
+    static var findHighlightForegroundNSColor: NSColor { theme.findHighlightForeground.nsColor }
+
+    static var completionSuccessColor: Color { theme.completionSuccess.color }
+    static var completionFailureColor: Color { theme.completionFailure.color }
+    static var completionCancelledColor: Color { theme.completionCancelled.color }
+
+    static var commandBackgroundColor: Color { theme.commandBackground.color }
+    static var commandTextColor: Color { theme.commandText.color }
+    static var commandBorderColor: Color { theme.commandBorder.color }
+    static var commandFocusBorderColor: Color { theme.commandFocusBorder.color }
+
+    static var commandBackgroundNSColor: NSColor { theme.commandBackground.nsColor }
+    static var commandTextNSColor: NSColor { theme.commandText.nsColor }
+
+    static var historyRunButtonFill: Color { theme.historyRunButtonFill.color }
+    static var historyRunButtonIcon: Color { theme.historyRunButtonIcon.color }
+    static var historyRunButtonBorder: Color { theme.historyRunButtonBorder.color }
+
+    static var scrollerKnobNSColor: NSColor { theme.scrollerKnob.nsColor }
+    static var scrollerTrackNSColor: NSColor { theme.scrollerTrack.nsColor }
+
+    static var commandFieldInactiveBorderColor: Color { theme.commandFieldInactiveBorder.color }
+
+    static func applyCommandFieldAppearance(to field: NSTextField) {
+        field.backgroundColor = theme.commandFieldBackground.nsColor
+        field.textColor = theme.commandFieldText.nsColor
     }
 
-    static var promptPathNSColor: NSColor {
-        NSColor(red: 0.36, green: 0.75, blue: 0.85, alpha: 1)
+    static func applyCommandFieldAppearance(to textView: NSTextView) {
+        textView.textColor = theme.commandFieldText.nsColor
+        textView.insertionPointColor = theme.commandFieldText.nsColor
     }
 
-    static var promptCommandNSColor: NSColor {
-        NSColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1)
-    }
-
-    static var backgroundNSColor: NSColor {
-        NSColor(red: 0.118, green: 0.118, blue: 0.118, alpha: 1)
-    }
-    static let promptPathColor = Color(red: 0.36, green: 0.75, blue: 0.85)
-    static let promptCommandColor = Color(red: 0.95, green: 0.95, blue: 0.95)
-    static let placeholderColor = Color(white: 0.55)
-    static let findHighlightColor = Color(red: 1.0, green: 1.0, blue: 0.0).opacity(0.85)
-
-    static var findHighlightNSColor: NSColor {
-        NSColor(red: 1.0, green: 1.0, blue: 0.0, alpha: 0.85)
-    }
-    static let completionSuccessColor = Color(red: 0.45, green: 0.82, blue: 0.52)
-    static let completionFailureColor = Color(red: 1.0, green: 0.55, blue: 0.55)
-    static let completionCancelledColor = Color(white: 0.62)
-
-    // 命令框：琥珀终端风（暖色输入条，与输出区冷灰/青色提示符对比）
-    static let commandBackgroundColor = Color(red: 0.16, green: 0.14, blue: 0.09)
-    static let commandTextColor = Color(red: 1.0, green: 0.88, blue: 0.42)
-    static let commandBorderColor = Color(red: 0.90, green: 0.68, blue: 0.22)
-    static let commandFocusBorderColor = Color(red: 1.0, green: 0.82, blue: 0.32)
-
-    static var commandBackgroundNSColor: NSColor {
-        NSColor(red: 0.16, green: 0.14, blue: 0.09, alpha: 1)
-    }
-
-    static var commandTextNSColor: NSColor {
-        NSColor(red: 1.0, green: 0.88, blue: 0.42, alpha: 1)
-    }
-
-    /// 历史列表「直接执行」按钮：琥珀实心底 + 深色图标，在深色行背景上对比更强。
-    static let historyRunButtonFill = Color(red: 0.95, green: 0.72, blue: 0.18)
-    static let historyRunButtonIcon = Color(red: 0.14, green: 0.11, blue: 0.05)
-    static let historyRunButtonBorder = Color(red: 1.0, green: 0.85, blue: 0.35)
-
-    /// 深色命令区滚动条：浅琥珀滑块 + 半透明轨道，避免与背景融为一体。
-    static var scrollerKnobNSColor: NSColor {
-        NSColor(red: 0.82, green: 0.74, blue: 0.48, alpha: 0.95)
-    }
-
-    static var scrollerTrackNSColor: NSColor {
-        NSColor(white: 0.45, alpha: 0.35)
+    static func applyFindFieldAppearance(to field: NSTextField, placeholder: String) {
+        field.textColor = theme.commandFieldText.nsColor
+        field.placeholderAttributedString = NSAttributedString(
+            string: placeholder,
+            attributes: [
+                .foregroundColor: theme.placeholder.nsColor,
+                .font: commandFieldFont,
+            ]
+        )
     }
 }

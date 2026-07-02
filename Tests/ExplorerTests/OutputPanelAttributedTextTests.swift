@@ -94,7 +94,7 @@ final class OutputPanelAttributedTextTests: XCTestCase {
         }
         nsAttr.enumerateAttribute(.foregroundColor, in: NSRange(location: 0, length: nsAttr.length)) { value, range, _ in
             guard let color = value as? NSColor else { return }
-            guard color == NSColor.black else { return }
+            guard color == OutputPanelStyle.findHighlightForegroundNSColor else { return }
             let substring = (nsAttr.string as NSString).substring(with: range)
             if substring == "hello" {
                 blackForegroundCount += 1
