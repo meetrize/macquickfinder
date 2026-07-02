@@ -103,6 +103,13 @@ final class SnippetExecutor: ObservableObject {
             workingDirectory: cwd
         )
 
+        // 通知输出面板记录命令到历史
+        NotificationCenter.default.post(
+            name: .outputPanelCommandExecuted,
+            object: nil,
+            userInfo: ["jobID": jobID, "command": expanded]
+        )
+
         if settings.autoShowOutputPanelOnShellRun {
             OutputPanelPresenter.showIfAutoEnabled()
         }

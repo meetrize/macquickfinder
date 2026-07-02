@@ -23,4 +23,11 @@ enum OutputCommandPreview {
         let prefix = String(flattened.prefix(collapsedMaxLength)).trimmingCharacters(in: .whitespaces)
         return prefix + "…"
     }
+
+    /// 内联展开时的编辑器高度（按行数估算，带上限）。
+    static func expandedEditorHeight(for command: String) -> CGFloat {
+        let lineCount = max(command.components(separatedBy: .newlines).count, 1)
+        let clampedLines = min(max(lineCount, 4), 14)
+        return CGFloat(clampedLines) * 17 + 16
+    }
 }

@@ -30,7 +30,10 @@ struct OutputPanelView: View {
     @FocusState private var focusedField: OutputPanelFocusField?
     @State private var prefersCommandFieldFocus = false
     @State private var commandRefocusToken: UInt = 0
-    @State private var isCommandFullTextExpanded = false
+    @State private var isCommandInputExpanded = false
+    @State private var multilineRefocusToken: UInt = 0
+    /// 强制展开状态：用户主动点击省略号展开后，即使内容不再需要折叠也保持展开
+    @State private var forceCommandExpanded = false
 
     private var desiredPanelHeight: CGFloat {
         if layout.isOutputPanelContentCollapsed {
@@ -84,6 +87,9 @@ struct OutputPanelView: View {
                 .background(OutputPanelWindowLayerInstaller())
                 .animation(nil, value: clampedPanelHeight)
             .onAppear {
+                setupCommandExecutedObserver()
+            }
+            .onAppear {
                 if layout.isOutputPanelVisible {
                     jobStore.ensureShellSessionIfNeeded()
                 }
@@ -116,47 +122,38 @@ struct OutputPanelView: View {
     private var panelContent: some View {
         VStack(spacing: 0) {
             if !layout.isOutputPanelContentCollapsed, let job = jobStore.selectedJob {
-                ZStack(alignment: .bottom) {
-                    VStack(spacing: 0) {
-                        jobTabBar
-                        outputArea(job: job)
-                            .frame(minHeight: 0, maxHeight: .infinity)
-                    }
-                    .frame(minHeight: 0, maxHeight: .infinity)
-
-                    if isCommandFullTextExpanded, OutputCommandPreview.needsCollapse(commandDraft) {
-                        OutputCommandFullTextPanel(
-                            text: $commandDraft,
-                            onClose: { isCommandFullTextExpanded = false },
-                            onRun: {
-                                isCommandFullTextExpanded = false
-                                rerunCommand(for: job)
+                VStack(spacing: 0) {
+                    jobTabBar
+                    outputArea(job: job)
+                        .frame(minHeight: 0, maxHeight: .infinity)
+                    bottomBar(job: job)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
+                        .onAppear { syncCommandDraft(for: job) }
+                        .task(id: job.id) {
+                            syncCommandDraft(for: job)
+                        }
+                        .onChange(of: jobStore.selectedJobID) { _ in
+                            if let job = jobStore.selectedJob {
+                                syncCommandDraft(for: job)
+                                resetHistoryBrowsing(for: job.id)
                             }
-                        )
-                    }
+                        }
+                        .onChange(of: job.status) { status in
+                            guard prefersCommandFieldFocus else { return }
+                            switch status {
+                            case .succeeded, .failed, .cancelled:
+                                scheduleCommandFieldRefocus()
+                            default:
+                                break
+                            }
+                        }
+                        .onChange(of: job.expandedContent) { _ in
+                            syncCommandDraft(for: job)
+                        }
                 }
                 .frame(minHeight: 0, maxHeight: .infinity)
                 .clipped()
-
-                bottomBar(job: job)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .layoutPriority(1)
-                    .onAppear { syncCommandDraft(for: job) }
-                    .onChange(of: jobStore.selectedJobID) { _ in
-                        if let job = jobStore.selectedJob {
-                            syncCommandDraft(for: job)
-                            resetHistoryBrowsing(for: job.id)
-                        }
-                    }
-                    .onChange(of: job.status) { status in
-                        guard prefersCommandFieldFocus else { return }
-                        switch status {
-                        case .succeeded, .failed, .cancelled:
-                            scheduleCommandFieldRefocus()
-                        default:
-                            break
-                        }
-                    }
             } else {
                 jobTabBar
                 if !layout.isOutputPanelContentCollapsed {
@@ -281,7 +278,7 @@ struct OutputPanelView: View {
             isOutputAreaActive = true
             focusedField = nil
             prefersCommandFieldFocus = false
-            isCommandFullTextExpanded = false
+            collapseCommandInput()
         }
     }
 
@@ -297,7 +294,7 @@ struct OutputPanelView: View {
                     .padding(.top, 4)
                     .lineLimit(3)
             }
-            HStack(alignment: .center, spacing: 10) {
+            HStack(alignment: commandBarAlignment(for: job), spacing: 10) {
                 commandBarGroup(for: job)
                 findTextField
             }
@@ -309,52 +306,157 @@ struct OutputPanelView: View {
         .background(TextEditingKeyMonitor(isActive: focusedField != nil))
     }
 
-    private func commandBarGroup(for job: JobRecord) -> some View {
-        HStack(spacing: 0) {
-            commandInputContent(for: job)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .clipped()
-            commandHistoryButton(job: job)
+    private func commandBarAlignment(for job: JobRecord) -> VerticalAlignment {
+        isCommandInputExpanded ? .top : .center
+    }
+
+    private func effectiveCommand(for job: JobRecord) -> String {
+        // 如果有 commandDraft（非空或刚编辑过），优先使用它
+        if !commandDraft.isEmpty {
+            return commandDraft
         }
-        .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
-        .modifier(OutputCommandCapsuleFieldStyle())
+        return job.expandedContent
+    }
+
+    private func commandNeedsCollapse(for job: JobRecord) -> Bool {
+        // 如果用户强制展开，即使内容本身不需要折叠也保持展开状态
+        guard !forceCommandExpanded else { return true }
+        return OutputCommandPreview.needsCollapse(effectiveCommand(for: job))
+    }
+
+    private func collapseCommandInput() {
+        guard isCommandInputExpanded else { return }
+        isCommandInputExpanded = false
+        forceCommandExpanded = false
+    }
+
+    private func commandBarGroup(for job: JobRecord) -> some View {
+        let expanded = isCommandInputExpanded
+        return VStack(alignment: .leading, spacing: 4) {
+            // 主输入行
+            HStack(alignment: expanded ? .top : .center, spacing: 0) {
+                commandInputContent(for: job)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .clipped()
+                // 单行/多行切换按钮（仅在需要折叠时显示）
+                if commandNeedsCollapse(for: job) {
+                    singleLineToggleButton(for: job)
+                        .padding(.top, expanded ? 4 : 0)
+                }
+                commandHistoryButton(job: job)
+                    .padding(.top, expanded ? 4 : 0)
+            }
+            .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
+
+            // 执行按钮（仅在展开多行时显示，靠右对齐）
+            if expanded {
+                HStack(spacing: 0) {
+                    Spacer()
+                    runButton(for: job)
+                }
+            }
+        }
+        .modifier(OutputCommandInputChromeStyle(isExpanded: expanded))
+    }
+
+    /// 执行按钮
+    private func runButton(for job: JobRecord) -> some View {
+        Button {
+            rerunCommand(for: job)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 10, weight: .bold))
+                Text(L10n.Snippets.Output.runCommand)
+                    .font(.system(size: 11))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Color.accentColor)
+            .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
+        .help(L10n.Snippets.Output.runCommand)
+    }
+
+    /// 单行/多行切换按钮
+    private func singleLineToggleButton(for job: JobRecord) -> some View {
+        Button {
+            if isCommandInputExpanded {
+                collapseCommandInput()
+            } else {
+                expandToMultiline(for: job)
+            }
+        } label: {
+            Image(systemName: isCommandInputExpanded ? "chevron.down" : "arrow.up.and.down.text.horizontal")
+                .font(.system(size: NSFont.systemFontSize, weight: .medium))
+                .foregroundStyle(OutputPanelStyle.commandFieldTextColor.opacity(0.85))
+                .frame(width: 28, height: 22)
+        }
+        .buttonStyle(.plain)
+        .help(isCommandInputExpanded ? L10n.Snippets.Output.collapseCommand : L10n.Snippets.Output.expandCommand)
     }
 
     @ViewBuilder
     private func commandInputContent(for job: JobRecord) -> some View {
-        if OutputCommandPreview.needsCollapse(commandDraft) {
-            collapsedCommandPreview(for: job)
+        if commandNeedsCollapse(for: job) {
+            if isCommandInputExpanded {
+                expandedCommandInput(for: job)
+            } else {
+                collapsedCommandInput(for: job)
+            }
         } else {
             commandTextField(for: job)
         }
     }
 
-    private func collapsedCommandPreview(for job: JobRecord) -> some View {
-        HStack(spacing: 0) {
-            Button {
-                isCommandFullTextExpanded = true
-            } label: {
-                Text(OutputCommandPreview.collapsedLine(commandDraft))
-                    .font(.system(size: NSFont.systemFontSize, design: .monospaced))
-                    .foregroundStyle(OutputPanelStyle.commandFieldTextColor)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.plain)
-            .help(L10n.Snippets.Output.expandCommand)
-
-            Button {
-                isCommandFullTextExpanded = true
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: NSFont.systemFontSize, weight: .medium))
-                    .foregroundStyle(OutputPanelStyle.commandFieldTextColor.opacity(0.85))
-                    .frame(width: 28, height: 22)
-            }
-            .buttonStyle(.plain)
-            .help(L10n.Snippets.Output.expandCommand)
+    private func collapsedCommandInput(for job: JobRecord) -> some View {
+        let preview = OutputCommandPreview.collapsedLine(effectiveCommand(for: job))
+        return HStack(spacing: 0) {
+            // 显示预览文本（点击展开为多行）
+            Text(preview)
+                .font(.system(size: NSFont.systemFontSize, design: .monospaced))
+                .foregroundStyle(OutputPanelStyle.commandFieldTextColor)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    expandToMultiline(for: job)
+                }
         }
+    }
+
+    /// 展开为多行编辑器
+    private func expandToMultiline(for job: JobRecord) {
+        ensureFullCommandDraft(for: job)
+        isCommandInputExpanded = true
+        forceCommandExpanded = true
+        multilineRefocusToken &+= 1
+    }
+
+    private func expandedCommandInput(for job: JobRecord) -> some View {
+        OutputCommandMultilineField(
+            text: $commandDraft,
+            isEnabled: true,
+            refocusToken: multilineRefocusToken,
+            onFocusChange: { focused in
+                if focused {
+                    focusedField = .command
+                    isOutputAreaActive = false
+                    prefersCommandFieldFocus = true
+                } else if focusedField == .command {
+                    focusedField = nil
+                    prefersCommandFieldFocus = false
+                }
+            },
+            onSubmit: {
+                rerunCommand(for: job)
+            }
+        )
+        .frame(height: OutputCommandPreview.expandedEditorHeight(for: commandDraft), alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func commandTextField(for job: JobRecord) -> some View {
@@ -532,6 +634,7 @@ struct OutputPanelView: View {
         HStack(spacing: 4) {
             if focusedField != .find {
                 Button {
+                    collapseCommandInput()
                     focusedField = .find
                 } label: {
                     Image(systemName: "magnifyingglass")
@@ -549,6 +652,7 @@ struct OutputPanelView: View {
                     get: { focusedField == .find },
                     set: { focused in
                         if focused {
+                            collapseCommandInput()
                             focusedField = .find
                             isOutputAreaActive = false
                             prefersCommandFieldFocus = false
@@ -604,8 +708,34 @@ struct OutputPanelView: View {
     }
 
     private func syncCommandDraft(for job: JobRecord) {
-        commandDraft = job.expandedContent
-        isCommandFullTextExpanded = false
+        // 新标签页打开时，命令输入框保持为空
+        commandDraft = ""
+        isCommandInputExpanded = false
+        forceCommandExpanded = false
+    }
+
+    /// 设置监听来自 Snippets 面板首次执行的命令通知
+    private func setupCommandExecutedObserver() {
+        NotificationCenter.default.addObserver(
+            forName: .outputPanelCommandExecuted,
+            object: nil,
+            queue: .main
+        ) { [self] notification in
+            guard let jobID = notification.userInfo?["jobID"] as? UUID,
+                  let command = notification.userInfo?["command"] as? String else { return }
+            recordCommandHistory(command, for: jobID)
+        }
+    }
+
+    /// `commandDraft` 始终保存完整命令；若被折叠预览污染则还原为 job 原文。
+    private func ensureFullCommandDraft(for job: JobRecord) {
+        let jobFull = job.expandedContent
+        guard !jobFull.isEmpty else { return }
+        if commandDraft.isEmpty
+            || commandDraft == OutputCommandPreview.collapsedLine(jobFull)
+            || (jobFull.contains("\n") && !commandDraft.contains("\n")) {
+            commandDraft = jobFull
+        }
     }
 
     private func rerunCommand(for job: JobRecord) {
@@ -614,6 +744,11 @@ struct OutputPanelView: View {
         guard job.status != .running else { return }
 
         prefersCommandFieldFocus = true
+        // 执行后清空命令输入框并收起多行编辑器
+        commandDraft = ""
+        isCommandInputExpanded = false
+        forceCommandExpanded = false
+
         let currentDirectory = executionContext.cwd
         jobStore.rerunEditedCommand(
             fromJobID: job.id,
@@ -628,7 +763,6 @@ struct OutputPanelView: View {
         recordCommandHistory(trimmed, for: job.id)
         resetCompletionSession(for: job.id)
         completionListHint = nil
-        commandDraft = ""
     }
 
     private func recordCommandHistory(_ command: String, for jobID: UUID) {
@@ -767,6 +901,35 @@ private enum OutputCapsuleFieldMetrics {
     static let horizontalPadding: CGFloat = 14
     static let verticalPadding: CGFloat = 7
     static let height: CGFloat = 30
+}
+
+private struct OutputCommandInputChromeStyle: ViewModifier {
+    var isExpanded: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.horizontal, 12)
+            .padding(.vertical, isExpanded ? 6 : 7)
+            .frame(minHeight: isExpanded ? nil : OutputCapsuleFieldMetrics.height)
+            .background(
+                RoundedRectangle(cornerRadius: isExpanded ? 10 : 18, style: .continuous)
+                    .fill(OutputPanelStyle.commandFieldBackgroundColor)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: isExpanded ? 10 : 18, style: .continuous)
+                    .strokeBorder(
+                        isExpanded
+                            ? OutputPanelStyle.commandFocusBorderColor.opacity(0.5)
+                            : Color.white.opacity(0.08),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(
+                color: isExpanded ? OutputPanelStyle.commandFocusBorderColor.opacity(0.12) : .clear,
+                radius: 8,
+                y: 2
+            )
+    }
 }
 
 private struct OutputCommandCapsuleFieldStyle: ViewModifier {

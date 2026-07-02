@@ -3,6 +3,8 @@ import SwiftUI
 
 extension Notification.Name {
     static let outputPanelFindNextRequested = Notification.Name("outputPanelFindNextRequested")
+    /// 当从 Snippets 面板首次执行命令时通知，包含 jobID 和命令内容
+    static let outputPanelCommandExecuted = Notification.Name("outputPanelCommandExecuted")
 }
 
 /// 输出区：运行中与结束后均按 stderr 分段富文本渲染，避免内联控制符显示为乱码。
