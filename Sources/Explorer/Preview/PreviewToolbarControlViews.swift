@@ -82,10 +82,16 @@ struct PreviewImageColorSwatch: View {
 private enum PreviewToolbarSearchFieldMetrics {
     static let height: CGFloat = 24
     static let horizontalPadding: CGFloat = 8
+    /// 固定总宽：输入前后保持一致，不因匹配控件出现而撑开。
+    static let width: CGFloat = 220
+    static let matchStatusWidth: CGFloat = 38
+    static let navButtonsWidth: CGFloat = 36
+    static let clearButtonWidth: CGFloat = 14
 }
 
 struct PreviewTextSearchToolbarControls: View {
     @ObservedObject var session: PreviewSession
+    @State private var isSearchFieldFocused = false
 
     private var trimmedQuery: String {
         session.text.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -96,8 +102,8 @@ struct PreviewTextSearchToolbarControls: View {
     private var hasMatches: Bool { matchCount > 0 }
     private var currentDisplayIndex: Int { session.text.searchCurrentIndex + 1 }
 
-    private var matchStatusLabel: String? {
-        guard hasQuery else { return nil }
+    private var matchStatusLabel: String {
+        guard hasQuery else { return "" }
         if hasMatches {
             return matchCount > 1
                 ? "\(currentDisplayIndex)/\(matchCount)"
@@ -111,30 +117,49 @@ struct PreviewTextSearchToolbarControls: View {
             Image(systemName: "magnifyingglass")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .frame(width: 12)
 
             PreviewFocuslessTextField(
                 text: $session.text.searchQuery,
                 placeholder: L10n.Preview.Toolbar.searchPrompt,
                 isInline: true,
+                isFocused: $isSearchFieldFocused,
+                acceptsTabNavigation: true,
                 onSubmit: { session.text.findNextSearchMatch() },
-                onShiftSubmit: { session.text.findPreviousSearchMatch() }
+                onShiftSubmit: { session.text.findPreviousSearchMatch() },
+                onEscape: {
+                    session.text.clearSearchQuery()
+                    isSearchFieldFocused = false
+                }
             )
-            .frame(minWidth: 96, maxWidth: 160)
-
-            if let matchStatusLabel {
-                Text(matchStatusLabel)
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(hasMatches ? Color.secondary : Color.orange)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .instantHoverTooltip(
-                        hasMatches
-                            ? L10n.Preview.Toolbar.searchInPreview
-                            : L10n.Preview.Toolbar.searchNoResults
-                    )
+            .frame(maxWidth: .infinity)
+            .background {
+                PreviewTextSearchFieldKeyMonitor(
+                    isActive: isSearchFieldFocused,
+                    onFindNext: { session.text.findNextSearchMatch() },
+                    onFindPrevious: { session.text.findPreviousSearchMatch() },
+                    onClear: {
+                        session.text.clearSearchQuery()
+                        isSearchFieldFocused = false
+                    }
+                )
             }
 
-            if hasMatches {
+            Text(matchStatusLabel)
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(hasMatches ? Color.secondary : Color.orange)
+                .lineLimit(1)
+                .frame(width: PreviewToolbarSearchFieldMetrics.matchStatusWidth, alignment: .trailing)
+                .opacity(hasQuery ? 1 : 0)
+                .instantHoverTooltip(
+                    hasQuery
+                        ? (hasMatches
+                            ? L10n.Preview.Toolbar.searchInPreview
+                            : L10n.Preview.Toolbar.searchNoResults)
+                        : L10n.Preview.Toolbar.searchInPreview
+                )
+
+            HStack(spacing: 0) {
                 PreviewFocuslessIconButton(
                     systemImageName: "chevron.up",
                     accessibilityLabel: L10n.Preview.Toolbar.previousMatch,
@@ -149,22 +174,29 @@ struct PreviewTextSearchToolbarControls: View {
                 )
                 .instantHoverTooltip(L10n.Preview.Toolbar.nextMatch)
             }
+            .frame(width: PreviewToolbarSearchFieldMetrics.navButtonsWidth)
+            .opacity(hasMatches ? 1 : 0)
+            .allowsHitTesting(hasMatches)
 
-            if hasQuery {
-                Button {
-                    session.text.clearSearchQuery()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .instantHoverTooltip(L10n.Preview.Toolbar.clearSearch)
+            Button {
+                session.text.clearSearchQuery()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+            .buttonStyle(.plain)
+            .focusable(false)
+            .frame(width: PreviewToolbarSearchFieldMetrics.clearButtonWidth)
+            .opacity(hasQuery ? 1 : 0)
+            .allowsHitTesting(hasQuery)
+            .instantHoverTooltip(L10n.Preview.Toolbar.clearSearch)
         }
         .padding(.horizontal, PreviewToolbarSearchFieldMetrics.horizontalPadding)
-        .frame(height: PreviewToolbarSearchFieldMetrics.height)
+        .frame(
+            width: PreviewToolbarSearchFieldMetrics.width - PreviewToolbarSearchFieldMetrics.horizontalPadding * 2,
+            height: PreviewToolbarSearchFieldMetrics.height
+        )
         .background {
             Capsule(style: .continuous)
                 .fill(Color.primary.opacity(0.05))
@@ -173,7 +205,10 @@ struct PreviewTextSearchToolbarControls: View {
             Capsule(style: .continuous)
                 .strokeBorder(Color.secondary.opacity(0.22), lineWidth: 1)
         }
-        .frame(minWidth: 168, maxWidth: 280, alignment: .trailing)
+        .frame(width: PreviewToolbarSearchFieldMetrics.width, height: PreviewToolbarSearchFieldMetrics.height)
+        .background {
+            TextEditingKeyMonitor(isActive: isSearchFieldFocused)
+        }
     }
 }
 
