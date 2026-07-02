@@ -204,22 +204,13 @@ def main():
     if not generated_msg:
         generated_msg = "chore: 更新代码"
 
-    # Show and confirm
+    # Show generated message and commit
     print()
     print("生成的提交信息：")
     print("=" * 42)
     for line in generated_msg.split("\n"):
         print(f"  {line}")
     print("=" * 42)
-
-    confirm = input("使用此提交信息？[Y/n]: ").strip().lower()
-    if confirm in ("n", "no", "f"):
-        custom = input("输入自定义提交信息（留空取消）：").strip()
-        if custom:
-            auto_push(custom, api_key, proxy)
-            return
-        print("已取消。")
-        return
 
     auto_push(generated_msg, api_key, proxy)
 
