@@ -4,6 +4,8 @@ import FileList
 
 struct FileContentView: View {
     @ObservedObject var session: PreviewSession
+    /// 为 `true` 时在独立预览窗中为文本类内容留出与窗口边缘的间距（图片等不受影响）。
+    var appliesDetachedTextContentInsets: Bool = false
     @ObservedObject private var customPreviewStore = CustomPreviewRuleStore.shared
     @AppStorage(AppPreferences.Preview.codeShowLineNumbers)
     private var codePreviewShowLineNumbers = false
@@ -70,6 +72,42 @@ struct FileContentView: View {
         let size = session.image.displayContainerSize
         guard size.width > 0, size.height > 0 else { return "image-metrics-pending" }
         return "\(Int(size.width.rounded()))x\(Int(size.height.rounded()))-\(session.currentImagePreviewPixelBudget())"
+    }
+
+    private var prefersTextContentInsets: Bool {
+        if session.content.image != nil { return false }
+        if session.content.pdfDocument != nil { return false }
+        if session.content.mediaPlayer != nil { return false }
+        if usesSpreadsheetQuickLook { return false }
+        if session.content.officeURL != nil, !isSpreadsheetTextMode, !isWordDocumentTextMode { return false }
+        if !session.content.archiveEntries.isEmpty { return false }
+        if PreviewTypeClassifier.isCodeFile(fileExtension) { return false }
+
+        if usesWordDocumentFormattedMode, session.content.officeRichText != nil { return true }
+        if isHtmlPreviewMode { return true }
+        if !session.content.textContent.isEmpty { return true }
+
+        if session.isLoading || session.errorMessage != nil {
+            return inferredTextKindForInsets
+        }
+        return false
+    }
+
+    private var inferredTextKindForInsets: Bool {
+        if PreviewTypeClassifier.isCodeFile(fileExtension) { return false }
+        if PreviewTypeClassifier.isSpreadsheetFile(fileExtension) {
+            return session.office.spreadsheetMode == .text
+        }
+        if PreviewTypeClassifier.isWordDocumentFile(fileExtension) {
+            return true
+        }
+        return PreviewDetachedWindowContentKind.from(file: session.browseTarget) == .text
+    }
+
+    private var effectiveTextContentInsets: CGFloat {
+        appliesDetachedTextContentInsets && prefersTextContentInsets
+            ? DetachedPreviewWindowLayoutMetrics.textContentInsets
+            : 0
     }
 
     var body: some View {
@@ -249,6 +287,7 @@ struct FileContentView: View {
             }
         }
         .opacity(contentOpacity)
+        .padding(effectiveTextContentInsets)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PreviewImageDisplaySizeReporter(session: session))
         .focusedValue(\.previewTextSelectionActive, previewTextSelectionActive)

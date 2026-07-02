@@ -91,7 +91,7 @@ private struct DetachedPreviewWindowContent: View {
 
             Divider()
 
-            FileContentView(session: session)
+            FileContentView(session: session, appliesDetachedTextContentInsets: true)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .layoutPriority(1)
 
