@@ -185,65 +185,65 @@ struct ContentView: View {
     var body: some View {
         GeometryReader { outer in
             let containerHeight = outer.size.height
+            let containerWidth = outer.size.width
+            let maxPreviewWidth = max(
+                minPreviewPanelWidth,
+                containerWidth - minMainPanelWidth
+            )
             let outputMaxHeight = OutputPanelMetrics.maxPanelHeight(forContainerHeight: containerHeight)
-            ZStack(alignment: .bottom) {
-                GeometryReader { geometry in
-                let maxPreviewWidth = max(
-                    minPreviewPanelWidth,
-                    geometry.size.width - minMainPanelWidth
-                )
-                
-                HStack(spacing: 0) {
-                    if leftPanelMode != .hidden {
+
+            HStack(spacing: 0) {
+                if leftPanelMode != .hidden {
+                    Group {
                         Group {
-                            Group {
-                                switch leftPanelMode {
-                                case .sidebar:
-                                    SidebarView(
-                                        path: $path,
-                                        onNavigateToDirectory: navigateToDirectory,
-                                        onItemsChanged: {
-                                            selection.removeAll()
-                                            loadItems()
-                                        },
-                                        onReload: {
-                                            selection.removeAll()
-                                            loadItems()
-                                        }
-                                    )
-                                case .rail:
-                                    SidebarRailView(
-                                        path: $path,
-                                        onNavigateToDirectory: navigateToDirectory,
-                                        onItemsChanged: {
-                                            selection.removeAll()
-                                            loadItems()
-                                        },
-                                        onReload: {
-                                            selection.removeAll()
-                                            loadItems()
-                                        }
-                                    )
-                                case .hidden:
-                                    EmptyView()
-                                }
+                            switch leftPanelMode {
+                            case .sidebar:
+                                SidebarView(
+                                    path: $path,
+                                    onNavigateToDirectory: navigateToDirectory,
+                                    onItemsChanged: {
+                                        selection.removeAll()
+                                        loadItems()
+                                    },
+                                    onReload: {
+                                        selection.removeAll()
+                                        loadItems()
+                                    }
+                                )
+                            case .rail:
+                                SidebarRailView(
+                                    path: $path,
+                                    onNavigateToDirectory: navigateToDirectory,
+                                    onItemsChanged: {
+                                        selection.removeAll()
+                                        loadItems()
+                                    },
+                                    onReload: {
+                                        selection.removeAll()
+                                        loadItems()
+                                    }
+                                )
+                            case .hidden:
+                                EmptyView()
                             }
-                            .frame(width: leftPanelDisplayWidth)
-                            .frame(maxHeight: .infinity)
-                            
-                            LeadingResizeDivider(
-                                onResize: handleLeftPanelDrag(delta:),
-                                onDragEnded: handleLeftPanelDragEnded
-                            )
-                            .frame(width: 6)
-                            .frame(maxHeight: .infinity)
                         }
-                        .animation(nil, value: liveLeftPanelDragWidth)
+                        .frame(width: leftPanelDisplayWidth)
+                        .frame(maxHeight: .infinity)
+
+                        LeadingResizeDivider(
+                            onResize: handleLeftPanelDrag(delta:),
+                            onDragEnded: handleLeftPanelDragEnded
+                        )
+                        .frame(width: 6)
+                        .frame(maxHeight: .infinity)
                     }
-                    
+                    .animation(nil, value: liveLeftPanelDragWidth)
+                }
+
+                VStack(spacing: 0) {
                     HStack(spacing: 0) {
                         explorerBrowserColumn
-                        
+
                         if layout.showPreview || layout.showSnippets {
                             explorerRightPanelColumn(maxPreviewWidth: maxPreviewWidth)
                         }
@@ -256,7 +256,7 @@ struct ContentView: View {
                             maxWidth: maxPreviewWidth
                         )
                     }
-                    .onChange(of: geometry.size.width) { newWidth in
+                    .onChange(of: containerWidth) { newWidth in
                         let maxPreview = max(minPreviewPanelWidth, newWidth - minMainPanelWidth)
                         let clamped = clampPreviewWidth(livePreviewPanelWidth, maxWidth: maxPreview)
                         if clamped != livePreviewPanelWidth {
@@ -264,26 +264,23 @@ struct ContentView: View {
                             layout.previewPanelWidth = Double(clamped)
                         }
                     }
+
+                    OutputPanelView(
+                        layout: layout,
+                        containerHeight: containerHeight,
+                        maxPanelHeight: outputMaxHeight,
+                        executionContext: OutputExecutionContext(
+                            cwd: path,
+                            selectedItems: FileItem.resolveSelection(ids: selection, from: items),
+                            showHiddenFiles: showHiddenFiles
+                        ),
+                        onNavigateToDirectory: { newPath in
+                            selection.removeAll()
+                            path = newPath
+                        }
+                    )
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-
-            OutputPanelView(
-                layout: layout,
-                containerHeight: containerHeight,
-                maxPanelHeight: outputMaxHeight,
-                hostWindow: hostWindow,
-                executionContext: OutputExecutionContext(
-                    cwd: path,
-                    selectedItems: FileItem.resolveSelection(ids: selection, from: items),
-                    showHiddenFiles: showHiddenFiles
-                ),
-                onNavigateToDirectory: { newPath in
-                    selection.removeAll()
-                    path = newPath
-                }
-            )
-            .zIndex(1)
             }
             .frame(width: outer.size.width, height: outer.size.height)
             .focusedValue(\.textFieldEditing, isAnyTextFieldEditing)

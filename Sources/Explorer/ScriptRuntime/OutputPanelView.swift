@@ -11,7 +11,6 @@ struct OutputPanelView: View {
     @ObservedObject var layout: ExplorerWindowLayoutState
     var containerHeight: CGFloat = 800
     var maxPanelHeight: CGFloat = 800
-    var hostWindow: NSWindow?
     let executionContext: OutputExecutionContext
     var onNavigateToDirectory: (String) -> Void = { _ in }
     @ObservedObject private var jobStore = JobStore.shared
@@ -50,13 +49,6 @@ struct OutputPanelView: View {
         )
     }
 
-    private var totalOverlayHeight: CGFloat {
-        OutputPanelMetrics.totalOverlayHeight(
-            panelHeight: clampedPanelHeight,
-            isContentCollapsed: layout.isOutputPanelContentCollapsed
-        )
-    }
-
     private var isOutputContextActive: Bool {
         isOutputAreaActive || focusedField != nil
     }
@@ -84,7 +76,6 @@ struct OutputPanelView: View {
                     }
                 }
                 .background(Color(nsColor: .windowBackgroundColor))
-                .background(OutputPanelWindowLayerInstaller())
                 .animation(nil, value: clampedPanelHeight)
             .onAppear {
                 setupCommandExecutedObserver()
@@ -93,7 +84,6 @@ struct OutputPanelView: View {
                 if layout.isOutputPanelVisible {
                     jobStore.ensureShellSessionIfNeeded()
                 }
-                syncToolbarVisibility()
             }
             .onChange(of: layout.isOutputPanelVisible) { visible in
                 if visible {
@@ -102,21 +92,8 @@ struct OutputPanelView: View {
                     focusedField = nil
                     OutputPanelTextEditingCenter.shared.setActive(false)
                 }
-                syncToolbarVisibility()
             }
-            .onChange(of: containerHeight) { _ in syncToolbarVisibility() }
-            .onChange(of: clampedPanelHeight) { _ in syncToolbarVisibility() }
-            .onChange(of: layout.isOutputPanelContentCollapsed) { _ in syncToolbarVisibility() }
         }
-    }
-
-    private func syncToolbarVisibility() {
-        OutputPanelToolbarVisibility.sync(
-            hostWindow: hostWindow,
-            isPanelVisible: layout.isOutputPanelVisible,
-            overlayHeight: totalOverlayHeight,
-            containerHeight: containerHeight
-        )
     }
 
     private var panelContent: some View {
