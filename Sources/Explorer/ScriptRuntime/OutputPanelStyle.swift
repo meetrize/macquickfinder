@@ -55,4 +55,13 @@ enum OutputPanelStyle {
     static let historyRunButtonFill = Color(red: 0.95, green: 0.72, blue: 0.18)
     static let historyRunButtonIcon = Color(red: 0.14, green: 0.11, blue: 0.05)
     static let historyRunButtonBorder = Color(red: 1.0, green: 0.85, blue: 0.35)
+
+    /// 深色命令区滚动条：浅琥珀滑块 + 半透明轨道，避免与背景融为一体。
+    static var scrollerKnobNSColor: NSColor {
+        NSColor(red: 0.82, green: 0.74, blue: 0.48, alpha: 0.95)
+    }
+
+    static var scrollerTrackNSColor: NSColor {
+        NSColor(white: 0.45, alpha: 0.35)
+    }
 }

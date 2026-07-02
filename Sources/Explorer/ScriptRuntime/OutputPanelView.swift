@@ -411,7 +411,25 @@ struct OutputPanelView: View {
         ensureFullCommandDraft(for: job)
         isCommandInputExpanded = true
         forceCommandExpanded = true
+
+        let preferredEditor = OutputCommandPreview.expandedEditorHeight(for: commandDraft)
+        let requiredPanel = OutputCommandPreview.minimumPanelHeight(
+            forExpandedEditorHeight: preferredEditor,
+            hasCompletionHint: completionListHint != nil
+        )
+        if clampedPanelHeight < requiredPanel {
+            layout.outputPanelHeight = Double(min(requiredPanel, maxPanelHeight))
+        }
+
         multilineRefocusToken &+= 1
+    }
+
+    private func expandedCommandEditorHeight(for command: String) -> CGFloat {
+        OutputCommandPreview.resolvedExpandedEditorHeight(
+            for: command,
+            panelHeight: clampedPanelHeight,
+            hasCompletionHint: completionListHint != nil
+        )
     }
 
     private func expandedCommandInput(for job: JobRecord) -> some View {
@@ -433,7 +451,7 @@ struct OutputPanelView: View {
                 rerunCommand(for: job)
             }
         )
-        .frame(height: OutputCommandPreview.expandedEditorHeight(for: commandDraft), alignment: .topLeading)
+        .frame(height: expandedCommandEditorHeight(for: commandDraft), alignment: .topLeading)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
