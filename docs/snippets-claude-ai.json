@@ -83,6 +83,22 @@
       "updatedAt": 804589200.004,
       "isBuiltin": false,
       "useSystemTerminal": false
+    },
+    {
+      "id": "B1000001-0001-4001-8001-000000000006",
+      "name": "AI · 批量理解并重命名文件",
+      "scriptType": "shell",
+      "scope": {
+        "kind": "filesOnly"
+      },
+      "content": "# 解析 claude CLI 路径（GUI 应用 PATH 常不含 nvm）\nif command -v claude >/dev/null 2>&1; then\n  CLAUDE=claude\nelif [[ -x \"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\" ]]; then\n  CLAUDE=\"/Volumes/SSD4T/dev/nvm/versions/node/v22.15.0/bin/claude\"\nelse\n  echo \"错误：未找到 claude CLI。请安装 Claude Code 或在脚本顶部设置 CLAUDE 变量。\" >&2\n  exit 127\nfi\n\n# ⚠️ 安全开关：默认只预览 AI 建议的新名称，不会真正改名。\n# 确认预览结果没问题后，把下面这行改成 DRY_RUN=0，再执行一次即可真正重命名。\nDRY_RUN=1\n\nfor f in %F; do\n  dir=\"$(dirname \"$f\")\"\n  base=\"$(basename \"$f\")\"\n  ext=\"${base##*.}\"\n  if [ \"$ext\" = \"$base\" ]; then\n    ext=\"\"\n  fi\n\n  PROMPT=\"$(cat <<EOF\n请阅读这个文件的内容：$f\n\n基于文件内容（而不是原文件名），为它想一个简洁、精准、能体现主题的新文件名（不含扩展名）。\n要求：\n1. 只输出新文件名本身，不要引号、不要解释、不要 Markdown\n2. 中文场景用中文命名，英文场景用英文命名\n3. 用「-」连接词语，不含空格、斜杠、冒号等非法字符\n4. 长度不超过 30 个字符\nEOF\n)\"\n\n  SUGGESTED=$(\"$CLAUDE\" -p \"$PROMPT\" < /dev/null | tr -d '\\n\\r' | sed 's/[\\/:*?\"<>|]/-/g' | sed -e 's/^ *//' -e 's/ *$//')\n\n  if [ -z \"$SUGGESTED\" ]; then\n    echo \"⚠️  跳过（AI 未返回有效名称）：$base\"\n    continue\n  fi\n\n  if [ -n \"$ext\" ]; then\n    newName=\"${SUGGESTED}.${ext}\"\n  else\n    newName=\"$SUGGESTED\"\n  fi\n  newPath=\"$dir/$newName\"\n\n  # 避免覆盖已存在的同名文件\n  i=1\n  while [ -e \"$newPath\" ] && [ \"$newPath\" != \"$f\" ]; do\n    if [ -n \"$ext\" ]; then\n      newName=\"${SUGGESTED}-${i}.${ext}\"\n    else\n      newName=\"${SUGGESTED}-${i}\"\n    fi\n    newPath=\"$dir/$newName\"\n    i=$((i + 1))\n  done\n\n  if [ \"$newPath\" = \"$f\" ]; then\n    echo \"＝ 无需改名：$base\"\n    continue\n  fi\n\n  if [ \"$DRY_RUN\" = \"1\" ]; then\n    echo \"🔍 预览：$base  →  $newName\"\n  else\n    mv -n \"$f\" \"$newPath\"\n    echo \"✅ 已改名：$base  →  $newName\"\n  fi\ndone\n\nif [ \"$DRY_RUN\" = \"1\" ]; then\n  echo \"\"\n  echo \"以上为预览结果，未修改任何文件。确认无误后将脚本中的 DRY_RUN 改为 0 再运行一次。\"\nfi\n",
+      "variableHints": [],
+      "sortOrder": 5,
+      "executionCount": 0,
+      "createdAt": 804589200.005,
+      "updatedAt": 804589200.005,
+      "isBuiltin": false,
+      "useSystemTerminal": false
     }
   ]
 }
