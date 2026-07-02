@@ -60,6 +60,9 @@ struct OutputPanelView: View {
                 .overlay(alignment: .top) {
                     if layout.isOutputPanelContentCollapsed {
                         PanelSolidSeparatorView()
+                            .frame(height: OutputPanelMetrics.resizeHandleHeight)
+                            .offset(y: -OutputPanelMetrics.resizeHandleHeight)
+                            .allowsHitTesting(false)
                     } else {
                         OutputPanelResizeHandle(
                             panelHeight: desiredPanelHeight,
