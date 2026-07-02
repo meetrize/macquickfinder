@@ -354,6 +354,13 @@ final class ActiveWindowLayoutCenter: ObservableObject {
         layouts.add(layout)
     }
 
+    /// 解析应展开输出面板的窗口 layout：优先显式传入，其次 key 窗口，最后任一已注册窗口。
+    func resolveLayoutForOutputPanel(preferred: ExplorerWindowLayoutState? = nil) -> ExplorerWindowLayoutState? {
+        if let preferred { return preferred }
+        if let keyWindowLayout { return keyWindowLayout }
+        return layouts.allObjects.first
+    }
+
     func showOutputPanel(on layout: ExplorerWindowLayoutState) {
         layout.isOutputPanelVisible = true
         layout.isOutputPanelContentCollapsed = false

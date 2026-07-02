@@ -17,53 +17,61 @@ final class SnippetExecutor: ObservableObject {
     func execute(
         _ snippet: Snippet,
         context: SnippetExecutionContext,
-        inSystemTerminal: Bool? = nil
+        inSystemTerminal: Bool? = nil,
+        layout: ExplorerWindowLayoutState? = nil
     ) {
         let useSystemTerminal = inSystemTerminal ?? snippet.useSystemTerminal
         if settings.confirmDestructiveSnippets, isDestructive(snippet.content) {
             pendingDestructiveSnippet = snippet
             pendingContext = context
             pendingUseSystemTerminal = useSystemTerminal
+            pendingLayout = layout
             return
         }
-        performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal)
+        performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal, layout: layout)
     }
 
     /// 从 AppKit 右键菜单执行；危险命令用 NSAlert 确认，不依赖 Snippets 面板是否可见。
     func executeFromMenu(
         _ snippet: Snippet,
         context: SnippetExecutionContext,
-        inSystemTerminal: Bool? = nil
+        inSystemTerminal: Bool? = nil,
+        layout: ExplorerWindowLayoutState? = nil
     ) {
         let useSystemTerminal = inSystemTerminal ?? snippet.useSystemTerminal
         if settings.confirmDestructiveSnippets, isDestructive(snippet.content) {
             guard DestructiveActionConfirmer.confirmDestructiveSnippet() else { return }
         }
-        performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal)
+        performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal, layout: layout)
     }
 
     func confirmDestructiveExecution() {
         guard let snippet = pendingDestructiveSnippet, let context = pendingContext else { return }
         let useSystemTerminal = pendingUseSystemTerminal
+        let layout = pendingLayout
         pendingDestructiveSnippet = nil
         pendingContext = nil
         pendingUseSystemTerminal = false
-        performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal)
+        pendingLayout = nil
+        performExecute(snippet, context: context, useSystemTerminal: useSystemTerminal, layout: layout)
     }
 
     func cancelDestructiveExecution() {
         pendingDestructiveSnippet = nil
         pendingContext = nil
         pendingUseSystemTerminal = false
+        pendingLayout = nil
     }
 
     private var pendingContext: SnippetExecutionContext?
     private var pendingUseSystemTerminal = false
+    private var pendingLayout: ExplorerWindowLayoutState?
 
     private func performExecute(
         _ snippet: Snippet,
         context: SnippetExecutionContext,
-        useSystemTerminal: Bool
+        useSystemTerminal: Bool,
+        layout: ExplorerWindowLayoutState? = nil
     ) {
         let expanded: String
         do {
@@ -73,7 +81,7 @@ final class SnippetExecutor: ObservableObject {
                 scriptType: snippet.scriptType
             )
         } catch {
-            reportExpansionError(error, snippet: snippet)
+            reportExpansionError(error, snippet: snippet, layout: layout)
             return
         }
 
@@ -88,7 +96,7 @@ final class SnippetExecutor: ObservableObject {
                 )
                 store.recordExecution(id: snippet.id)
             } catch {
-                reportExpansionError(error, snippet: snippet, expandedContent: expanded)
+                reportExpansionError(error, snippet: snippet, expandedContent: expanded, layout: layout)
             }
             return
         }
@@ -111,7 +119,7 @@ final class SnippetExecutor: ObservableObject {
         )
 
         if settings.autoShowOutputPanelOnShellRun {
-            OutputPanelPresenter.showIfAutoEnabled()
+            OutputPanelPresenter.showIfAutoEnabled(on: layout)
         }
 
         SnippetExecutionService.dispatch(
@@ -128,7 +136,8 @@ final class SnippetExecutor: ObservableObject {
     private func reportExpansionError(
         _ error: Error,
         snippet: Snippet,
-        expandedContent: String? = nil
+        expandedContent: String? = nil,
+        layout: ExplorerWindowLayoutState? = nil
     ) {
         let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         expansionErrorMessage = message
@@ -140,7 +149,7 @@ final class SnippetExecutor: ObservableObject {
         )
         jobStore.markFailed(jobID: jobID, message: message + "\n")
         if settings.autoShowOutputPanelOnShellRun {
-            OutputPanelPresenter.showIfAutoEnabled()
+            OutputPanelPresenter.showIfAutoEnabled(on: layout)
         }
     }
 

@@ -249,7 +249,7 @@ struct SnippetsPanelView: View {
     }
 
     private func execute(_ snippet: Snippet, inSystemTerminal: Bool? = nil) {
-        executor.execute(snippet, context: executionContext(), inSystemTerminal: inSystemTerminal)
+        executor.execute(snippet, context: executionContext(), inSystemTerminal: inSystemTerminal, layout: layout)
     }
 
     private func exportAll() {
