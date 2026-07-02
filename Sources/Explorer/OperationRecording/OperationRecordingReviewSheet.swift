@@ -9,8 +9,6 @@ struct OperationRecordingReviewSheet: View {
     @State private var editedScript: String
     @State private var isScriptManuallyEdited = false
     @State private var validationResult: RecordedScriptValidationResult?
-    @State private var snippetDraft: SnippetRecordingDraft?
-    @State private var isSnippetEditorPresented = false
 
     let recordingCWD: String
     let recordedAt: Date
@@ -77,7 +75,7 @@ struct OperationRecordingReviewSheet: View {
                         syncGeneratedScriptIfNeeded()
                         UserDefaults.standard.set(generalizePaths, forKey: AppPreferences.OperationRecording.generalizePaths)
                     }
-                SnippetVariableHelpButton()
+                SnippetVariableHelpButton(footer: L10n.OperationRecording.variablesFooter)
             }
 
             Text(L10n.OperationRecording.scopeSuggestion(
@@ -141,19 +139,6 @@ struct OperationRecordingReviewSheet: View {
         .onChange(of: steps) { _ in
             syncGeneratedScriptIfNeeded()
         }
-        .sheet(isPresented: $isSnippetEditorPresented) {
-            if let snippetDraft {
-                SnippetEditorSheet(
-                    snippet: nil,
-                    draft: snippetDraft,
-                    onSave: { snippet in
-                        onSaveSnippet(snippet)
-                        isSnippetEditorPresented = false
-                        dismiss()
-                    }
-                )
-            }
-        }
     }
 
     private var stepCount: Int {
@@ -208,11 +193,19 @@ struct OperationRecordingReviewSheet: View {
     }
 
     private func presentSnippetEditor() {
-        snippetDraft = SnippetRecordingDraftBuilder.build(
+        let draft = SnippetRecordingDraftBuilder.build(
             steps: steps,
             script: trimmedScript,
             recordingCWD: recordingCWD
         )
-        isSnippetEditorPresented = true
+        SnippetEditorWindowController.present(
+            snippet: nil,
+            draft: draft,
+            parentWindow: NSApp.keyWindow,
+            onSave: { snippet in
+                onSaveSnippet(snippet)
+                dismiss()
+            }
+        )
     }
 }

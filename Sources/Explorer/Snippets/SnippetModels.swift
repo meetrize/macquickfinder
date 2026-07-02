@@ -38,6 +38,18 @@ enum SnippetScopeKind: String, Codable, CaseIterable, Identifiable {
         case .specificFiles: return L10n.Snippets.Scope.specificFiles
         }
     }
+
+    var scopeDescription: String {
+        switch self {
+        case .anytime: return L10n.Snippets.ScopeDesc.anytime
+        case .global: return L10n.Snippets.ScopeDesc.global
+        case .filesOnly: return L10n.Snippets.ScopeDesc.filesOnly
+        case .directoriesOnly: return L10n.Snippets.ScopeDesc.directoriesOnly
+        case .singleSelection: return L10n.Snippets.ScopeDesc.singleSelection
+        case .fileExtensions: return L10n.Snippets.ScopeDesc.fileExtensions
+        case .specificFiles: return L10n.Snippets.ScopeDesc.specificFiles
+        }
+    }
 }
 
 enum SnippetScope: Codable, Equatable, Hashable {

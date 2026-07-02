@@ -931,6 +931,12 @@ enum L10n {
             static var useSystemTerminal: String { ModuleLocalization.localized("snippets.editor.use_system_terminal", bundle: .module) }
             static var terminalHint: String { ModuleLocalization.localized("snippets.editor.terminal_hint", bundle: .module) }
             static var content: String { ModuleLocalization.localized("snippets.editor.content", bundle: .module) }
+            static var subtitle: String { ModuleLocalization.localized("snippets.editor.subtitle", bundle: .module) }
+            static var sectionGeneral: String { ModuleLocalization.localized("snippets.editor.section_general", bundle: .module) }
+            static var sectionScope: String { ModuleLocalization.localized("snippets.editor.section_scope", bundle: .module) }
+            static var sectionExecution: String { ModuleLocalization.localized("snippets.editor.section_execution", bundle: .module) }
+            static var sectionScript: String { ModuleLocalization.localized("snippets.editor.section_script", bundle: .module) }
+            static var insertVariable: String { ModuleLocalization.localized("snippets.editor.insert_variable", bundle: .module) }
         }
 
         enum Variable {
@@ -958,6 +964,7 @@ enum L10n {
             static var columnDescription: String {
                 ModuleLocalization.localized("snippets.variable_help.column_description", bundle: .module)
             }
+            static var footer: String { ModuleLocalization.localized("snippets.variable_help.footer", bundle: .module) }
         }
 
         enum Confirm {
@@ -1015,6 +1022,16 @@ enum L10n {
             static var singleSelection: String { ModuleLocalization.localized("snippets.scope.single_selection", bundle: .module) }
             static var fileExtensions: String { ModuleLocalization.localized("snippets.scope.file_extensions", bundle: .module) }
             static var specificFiles: String { ModuleLocalization.localized("snippets.scope.specific_files", bundle: .module) }
+        }
+
+        enum ScopeDesc {
+            static var anytime: String { ModuleLocalization.localized("snippets.scope.anytime.desc", bundle: .module) }
+            static var global: String { ModuleLocalization.localized("snippets.scope.global.desc", bundle: .module) }
+            static var filesOnly: String { ModuleLocalization.localized("snippets.scope.files_only.desc", bundle: .module) }
+            static var directoriesOnly: String { ModuleLocalization.localized("snippets.scope.directories_only.desc", bundle: .module) }
+            static var singleSelection: String { ModuleLocalization.localized("snippets.scope.single_selection.desc", bundle: .module) }
+            static var fileExtensions: String { ModuleLocalization.localized("snippets.scope.file_extensions.desc", bundle: .module) }
+            static var specificFiles: String { ModuleLocalization.localized("snippets.scope.specific_files.desc", bundle: .module) }
         }
 
         enum Strategy {

@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SnippetVariableHelpButton: View {
+    var footer: String?
+
     @State private var isReferencePresented = false
 
     var body: some View {
@@ -14,12 +16,13 @@ struct SnippetVariableHelpButton: View {
         .buttonStyle(.plain)
         .accessibilityLabel(L10n.Snippets.VariableHelp.showReference)
         .popover(isPresented: $isReferencePresented, arrowEdge: .bottom) {
-            SnippetVariableReferencePopover(onDismiss: { isReferencePresented = false })
+            SnippetVariableReferencePopover(footer: footer, onDismiss: { isReferencePresented = false })
         }
     }
 }
 
 private struct SnippetVariableReferencePopover: View {
+    let footer: String?
     let onDismiss: () -> Void
 
     var body: some View {
@@ -41,10 +44,12 @@ private struct SnippetVariableReferencePopover: View {
             }
             .tableStyle(.inset(alternatesRowBackgrounds: true))
 
-            Text(L10n.OperationRecording.variablesFooter)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if let footer, !footer.isEmpty {
+                Text(footer)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             HStack {
                 Spacer()

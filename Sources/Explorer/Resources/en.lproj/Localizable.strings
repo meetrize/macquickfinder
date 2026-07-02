@@ -1550,6 +1550,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Edit Snippet</string>
 	<key>snippets.editor.extensions_placeholder</key>
 	<string>Extensions (comma-separated, e.g. pdf, md)</string>
+	<key>snippets.editor.insert_variable</key>
+	<string>Insert variable at cursor</string>
 	<key>snippets.editor.interpreter</key>
 	<string>Interpreter</string>
 	<key>snippets.editor.name</key>
@@ -1562,6 +1564,16 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Scope</string>
 	<key>snippets.editor.script_type</key>
 	<string>Script Type</string>
+	<key>snippets.editor.section_execution</key>
+	<string>Execution</string>
+	<key>snippets.editor.section_general</key>
+	<string>General</string>
+	<key>snippets.editor.section_scope</key>
+	<string>Scope</string>
+	<key>snippets.editor.section_script</key>
+	<string>Script</string>
+	<key>snippets.editor.subtitle</key>
+	<string>Configure scope, execution, and script content.</string>
 	<key>snippets.editor.terminal_hint</key>
 	<string>Runs in Terminal or similar; output is not shown in the in-app panel</string>
 	<key>snippets.editor.use_system_terminal</key>
@@ -1668,18 +1680,32 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Search name or script content…</string>
 	<key>snippets.scope.anytime</key>
 	<string>Always</string>
+	<key>snippets.scope.anytime.desc</key>
+	<string>Always shown in the snippet list, whether or not anything is selected.</string>
 	<key>snippets.scope.directories_only</key>
 	<string>Directories Only</string>
+	<key>snippets.scope.directories_only.desc</key>
+	<string>Shown only when every selected item is a folder.</string>
 	<key>snippets.scope.file_extensions</key>
 	<string>Specific Extensions</string>
+	<key>snippets.scope.file_extensions.desc</key>
+	<string>Shown when a selected file's extension matches the list configured below (e.g. pdf, jpg).</string>
 	<key>snippets.scope.files_only</key>
 	<string>Files Only</string>
+	<key>snippets.scope.files_only.desc</key>
+	<string>Shown only when every selected item is a file (not a folder).</string>
 	<key>snippets.scope.global</key>
 	<string>When Items Selected</string>
+	<key>snippets.scope.global.desc</key>
+	<string>Shown when one or more files or folders are selected.</string>
 	<key>snippets.scope.single_selection</key>
 	<string>Single Selection</string>
+	<key>snippets.scope.single_selection.desc</key>
+	<string>Shown only when exactly one item is selected. Use this for snippets with %p and other single-selection variables.</string>
 	<key>snippets.scope.specific_files</key>
 	<string>Specific Files</string>
+	<key>snippets.scope.specific_files.desc</key>
+	<string>Shown when a selected item's absolute path matches one of the paths configured below.</string>
 	<key>snippets.strategy.overwrite</key>
 	<string>Overwrite</string>
 	<key>snippets.strategy.rename</key>
@@ -1724,6 +1750,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Description</string>
 	<key>snippets.variable_help.column_token</key>
 	<string>Variable</string>
+	<key>snippets.variable_help.footer</key>
+	<string>Click a variable chip below to insert it at the cursor. Hover for a short description.</string>
 	<key>snippets.variable_help.show_reference</key>
 	<string>Show Snippet variable reference</string>
 	<key>sort.date_newest</key>

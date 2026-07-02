@@ -1550,6 +1550,8 @@
 	<string>编辑 Snippet</string>
 	<key>snippets.editor.extensions_placeholder</key>
 	<string>扩展名（逗号分隔，如 pdf, md）</string>
+	<key>snippets.editor.insert_variable</key>
+	<string>在光标处插入变量</string>
 	<key>snippets.editor.interpreter</key>
 	<string>解释器</string>
 	<key>snippets.editor.name</key>
@@ -1562,6 +1564,16 @@
 	<string>作用域</string>
 	<key>snippets.editor.script_type</key>
 	<string>脚本类型</string>
+	<key>snippets.editor.section_execution</key>
+	<string>执行方式</string>
+	<key>snippets.editor.section_general</key>
+	<string>基本信息</string>
+	<key>snippets.editor.section_scope</key>
+	<string>可见范围</string>
+	<key>snippets.editor.section_script</key>
+	<string>脚本内容</string>
+	<key>snippets.editor.subtitle</key>
+	<string>配置可见范围、执行方式与脚本内容。</string>
 	<key>snippets.editor.terminal_hint</key>
 	<string>在 Terminal 等应用中运行，输出不显示在应用内面板</string>
 	<key>snippets.editor.use_system_terminal</key>
@@ -1668,18 +1680,32 @@
 	<string>搜索名称或脚本内容…</string>
 	<key>snippets.scope.anytime</key>
 	<string>始终</string>
+	<key>snippets.scope.anytime.desc</key>
+	<string>无论是否选中文件，Snippet 始终显示在列表中。</string>
 	<key>snippets.scope.directories_only</key>
 	<string>仅目录</string>
+	<key>snippets.scope.directories_only.desc</key>
+	<string>仅当所选项目全部为文件夹时显示。</string>
 	<key>snippets.scope.file_extensions</key>
 	<string>指定扩展名</string>
+	<key>snippets.scope.file_extensions.desc</key>
+	<string>当选中文件的扩展名与下方配置匹配时显示（如 pdf、jpg）。</string>
 	<key>snippets.scope.files_only</key>
 	<string>仅文件</string>
+	<key>snippets.scope.files_only.desc</key>
+	<string>仅当所选项目全部为文件（非文件夹）时显示。</string>
 	<key>snippets.scope.global</key>
 	<string>有选中项</string>
+	<key>snippets.scope.global.desc</key>
+	<string>当选中一个或多个文件或文件夹时显示。</string>
 	<key>snippets.scope.single_selection</key>
 	<string>单选</string>
+	<key>snippets.scope.single_selection.desc</key>
+	<string>仅当选中唯一一个项目时显示；使用 %p 等单选变量时通常选此项。</string>
 	<key>snippets.scope.specific_files</key>
 	<string>指定文件</string>
+	<key>snippets.scope.specific_files.desc</key>
+	<string>当选中项的绝对路径与下方配置的路径匹配时显示。</string>
 	<key>snippets.strategy.overwrite</key>
 	<string>覆盖</string>
 	<key>snippets.strategy.rename</key>
@@ -1724,6 +1750,8 @@
 	<string>说明</string>
 	<key>snippets.variable_help.column_token</key>
 	<string>变量</string>
+	<key>snippets.variable_help.footer</key>
+	<string>点击下方变量按钮可在光标处插入；悬停可查看简要说明。</string>
 	<key>snippets.variable_help.show_reference</key>
 	<string>查看 Snippet 变量说明</string>
 	<key>sort.date_newest</key>

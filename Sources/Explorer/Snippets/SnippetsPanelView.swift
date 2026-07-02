@@ -18,8 +18,6 @@ struct SnippetsPanelView: View {
 
     @State private var searchText = ""
     @State private var selectedSnippetID: UUID?
-    @State private var editorSnippet: Snippet?
-    @State private var isCreating = false
     @State private var importConflictItems: [SnippetImportItem]?
     @State private var importConflictStrategy: SnippetImportStrategy = .skip
     @FocusState private var searchFocused: Bool
@@ -57,17 +55,6 @@ struct SnippetsPanelView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .sheet(item: $editorSnippet) { snippet in
-            SnippetEditorSheet(
-                snippet: snippet,
-                onSave: { store.update($0) },
-                onDelete: { store.delete(id: $0) },
-                onExport: { exportSingle($0) }
-            )
-        }
-        .sheet(isPresented: $isCreating) {
-            SnippetEditorSheet(snippet: nil) { store.add($0) }
-        }
         .sheet(isPresented: Binding(
             get: { importConflictItems != nil },
             set: { if !$0 { importConflictItems = nil } }
@@ -114,7 +101,7 @@ struct SnippetsPanelView: View {
             Spacer(minLength: 0)
 
             HStack(spacing: 8) {
-                Button { isCreating = true } label: {
+                Button { presentNewSnippetEditor() } label: {
                     Image(systemName: "plus")
                 }
                 .buttonStyle(.borderless)
@@ -195,7 +182,7 @@ struct SnippetsPanelView: View {
 
     @ViewBuilder
     private func snippetContextMenu(for snippet: Snippet) -> some View {
-        Button(L10n.Action.edit) { editorSnippet = snippet }
+        Button(L10n.Action.edit) { presentSnippetEditor(snippet) }
         Button(L10n.Snippets.Panel.execute) { execute(snippet) }
         if !snippet.useSystemTerminal, snippet.scriptType == .shell || snippet.scriptType == .python3 {
             Button(L10n.Snippets.Panel.executeInTerminal) { execute(snippet, inSystemTerminal: true) }
@@ -325,5 +312,23 @@ struct SnippetsPanelView: View {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd"
         return f.string(from: Date())
+    }
+
+    private func presentNewSnippetEditor() {
+        SnippetEditorWindowController.present(
+            snippet: nil,
+            parentWindow: NSApp.keyWindow,
+            onSave: { store.add($0) }
+        )
+    }
+
+    private func presentSnippetEditor(_ snippet: Snippet) {
+        SnippetEditorWindowController.present(
+            snippet: snippet,
+            parentWindow: NSApp.keyWindow,
+            onSave: { store.update($0) },
+            onDelete: { store.delete(id: $0) },
+            onExport: { exportSingle($0) }
+        )
     }
 }

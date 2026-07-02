@@ -7348,6 +7348,48 @@
         }
       }
     },
+    "snippets.editor.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Configure scope, execution, and script content." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "配置可见范围、执行方式与脚本内容。" } }
+      }
+    },
+    "snippets.editor.section_general": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "General" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "基本信息" } }
+      }
+    },
+    "snippets.editor.section_scope": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Scope" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "可见范围" } }
+      }
+    },
+    "snippets.editor.section_execution": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Execution" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "执行方式" } }
+      }
+    },
+    "snippets.editor.section_script": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Script" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "脚本内容" } }
+      }
+    },
+    "snippets.editor.insert_variable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Insert variable at cursor" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在光标处插入变量" } }
+      }
+    },
     "snippets.variable.p": {
       "extractionState": "manual",
       "localizations": {
@@ -7479,6 +7521,23 @@
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Description" } },
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "说明" } }
+      }
+    },
+    "snippets.variable_help.footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click a variable chip below to insert it at the cursor. Hover for a short description."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击下方变量按钮可在光标处插入；悬停可查看简要说明。"
+          }
+        }
       }
     },
     "snippets.editor.edit_title": {
@@ -8518,6 +8577,13 @@
         }
       }
     },
+    "snippets.scope.anytime.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Always shown in the snippet list, whether or not anything is selected." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无论是否选中文件，Snippet 始终显示在列表中。" } }
+      }
+    },
     "snippets.scope.directories_only": {
       "extractionState": "manual",
       "localizations": {
@@ -8533,6 +8599,13 @@
             "value": "仅目录"
           }
         }
+      }
+    },
+    "snippets.scope.directories_only.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shown only when every selected item is a folder." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅当所选项目全部为文件夹时显示。" } }
       }
     },
     "snippets.scope.file_extensions": {
@@ -8552,6 +8625,13 @@
         }
       }
     },
+    "snippets.scope.file_extensions.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shown when a selected file's extension matches the list configured below (e.g. pdf, jpg)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当选中文件的扩展名与下方配置匹配时显示（如 pdf、jpg）。" } }
+      }
+    },
     "snippets.scope.files_only": {
       "extractionState": "manual",
       "localizations": {
@@ -8567,6 +8647,13 @@
             "value": "仅文件"
           }
         }
+      }
+    },
+    "snippets.scope.files_only.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shown only when every selected item is a file (not a folder)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅当所选项目全部为文件（非文件夹）时显示。" } }
       }
     },
     "snippets.scope.global": {
@@ -8586,6 +8673,13 @@
         }
       }
     },
+    "snippets.scope.global.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shown when one or more files or folders are selected." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当选中一个或多个文件或文件夹时显示。" } }
+      }
+    },
     "snippets.scope.single_selection": {
       "extractionState": "manual",
       "localizations": {
@@ -8603,6 +8697,13 @@
         }
       }
     },
+    "snippets.scope.single_selection.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shown only when exactly one item is selected. Use this for snippets with %p and other single-selection variables." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅当选中唯一一个项目时显示；使用 %p 等单选变量时通常选此项。" } }
+      }
+    },
     "snippets.scope.specific_files": {
       "extractionState": "manual",
       "localizations": {
@@ -8618,6 +8719,13 @@
             "value": "指定文件"
           }
         }
+      }
+    },
+    "snippets.scope.specific_files.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Shown when a selected item's absolute path matches one of the paths configured below." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当选中项的绝对路径与下方配置的路径匹配时显示。" } }
       }
     },
     "snippets.strategy.overwrite": {
