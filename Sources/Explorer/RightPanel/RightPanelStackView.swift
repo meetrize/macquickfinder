@@ -69,7 +69,8 @@ struct RightPanelStackView: View {
                             dragPreviewHeight = nil
                         }
                     )
-                    .frame(height: VerticalResizeDividerMetrics.visualHeight)
+                    .frame(height: VerticalResizeDividerMetrics.hitHeight)
+                    .padding(.vertical, -(VerticalResizeDividerMetrics.hitHeight - VerticalResizeDividerMetrics.visualHeight) / 2)
                 }
 
                 if layout.showSnippets {
