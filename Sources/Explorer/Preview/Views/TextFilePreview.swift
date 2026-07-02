@@ -7,6 +7,7 @@ struct TextFilePreview: NSViewRepresentable {
     let wrapLines: Bool
     let fontSize: CGFloat
     let showLineNumbers: Bool
+    var textContentInset: CGFloat = 0
     @Binding var previewTextSelectionActive: Bool
     @Binding var action: TextPreviewAction?
     @Binding var searchQuery: String
@@ -35,7 +36,7 @@ struct TextFilePreview: NSViewRepresentable {
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.textContainer?.widthTracksTextView = wrapLines
         textView.textContainer?.lineFragmentPadding = 0
-        textView.textContainerInset = .zero
+        Self.applyTextContainerInset(to: textView, showLineNumbers: showLineNumbers, edgeInset: textContentInset)
         textView.autoresizingMask = wrapLines ? [.width] : []
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = !wrapLines
@@ -147,6 +148,8 @@ struct TextFilePreview: NSViewRepresentable {
                 coordinator: context.coordinator
             )
         }
+
+        Self.applyTextContainerInset(to: textView, showLineNumbers: showLineNumbers, edgeInset: textContentInset)
 
         if let action {
             switch action {
@@ -347,10 +350,10 @@ struct TextFilePreview: NSViewRepresentable {
 
     private static let lineNumberGutterGap: CGFloat = 4
 
-    private static func applyCodeContentInset(to textView: NSTextView, showLineNumbers: Bool) {
+    private static func applyTextContainerInset(to textView: NSTextView, showLineNumbers: Bool, edgeInset: CGFloat) {
         textView.textContainerInset = NSSize(
-            width: showLineNumbers ? lineNumberGutterGap : 0,
-            height: 0
+            width: edgeInset + (showLineNumbers ? lineNumberGutterGap : 0),
+            height: edgeInset
         )
     }
 
@@ -361,7 +364,6 @@ struct TextFilePreview: NSViewRepresentable {
         show: Bool,
         coordinator: Coordinator
     ) {
-        applyCodeContentInset(to: textView, showLineNumbers: show)
         scrollView.hasVerticalRuler = show
         scrollView.rulersVisible = show
         scrollView.drawsBackground = false

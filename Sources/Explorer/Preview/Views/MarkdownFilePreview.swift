@@ -4,6 +4,7 @@ import AppKit
 struct MarkdownFilePreview: NSViewRepresentable {
     let markdown: String
     let wrapLines: Bool
+    var textContentInset: CGFloat = 0
     @Binding var zoomScale: CGFloat
     @Binding var previewTextSelectionActive: Bool
     @Binding var searchQuery: String
@@ -37,7 +38,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         textView.usesAdaptiveColorMappingForDarkAppearance = true
         textView.textContainer?.widthTracksTextView = wrapLines
         textView.textContainer?.lineFragmentPadding = 0
-        textView.textContainerInset = .zero
+        applyTextContainerInset(textContentInset, to: textView)
         textView.autoresizingMask = wrapLines ? [.width] : []
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = !wrapLines
@@ -97,6 +98,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         }
 
         applyScale(zoomScale, to: textView, context: context)
+        applyTextContainerInset(textContentInset, to: textView)
         context.coordinator.updateSearchIfNeeded(
             textView: textView,
             searchQuery: searchQuery,
@@ -518,6 +520,10 @@ struct MarkdownFilePreview: NSViewRepresentable {
             offset += (line as NSString).length + 1
             i += 1
         }
+    }
+
+    private func applyTextContainerInset(_ inset: CGFloat, to textView: NSTextView) {
+        textView.textContainerInset = NSSize(width: inset, height: inset)
     }
 
     private func applyScale(_ target: CGFloat, to textView: NSTextView, context: Context) {

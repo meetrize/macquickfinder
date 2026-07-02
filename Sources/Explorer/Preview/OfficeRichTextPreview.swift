@@ -5,6 +5,7 @@ import SwiftUI
 struct OfficeRichTextPreview: NSViewRepresentable {
     let attributedText: NSAttributedString
     let wrapLines: Bool
+    var textContentInset: CGFloat = 0
     let zoomScale: CGFloat
     @Binding var previewTextSelectionActive: Bool
     @Binding var searchQuery: String
@@ -28,7 +29,7 @@ struct OfficeRichTextPreview: NSViewRepresentable {
         textView.isRichText = true
         textView.usesAdaptiveColorMappingForDarkAppearance = true
         textView.textContainer?.lineFragmentPadding = 0
-        textView.textContainerInset = .zero
+        applyTextContainerInset(textContentInset, to: textView)
         configureLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
         textView.textStorage?.setAttributedString(attributedText)
 
@@ -51,6 +52,7 @@ struct OfficeRichTextPreview: NSViewRepresentable {
 
         scrollView.hasHorizontalScroller = !wrapLines
         configureLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
+        applyTextContainerInset(textContentInset, to: textView)
 
         let signature = attributedText.length ^ attributedText.string.hashValue
         if context.coordinator.contentSignature != signature {
@@ -72,6 +74,10 @@ struct OfficeRichTextPreview: NSViewRepresentable {
             searchQuery: searchQuery,
             searchNextToken: searchNextToken
         )
+    }
+
+    private func applyTextContainerInset(_ inset: CGFloat, to textView: NSTextView) {
+        textView.textContainerInset = NSSize(width: inset, height: inset)
     }
 
     private func configureLayout(textView: NSTextView, scrollView: NSScrollView, wrapLines: Bool) {

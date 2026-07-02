@@ -182,6 +182,7 @@ struct FileContentView: View {
                 OfficeRichTextPreview(
                     attributedText: officeRichText,
                     wrapLines: session.text.wrapEnabled,
+                    textContentInset: effectiveTextContentInsets,
                     zoomScale: session.office.zoomScale,
                     previewTextSelectionActive: $previewTextSelectionActive,
                     searchQuery: $session.text.searchQuery,
@@ -241,13 +242,14 @@ struct FileContentView: View {
                     session.archive.selectedEntryPaths = []
                 }
             } else if isHtmlPreviewMode {
-                HTMLFilePreview(fileURL: item.url)
+                HTMLFilePreview(fileURL: item.url, textContentInset: effectiveTextContentInsets)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if !session.content.textContent.isEmpty {
                 if usesMarkdownPreview {
                     MarkdownFilePreview(
                         markdown: session.content.textContent,
                         wrapLines: session.text.wrapEnabled,
+                        textContentInset: effectiveTextContentInsets,
                         zoomScale: $session.text.markdownPreviewScale,
                         previewTextSelectionActive: $previewTextSelectionActive,
                         searchQuery: $session.text.searchQuery,
@@ -262,6 +264,7 @@ struct FileContentView: View {
                         wrapLines: session.text.wrapEnabled,
                         fontSize: PreviewTypeClassifier.isMarkdownFile(fileExtension) ? session.text.markdownSourceFontSize : NSFont.systemFontSize,
                         showLineNumbers: showsCodeLineNumbers,
+                        textContentInset: effectiveTextContentInsets,
                         previewTextSelectionActive: $previewTextSelectionActive,
                         action: $session.text.previewAction,
                         searchQuery: $session.text.searchQuery,
@@ -287,7 +290,6 @@ struct FileContentView: View {
             }
         }
         .opacity(contentOpacity)
-        .padding(effectiveTextContentInsets)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PreviewImageDisplaySizeReporter(session: session))
         .focusedValue(\.previewTextSelectionActive, previewTextSelectionActive)
