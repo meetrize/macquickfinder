@@ -93,7 +93,7 @@ final class OutputPanelResizeHandleNSView: NSView {
     /// 可点击/拖拽的命中区域（大于视觉高度）
     private var hitHeight: CGFloat { OutputPanelMetrics.resizeHandleHitHeight }
 
-    override var isOpaque: Bool { false }
+    override var isOpaque: Bool { true }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         let expanded = bounds.insetBy(dx: 0, dy: -(hitHeight - bounds.height) / 2)
@@ -141,7 +141,6 @@ final class OutputPanelResizeHandleNSView: NSView {
     override var isFlipped: Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.separatorColor.setFill()
-        dirtyRect.intersection(bounds).fill()
+        PanelSeparatorStyle.fill(dirtyRect.intersection(bounds), in: self)
     }
 }

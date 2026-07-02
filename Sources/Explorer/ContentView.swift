@@ -184,7 +184,10 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { outer in
-            let containerHeight = outer.size.height
+            let toolbarSeparatorHeight = PanelSeparatorStyle.hairlineThickness(
+                for: hostWindow?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2.0
+            )
+            let containerHeight = outer.size.height - toolbarSeparatorHeight
             let containerWidth = outer.size.width
             let maxPreviewWidth = max(
                 minPreviewPanelWidth,
@@ -192,7 +195,11 @@ struct ContentView: View {
             )
             let outputMaxHeight = OutputPanelMetrics.maxPanelHeight(forContainerHeight: containerHeight)
 
-            HStack(spacing: 0) {
+            VStack(spacing: 0) {
+                PanelHairlineSeparatorView()
+                    .frame(height: toolbarSeparatorHeight)
+
+                HStack(spacing: 0) {
                 if leftPanelMode != .hidden {
                     Group {
                         Group {
@@ -279,8 +286,10 @@ struct ContentView: View {
                             path = newPath
                         }
                     )
+                    .zIndex(1)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
             .frame(width: outer.size.width, height: outer.size.height)
             .focusedValue(\.textFieldEditing, isAnyTextFieldEditing)
@@ -1620,7 +1629,7 @@ private final class ResizeDividerNSView: NSView {
     private var lastMouseX: CGFloat?
     private var trackingArea: NSTrackingArea?
 
-    override var isOpaque: Bool { false }
+    override var isOpaque: Bool { true }
     override var isFlipped: Bool { true }
 
     private var hitTestBounds: NSRect {
@@ -1672,7 +1681,6 @@ private final class ResizeDividerNSView: NSView {
     }
     
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.separatorColor.setFill()
-        dirtyRect.intersection(bounds).fill()
+        PanelSeparatorStyle.fill(dirtyRect.intersection(bounds), in: self)
     }
 }

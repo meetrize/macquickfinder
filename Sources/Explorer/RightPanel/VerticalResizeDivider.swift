@@ -125,7 +125,7 @@ final class VerticalResizeDividerNSView: NSView {
     var dragStartPreviewHeight: CGFloat?
     var dragStartTotalHeight: CGFloat?
 
-    override var isOpaque: Bool { false }
+    override var isOpaque: Bool { true }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         let expanded = bounds.insetBy(dx: 0, dy: -(VerticalResizeDividerMetrics.hitHeight - dividerThickness) / 2)
@@ -173,7 +173,6 @@ final class VerticalResizeDividerNSView: NSView {
     override var isFlipped: Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.separatorColor.setFill()
-        dirtyRect.intersection(bounds).fill()
+        PanelSeparatorStyle.fill(dirtyRect.intersection(bounds), in: self)
     }
 }

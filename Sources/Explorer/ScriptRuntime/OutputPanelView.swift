@@ -59,7 +59,7 @@ struct OutputPanelView: View {
                 .frame(height: clampedPanelHeight)
                 .overlay(alignment: .top) {
                     if layout.isOutputPanelContentCollapsed {
-                        Divider()
+                        PanelSolidSeparatorView()
                     } else {
                         OutputPanelResizeHandle(
                             panelHeight: desiredPanelHeight,
