@@ -32,7 +32,8 @@ public final class FileListThumbnailController: FileListContentController {
     var dropWasPerformed = false
     weak var activeDraggingSession: NSDraggingSession?
     var skipNextItemMouseUp = false
-    var usedSystemItemMouseDown = false
+    /// Shift 范围选择的锚点（线性 item 索引）；普通单击时更新。
+    var selectionAnchorItem: Int?
     var onCellSizeChange: ((CGFloat) -> Void)?
     
     private(set) var scrollView: NSScrollView?
@@ -481,6 +482,7 @@ public final class FileListThumbnailController: FileListContentController {
         let matchedRowID = displayRows[row].id
         let indexPath = IndexPath(item: row, section: 0)
         collectionView.scrollToItems(at: [indexPath], scrollPosition: .centeredVertically)
+        selectionAnchorItem = row
         collectionView.selectionIndexPaths = [indexPath]
         syncSelectionFromCollection()
         interaction.onQuickSearchMatchSelected(matchedRowID)

@@ -45,6 +45,34 @@ enum FileListThumbnailCollectionLayoutSupport {
         return bestMatch?.indexPath
     }
 
+    /// Shift 多选：在网格行主序下选取锚点与目标之间的矩形区域。
+    static func indexPathsInGridRect(
+        anchorItem: Int,
+        targetItem: Int,
+        columnCount: Int,
+        itemCount: Int
+    ) -> Set<IndexPath> {
+        let columns = max(1, columnCount)
+        let anchorRow = anchorItem / columns
+        let anchorCol = anchorItem % columns
+        let targetRow = targetItem / columns
+        let targetCol = targetItem % columns
+        let minRow = min(anchorRow, targetRow)
+        let maxRow = max(anchorRow, targetRow)
+        let minCol = min(anchorCol, targetCol)
+        let maxCol = max(anchorCol, targetCol)
+
+        var result = Set<IndexPath>()
+        for row in minRow...maxRow {
+            for col in minCol...maxCol {
+                let index = row * columns + col
+                guard index >= 0, index < itemCount else { continue }
+                result.insert(IndexPath(item: index, section: 0))
+            }
+        }
+        return result
+    }
+
     static func smallestIndexPath(containing point: NSPoint, in collectionView: NSCollectionView) -> IndexPath? {
         let probe = NSRect(
             x: point.x - 1,

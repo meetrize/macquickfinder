@@ -1,7 +1,7 @@
 # AI 助手能力 — 设计方案（草案）
 
-> 目标：把 MeoFind（Bundle ID `com.explorer.app`）从「文件管理器」升级为「AI 原生的文件管理与处理工具」。
-> 本文档基于用户提出的 5 点原始需求展开架构设计，并补充更多可落地的使用场景与交互方式，供后续拆分实施计划使用。首版不追求一次做全，见「十、分阶段实施计划」。
+> 目标：把 MeoFind（Bundle ID `com.explorer.app`）从「文件管理器」升级为「AI 原生的文件管理与处理工具」。  
+> 本文档基于用户提出的 5 点原始需求展开架构设计，并补充更多可落地的使用场景与交互方式；分阶段 checklist 见 [ai-assistant-plan.md](./ai-assistant-plan.md)。首版不追求一次做全，见「十、分阶段实施计划」。
 
 ---
 
@@ -322,6 +322,91 @@ messages(id, session_id, role, content, attachments_json, model_id, provider_id,
 | 教师 | 批量批改学生提交的 txt/pdf 作业，生成简评和分数草稿（供人工复核，不自动定档） |
 | HR/招聘 | 批量简历提取姓名/岗位/年限，按岗位分类归档（此前已在 Snippet 示例里提到，可作为内置 Slash Command） |
 
+### 7.13 Shell Job 失败 →「让 AI 解释」
+
+输出面板里某次 Shell/Snippet 执行失败（非零退出码）时，在 Job 输出区底部增加 **「让 AI 解释此错误」** 按钮：自动把 `stderr`、执行的命令、cwd、最近几条 stdout 打包成一条用户消息，切换到 AI 模式并发送。用户不必手动复制粘贴报错，尤其适合 `tar`、`git`、`ffmpeg` 等输出冗长的工具。
+
+### 7.14 双文件 / 双文件夹对比
+
+选中 **恰好 2 个** 文件或 2 个目录时，右键菜单出现 **「AI 对比差异」**：
+
+- 两个文本/代码文件：注入 diff 或并排摘要，问「改了什么、有没有潜在 bug」；
+- 两个目录：只对比目录树结构（新增/缺失/重命名），不默认展开全部文件内容，避免 token 爆炸；
+- 一图一文：问「截图和文档描述是否一致」。
+
+与 §7.3「应用建议」结合时，可输出「建议保留哪一个版本」的结构化结论，但仍需用户确认，不自动删除。
+
+### 7.15 乱目录「智能整理」向导
+
+对当前地址栏目录（或选中文件夹）发起 **「建议整理方案」**：AI 根据文件名、扩展名、子目录结构输出一份 **只读** 的整理计划（例如「建 `2024/`、`发票/`、`待归档/` 并移动哪些文件」），以树状预览展示；用户勾选接受的条目后，批量调用现有 `FileOperations` 执行。这是比「直接让 AI 写 shell 再跑」更安全的交互——先预览、再确认、再执行。
+
+### 7.16 与操作录制的闭环
+
+[operation-recording-design.md](./operation-recording-design.md) 已实现「录制文件操作 → 生成 Shell Snippet 草稿」。可在此基础上增加：
+
+1. 停止录制后，除「保存 Snippet」外，增加 **「让 AI 优化此脚本」**：把生成的 shell 发给 AI，要求简化、加注释、泛化硬编码路径；
+2. 录制过程中若步骤重复（例如连续 10 次类似重命名），AI 可建议 **「是否改写成循环 + 变量」**。
+
+这样 AI 能力嵌入 Snippet **创作** 环节，而不只是 Snippet **执行** 环节。
+
+### 7.17 按扩展名绑定的 Prompt 模板（轻量 RAG 替代）
+
+在设置 → AI 中允许用户配置 **「文件类型 → 默认追问模板」**，例如：
+
+| 扩展名 | 默认模板（用户可改） |
+|--------|----------------------|
+| `.pdf` | 「提取文档标题、日期、摘要，并建议文件名」 |
+| `.jpg` / `.png` | 「描述画面主体、场景、是否适合作为封面」 |
+| `.log` | 「找出 ERROR/WARN，按时间线归纳根因」 |
+| `.swift` | 「概述模块职责、公开 API、潜在问题」 |
+
+右键「加入对话」或 Slash Command 命中某类文件时，自动预填模板（用户仍可编辑后再发送）。这比每次手打 prompt 省一步，又比写完整 Snippet 轻量。
+
+### 7.18 工具栏 / 全局快捷键快速入口
+
+| 入口 | 行为 |
+|------|------|
+| 工具栏 AI 按钮（或搜索框旁 `✨`） | 打开/聚焦输出面板 AI 模式，自动带上当前选区引用 |
+| `⌘⇧I`（建议） | 同上，全局快捷键 |
+| 空白区右键 | 在现有「在此打开终端」旁增加 **「在此向 AI 提问」**（引用当前目录，不含具体文件） |
+
+多窗口场景下，每个 Explorer 窗口的 AI 上下文 **默认绑定该窗口的 `path` + `selection`**，避免 A 窗口的文件引用误进 B 窗口的对话。
+
+### 7.19 预览区并排：文件 + AI
+
+右侧面板除「预览 | Snippets」外，远期可增加第三块 **「AI 助手」** 或允许预览与 AI 横向分屏：左侧看 PDF/代码，右侧多轮追问，无需来回切输出面板。首版可只做输出面板 AI Tab；若右侧面板高度紧张，此布局作为 P8 增强项。
+
+### 7.20 剪贴板与「粘贴为上下文」
+
+AI 输入框支持 **粘贴图片或长文本** 直接进入引用区（不限于磁盘上的文件）：例如从浏览器复制的截图、从邮件复制的段落。实现上复用 §5.4 的 attachment 模型，标记 `source: .clipboard` 与 `source: .file` 区分展示。
+
+### 7.21 会话导出与分享
+
+历史会话支持 **导出为 Markdown**（含引用文件列表、模型名、时间戳），方便贴进 Notion/飞书或发给同事。导出内容默认 **不包含** API Key；若消息中含文件正文，导出前二次确认（防止敏感内容外泄）。
+
+### 7.22 批量任务队列与限速
+
+当 Snippet 或用户操作触发 **对 N 个文件逐一调用 AI** 时，不应 N 路并发打爆 API 限流。`AIChatService` 内置 **可配置并发上限 + 令牌桶限速**（类似现有 `SnippetsSettings.maxConcurrentJobs`），并在输出面板显示「队列中 7/20」。与 §7.11 进度条配合，给用户可预期的批量体验。
+
+### 7.23 开发者向：项目目录一键 README / 变更摘要
+
+对含 `Package.swift`、`package.json`、`go.mod` 等标识的目录，提供 Slash Command **`/readme`**、**`/changelog`**：扫描目录树与关键文件头，生成 README 草稿或「自上次 git tag 以来变更摘要」。不自动写入磁盘，仅输出到对话，用户复制或点「保存为文件」。
+
+### 7.24 与现有 Snippet 示例的迁移路径
+
+`docs/snippets-claude-ai.json` 中的 6 条示例在 CLI 就绪后建议迁移为：
+
+| 原 Snippet | 迁移后 |
+|------------|--------|
+| AI 测试 · 预设提示 | `meofind ai "..."` 或 Slash `/summarize` |
+| AI · 总结选中文件 | `meofind ai "..." --file %f` |
+| AI · 分析当前目录 | `meofind ai "..." --file %d`（目录走树状策略） |
+| AI · 交互会话（终端） | 改为 App 内 AI Tab 多轮对话；系统终端场景保留可选 |
+| AI · 带文件上下文提问 | 右键「加入对话」+ 发送，或 CLI `--file` 多次 |
+| AI · 批量理解并重命名 | Phase P7「应用建议」+ 结构化 `meofind-actions` JSON |
+
+内置 Snippet 包可在 major 版本更新时替换，减少用户维护「找 claude 路径」的脚本。
+
 ---
 
 ## 八、安全与隐私
@@ -345,6 +430,7 @@ messages(id, session_id, role, content, attachments_json, model_id, provider_id,
 
 ## 十、分阶段实施计划（建议）
 
+详细 checklist 见 [ai-assistant-plan.md](./ai-assistant-plan.md)。摘要如下：
 | 阶段 | 内容 |
 |------|------|
 | P0 | 数据模型与存储：`AIProviderConfig`/`AIModelConfig` + Keychain 存取 + `AISessionStore`（SQLite）雏形 |
@@ -369,3 +455,80 @@ messages(id, session_id, role, content, attachments_json, model_id, provider_id,
 - [ ] 引用图片时，若当前模型不支持视觉能力，有明确提示而不是静默发送失败
 - [ ] App 未运行时，CLI 调用仍可完成（兜底直连），且历史在下次打开 App 时能看到
 - [ ] AI 历史支持搜索、重命名、置顶、删除
+
+---
+
+## 附录 A：与现有代码库的集成锚点
+
+| 能力 | 现有文件 | AI 功能扩展方式 |
+|------|----------|-----------------|
+| 设置 Tab | `Sources/Explorer/Settings/SettingsView.swift` | 新增 `AISettingsTab`，注册 `AppPreferences` 键 |
+| 偏好键注册 | `Sources/Explorer/Preferences/AppPreferences.swift` | 增加 `aiProvidersConfigKey`、`aiDefaultModelKey` 等 |
+| 输出面板 | `Sources/Explorer/ScriptRuntime/OutputPanelView.swift` | 模式切换、AI Tab 渲染、引用 chip 区 |
+| 命令输入 | `OutputCommandField.swift` / `OutputCommandMultilineField.swift` | AI 多行、`Enter` 发送、`⌥Enter` 换行 |
+| Job 模型 | `Sources/Explorer/ScriptRuntime/JobModels.swift` | `JobSource.aiChat(sessionID:)` |
+| Job 调度 | `JobStore.swift` | AI 请求不走 `ShellRunner`，走 `AIChatService` |
+| 执行上下文 | `OutputExecutionContext.swift`、`SnippetExpander.swift` | 引用路径展开、`%P`/`%f` 与 AI attachment 对齐 |
+| 文件右键 | `Sources/Explorer/FileListRowContextMenuBuilder.swift` | 「加入对话」「AI 对比差异」 |
+| 菜单桥接 | `Sources/Explorer/ContentView.swift` | 注入 AI 相关 `FileContextActions` |
+| 预览选区 | `Sources/Explorer/Preview/` | 「发送到 AI」选中文本 |
+| 危险操作确认 | `DestructiveActionConfirmer`（现有） | §7.3 应用建议前复用 |
+| 文本/Markdown 渲染 | Preview 模块已有能力 | AI 回复气泡复用或抽公共组件 |
+| Snippet 执行 | `SnippetExecutor.swift` | 无需改执行链；Snippet 内容改为调 `meofind` CLI |
+| i18n | `Localizable.xcstrings` + `L10n.swift` | 见附录 B |
+| SPM 打包 | `Package.swift` | 可选第二 executable target `meofind-cli`，或 Resources 内嵌二进制 |
+
+建议新建目录 `Sources/Explorer/AI/`：`AIChatService`、`AISessionStore`、`AIProviderStore`、`AIAttachmentResolver`、`MeoFindAISocketServer`、`CLI/` 等，与 `ScriptRuntime/`、`Snippets/` 平级，避免 ScriptRuntime 膨胀。
+
+### A.1 持久化路径汇总
+
+| 数据 | 路径 |
+|------|------|
+| 供应商配置（无 Key 明文） | `~/Library/Application Support/MeoFind/ai-providers.json` |
+| API Key | Keychain，`service=com.explorer.app.ai` |
+| 会话历史 | `~/Library/Application Support/MeoFind/ai-sessions.sqlite` |
+| CLI Socket | `~/Library/Application Support/MeoFind/ai.sock` |
+| CLI 二进制（包内） | `MeoFind.app/Contents/Resources/bin/meofind` |
+| 用户 PATH symlink | `~/.local/bin/meofind` → 包内二进制 |
+
+---
+
+## 附录 B：i18n 要求
+
+新增 UI 文案须遵循 [i18n-design.md](./i18n-design.md)：
+
+- 键写入 `Sources/Explorer/Resources/Localizable.xcstrings`（`en` + `zh-Hans`）
+- 在 `L10n.swift` 暴露，如 `L10n.AI.Settings.providers`、`L10n.AI.ContextMenu.addToChat`
+- `Tests/ExplorerTests/L10nTests.swift` 对关键键做 `XCTAssertNotEqual` 断言
+
+首版预计新增键域：`settings.ai.*`、`output.ai.*`、`contextMenu.ai.*`、`ai.history.*`、`ai.attachment.*`、`ai.error.*`。
+
+---
+
+## 附录 C：测试计划（摘要）
+
+| 类型 | 用例 |
+|------|------|
+| 单元 | `AIAttachmentResolver`：文本/图片/目录/超大文件/不支持 vision 的降级 |
+| 单元 | `AIProviderStore`：Keychain 读写、配置 JSON 编解码 |
+| 单元 | `AISessionStore`：插入消息、按 session 查询、CLI 与 GUI 交替写入 |
+| 集成 | Mock HTTP：`AIChatService` 流式 SSE 解析 |
+| 集成 | Socket：CLI 发请求 → App 内历史 +1 条 |
+| UI | 输出面板 Shell/AI 模式切换不丢引用 chip |
+| UI | 右键加入对话 → 自动打开 AI Tab |
+| 手工 | 中英文界面无键名泄露；连接测试成功/失败提示 |
+| 手工 | App 未启动时 CLI 兜底直连，重启 App 后历史可见 |
+| 安全 | 导出设置不含 API Key；应用建议删除类操作必弹确认 |
+
+---
+
+## 附录 D：相关文档
+
+| 文档 | 关系 |
+|------|------|
+| [ai-assistant-plan.md](./ai-assistant-plan.md) | 分阶段实施 checklist |
+| [snippets-panel-design.md](./snippets-panel-design.md) | Snippet 变量、Job 队列、输出面板 |
+| [output-panel-shell-session.md](./output-panel-shell-session.md) | Shell 模式边界（AI 模式与之并列） |
+| [operation-recording-design.md](./operation-recording-design.md) | §7.16 录制 → AI 优化脚本 |
+| [snippets-claude-ai.json](./snippets-claude-ai.json) | 待迁移的手工 AI Snippet 示例 |
+| [i18n-design.md](./i18n-design.md) | 文案规范 |

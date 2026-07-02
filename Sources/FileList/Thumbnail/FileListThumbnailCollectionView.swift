@@ -141,16 +141,9 @@ final class FileListThumbnailCollectionView: NSCollectionView {
         }
         
         interactionController?.willHandleItemMouseDown(event, indexPath: indexPath)
-        if interactionController?.shouldUseDefaultItemMouseDown(for: indexPath, event: event) ?? true {
-            interactionController?.usedSystemItemMouseDown = true
-            super.mouseDown(with: event)
-        } else {
-            interactionController?.usedSystemItemMouseDown = false
-            window?.makeFirstResponder(self)
-            interactionController?.handleItemClickMouseDown(indexPath: indexPath, event: event)
-        }
+        window?.makeFirstResponder(self)
+        interactionController?.handleItemClickMouseDown(indexPath: indexPath, event: event)
         interactionController?.didHandleItemMouseDown(event)
-        interactionController?.syncSelectionFromCollection()
     }
     
     func handleItemMouseUp(_ event: NSEvent) {
@@ -162,10 +155,6 @@ final class FileListThumbnailCollectionView: NSCollectionView {
         
         let point = convert(event.locationInWindow, from: nil)
         let indexPath = indexPath(at: point)
-        
-        if interactionController?.usedSystemItemMouseDown == true {
-            super.mouseUp(with: event)
-        }
         
         if let indexPath {
             let point = convert(event.locationInWindow, from: nil)

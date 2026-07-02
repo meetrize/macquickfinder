@@ -23,27 +23,54 @@ extension FileListThumbnailController {
         pendingRenameIndexPath = nil
     }
     
-    func shouldUseDefaultItemMouseDown(for indexPath: IndexPath, event: NSEvent) -> Bool {
-        guard indexPath.item >= 0, indexPath.item < displayRows.count else { return true }
-        if event.clickCount >= 2 { return true }
-        let flags = event.modifierFlags
-        if flags.contains(.command) || flags.contains(.shift) { return true }
-        // 普通单击自行处理选中，避免系统 mouseDown 进入框选追踪。
-        return false
-    }
-    
     func handleItemClickMouseDown(indexPath: IndexPath, event: NSEvent) {
         guard let collectionView, indexPath.item >= 0, indexPath.item < displayRows.count else { return }
         guard event.clickCount == 1 else { return }
         let flags = event.modifierFlags
-        if flags.contains(.command) || flags.contains(.shift) { return }
-        
+        let item = indexPath.item
+
+        if flags.contains(.shift) {
+            applyShiftClickSelection(at: item, in: collectionView)
+            return
+        }
+
+        if flags.contains(.command) {
+            toggleCommandClickSelection(at: indexPath, in: collectionView)
+            return
+        }
+
+        selectionAnchorItem = item
         if !collectionView.selectionIndexPaths.contains(indexPath) {
             collectionView.selectionIndexPaths = [indexPath]
             syncSelectionFromCollection()
         } else if shouldBeginRenameOnMouseUp(indexPath: indexPath, pointInCollection: collectionView.convert(event.locationInWindow, from: nil)) {
             pendingRenameIndexPath = indexPath
         }
+    }
+
+    private func applyShiftClickSelection(at item: Int, in collectionView: NSCollectionView) {
+        let anchor = selectionAnchorItem
+            ?? collectionView.selectionIndexPaths.sorted(by: { $0.item < $1.item }).first?.item
+            ?? item
+        let indexPaths = FileListThumbnailCollectionLayoutSupport.indexPathsInGridRect(
+            anchorItem: anchor,
+            targetItem: item,
+            columnCount: gridColumnCount(),
+            itemCount: displayRows.count
+        )
+        collectionView.selectionIndexPaths = indexPaths
+        syncSelectionFromCollection()
+    }
+
+    private func toggleCommandClickSelection(at indexPath: IndexPath, in collectionView: NSCollectionView) {
+        var selection = collectionView.selectionIndexPaths
+        if selection.contains(indexPath) {
+            selection.remove(indexPath)
+        } else {
+            selection.insert(indexPath)
+        }
+        collectionView.selectionIndexPaths = selection
+        syncSelectionFromCollection()
     }
     
     func didHandleItemMouseDown(_ event: NSEvent) {
@@ -97,6 +124,7 @@ extension FileListThumbnailController {
         guard hasSelection else { return }
         
         collectionView.selectionIndexPaths = []
+        selectionAnchorItem = nil
         selectionSet?([])
         refreshVisibleItemAppearance()
     }
@@ -190,6 +218,7 @@ extension FileListThumbnailController {
            indexPath.item < displayRows.count {
             if !collectionView.selectionIndexPaths.contains(indexPath) {
                 collectionView.selectionIndexPaths = [indexPath]
+                selectionAnchorItem = indexPath.item
                 syncSelectionFromCollection()
             }
             let clickedRow = displayRows[indexPath.item]
@@ -300,6 +329,7 @@ extension FileListThumbnailController {
         
         guard nextItem >= 0, nextItem < displayRows.count else { return true }
         let nextPath = IndexPath(item: nextItem, section: 0)
+        selectionAnchorItem = nextItem
         collectionView.selectionIndexPaths = [nextPath]
         syncSelectionFromCollection()
         collectionView.scrollToItems(at: [nextPath], scrollPosition: .nearestVerticalEdge)

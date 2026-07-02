@@ -179,10 +179,9 @@ enum FileListInteractionCoordinator {
         selectionGet: (() -> Set<String>)?,
         collectionSelectedIDs: Set<String>
     ) -> Set<String> {
-        if let selectionGet {
-            let selected = selectionGet()
-            if !selected.isEmpty { return selected }
-        }
-        return collectionSelectedIDs
+        var ids = selectionGet?() ?? []
+        ids.remove(FileListRow.parentDirectoryID)
+        ids.formUnion(collectionSelectedIDs.filter { $0 != FileListRow.parentDirectoryID })
+        return ids
     }
 }
