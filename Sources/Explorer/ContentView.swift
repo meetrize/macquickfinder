@@ -234,7 +234,7 @@ struct ContentView: View {
                             onResize: handleLeftPanelDrag(delta:),
                             onDragEnded: handleLeftPanelDragEnded
                         )
-                        .frame(width: 6)
+                        .frame(width: HorizontalResizeDividerMetrics.visualWidth)
                         .frame(maxHeight: .infinity)
                     }
                     .animation(nil, value: liveLeftPanelDragWidth)
@@ -759,7 +759,7 @@ struct ContentView: View {
                 layout.previewPanelWidth = Double(livePreviewPanelWidth)
             }
         )
-        .frame(width: 6)
+        .frame(width: HorizontalResizeDividerMetrics.visualWidth)
         .frame(maxHeight: .infinity)
         
         RightPanelStackView(
@@ -1609,26 +1609,40 @@ private struct HorizontalResizeDivider: NSViewRepresentable {
     }
 }
 
+private enum HorizontalResizeDividerMetrics {
+    static let visualWidth: CGFloat = 1
+    static let hitWidth: CGFloat = 6
+}
+
 private final class ResizeDividerNSView: NSView {
     var onResize: ((CGFloat) -> Void)?
     var onDragEnded: (() -> Void)?
     private var lastMouseX: CGFloat?
     private var trackingArea: NSTrackingArea?
-    
+
     override var isOpaque: Bool { false }
-    
+    override var isFlipped: Bool { true }
+
+    private var hitTestBounds: NSRect {
+        bounds.insetBy(dx: -(HorizontalResizeDividerMetrics.hitWidth - bounds.width) / 2, dy: 0)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        hitTestBounds.contains(point) ? self : nil
+    }
+
     override func resetCursorRects() {
         discardCursorRects()
-        addCursorRect(bounds, cursor: .resizeLeftRight)
+        addCursorRect(hitTestBounds, cursor: .resizeLeftRight)
     }
-    
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let trackingArea {
             removeTrackingArea(trackingArea)
         }
         let area = NSTrackingArea(
-            rect: bounds,
+            rect: hitTestBounds,
             options: [.activeInKeyWindow, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect],
             owner: self
         )
@@ -1659,7 +1673,6 @@ private final class ResizeDividerNSView: NSView {
     
     override func draw(_ dirtyRect: NSRect) {
         NSColor.separatorColor.setFill()
-        let lineX = floor((bounds.width - 1) / 2)
-        dirtyRect.intersection(NSRect(x: lineX, y: 0, width: 1, height: bounds.height)).fill()
+        dirtyRect.intersection(bounds).fill()
     }
 }

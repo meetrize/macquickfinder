@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 extension OutputPanelMetrics {
-    static let resizeHandleHeight: CGFloat = 2
-    /// 拖拽条视觉高度仅 2pt，命中区向外扩展以便抓取。
+    static let resizeHandleHeight: CGFloat = 1
+    /// 拖拽条视觉高度 1pt，命中区向外扩展以便抓取。
     static let resizeHandleHitHeight: CGFloat = 14
     /// 命令行 + 查找等底部控件的最小高度（含 Divider 与内边距）。
     static let bottomBarHeight: CGFloat = 44

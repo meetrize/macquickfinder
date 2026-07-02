@@ -142,6 +142,6 @@ final class OutputPanelResizeHandleNSView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         NSColor.separatorColor.setFill()
-        NSRect(x: 0, y: 0, width: bounds.width, height: bounds.height).fill()
+        dirtyRect.intersection(bounds).fill()
     }
 }

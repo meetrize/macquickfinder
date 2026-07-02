@@ -71,7 +71,7 @@ struct VerticalResizeDivider: NSViewRepresentable {
                     totalHeight: total,
                     minTopHeight: self.minTopHeight,
                     minBottomHeight: self.minBottomHeight,
-                    dividerThickness: VerticalResizeDividerMetrics.hitHeight
+                    dividerThickness: VerticalResizeDividerMetrics.visualHeight
                 )
                 self.onHeightChange?(clamped)
             }
@@ -84,7 +84,7 @@ struct VerticalResizeDivider: NSViewRepresentable {
                     totalHeight: total,
                     minTopHeight: self.minTopHeight,
                     minBottomHeight: self.minBottomHeight,
-                    dividerThickness: VerticalResizeDividerMetrics.hitHeight
+                    dividerThickness: VerticalResizeDividerMetrics.visualHeight
                 )
                 self.onDragEnded?(clamped)
                 view.dragStartMouseYWindow = nil
@@ -134,7 +134,8 @@ final class VerticalResizeDividerNSView: NSView {
 
     override func resetCursorRects() {
         discardCursorRects()
-        addCursorRect(bounds, cursor: .resizeUpDown)
+        let expanded = bounds.insetBy(dx: 0, dy: -(VerticalResizeDividerMetrics.hitHeight - dividerThickness) / 2)
+        addCursorRect(expanded, cursor: .resizeUpDown)
     }
 
     override func updateTrackingAreas() {
@@ -142,8 +143,9 @@ final class VerticalResizeDividerNSView: NSView {
         for area in trackingAreas where area.owner as AnyObject === self {
             removeTrackingArea(area)
         }
+        let expanded = bounds.insetBy(dx: 0, dy: -(VerticalResizeDividerMetrics.hitHeight - dividerThickness) / 2)
         let area = NSTrackingArea(
-            rect: bounds,
+            rect: expanded,
             options: [.activeInKeyWindow, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect],
             owner: self
         )
@@ -168,9 +170,10 @@ final class VerticalResizeDividerNSView: NSView {
         onDragEnd?(event.locationInWindow.y)
     }
 
+    override var isFlipped: Bool { true }
+
     override func draw(_ dirtyRect: NSRect) {
         NSColor.separatorColor.setFill()
-        let lineY = floor((bounds.height - dividerThickness) / 2)
-        NSRect(x: 0, y: lineY, width: bounds.width, height: dividerThickness).fill()
+        dirtyRect.intersection(bounds).fill()
     }
 }

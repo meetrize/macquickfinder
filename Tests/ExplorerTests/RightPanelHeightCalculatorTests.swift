@@ -4,7 +4,7 @@ import XCTest
 final class RightPanelHeightCalculatorTests: XCTestCase {
     private let total: CGFloat = 800
     private let titleBar: CGFloat = PanelTopBarMetrics.totalHeight
-    private let divider: CGFloat = VerticalResizeDividerMetrics.hitHeight
+    private let divider: CGFloat = VerticalResizeDividerMetrics.visualHeight
 
     private func baseInput(
         showPreview: Bool = true,

@@ -69,7 +69,7 @@ struct RightPanelStackView: View {
                             dragPreviewHeight = nil
                         }
                     )
-                    .frame(height: VerticalResizeDividerMetrics.hitHeight)
+                    .frame(height: VerticalResizeDividerMetrics.visualHeight)
                 }
 
                 if layout.showSnippets {
@@ -104,7 +104,7 @@ struct RightPanelStackView: View {
             isSnippetsContentCollapsed: layout.isSnippetsContentCollapsed,
             previewSnippetsSplitRatio: layout.previewSnippetsSplitRatio,
             dragPreviewHeight: dragPreviewHeight,
-            dividerHeight: VerticalResizeDividerMetrics.hitHeight,
+            dividerHeight: VerticalResizeDividerMetrics.visualHeight,
             previewMinHeight: previewMinHeight,
             snippetsMinHeight: snippetsMinHeight,
             collapsedTitleBarHeight: PanelTopBarMetrics.totalHeight
