@@ -652,16 +652,15 @@ struct OutputPanelView: View {
                     Image(systemName: "chevron.down")
                         .font(.system(size: NSFont.systemFontSize, weight: .regular))
                         .foregroundStyle(OutputPanelStyle.commandFieldTextColor.opacity(0.85))
-                        .frame(width: 30, height: 26)
+                        .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.plain)
                 .contentShape(Rectangle())
                 .help(L10n.Preview.Toolbar.nextMatch)
             }
         }
-        .padding(.horizontal, 10)
         .frame(width: 176)
-        .modifier(OutputCommandCapsuleFieldStyle())
+        .modifier(OutputCommandInputChromeStyle(isExpanded: false))
         .onChange(of: findText) { _ in
             findNextToken = 0
         }
@@ -876,9 +875,10 @@ private struct OutputPanelOutputScrollView: View {
 }
 
 private enum OutputCapsuleFieldMetrics {
-    static let horizontalPadding: CGFloat = 14
+    static let horizontalPadding: CGFloat = 12
     static let verticalPadding: CGFloat = 7
-    static let height: CGFloat = 30
+    static let innerControlHeight: CGFloat = 22
+    static var chromeHeight: CGFloat { verticalPadding * 2 + innerControlHeight }
 }
 
 private struct OutputCommandInputChromeStyle: ViewModifier {
@@ -886,9 +886,9 @@ private struct OutputCommandInputChromeStyle: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .padding(.horizontal, 12)
-            .padding(.vertical, isExpanded ? 6 : 7)
-            .frame(minHeight: isExpanded ? nil : OutputCapsuleFieldMetrics.height)
+            .padding(.horizontal, OutputCapsuleFieldMetrics.horizontalPadding)
+            .padding(.vertical, isExpanded ? 6 : OutputCapsuleFieldMetrics.verticalPadding)
+            .frame(minHeight: isExpanded ? nil : OutputCapsuleFieldMetrics.chromeHeight)
             .background(
                 RoundedRectangle(cornerRadius: isExpanded ? 10 : 18, style: .continuous)
                     .fill(OutputPanelStyle.commandFieldBackgroundColor)
@@ -906,20 +906,6 @@ private struct OutputCommandInputChromeStyle: ViewModifier {
                 color: isExpanded ? OutputPanelStyle.commandFocusBorderColor.opacity(0.12) : .clear,
                 radius: 8,
                 y: 2
-            )
-    }
-}
-
-private struct OutputCommandCapsuleFieldStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .textFieldStyle(.plain)
-            .padding(.horizontal, OutputCapsuleFieldMetrics.horizontalPadding)
-            .padding(.vertical, OutputCapsuleFieldMetrics.verticalPadding)
-            .frame(height: OutputCapsuleFieldMetrics.height)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(OutputPanelStyle.commandFieldBackgroundColor)
             )
     }
 }
