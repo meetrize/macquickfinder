@@ -37,3 +37,37 @@ extension OutputPanelMetrics {
         return min(max(desired, minimumExpandedChromeHeight), maxPanel)
     }
 }
+
+/// 将输出面板宿主视图置于窗口 contentView 最前，避免被文件列表等 AppKit 兄弟视图遮挡点击。
+struct OutputPanelWindowLayerInstaller: NSViewRepresentable {
+    func makeNSView(context: Context) -> InstallerView { InstallerView() }
+    func updateNSView(_ nsView: InstallerView, context: Context) {
+        nsView.elevatePanelHost()
+    }
+
+    final class InstallerView: NSView {
+        override var isOpaque: Bool { false }
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            elevatePanelHost()
+        }
+
+        override func layout() {
+            super.layout()
+            elevatePanelHost()
+        }
+
+        fileprivate func elevatePanelHost() {
+            guard let window, let contentView = window.contentView else { return }
+            var host: NSView? = self
+            while let superview = host?.superview, superview !== contentView {
+                host = superview
+            }
+            guard let panelHost = host, panelHost.superview === contentView else { return }
+            contentView.addSubview(panelHost, positioned: .above, relativeTo: nil)
+        }
+    }
+}

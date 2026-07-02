@@ -76,6 +76,7 @@ struct OutputPanelView: View {
                     }
                 }
                 .background(Color(nsColor: .windowBackgroundColor))
+                .background(OutputPanelWindowLayerInstaller())
                 .animation(nil, value: clampedPanelHeight)
             .onAppear {
                 setupCommandExecutedObserver()
@@ -936,13 +937,13 @@ private struct OutputPanelKeyMonitor: NSViewRepresentable {
         Coordinator(onFind: onFind, onFindNext: onFindNext, onInterrupt: onInterrupt)
     }
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
+    func makeNSView(context: Context) -> PassThroughKeyMonitorNSView {
+        let view = PassThroughKeyMonitorNSView()
         context.coordinator.install(on: view)
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
+    func updateNSView(_ nsView: PassThroughKeyMonitorNSView, context: Context) {
         context.coordinator.isFindActive = isFindActive
         context.coordinator.isFindFieldFocused = isFindFieldFocused
         context.coordinator.isCommandFieldFocused = isCommandFieldFocused

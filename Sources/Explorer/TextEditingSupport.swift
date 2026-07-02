@@ -66,13 +66,13 @@ struct TextEditingKeyMonitor: NSViewRepresentable {
         Coordinator()
     }
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
+    func makeNSView(context: Context) -> PassThroughKeyMonitorNSView {
+        let view = PassThroughKeyMonitorNSView()
         context.coordinator.install(on: view)
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
+    func updateNSView(_ nsView: PassThroughKeyMonitorNSView, context: Context) {
         context.coordinator.isActive = isActive
     }
 
@@ -113,4 +113,9 @@ struct TextEditingKeyMonitor: NSViewRepresentable {
             }
         }
     }
+}
+
+/// 仅用于挂载键盘监听，不参与鼠标命中测试。
+final class PassThroughKeyMonitorNSView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

@@ -250,6 +250,7 @@ struct ContentView: View {
                     }
                     .animation(nil, value: livePreviewPanelWidth)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
                     .onAppear {
                         livePreviewPanelWidth = clampPreviewWidth(
                             CGFloat(layout.previewPanelWidth),
