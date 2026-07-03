@@ -51,6 +51,7 @@ final class GitWorkspacePhaseTests: XCTestCase {
             aheadCount: ahead,
             behindCount: behind,
             hasUpstream: true,
+            recentCommits: [],
             lastRefreshedAt: Date(timeIntervalSince1970: 0)
         )
     }

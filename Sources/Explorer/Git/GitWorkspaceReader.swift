@@ -14,6 +14,7 @@ enum GitWorkspaceReader {
         let porcelain = try cli.runData(["status", "--porcelain=v1", "-z"], workingDirectory: repoRoot)
         let entries = GitPorcelainParser.parse(zTerminated: porcelain.stdout)
         let upstream = upstreamCounts(repoRoot: repoRoot, cli: cli)
+        let recentCommits = recentCommitLog(repoRoot: repoRoot, cli: cli)
 
         return GitWorkspaceSnapshot(
             repoRoot: repoRoot,
@@ -22,9 +23,28 @@ enum GitWorkspaceReader {
             aheadCount: upstream.ahead,
             behindCount: upstream.behind,
             hasUpstream: upstream.hasUpstream,
+            recentCommits: recentCommits,
             lastRefreshedAt: now
         )
     }
+
+    private static func recentCommitLog(repoRoot: String, cli: GitCLI) -> [GitCommitEntry] {
+        guard let data = try? cli.runData(
+            [
+                "log",
+                "-\(GitLogParser.defaultLimit)",
+                "-z",
+                "--format=\(gitLogFormat)",
+            ],
+            workingDirectory: repoRoot
+        ).stdout else {
+            return []
+        }
+        return GitLogParser.parse(zTerminated: data)
+    }
+
+    private static let logFieldSeparator = "\u{1f}"
+    private static let gitLogFormat = "%H\(logFieldSeparator)%h\(logFieldSeparator)%s\(logFieldSeparator)%cr"
 
     private static func currentBranch(repoRoot: String, cli: GitCLI) -> String? {
         guard let branch = try? cli.run(["branch", "--show-current"], workingDirectory: repoRoot),

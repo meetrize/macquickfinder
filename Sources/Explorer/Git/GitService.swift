@@ -7,11 +7,28 @@ enum GitService {
 
     private static let messageGenerator: GitCommitMessageGenerating = RuleBasedGitCommitMessageGenerator()
 
+    private static func beginWriteOperation(on statusStore: GitStatusStore) {
+        statusStore.cancelScheduledRefresh()
+    }
+
+    private static func finishWriteOperation(
+        cwd: String,
+        repoRoot: String,
+        clearedChanges: Bool,
+        statusStore: GitStatusStore
+    ) async {
+        if clearedChanges {
+            statusStore.clearPendingChanges(forRepoRoot: repoRoot)
+        }
+        await statusStore.refreshAfterGitOperation(cwd: cwd)
+    }
+
     static func initRepository(
         cwd: String,
         layout: ExplorerWindowLayoutState?,
         statusStore: GitStatusStore
     ) async -> String? {
+        beginWriteOperation(on: statusStore)
         do {
             try await GitJobRunner.run(
                 title: L10n.Git.Job.initRepository,
@@ -19,7 +36,7 @@ enum GitService {
                 workingDirectory: cwd,
                 layout: layout
             )
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return nil
         } catch let error as GitServiceError {
             return error.localizedDescription
@@ -46,13 +63,13 @@ enum GitService {
                 workingDirectory: snapshot.repoRoot,
                 layout: layout
             )
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return nil
         } catch let error as GitServiceError {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         } catch {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         }
     }
@@ -67,6 +84,7 @@ enum GitService {
     ) async -> String? {
         guard snapshot.changeCount > 0 else { return nil }
 
+        beginWriteOperation(on: statusStore)
         do {
             try await stageChanges(snapshot: snapshot, scope: scope, layout: layout)
             let message = resolvedCommitMessage(
@@ -84,13 +102,18 @@ enum GitService {
                 workingDirectory: snapshot.repoRoot,
                 layout: layout
             )
-            await statusStore.refresh(cwd: cwd)
+            await finishWriteOperation(
+                cwd: cwd,
+                repoRoot: snapshot.repoRoot,
+                clearedChanges: true,
+                statusStore: statusStore
+            )
             return nil
         } catch let error as GitServiceError {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         } catch {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         }
     }
@@ -112,13 +135,13 @@ enum GitService {
                 workingDirectory: snapshot.repoRoot,
                 layout: layout
             )
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return nil
         } catch let error as GitServiceError {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         } catch {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         }
     }
@@ -129,6 +152,7 @@ enum GitService {
         layout: ExplorerWindowLayoutState?,
         statusStore: GitStatusStore
     ) async -> String? {
+        beginWriteOperation(on: statusStore)
         do {
             if snapshot.hasUpstream {
                 let arguments = pullUsesRebase ? ["pull", "--rebase"] : ["pull"]
@@ -139,7 +163,7 @@ enum GitService {
                     layout: layout
                 )
             }
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             if let refreshed = statusStore.snapshot, refreshed.aheadCount > 0, refreshed.hasUpstream {
                 try await GitJobRunner.run(
                     title: L10n.Git.Job.push,
@@ -148,13 +172,13 @@ enum GitService {
                     layout: layout
                 )
             }
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return nil
         } catch let error as GitServiceError {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         } catch {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         }
     }
@@ -169,6 +193,7 @@ enum GitService {
     ) async -> String? {
         let hadChanges = snapshot.changeCount > 0
 
+        beginWriteOperation(on: statusStore)
         do {
             if hadChanges {
                 try await stageChanges(snapshot: snapshot, scope: scope, layout: layout)
@@ -212,13 +237,18 @@ enum GitService {
                 }
             }
 
-            await statusStore.refresh(cwd: cwd)
+            await finishWriteOperation(
+                cwd: cwd,
+                repoRoot: snapshot.repoRoot,
+                clearedChanges: hadChanges,
+                statusStore: statusStore
+            )
             return nil
         } catch let error as GitServiceError {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         } catch {
-            await statusStore.refresh(cwd: cwd)
+            await statusStore.refreshAfterGitOperation(cwd: cwd)
             return error.localizedDescription
         }
     }

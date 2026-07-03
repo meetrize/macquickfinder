@@ -3033,6 +3033,20 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git 操作已取消" } }
       }
     },
+    "git.history.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Recent Commits" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "最近提交" } }
+      }
+    },
+    "git.history.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No commits yet" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "尚无提交记录" } }
+      }
+    },
     "menu.toggle_left_panel": {
       "extractionState": "manual",
       "localizations": {

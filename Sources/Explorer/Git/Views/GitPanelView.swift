@@ -249,6 +249,7 @@ struct GitPanelView: View {
                     if !snapshot.entries.isEmpty {
                         changeList(snapshot)
                     }
+                    commitHistory(snapshot)
                     if let lastOperationError {
                         Text(lastOperationError)
                             .font(.caption)
@@ -326,6 +327,10 @@ struct GitPanelView: View {
                 .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func commitHistory(_ snapshot: GitWorkspaceSnapshot) -> some View {
+        GitCommitHistoryView(commits: snapshot.recentCommits)
     }
 
     private func actionFooter(_ snapshot: GitWorkspaceSnapshot) -> some View {
@@ -483,6 +488,8 @@ struct GitPanelView: View {
             if error == L10n.Git.Error.emptyCommitMessage {
                 commitFieldFocused = true
             }
+        } else {
+            showsAllChanges = false
         }
     }
 

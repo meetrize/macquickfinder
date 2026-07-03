@@ -42,8 +42,14 @@ final class GitWorkspaceReaderTests: XCTestCase {
             case "rev-list --left-right --count HEAD...@{u}":
                 stdout = Data("1\t2".utf8)
             default:
-                XCTFail("Unexpected git arguments: \(joined)")
-                stdout = Data()
+                if joined.hasPrefix("log -") {
+                    let sep = "\u{1f}"
+                    let record = "abc123def456789\(sep)abc123d\(sep)feat: test\(sep)2 hours ago"
+                    stdout = Data((record + "\0").utf8)
+                } else {
+                    XCTFail("Unexpected git arguments: \(joined)")
+                    stdout = Data()
+                }
             }
             return GitProcessResult(stdout: stdout, stderr: Data(), terminationStatus: 0)
         })
@@ -57,6 +63,8 @@ final class GitWorkspaceReaderTests: XCTestCase {
         let snapshot = try GitWorkspaceReader.loadSnapshot(cwd: root, cli: cli)
         XCTAssertEqual(snapshot?.currentBranch, "feature/git")
         XCTAssertEqual(snapshot?.changeCount, 1)
+        XCTAssertEqual(snapshot?.recentCommits.count, 1)
+        XCTAssertEqual(snapshot?.recentCommits.first?.subject, "feat: test")
         XCTAssertEqual(snapshot?.behindCount, 1)
         XCTAssertEqual(snapshot?.aheadCount, 2)
         XCTAssertTrue(snapshot?.hasUpstream ?? false)

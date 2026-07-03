@@ -274,6 +274,10 @@
 	<string>No upstream branch configured</string>
 	<key>git.error.pull_with_dirty</key>
 	<string>Commit or stash changes before pulling</string>
+	<key>git.history.empty</key>
+	<string>No commits yet</string>
+	<key>git.history.title</key>
+	<string>Recent Commits</string>
 	<key>git.job.commit</key>
 	<string>Git: Commit</string>
 	<key>git.job.init</key>

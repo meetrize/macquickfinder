@@ -231,6 +231,11 @@ enum L10n {
             static var emptyCommitMessage: String { ModuleLocalization.localized("git.error.empty_commit_message", bundle: .module) }
             static var cancelled: String { ModuleLocalization.localized("git.error.cancelled", bundle: .module) }
         }
+
+        enum History {
+            static var title: String { ModuleLocalization.localized("git.history.title", bundle: .module) }
+            static var empty: String { ModuleLocalization.localized("git.history.empty", bundle: .module) }
+        }
     }
 
     enum RemoteServer {

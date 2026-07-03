@@ -17,7 +17,11 @@ final class GitStatusStoreTests: XCTestCase {
             case "rev-list --left-right --count HEAD...@{u}":
                 stdout = Data("0\t0".utf8)
             default:
-                stdout = Data()
+                if joined.hasPrefix("log -") {
+                    stdout = Data()
+                } else {
+                    stdout = Data()
+                }
             }
             return GitProcessResult(stdout: stdout, stderr: Data(), terminationStatus: 0)
         })
@@ -57,6 +61,43 @@ final class GitStatusStoreTests: XCTestCase {
         XCTAssertFalse(store.isRefreshing)
         XCTAssertNil(store.snapshot)
         XCTAssertEqual(store.lastError, "fatal: not a git repository")
+    }
+
+    @MainActor
+    func testClearPendingChangesRemovesEntries() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("meofind-git-clear-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent(".git", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let cli = GitCLI(runProcess: { _, arguments, _, _ in
+            let joined = arguments.joined(separator: " ")
+            let stdout: Data
+            switch joined {
+            case "branch --show-current":
+                stdout = Data("main".utf8)
+            case "status --porcelain=v1 -z":
+                stdout = Data(" M a.swift\0".utf8)
+            case "rev-parse --abbrev-ref --symbolic-full-name @{u}":
+                stdout = Data("origin/main".utf8)
+            case "rev-list --left-right --count HEAD...@{u}":
+                stdout = Data("0\t0".utf8)
+            default:
+                stdout = joined.hasPrefix("log -") ? Data() : Data()
+            }
+            return GitProcessResult(stdout: stdout, stderr: Data(), terminationStatus: 0)
+        })
+
+        let store = GitStatusStore(cli: cli)
+        await store.refresh(cwd: root.path)
+        XCTAssertEqual(store.snapshot?.changeCount, 1)
+
+        store.clearPendingChanges(forRepoRoot: root.path)
+        XCTAssertEqual(store.snapshot?.changeCount, 0)
     }
 
     func testClearResetsState() async {

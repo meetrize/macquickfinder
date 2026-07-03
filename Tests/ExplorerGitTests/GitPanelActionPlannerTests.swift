@@ -72,6 +72,7 @@ final class GitPanelActionPlannerTests: XCTestCase {
             aheadCount: ahead,
             behindCount: behind,
             hasUpstream: hasUpstream,
+            recentCommits: [],
             lastRefreshedAt: Date(timeIntervalSince1970: 0)
         )
     }

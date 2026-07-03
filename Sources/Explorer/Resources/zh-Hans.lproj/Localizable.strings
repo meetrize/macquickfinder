@@ -274,6 +274,10 @@
 	<string>未配置远程跟踪分支</string>
 	<key>git.error.pull_with_dirty</key>
 	<string>请先提交或暂存变更后再拉取</string>
+	<key>git.history.empty</key>
+	<string>尚无提交记录</string>
+	<key>git.history.title</key>
+	<string>最近提交</string>
 	<key>git.job.commit</key>
 	<string>Git：提交</string>
 	<key>git.job.init</key>

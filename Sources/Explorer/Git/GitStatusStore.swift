@@ -32,7 +32,28 @@ final class GitStatusStore: ObservableObject {
         }
     }
 
+    func cancelScheduledRefresh() {
+        debounceTask?.cancel()
+        debounceTask = nil
+        pendingCWD = nil
+    }
+
     func refresh(cwd: String) async {
+        await performRefresh(cwd: cwd, retryIfStillDirty: false)
+    }
+
+    /// Git 写操作完成后刷新：取消排队中的 debounce，并在仍显示脏状态时重试一次。
+    func refreshAfterGitOperation(cwd: String) async {
+        cancelScheduledRefresh()
+        await performRefresh(cwd: cwd, retryIfStillDirty: true)
+    }
+
+    func clearPendingChanges(forRepoRoot repoRoot: String) {
+        guard let snapshot, GitRepositoryDetector.rootsEqual(snapshot.repoRoot, repoRoot) else { return }
+        self.snapshot = snapshot.clearingEntries()
+    }
+
+    private func performRefresh(cwd: String, retryIfStillDirty: Bool) async {
         pendingCWD = cwd
         refreshTask?.cancel()
         refreshGeneration += 1
@@ -61,19 +82,35 @@ final class GitStatusStore: ObservableObject {
             }
 
             await MainActor.run { [weak self] in
-                guard let self, generation == self.refreshGeneration else { return }
-                switch loaded {
-                case .success(let snapshot):
-                    self.snapshot = snapshot
-                    self.lastError = nil
-                case .failure(let error):
-                    self.lastError = error.localizedDescription
-                }
-                self.isRefreshing = false
+                guard let self else { return }
+                self.applyRefreshResult(loaded, generation: generation)
             }
         }
         refreshTask = task
         await task.value
+
+        guard retryIfStillDirty,
+              let snapshot,
+              !snapshot.entries.isEmpty,
+              let repoRoot = GitRepositoryDetector.findRepoRoot(from: cwd),
+              GitRepositoryDetector.rootsEqual(snapshot.repoRoot, repoRoot) else {
+            return
+        }
+
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        await performRefresh(cwd: cwd, retryIfStillDirty: false)
+    }
+
+    private func applyRefreshResult(_ loaded: Result<GitWorkspaceSnapshot?, Error>, generation: Int) {
+        guard generation == refreshGeneration else { return }
+        switch loaded {
+        case .success(let snapshot):
+            self.snapshot = snapshot
+            self.lastError = nil
+        case .failure(let error):
+            self.lastError = error.localizedDescription
+        }
+        isRefreshing = false
     }
 
     func clear() {

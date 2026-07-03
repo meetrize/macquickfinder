@@ -37,6 +37,7 @@ struct GitWorkspaceSnapshot: Equatable, Sendable {
     let aheadCount: Int
     let behindCount: Int
     let hasUpstream: Bool
+    let recentCommits: [GitCommitEntry]
     let lastRefreshedAt: Date
 
     var changeCount: Int { entries.count }
@@ -47,6 +48,19 @@ struct GitWorkspaceSnapshot: Equatable, Sendable {
 
     var workspacePhase: GitWorkspacePhase {
         GitWorkspacePhaseResolver.resolve(snapshot: self)
+    }
+
+    func clearingEntries() -> GitWorkspaceSnapshot {
+        GitWorkspaceSnapshot(
+            repoRoot: repoRoot,
+            currentBranch: currentBranch,
+            entries: [],
+            aheadCount: aheadCount,
+            behindCount: behindCount,
+            hasUpstream: hasUpstream,
+            recentCommits: recentCommits,
+            lastRefreshedAt: lastRefreshedAt
+        )
     }
 }
 
