@@ -89,6 +89,16 @@ final class CustomPreviewRuleStoreTests: XCTestCase {
         XCTAssertFalse(PreviewTypeClassifier.isCodeFile("log"))
     }
 
+    func testPreviewTypeClassifierRunnableScriptTypes() {
+        XCTAssertEqual(PreviewTypeClassifier.runnableScriptType(forExtension: "sh"), .shell)
+        XCTAssertEqual(PreviewTypeClassifier.runnableScriptType(forExtension: "bash"), .shell)
+        XCTAssertEqual(PreviewTypeClassifier.runnableScriptType(forExtension: "zsh"), .shell)
+        XCTAssertEqual(PreviewTypeClassifier.runnableScriptType(forExtension: "py"), .python3)
+        XCTAssertEqual(PreviewTypeClassifier.runnableScriptType(forExtension: "applescript"), .appleScript)
+        XCTAssertEqual(PreviewTypeClassifier.runnableScriptType(forExtension: "scpt"), .appleScript)
+        XCTAssertNil(PreviewTypeClassifier.runnableScriptType(forExtension: "swift"))
+    }
+
     func testUpsertRuleSupportsExtensionlessFiles() {
         let store = CustomPreviewRuleStore.shared
         store.upsertRule(forExtension: "", mode: .text)

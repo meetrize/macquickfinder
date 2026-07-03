@@ -4245,6 +4245,23 @@
         }
       }
     },
+    "preview.toolbar.run_script": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行"
+          }
+        }
+      }
+    },
     "preview.toolbar.play": {
       "extractionState": "manual",
       "localizations": {

@@ -14,6 +14,8 @@ enum JobSource: Equatable {
     case shellSession
     /// 压缩 / 解压等归档操作。
     case archiveOperation
+    /// 预览面板顶栏运行脚本文件。
+    case previewScript(path: String)
 }
 
 struct JobRecord: Identifiable {

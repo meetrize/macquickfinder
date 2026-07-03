@@ -62,6 +62,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Settings.Preview.HandlerGroup.pdf, "settings.preview.handler_group.pdf")
         XCTAssertNotEqual(L10n.Archive.jobCompress, "archive.job.compress")
         XCTAssertNotEqual(L10n.Preview.Toolbar.extract, "preview.toolbar.extract")
+        XCTAssertNotEqual(L10n.Preview.Toolbar.runScript, "preview.toolbar.run_script")
         XCTAssertNotEqual(L10n.Preview.Toolbar.extractSelected, "preview.toolbar.extract_selected")
         XCTAssertNotEqual(L10n.Preview.Toolbar.previousMatch, "preview.toolbar.previous_match")
         XCTAssertNotEqual(L10n.Preview.Toolbar.clearSearch, "preview.toolbar.clear_search")

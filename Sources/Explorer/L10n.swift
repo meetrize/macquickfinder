@@ -843,6 +843,7 @@ enum L10n {
             static var copyImage: String { ModuleLocalization.localized("preview.toolbar.copy_image", bundle: .module) }
             static var openDefaultApp: String { ModuleLocalization.localized("preview.toolbar.open_default_app", bundle: .module) }
             static var play: String { ModuleLocalization.localized("preview.toolbar.play", bundle: .module) }
+            static var runScript: String { ModuleLocalization.localized("preview.toolbar.run_script", bundle: .module) }
             static var pause: String { ModuleLocalization.localized("preview.toolbar.pause", bundle: .module) }
             static var mute: String { ModuleLocalization.localized("preview.toolbar.mute", bundle: .module) }
             static var unmute: String { ModuleLocalization.localized("preview.toolbar.unmute", bundle: .module) }

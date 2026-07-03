@@ -1154,6 +1154,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Rotate Counterclockwise</string>
 	<key>preview.toolbar.rotate_cw</key>
 	<string>Rotate Clockwise</string>
+	<key>preview.toolbar.run_script</key>
+	<string>Run</string>
 	<key>preview.toolbar.save_edits</key>
 	<string>Save Edits</string>
 	<key>preview.toolbar.search_in_preview</key>

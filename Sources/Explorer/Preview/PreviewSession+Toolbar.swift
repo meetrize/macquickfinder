@@ -6,33 +6,33 @@ extension PreviewSession {
     func previewToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
         let ext = item.url.pathExtension.lowercased()
         if BuiltinPreviewExtensions.quickLookImage.contains(ext) {
-            return previewQuickLookImageToolbarItems(for: item)
+            return prependRunnableScriptRunButton(to: previewQuickLookImageToolbarItems(for: item), for: item)
         }
         if PreviewTypeClassifier.isImageFile(ext) {
-            return previewImageToolbarItems(for: item)
+            return prependRunnableScriptRunButton(to: previewImageToolbarItems(for: item), for: item)
         }
         if PreviewTypeClassifier.isPDFFile(ext) {
-            return previewPDFToolbarItems()
+            return prependRunnableScriptRunButton(to: previewPDFToolbarItems(), for: item)
         }
         if PreviewTypeClassifier.isSpreadsheetFile(ext) {
-            return previewSpreadsheetToolbarItems(for: item)
+            return prependRunnableScriptRunButton(to: previewSpreadsheetToolbarItems(for: item), for: item)
         }
         if PreviewTypeClassifier.isTextFile(ext) {
-            return previewTextToolbarItems(for: item)
+            return prependRunnableScriptRunButton(to: previewTextToolbarItems(for: item), for: item)
         }
         if PreviewTypeClassifier.isMediaFile(ext) {
-            return previewMediaToolbarItems()
+            return prependRunnableScriptRunButton(to: previewMediaToolbarItems(), for: item)
         }
         if PreviewTypeClassifier.isWordDocumentFile(ext) {
-            return previewWordDocumentToolbarItems(for: item)
+            return prependRunnableScriptRunButton(to: previewWordDocumentToolbarItems(for: item), for: item)
         }
         if PreviewTypeClassifier.isOfficeFile(ext) {
-            return previewOfficeToolbarItems(for: item)
+            return prependRunnableScriptRunButton(to: previewOfficeToolbarItems(for: item), for: item)
         }
         if PreviewTypeClassifier.isArchivePreviewFile(item) {
-            return previewArchiveToolbarItems()
+            return prependRunnableScriptRunButton(to: previewArchiveToolbarItems(), for: item)
         }
-        return []
+        return prependRunnableScriptRunButton(to: [], for: item)
     }
 
     func previewToolbarIconItem(

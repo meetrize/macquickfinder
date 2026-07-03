@@ -1154,6 +1154,8 @@
 	<string>逆时针旋转</string>
 	<key>preview.toolbar.rotate_cw</key>
 	<string>顺时针旋转</string>
+	<key>preview.toolbar.run_script</key>
+	<string>运行</string>
 	<key>preview.toolbar.save_edits</key>
 	<string>保存编辑结果</string>
 	<key>preview.toolbar.search_in_preview</key>

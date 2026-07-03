@@ -298,6 +298,31 @@ final class PreviewSessionTests: XCTestCase {
         XCTAssertTrue(ids.contains("office-zoom-in"))
     }
 
+    func testRunnableScriptToolbarIncludesRunButton() {
+        let session = PreviewSession(
+            hostWindowID: UUID(),
+            file: FileItem(
+                id: "script",
+                url: URL(fileURLWithPath: "/tmp/sample.py"),
+                name: "sample.py",
+                isDirectory: false,
+                modificationDate: .distantPast,
+                creationDate: .distantPast,
+                size: 128,
+                isHidden: false,
+                fileType: "py",
+                sizeDisplay: "128 B",
+                dateDisplay: "",
+                creationDateDisplay: "",
+                finderComment: "",
+                tags: []
+            )
+        )
+
+        let items = session.previewToolbarItems(for: session.file)
+        XCTAssertEqual(items.first?.id, "script-run")
+    }
+
     func testImageEditUndoRoundTrip() {
         let session = PreviewSession(hostWindowID: UUID(), file: makeFileItem())
         session.image.zoomScale = 1.0

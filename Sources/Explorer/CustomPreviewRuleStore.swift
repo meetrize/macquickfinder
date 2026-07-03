@@ -128,8 +128,8 @@ enum BuiltinPreviewExtensions {
     static let pdf: Set<String> = ["pdf"]
     static let text: Set<String> = [
         "txt", "md", "swift", "java", "py", "js", "ts", "go", "rs", "kt", "php", "rb",
-        "html", "css", "json", "xml", "c", "cpp", "h", "sh", "yaml", "yml", "vue",
-        "config", "ini", "gitignore", "properties", "log", "sql", "csv"
+        "html", "css", "json", "xml", "c", "cpp", "h", "sh", "bash", "zsh", "yaml", "yml", "vue",
+        "config", "ini", "gitignore", "properties", "log", "sql", "csv", "applescript"
     ]
     static let html: Set<String> = ["html", "htm"]
     static let markdown: Set<String> = ["md"]
@@ -220,6 +220,20 @@ enum PreviewTypeClassifier {
     static func isArchivePreviewFile(_ file: FileItem) -> Bool {
         if BuiltinPreviewExtensions.matchesArchive(fileName: file.name) { return true }
         return customMode(forExtension: file.url.pathExtension) == .archive
+    }
+
+    /// Shell / Python / AppleScript 等可在预览顶栏直接运行的脚本类型。
+    static func runnableScriptType(forExtension ext: String) -> SnippetScriptType? {
+        switch ext.lowercased() {
+        case "sh", "bash", "zsh":
+            return .shell
+        case "py":
+            return .python3
+        case "applescript", "scpt":
+            return .appleScript
+        default:
+            return nil
+        }
     }
 
     /// 代码类文本预览（语法高亮场景）；用于标题栏搜索框，替代复制/跳转按钮。
