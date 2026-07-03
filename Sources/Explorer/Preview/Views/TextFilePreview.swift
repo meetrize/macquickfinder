@@ -90,6 +90,9 @@ struct TextFilePreview: NSViewRepresentable {
                 textView: textView
             )
         }
+        if isEditing {
+            context.coordinator.activateEditingFocus(on: textView)
+        }
         return scrollView
     }
 
@@ -320,6 +323,19 @@ struct TextFilePreview: NSViewRepresentable {
             }
         }
 
+        func activateEditingFocus(on textView: NSTextView) {
+            DispatchQueue.main.async { [weak textView] in
+                guard let textView, let window = textView.window else { return }
+                guard window.makeFirstResponder(textView) else { return }
+                let length = (textView.string as NSString).length
+                textView.setSelectedRange(NSRange(location: length, length: 0))
+                textView.scrollRangeToVisible(NSRange(location: length, length: 0))
+                if let previewTextView = textView as? PreviewCodeTextView {
+                    previewTextView.onInteractionStateChanged?()
+                }
+            }
+        }
+
         func transitionDisplayMode(
             from oldMode: PreviewTextDisplayMode,
             to newMode: PreviewTextDisplayMode,
@@ -347,6 +363,7 @@ struct TextFilePreview: NSViewRepresentable {
                     previewTextView.allowsEditing = true
                 }
                 onLiveContentChange?(textView.string)
+                activateEditingFocus(on: textView)
             case .viewing:
                 textView.isEditable = false
                 textView.isRichText = true
