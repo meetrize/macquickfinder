@@ -22,7 +22,9 @@ extension ContentView {
     }
 
     func applyExternalNavigationTarget(_ target: ExternalNavigationTarget) {
-        pendingExternalSelectionPath = target.selectionPath
+        pendingExternalSelectionPath = target.selectionPath.map {
+            ExternalSelectionPathMatcher.standardizedPath($0)
+        }
         if path == target.directoryPath {
             if applyExternalSelectionImmediatelyIfPossible() {
                 return
@@ -43,8 +45,7 @@ extension ContentView {
             return !items.isEmpty && !isLoading
         }
         guard !items.isEmpty, !isLoading else { return false }
-        let standardized = (selectionPath as NSString).standardizingPath
-        guard let item = items.first(where: { $0.id == standardized || $0.id == selectionPath }) else {
+        guard let item = ExternalSelectionPathMatcher.matchingItem(in: items, selectionPath: selectionPath) else {
             return false
         }
         selection = [item.id]
@@ -56,9 +57,28 @@ extension ContentView {
     func applyPendingExternalSelectionIfNeeded(loadedItems: [FileItem], for directoryPath: String) {
         guard directoryPath == path else { return }
         guard let pendingExternalSelectionPath else { return }
-        defer { self.pendingExternalSelectionPath = nil }
-        guard loadedItems.contains(where: { $0.id == pendingExternalSelectionPath }) else { return }
-        selection = [pendingExternalSelectionPath]
+        guard let item = ExternalSelectionPathMatcher.matchingItem(
+            in: loadedItems,
+            selectionPath: pendingExternalSelectionPath
+        ) else {
+            return
+        }
+        self.pendingExternalSelectionPath = nil
+        selection = [item.id]
+        fileListFocusToken &+= 1
+    }
+
+    private func applyPendingExternalNavigationForNewTab(_ navigation: ExplorerWindowTabCenter.PendingMainTabNavigation) {
+        pendingExternalSelectionPath = navigation.selectionPath.map {
+            ExternalSelectionPathMatcher.standardizedPath($0)
+        }
+        if path != navigation.path {
+            path = navigation.path
+            return
+        }
+        if !applyExternalSelectionImmediatelyIfPossible(), !isLoading {
+            loadItems()
+        }
     }
 }
 struct ContentView: View {
@@ -341,9 +361,8 @@ struct ContentView: View {
             }
             ExplorerWindowTabCenter.shared.configureExplorerWindow(window)
             ExplorerWindowTabCenter.shared.attemptTabMerge(for: window)
-            if let initialPath = ExplorerWindowTabCenter.shared.consumeInitialPathForNewTab(in: window) {
-                path = initialPath
-                loadItems()
+            if let navigation = ExplorerWindowTabCenter.shared.consumeInitialNavigationForNewTab(in: window) {
+                applyPendingExternalNavigationForNewTab(navigation)
             }
             ExplorerWindowTabCenter.shared.registerWindow(window, path: path, sceneKind: windowSceneKind)
             ExplorerWindowTabCenter.shared.handleExplorerWindowDidAppear(window)
@@ -395,9 +414,14 @@ struct ContentView: View {
             layout.healLeftPanelSidebarWidth()
             if let initialPath {
                 path = initialPath
-                pendingExternalSelectionPath = initialSelectionPath
-            } else if let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
-                pendingExternalSelectionPath = launchRequest.selectionPath
+                pendingExternalSelectionPath = initialSelectionPath.map {
+                    ExternalSelectionPathMatcher.standardizedPath($0)
+                }
+            } else if windowSceneKind == .main,
+                      let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
+                pendingExternalSelectionPath = launchRequest.selectionPath.map {
+                    ExternalSelectionPathMatcher.standardizedPath($0)
+                }
                 path = launchRequest.directoryPath
             } else {
                 path = restoredLaunchPath()
@@ -406,14 +430,28 @@ struct ContentView: View {
             layout.recordLastOpenedPath(path)
             loadItems()
             syncExplorerTabBarState()
+            externalFolderOpenCenter.markSessionEstablished()
+            if let hostWindow {
+                ExplorerWindowTabCenter.shared.registerWindow(
+                    hostWindow,
+                    path: path,
+                    sceneKind: windowSceneKind
+                )
+            }
         }
         .onDisappear {
             OperationRecordingHub.unregister(operationRecorder)
             operationRecordingCloseGuard.detach()
         }
         .onReceive(externalFolderOpenCenter.$openRequestGeneration.dropFirst()) { _ in
+            guard externalFolderOpenCenter.isSessionEstablished else { return }
             guard let request = externalFolderOpenCenter.targetRequest else { return }
+            guard hostWindow == NSApp.keyWindow else { return }
             applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
+        }
+        .onChange(of: isLoading) { loading in
+            guard !loading else { return }
+            _ = applyExternalSelectionImmediatelyIfPossible()
         }
         .onChange(of: connectServerCenter.presentSheetToken) { _ in
             guard hostWindow == NSApp.keyWindow else { return }

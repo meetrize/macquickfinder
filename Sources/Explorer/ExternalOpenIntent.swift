@@ -120,7 +120,6 @@ private final class FileViewerRevealAppleEventHandler: NSObject {
     let urls = ExternalAppleEventFileURLExtractor.fileURLs(from: event)
     guard !urls.isEmpty else { return }
     ExternalOpenDiagnostic.logRevealHandler(event: event, urls: urls)
-    ExternalOpenRouter.markRevealHandled(urls: urls)
-    ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
+    ExternalOpenRouter.handleOpen(urls: urls, intent: .revealInFileViewer)
   }
 }

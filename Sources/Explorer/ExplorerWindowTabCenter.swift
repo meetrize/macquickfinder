@@ -22,10 +22,16 @@ final class ExplorerWindowTabCenter: ObservableObject {
         case newWindow
     }
 
+    struct PendingMainTabNavigation: Equatable {
+        let path: String
+        let selectionPath: String?
+    }
+
     private struct PendingNewTab {
         weak var sourceWindow: NSWindow?
         let sceneKind: ExplorerWindowSceneKind
         let path: String
+        let selectionPath: String?
     }
 
     private struct PendingOpen {
@@ -37,8 +43,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
     private var pendingOpen: PendingOpen?
     private var windowPaths: [ObjectIdentifier: String] = [:]
     private var windowSceneKinds: [ObjectIdentifier: ExplorerWindowSceneKind] = [:]
-    /// 主场景新建标签时，新窗口 `ContentView` 在 `onAppear` 读取并清除。
-    private var pendingMainTabPaths: [ObjectIdentifier: String] = [:]
+    /// 主场景新建标签时，新窗口 `ContentView` 在挂载 `hostWindow` 后读取并清除。
+    private var pendingMainTabNavigations: [ObjectIdentifier: PendingMainTabNavigation] = [:]
     @Published private(set) var tabBarRevision: UInt = 0
     private var notificationObservers: [NSObjectProtocol] = []
 
@@ -78,20 +84,33 @@ final class ExplorerWindowTabCenter: ObservableObject {
         return windowSceneKinds[ObjectIdentifier(window)] ?? .main
     }
 
-    /// 主场景标签合并后，供新 `ContentView` 同步打开与源标签相同的目录。
-    func consumeInitialPathForNewTab(in window: NSWindow) -> String? {
-        pendingMainTabPaths.removeValue(forKey: ObjectIdentifier(window))
+    /// 主场景标签合并后，供新 `ContentView` 同步目录与外部选中项。
+    func consumeInitialNavigationForNewTab(in window: NSWindow) -> PendingMainTabNavigation? {
+        pendingMainTabNavigations.removeValue(forKey: ObjectIdentifier(window))
     }
 
     /// 在当前窗口组中新建标签页（与标签栏「+」一致：同场景、同路径、直接合并）。
-    func openNewTab(path: String, from sourceWindow: NSWindow?) {
+    func openNewTab(path: String, selectionPath: String? = nil, from sourceWindow: NSWindow?) {
         let anchor = sourceWindow ?? NSApp.keyWindow
         guard let anchor else { return }
 
         configureExplorerWindow(anchor)
 
         let sceneKind = sceneKind(for: anchor)
-        pendingNewTab = PendingNewTab(sourceWindow: anchor, sceneKind: sceneKind, path: path)
+        if let existing = pendingNewTab,
+           existing.sourceWindow === anchor,
+           existing.sceneKind == sceneKind,
+           existing.path == path,
+           existing.selectionPath == selectionPath {
+            return
+        }
+
+        pendingNewTab = PendingNewTab(
+            sourceWindow: anchor,
+            sceneKind: sceneKind,
+            path: path,
+            selectionPath: selectionPath
+        )
 
         switch sceneKind {
         case .main:
@@ -101,7 +120,9 @@ final class ExplorerWindowTabCenter: ObservableObject {
                 pendingNewTab = nil
                 return
             }
-            openFolderWindow(ExplorerFolderWindowValue(path: path))
+            openFolderWindow(
+                ExplorerFolderWindowValue(path: path, selectionPath: selectionPath)
+            )
         }
     }
 
@@ -121,7 +142,10 @@ final class ExplorerWindowTabCenter: ObservableObject {
         }
         anchor.addTabbedWindow(window, ordered: .above)
         if pending.sceneKind == .main {
-            pendingMainTabPaths[ObjectIdentifier(window)] = pending.path
+            pendingMainTabNavigations[ObjectIdentifier(window)] = PendingMainTabNavigation(
+                path: pending.path,
+                selectionPath: pending.selectionPath
+            )
         }
         pendingNewTab = nil
         window.makeKeyAndOrderFront(nil)

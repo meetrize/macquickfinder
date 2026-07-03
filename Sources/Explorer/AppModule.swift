@@ -566,6 +566,10 @@ struct ExplorerApp: App {
         WindowGroup(id: ExplorerWindowScene.main) {
             FullDiskAccessGate {
                 ContentView(windowSceneKind: .main)
+                    .handlesExternalEvents(
+                        preferring: Set(arrayLiteral: "meofind-main"),
+                        allowing: Set(arrayLiteral: "*")
+                    )
             }
             .frame(minWidth: 267, minHeight: 200)
             .applyInterfaceLanguageEnvironment()
@@ -599,6 +603,7 @@ struct ExplorerApp: App {
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
+        .handlesExternalEvents(matching: Set())
 
         WindowGroup(id: ExplorerWindowScene.preview, for: PreviewWindowValue.self) { $value in
             Group {
@@ -739,10 +744,26 @@ final class ExternalFolderOpenCenter: ObservableObject {
 
     @Published private(set) var targetRequest: OpenRequest?
     @Published private(set) var openRequestGeneration: UInt = 0
+    private(set) var isSessionEstablished = false
+    private(set) var launchedFromExternalEvent = false
     private var pendingRequest: OpenRequest?
     private var openFolderWindow: ((OpenRequest) -> Void)?
+    private var recentlyHandledRequestKeys: [String: Date] = [:]
+    private let requestDedupeWindow: TimeInterval = 1.0
 
     private init() {}
+
+    func markSessionEstablished() {
+        isSessionEstablished = true
+    }
+
+    func markLaunchedFromExternalEvent() {
+        launchedFromExternalEvent = true
+    }
+
+    var shouldAllowUntitledWindow: Bool {
+        !launchedFromExternalEvent || isSessionEstablished
+    }
 
     func setOpenFolderWindowHandler(_ handler: @escaping (OpenRequest) -> Void) {
         openFolderWindow = handler
@@ -754,10 +775,27 @@ final class ExternalFolderOpenCenter: ObservableObject {
             directoryPath: resolved.directoryPath,
             selectionPath: resolved.selectionPath
         )
-        pendingRequest = resolvedRequest
-        openRequestGeneration &+= 1
+        if consumeDuplicateRequest(resolvedRequest) {
+            return
+        }
+        recordHandledRequest(resolvedRequest)
+        if !isSessionEstablished {
+            markLaunchedFromExternalEvent()
+        }
+
         targetRequest = resolvedRequest
-        presentIncomingRequest(resolvedRequest)
+        pendingRequest = resolvedRequest
+
+        let app = NSApplication.shared
+        app.unhide(nil)
+        app.activate(ignoringOtherApps: true)
+        bringExplorerWindowsToFront()
+
+        openRequestGeneration &+= 1
+
+        if !isSessionEstablished {
+            DuplicateExplorerWindowCloser.scheduleCoalesce(keeping: resolvedRequest)
+        }
     }
 
     func consumePendingRequest() -> OpenRequest? {
@@ -778,19 +816,6 @@ final class ExternalFolderOpenCenter: ObservableObject {
         )
     }
 
-    private func presentIncomingRequest(_ request: OpenRequest) {
-        let app = NSApplication.shared
-        app.unhide(nil)
-        app.activate(ignoringOtherApps: true)
-
-        if hasVisibleExplorerWindow {
-            bringExplorerWindowsToFront()
-            return
-        }
-
-        openFolderWindow?(request)
-    }
-
     private var hasVisibleExplorerWindow: Bool {
         NSApplication.shared.windows.contains { window in
             window.isVisible && !window.isMiniaturized && window.canBecomeKey
@@ -807,6 +832,34 @@ final class ExternalFolderOpenCenter: ObservableObject {
             window.makeKeyAndOrderFront(nil)
         }
     }
+
+    private func dedupeKey(for request: OpenRequest) -> String {
+        let directory = (request.directoryPath as NSString).standardizingPath
+        if let selectionPath = request.selectionPath {
+            let selection = (selectionPath as NSString).standardizingPath
+            return "\(directory)|\(selection)"
+        }
+        return directory
+    }
+
+    private func consumeDuplicateRequest(_ request: OpenRequest) -> Bool {
+        pruneHandledRequests()
+        let key = dedupeKey(for: request)
+        guard let handledAt = recentlyHandledRequestKeys[key] else { return false }
+        return Date().timeIntervalSince(handledAt) < requestDedupeWindow
+    }
+
+    private func recordHandledRequest(_ request: OpenRequest) {
+        let now = Date()
+        recentlyHandledRequestKeys[dedupeKey(for: request)] = now
+        pruneHandledRequests(now: now)
+    }
+
+    private func pruneHandledRequests(now: Date = Date()) {
+        recentlyHandledRequestKeys = recentlyHandledRequestKeys.filter {
+            now.timeIntervalSince($0.value) < requestDedupeWindow
+        }
+    }
 }
 
 struct ExternalNavigationTarget: Equatable {
@@ -817,6 +870,9 @@ struct ExternalNavigationTarget: Equatable {
 private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         ModuleLocalization.applyAppleLanguagesOverride()
+        if ExternalOpenIntentDetector.currentIntentFromCurrentEvent() == .revealInFileViewer {
+            ExternalFolderOpenCenter.shared.markLaunchedFromExternalEvent()
+        }
         DefaultFileViewerManager.registerWithLaunchServicesIfNeeded()
         DefaultPreviewHandlerManager.registerWithLaunchServicesIfNeeded()
         MeoFindDocumentOpenerBundle.registerWithLaunchServicesIfNeeded()
@@ -831,6 +887,10 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
         FileServicesMenuSupport.registerIfNeeded()
         AppMemoryPressure.installHandler()
         GlobalHotkeyService.shared.start()
+    }
+
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        ExternalFolderOpenCenter.shared.shouldAllowUntitledWindow
     }
 
     @objc func newWindowForTab(_ sender: Any?) {
