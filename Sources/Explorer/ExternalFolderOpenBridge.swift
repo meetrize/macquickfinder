@@ -16,8 +16,13 @@ struct ExternalFolderOpenBridge: View {
                 ExplorerWindowOpenBridge.shared.openMainWindow = {
                     openWindow(id: ExplorerWindowScene.main)
                 }
-                ExternalFolderOpenCenter.shared.setOpenFolderWindowHandler { path in
-                    openFolder(ExplorerFolderWindowValue(path: path))
+                ExternalFolderOpenCenter.shared.setOpenFolderWindowHandler { request in
+                    openFolder(
+                        ExplorerFolderWindowValue(
+                            path: request.directoryPath,
+                            selectionPath: request.selectionPath
+                        )
+                    )
                 }
                 let openPreview: (PreviewWindowValue) -> Void = { value in
                     openWindow(id: ExplorerWindowScene.preview, value: value)

@@ -24,10 +24,33 @@ extension ContentView {
     func applyExternalNavigationTarget(_ target: ExternalNavigationTarget) {
         pendingExternalSelectionPath = target.selectionPath
         if path == target.directoryPath {
+            if applyExternalSelectionImmediatelyIfPossible() {
+                return
+            }
+            if isLoading {
+                return
+            }
             loadItems()
         } else {
             path = target.directoryPath
         }
+    }
+
+    /// 目录列表已就绪时直接选中，避免重复 `loadItems`。
+    @discardableResult
+    private func applyExternalSelectionImmediatelyIfPossible() -> Bool {
+        guard let selectionPath = pendingExternalSelectionPath else {
+            return !items.isEmpty && !isLoading
+        }
+        guard !items.isEmpty, !isLoading else { return false }
+        let standardized = (selectionPath as NSString).standardizingPath
+        guard let item = items.first(where: { $0.id == standardized || $0.id == selectionPath }) else {
+            return false
+        }
+        selection = [item.id]
+        pendingExternalSelectionPath = nil
+        fileListFocusToken &+= 1
+        return true
     }
 
     func applyPendingExternalSelectionIfNeeded(loadedItems: [FileItem], for directoryPath: String) {
@@ -40,6 +63,7 @@ extension ContentView {
 }
 struct ContentView: View {
     private let initialPath: String?
+    private let initialSelectionPath: String?
     private let windowSceneKind: ExplorerWindowSceneKind
 
     @Environment(\.openWindow) private var openWindow
@@ -90,8 +114,13 @@ struct ContentView: View {
     @State private var operationRecordingReview: OperationRecordingReviewContext?
     @State private var showDiscardRecordingConfirm = false
     
-    init(initialPath: String? = nil, windowSceneKind: ExplorerWindowSceneKind = .main) {
+    init(
+        initialPath: String? = nil,
+        initialSelectionPath: String? = nil,
+        windowSceneKind: ExplorerWindowSceneKind = .main
+    ) {
         self.initialPath = initialPath
+        self.initialSelectionPath = initialSelectionPath
         self.windowSceneKind = windowSceneKind
         _path = State(initialValue: initialPath ?? FileManager.default.homeDirectoryForCurrentUser.path)
     }
@@ -366,6 +395,7 @@ struct ContentView: View {
             layout.healLeftPanelSidebarWidth()
             if let initialPath {
                 path = initialPath
+                pendingExternalSelectionPath = initialSelectionPath
             } else if let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
                 pendingExternalSelectionPath = launchRequest.selectionPath
                 path = launchRequest.directoryPath

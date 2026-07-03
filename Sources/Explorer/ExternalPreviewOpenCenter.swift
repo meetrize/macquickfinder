@@ -88,15 +88,11 @@ final class ExternalPreviewOpenCenter: ObservableObject {
 
     private func makePreviewWindowValue(for url: URL, file: FileItem) -> PreviewWindowValue? {
         let parent = url.deletingLastPathComponent().path
-        let items = (try? DirectoryListingLoader.loadFileItems(
-            at: parent,
-            showHiddenFiles: false
-        )) ?? [file]
         let options = PreviewStandaloneOpenPreferences.options(for: file)
         let sessionID = PreviewDetachCoordinator.shared.openStandalonePreview(
             file: file,
             directoryPath: parent,
-            directoryItems: items,
+            directoryItems: [file],
             options: options
         )
         return PreviewWindowValue(

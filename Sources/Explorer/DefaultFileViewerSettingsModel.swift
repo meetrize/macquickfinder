@@ -23,6 +23,7 @@ final class DefaultFileViewerSettingsModel: ObservableObject {
             defer { isApplying = false }
             switch await DefaultFileViewerManager.setAsDefaultFileViewer() {
             case .success:
+                await DefaultPreviewHandlerManager.syncDocumentOpenerRegistrationIfNeeded()
                 refresh()
                 showsRestartReminder = true
                 alertMessage = L10n.Settings.DefaultViewer.setSuccess

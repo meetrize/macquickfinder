@@ -30,7 +30,15 @@ enum DefaultPreviewHandlerManager {
     }
 
     static func isDefault(for group: PreviewHandlerGroup) -> Bool {
-        workspaceHandler(for: group.representativeContentType) == bundleIdentifier
+        let handlerID = workspaceHandler(for: group.representativeContentType)
+        if handlerID == bundleIdentifier {
+            return true
+        }
+        if handlerID == MeoFindDocumentOpenerConstants.bundleIdentifier,
+           effectiveHandlerBundleIdentifier() == MeoFindDocumentOpenerConstants.bundleIdentifier {
+            return true
+        }
+        return false
     }
 
     static func currentHandlerName(for group: PreviewHandlerGroup) -> String {
@@ -40,6 +48,11 @@ enum DefaultPreviewHandlerManager {
     }
 
     static func displayName(for bundleIdentifier: String) -> String {
+        if bundleIdentifier == MeoFindDocumentOpenerConstants.bundleIdentifier {
+            return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+                ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+                ?? "MeoFind"
+        }
         if bundleIdentifier == Self.bundleIdentifier {
             return Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
                 ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
@@ -63,17 +76,60 @@ enum DefaultPreviewHandlerManager {
     static func setAsDefault(for group: PreviewHandlerGroup) async -> Result<Void, Error> {
         registerWithLaunchServicesIfNeeded()
         DefaultFileViewerManager.registerWithLaunchServicesIfNeeded()
+        MeoFindDocumentOpenerBundle.registerWithLaunchServicesIfNeeded()
+        let handlerBundleID = effectiveHandlerBundleIdentifier()
         do {
             try setLaunchServicesDefaultHandlers(
-                bundleIdentifier: bundleIdentifier,
+                bundleIdentifier: handlerBundleID,
                 contentTypes: group.managedContentTypes
             )
-            try appendHandlers(bundleIdentifier: bundleIdentifier, contentTypes: group.managedContentTypes)
-            await applyWorkspaceDefault(bundleURL: Bundle.main.bundleURL, contentTypes: group.managedContentTypes)
+            try appendHandlers(bundleIdentifier: handlerBundleID, contentTypes: group.managedContentTypes)
+            if handlerBundleID != bundleIdentifier {
+                try removeHandlers(bundleIdentifier: bundleIdentifier, contentTypes: group.managedContentTypes)
+            }
+            if let handlerURL = applicationURL(for: handlerBundleID) {
+                await applyWorkspaceDefault(bundleURL: handlerURL, contentTypes: group.managedContentTypes)
+            }
             return .success(())
         } catch {
             return .failure(error)
         }
+    }
+
+    /// 已是默认文件管理器且选择「仅独立预览窗」时，将可预览类型的默认打开程序切到 Document Opener。
+    static func syncDocumentOpenerRegistrationIfNeeded() async {
+        guard DefaultFileViewerManager.isDefaultFileViewer else { return }
+        guard PreviewOpenPreferences.externalOpenAction == .standaloneOnly else { return }
+        guard MeoFindDocumentOpenerBundle.isAvailable else { return }
+
+        MeoFindDocumentOpenerBundle.registerWithLaunchServicesIfNeeded()
+        registerWithLaunchServicesIfNeeded()
+
+        for group in PreviewHandlerGroup.allCases {
+            guard isDefault(for: group) || workspaceHandler(for: group.representativeContentType) == bundleIdentifier else {
+                continue
+            }
+            _ = await setAsDefault(for: group)
+        }
+    }
+
+    private static func effectiveHandlerBundleIdentifier() -> String {
+        if DefaultFileViewerManager.isDefaultFileViewer,
+           PreviewOpenPreferences.externalOpenAction == .standaloneOnly,
+           MeoFindDocumentOpenerBundle.isAvailable {
+            return MeoFindDocumentOpenerConstants.bundleIdentifier
+        }
+        return bundleIdentifier
+    }
+
+    private static func applicationURL(for bundleIdentifier: String) -> URL? {
+        if bundleIdentifier == MeoFindDocumentOpenerConstants.bundleIdentifier {
+            return MeoFindDocumentOpenerBundle.bundleURL
+        }
+        if bundleIdentifier == Self.bundleIdentifier {
+            return Bundle.main.bundleURL
+        }
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
     }
 
     static func restoreSystemDefault(for group: PreviewHandlerGroup) async -> Result<Void, Error> {
@@ -83,6 +139,10 @@ enum DefaultPreviewHandlerManager {
         }
         do {
             try removeHandlers(bundleIdentifier: bundleIdentifier, contentTypes: group.managedContentTypes)
+            try removeHandlers(
+                bundleIdentifier: MeoFindDocumentOpenerConstants.bundleIdentifier,
+                contentTypes: group.managedContentTypes
+            )
             try setLaunchServicesDefaultHandlers(
                 bundleIdentifier: fallbackID,
                 contentTypes: group.managedContentTypes

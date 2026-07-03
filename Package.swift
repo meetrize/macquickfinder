@@ -6,7 +6,8 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [.macOS(.v13)],
     products: [
-        .executable(name: "Explorer", targets: ["Explorer"])
+        .executable(name: "Explorer", targets: ["Explorer"]),
+        .executable(name: "DocumentOpener", targets: ["DocumentOpener"])
     ],
     dependencies: [],
     targets: [
@@ -25,6 +26,10 @@ let package = Package(
             swiftSettings: [
                 .unsafeFlags(["-O"], .when(configuration: .release))
             ]
+        ),
+        .executableTarget(
+            name: "DocumentOpener",
+            dependencies: []
         ),
         .testTarget(
             name: "FileListTests",

@@ -28,8 +28,10 @@ fi
 
 if [ "$BUILD_CONFIG" = "debug" ] && [ "$FAST_DEBUG" = "1" ]; then
     swift build "${build_args[@]}"
+    swift build -c "$BUILD_CONFIG" --product DocumentOpener -q
 else
     swift build "${build_args[@]}" 2>&1 | filter_known_spm_warnings
+    swift build -c "$BUILD_CONFIG" --product DocumentOpener -q 2>&1 | filter_known_spm_warnings
 fi
 build_status=$?
 if [ "$build_status" -ne 0 ]; then
@@ -50,6 +52,14 @@ mkdir -p "$FRAMEWORKS_DIR"
 
 # Copy the executable
 cp ".build/$BUILD_CONFIG/Explorer" "$MACOS_DIR/"
+
+# Embed Document Opener helper (分离「默认打开」与 NSFileViewer，以区分 open / open -R)
+HELPER_APP_DIR="$APP_DIR/Library/Helpers/MeoFindDocumentOpener.app/Contents"
+mkdir -p "$HELPER_APP_DIR/MacOS"
+cp ".build/$BUILD_CONFIG/DocumentOpener" "$HELPER_APP_DIR/MacOS/DocumentOpener"
+cp Explorer/DocumentOpener-Info.plist "$HELPER_APP_DIR/Info.plist"
+chmod +x "$HELPER_APP_DIR/MacOS/DocumentOpener"
+echo "APPL????" > "$HELPER_APP_DIR/PkgInfo"
 
 # Copy SPM localization resource bundles
 copy_spm_bundle() {

@@ -586,7 +586,11 @@ struct ExplorerApp: App {
 
         WindowGroup(id: ExplorerWindowScene.folder, for: ExplorerFolderWindowValue.self) { $request in
             FullDiskAccessGate {
-                ContentView(initialPath: request?.path, windowSceneKind: .folder)
+                ContentView(
+                    initialPath: request?.path,
+                    initialSelectionPath: request?.selectionPath,
+                    windowSceneKind: .folder
+                )
             }
             .frame(minWidth: 267, minHeight: 200)
             .applyInterfaceLanguageEnvironment()
@@ -736,11 +740,11 @@ final class ExternalFolderOpenCenter: ObservableObject {
     @Published private(set) var targetRequest: OpenRequest?
     @Published private(set) var openRequestGeneration: UInt = 0
     private var pendingRequest: OpenRequest?
-    private var openFolderWindow: ((String) -> Void)?
+    private var openFolderWindow: ((OpenRequest) -> Void)?
 
     private init() {}
 
-    func setOpenFolderWindowHandler(_ handler: @escaping (String) -> Void) {
+    func setOpenFolderWindowHandler(_ handler: @escaping (OpenRequest) -> Void) {
         openFolderWindow = handler
     }
 
@@ -769,7 +773,9 @@ final class ExternalFolderOpenCenter: ObservableObject {
               isDirectory.boolValue else {
             return
         }
-        openFolderWindow?(standardized)
+        openFolderWindow?(
+            OpenRequest(directoryPath: standardized, selectionPath: nil)
+        )
     }
 
     private func presentIncomingRequest(_ request: OpenRequest) {
@@ -782,7 +788,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
             return
         }
 
-        openFolderWindow?(request.directoryPath)
+        openFolderWindow?(request)
     }
 
     private var hasVisibleExplorerWindow: Bool {
@@ -813,6 +819,12 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
         ModuleLocalization.applyAppleLanguagesOverride()
         DefaultFileViewerManager.registerWithLaunchServicesIfNeeded()
         DefaultPreviewHandlerManager.registerWithLaunchServicesIfNeeded()
+        MeoFindDocumentOpenerBundle.registerWithLaunchServicesIfNeeded()
+        ExternalFileViewerRevealSupport.installIfNeeded()
+        ExternalPreviewOpenForwarder.installIfNeeded()
+        Task {
+            await DefaultPreviewHandlerManager.syncDocumentOpenerRegistrationIfNeeded()
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -832,30 +844,22 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func application(_ application: NSApplication, open urls: [URL]) {
-        if ExternalPreviewOpenCenter.shared.tryOpen(urls: urls) {
-            return
-        }
-        ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
+        ExternalOpenDiagnostic.logRaw("application(open:) urls=\(urls.map(\.path))")
+        ExternalOpenRouter.handleOpen(urls: urls)
     }
 
     @MainActor
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
+        ExternalOpenDiagnostic.logRaw("application(openFiles:) files=\(filenames)")
         let urls = filenames.map { URL(fileURLWithPath: $0) }
-        if ExternalPreviewOpenCenter.shared.tryOpen(urls: urls) {
-            sender.reply(toOpenOrPrint: .success)
-            return
-        }
-        ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
+        ExternalOpenRouter.handleOpen(urls: urls)
         sender.reply(toOpenOrPrint: .success)
     }
 
     @MainActor
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        let urls = [URL(fileURLWithPath: filename)]
-        if ExternalPreviewOpenCenter.shared.tryOpen(urls: urls) {
-            return true
-        }
-        ExternalFolderOpenCenter.shared.requestOpen(urls: urls)
+        ExternalOpenDiagnostic.logRaw("application(openFile:) file=\(filename)")
+        ExternalOpenRouter.handleOpen(urls: [URL(fileURLWithPath: filename)])
         return true
     }
 
