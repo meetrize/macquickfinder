@@ -186,6 +186,14 @@ final class PreviewSessionTextState: ObservableObject {
     @Published var markdownPreviewScale: CGFloat = 1.0
     @Published var markdownSourceFontSize: CGFloat = 13
     @Published var htmlMode: HtmlDisplayMode = .preview
+    @Published var displayMode: PreviewTextDisplayMode = .viewing
+    @Published var originalContent = ""
+    @Published var liveEditContent = ""
+    @Published var hasUnsavedChanges = false
+
+    var isEditing: Bool {
+        displayMode == .editing
+    }
 
     func resetToolbar() {
         wrapEnabled = false
@@ -199,6 +207,14 @@ final class PreviewSessionTextState: ObservableObject {
         markdownPreviewScale = 1.0
         markdownSourceFontSize = 13
         htmlMode = .preview
+        resetEditState()
+    }
+
+    func resetEditState() {
+        displayMode = .viewing
+        originalContent = ""
+        liveEditContent = ""
+        hasUnsavedChanges = false
     }
 
     func findNextSearchMatch() {
@@ -307,6 +323,7 @@ final class PreviewSessionContentState: ObservableObject {
     @Published var archiveEntries: [ArchiveEntryPreview] = []
     @Published var archiveTruncated = false
     @Published var imageSaveErrorMessage: String?
+    @Published var textSaveErrorMessage: String?
 
     var isLoading: Bool {
         if case .loading = loadPhase { return true }

@@ -269,6 +269,8 @@ struct FileContentView: View {
                         fontSize: PreviewTypeClassifier.isMarkdownFile(fileExtension) ? session.text.markdownSourceFontSize : NSFont.systemFontSize,
                         showLineNumbers: showsCodeLineNumbers,
                         textContentInset: effectiveTextContentInsets,
+                        displayMode: $session.text.displayMode,
+                        onLiveContentChange: { session.updateTextEditDirtyState(with: $0) },
                         previewTextSelectionActive: $previewTextSelectionActive,
                         action: $session.text.previewAction,
                         searchQuery: $session.text.searchQuery,
@@ -299,6 +301,10 @@ struct FileContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PreviewImageDisplaySizeReporter(session: session))
         .focusedValue(\.previewTextSelectionActive, previewTextSelectionActive)
+        .focusedValue(\.previewTextEditActive, session.text.isEditing && previewTextSelectionActive)
+        .focusedValue(\.previewTextEditSave, session.text.isEditing ? {
+            Task { await session.saveEditedText() }
+        } : nil)
         .background(TextEditingKeyMonitor(isActive: previewTextSelectionActive))
         .task(id: contentLoadTaskID) {
             await applyLoadTaskIfNeeded()
@@ -371,6 +377,22 @@ struct FileContentView: View {
             }
             DispatchQueue.main.async { session.image.previewAction = nil }
         }
+        .onChange(of: session.text.previewAction) { action in
+            guard let action else { return }
+            switch action {
+            case .beginEdit:
+                session.enterTextEditMode()
+                DispatchQueue.main.async { session.text.previewAction = nil }
+            case .save:
+                Task { await session.saveEditedText() }
+                DispatchQueue.main.async { session.text.previewAction = nil }
+            case .revert:
+                Task { _ = await session.revertTextEdits() }
+                DispatchQueue.main.async { session.text.previewAction = nil }
+            case .copyAll, .scrollTop, .scrollBottom:
+                break
+            }
+        }
         .onChange(of: session.image.zoomAction) { action in
             guard action == .actualSize else { return }
             Task { await session.upgradeImageToFullResolutionIfNeeded() }
@@ -382,6 +404,14 @@ struct FileContentView: View {
             Button(L10n.Action.ok, role: .cancel) {}
         } message: {
             Text(session.content.imageSaveErrorMessage ?? "")
+        }
+        .alert(L10n.Preview.saveFailedTitle, isPresented: Binding(
+            get: { session.content.textSaveErrorMessage != nil },
+            set: { if !$0 { session.content.textSaveErrorMessage = nil } }
+        )) {
+            Button(L10n.Action.ok, role: .cancel) {}
+        } message: {
+            Text(session.content.textSaveErrorMessage ?? "")
         }
     }
 

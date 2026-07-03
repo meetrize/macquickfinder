@@ -47,6 +47,7 @@ extension PreviewSession {
             guard browseTarget.id == itemID else { return }
             content.textContent = loadedText
             content.loadPhase = .loaded
+            syncTextEditStateAfterLoad()
         } catch {
             guard !Task.isCancelled else { return }
             if error is CancellationError { return }
@@ -151,6 +152,7 @@ extension PreviewSession {
                 guard self.browseTarget.id == itemID else { return }
                 if let loadedText {
                     self.content.textContent = loadedText
+                    self.syncTextEditStateAfterLoad()
                 }
             }
         }

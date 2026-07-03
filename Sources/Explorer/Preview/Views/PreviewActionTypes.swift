@@ -13,6 +13,14 @@ enum TextPreviewAction: Equatable {
     case copyAll
     case scrollTop
     case scrollBottom
+    case beginEdit
+    case save
+    case revert
+}
+
+enum PreviewTextDisplayMode: Equatable {
+    case viewing
+    case editing
 }
 
 enum MediaControlAction: Equatable {

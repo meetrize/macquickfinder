@@ -1162,6 +1162,32 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Save Failed</string>
 	<key>preview.session_closed</key>
 	<string>Preview session closed</string>
+	<key>preview.text_edit.cancel</key>
+	<string>Cancel</string>
+	<key>preview.text_edit.discard</key>
+	<string>Discard Changes</string>
+	<key>preview.text_edit.discard_confirm_message %@</key>
+	<string>Unsaved changes to "%@" will be lost.</string>
+	<key>preview.text_edit.discard_confirm_title</key>
+	<string>Discard Changes?</string>
+	<key>preview.text_edit.dont_save</key>
+	<string>Don't Save</string>
+	<key>preview.text_edit.edit</key>
+	<string>Edit</string>
+	<key>preview.text_edit.not_writable</key>
+	<string>File is not writable</string>
+	<key>preview.text_edit.save</key>
+	<string>Save</string>
+	<key>preview.text_edit.save_confirm_message %@</key>
+	<string>This will overwrite "%@".</string>
+	<key>preview.text_edit.save_confirm_title</key>
+	<string>Save Changes</string>
+	<key>preview.text_edit.too_large</key>
+	<string>File is too large to edit in preview</string>
+	<key>preview.text_edit.unsaved_message %@</key>
+	<string>"%@" has unsaved changes.</string>
+	<key>preview.text_edit.unsaved_title</key>
+	<string>Unsaved Changes</string>
 	<key>preview.title</key>
 	<string>Preview</string>
 	<key>preview.toolbar.actual_size</key>

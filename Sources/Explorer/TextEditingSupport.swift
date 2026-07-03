@@ -1,15 +1,33 @@
 import SwiftUI
 import AppKit
 
+struct PreviewTextSelectionActiveKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
+struct PreviewTextEditActiveKey: FocusedValueKey {
+    typealias Value = Bool
+}
+
+struct PreviewTextEditSaveHandlerKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 extension FocusedValues {
     var previewTextSelectionActive: Bool? {
         get { self[PreviewTextSelectionActiveKey.self] }
         set { self[PreviewTextSelectionActiveKey.self] = newValue }
     }
-}
 
-struct PreviewTextSelectionActiveKey: FocusedValueKey {
-    typealias Value = Bool
+    var previewTextEditActive: Bool? {
+        get { self[PreviewTextEditActiveKey.self] }
+        set { self[PreviewTextEditActiveKey.self] = newValue }
+    }
+
+    var previewTextEditSave: (() -> Void)? {
+        get { self[PreviewTextEditSaveHandlerKey.self] }
+        set { self[PreviewTextEditSaveHandlerKey.self] = newValue }
+    }
 }
 
 enum TextEditingCommands {

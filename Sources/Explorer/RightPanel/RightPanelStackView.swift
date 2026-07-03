@@ -5,7 +5,7 @@ struct RightPanelStackView: View {
     @ObservedObject var gitStatusStore: GitStatusStore
 
     let hostWindowID: UUID
-    let selection: Set<FileItem.ID>
+    @Binding var selection: Set<FileItem.ID>
     let items: [FileItem]
     let cwd: String
     let sortOrder: SortOrder
@@ -52,7 +52,7 @@ struct RightPanelStackView: View {
                         hostWindowID: hostWindowID,
                         showPreview: $layout.showPreview,
                         layout: layout,
-                        selection: selection,
+                        selection: $selection,
                         items: items,
                         directoryPath: cwd,
                         sortOrder: sortOrder,

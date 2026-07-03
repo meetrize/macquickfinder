@@ -56,13 +56,22 @@ struct FileCommands: Commands {
     @FocusedValue(\.fileCommandHandlers) private var handlers
     @FocusedValue(\.textFieldEditing) private var textFieldEditing
     @FocusedValue(\.previewTextSelectionActive) private var previewTextSelectionActive
+    @FocusedValue(\.previewTextEditActive) private var previewTextEditActive
+    @FocusedValue(\.previewTextEditSave) private var previewTextEditSave
     
     private var isTextFieldEditing: Bool { textFieldEditing == true }
     private var isPreviewTextSelectionActive: Bool { previewTextSelectionActive == true }
+    private var isPreviewTextEditing: Bool { previewTextEditActive == true }
     
     var body: some Commands {
         CommandGroup(replacing: .pasteboard) {
             if isTextFieldEditing {
+                TextEditingCommands.pasteboardButtons()
+            } else if isPreviewTextEditing {
+                Button(L10n.Preview.TextEdit.save) {
+                    previewTextEditSave?()
+                }
+                .keyboardShortcut("s", modifiers: .command)
                 TextEditingCommands.pasteboardButtons()
             } else if isPreviewTextSelectionActive {
                 TextEditingCommands.previewSelectionButtons()

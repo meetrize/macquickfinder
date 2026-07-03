@@ -891,7 +891,7 @@ struct ContentView: View {
             layout: layout,
             gitStatusStore: gitStatusStore,
             hostWindowID: previewHostWindowID,
-            selection: selection,
+            selection: $selection,
             items: items,
             cwd: path,
             sortOrder: sortOrder,

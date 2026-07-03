@@ -1162,6 +1162,32 @@
 	<string>保存失败</string>
 	<key>preview.session_closed</key>
 	<string>预览会话已关闭</string>
+	<key>preview.text_edit.cancel</key>
+	<string>取消</string>
+	<key>preview.text_edit.discard</key>
+	<string>放弃修改</string>
+	<key>preview.text_edit.discard_confirm_message %@</key>
+	<string>将丢弃对「%@」的未保存修改。</string>
+	<key>preview.text_edit.discard_confirm_title</key>
+	<string>放弃修改？</string>
+	<key>preview.text_edit.dont_save</key>
+	<string>不保存</string>
+	<key>preview.text_edit.edit</key>
+	<string>编辑</string>
+	<key>preview.text_edit.not_writable</key>
+	<string>文件不可写</string>
+	<key>preview.text_edit.save</key>
+	<string>保存</string>
+	<key>preview.text_edit.save_confirm_message %@</key>
+	<string>将覆盖原文件「%@」。</string>
+	<key>preview.text_edit.save_confirm_title</key>
+	<string>保存修改</string>
+	<key>preview.text_edit.too_large</key>
+	<string>文件过大，无法在预览中编辑</string>
+	<key>preview.text_edit.unsaved_message %@</key>
+	<string>「%@」有未保存的修改。</string>
+	<key>preview.text_edit.unsaved_title</key>
+	<string>未保存的修改</string>
 	<key>preview.title</key>
 	<string>预览</string>
 	<key>preview.toolbar.actual_size</key>

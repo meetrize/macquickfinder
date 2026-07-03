@@ -120,7 +120,7 @@ extension PreviewSession {
             )
         }
 
-        if !showsPreviewTextSearch(for: item), !PreviewTypeClassifier.isMarkdownFile(ext) {
+        if !showsPreviewTextSearch(for: item), !PreviewTypeClassifier.isMarkdownFile(ext), !text.isEditing {
             items.append(
                 previewToolbarIconItem(
                     id: "text-copy",
@@ -147,6 +147,50 @@ extension PreviewSession {
             )
         }
 
+        appendTextEditToolbarItems(to: &items, for: item)
+
         return items
+    }
+
+    private func appendTextEditToolbarItems(to items: inout [PreviewToolbarOverflowModel], for item: FileItem) {
+        if text.isEditing {
+            items.append(
+                previewToolbarIconItem(
+                    id: "text-save",
+                    title: L10n.Preview.TextEdit.save,
+                    systemImage: "square.and.arrow.down",
+                    isDisabled: !text.hasUnsavedChanges,
+                    action: { [self] in text.previewAction = .save }
+                )
+            )
+            items.append(
+                previewToolbarIconItem(
+                    id: "text-revert",
+                    title: L10n.Preview.TextEdit.revert,
+                    systemImage: "arrow.uturn.backward",
+                    isDisabled: !text.hasUnsavedChanges,
+                    action: { [self] in text.previewAction = .revert }
+                )
+            )
+            return
+        }
+
+        let canEdit = PreviewTextEditEligibility.canOfferEdit(file: item, session: self)
+        let denial = PreviewTextEditEligibility.denialReason(for: item, session: self)
+
+        guard canEdit || denial == .contentTruncated || denial == .notWritable else { return }
+
+        let editTitle = denial.flatMap { L10n.Preview.TextEdit.denialTooltip(for: $0) }
+            ?? L10n.Preview.TextEdit.edit
+
+        items.append(
+            previewToolbarIconItem(
+                id: "text-edit",
+                title: editTitle,
+                systemImage: "pencil",
+                isDisabled: !canEdit,
+                action: { [self] in text.previewAction = .beginEdit }
+            )
+        )
     }
 }

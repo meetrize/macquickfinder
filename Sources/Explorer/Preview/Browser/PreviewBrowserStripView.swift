@@ -25,8 +25,8 @@ struct PreviewBrowserStripView: View {
                                 distanceFromCenter: index - context.currentIndex,
                                 isSelected: index == context.currentIndex,
                                 onSelect: {
-                                    if session.switchBrowseTarget(to: item) {
-                                        session.scheduleBrowseContentPrefetch()
+                                    Task { @MainActor in
+                                        _ = await session.switchBrowseTargetIfAllowed(to: item)
                                     }
                                 }
                             )

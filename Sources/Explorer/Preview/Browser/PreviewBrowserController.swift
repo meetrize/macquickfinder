@@ -7,22 +7,20 @@ enum PreviewBrowserController {
         guard session.browseContext?.canBrowse == true else { return false }
         guard event.modifierFlags.intersection([.command, .option, .control]).isEmpty else { return false }
 
-        let handled: Bool
         switch event.keyCode {
         case 123:
-            handled = session.browsePrevious()
+            Task { @MainActor in
+                _ = await session.browsePreviousIfAllowed()
+            }
+            return true
         case 124:
-            handled = session.browseNext()
+            Task { @MainActor in
+                _ = await session.browseNextIfAllowed()
+            }
+            return true
         default:
             return false
         }
-
-        if handled {
-            session.scheduleBrowseContentPrefetch(
-                settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
-            )
-        }
-        return handled
     }
 }
 

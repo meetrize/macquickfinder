@@ -8,10 +8,9 @@ struct PreviewBrowserNavBar: View {
     var body: some View {
         HStack(spacing: 8) {
             Button {
-                session.browsePrevious()
-                session.scheduleBrowseContentPrefetch(
-                    settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
-                )
+                Task { @MainActor in
+                    _ = await session.browsePreviousIfAllowed()
+                }
             } label: {
                 Image(systemName: "chevron.left")
             }
@@ -31,10 +30,9 @@ struct PreviewBrowserNavBar: View {
                 .monospacedDigit()
 
             Button {
-                session.browseNext()
-                session.scheduleBrowseContentPrefetch(
-                    settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
-                )
+                Task { @MainActor in
+                    _ = await session.browseNextIfAllowed()
+                }
             } label: {
                 Image(systemName: "chevron.right")
             }

@@ -914,6 +914,70 @@ enum L10n {
         static var saveFailedTitle: String { ModuleLocalization.localized("preview.save_failed_title", bundle: .module) }
         static var archiveTruncated: String { ModuleLocalization.localized("preview.archive_truncated", bundle: .module) }
 
+        enum TextEdit {
+            static var edit: String { ModuleLocalization.localized("preview.text_edit.edit", bundle: .module) }
+            static var save: String { ModuleLocalization.localized("preview.text_edit.save", bundle: .module) }
+            static var revert: String { ModuleLocalization.localized("preview.text_edit.discard", bundle: .module) }
+            static var saveConfirmTitle: String {
+                ModuleLocalization.localized("preview.text_edit.save_confirm_title", bundle: .module)
+            }
+            static var discardConfirmTitle: String {
+                ModuleLocalization.localized("preview.text_edit.discard_confirm_title", bundle: .module)
+            }
+            static var unsavedTitle: String {
+                ModuleLocalization.localized("preview.text_edit.unsaved_title", bundle: .module)
+            }
+            static var tooLarge: String { ModuleLocalization.localized("preview.text_edit.too_large", bundle: .module) }
+            static var notWritable: String {
+                ModuleLocalization.localized("preview.text_edit.not_writable", bundle: .module)
+            }
+            static var saveButton: String { ModuleLocalization.localized("preview.text_edit.save", bundle: .module) }
+            static var cancelButton: String { ModuleLocalization.localized("preview.text_edit.cancel", bundle: .module) }
+            static var discardButton: String { ModuleLocalization.localized("preview.text_edit.discard", bundle: .module) }
+            static var dontSaveButton: String { ModuleLocalization.localized("preview.text_edit.dont_save", bundle: .module) }
+
+            static func saveConfirmMessage(_ fileName: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable(
+                        "preview.text_edit.save_confirm_message %@",
+                        bundle: .module
+                    ),
+                    fileName
+                )
+            }
+
+            static func discardConfirmMessage(_ fileName: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable(
+                        "preview.text_edit.discard_confirm_message %@",
+                        bundle: .module
+                    ),
+                    fileName
+                )
+            }
+
+            static func unsavedMessage(_ fileName: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable(
+                        "preview.text_edit.unsaved_message %@",
+                        bundle: .module
+                    ),
+                    fileName
+                )
+            }
+
+            static func denialTooltip(for reason: PreviewTextEditDenialReason) -> String? {
+                switch reason {
+                case .contentTruncated:
+                    return tooLarge
+                case .notWritable:
+                    return notWritable
+                default:
+                    return nil
+                }
+            }
+        }
+
         enum FolderInlineChild {
             static var openDirectory: String {
                 ModuleLocalization.localized("preview.folder_inline.open_directory", bundle: .module)

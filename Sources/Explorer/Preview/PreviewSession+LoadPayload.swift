@@ -55,6 +55,7 @@ extension PreviewSession {
 
         if let textContent = payload.textContent {
             content.textContent = textContent
+            syncTextEditStateAfterLoad()
         }
 
         if let error = payload.error {

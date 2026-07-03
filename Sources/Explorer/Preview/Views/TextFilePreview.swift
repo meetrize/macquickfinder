@@ -8,6 +8,8 @@ struct TextFilePreview: NSViewRepresentable {
     let fontSize: CGFloat
     let showLineNumbers: Bool
     var textContentInset: CGFloat = 0
+    @Binding var displayMode: PreviewTextDisplayMode
+    var onLiveContentChange: ((String) -> Void)?
     @Binding var previewTextSelectionActive: Bool
     @Binding var action: TextPreviewAction?
     @Binding var searchQuery: String
@@ -15,11 +17,16 @@ struct TextFilePreview: NSViewRepresentable {
     @Binding var searchPrevToken: UInt
     @Binding var searchMatchCount: Int
     @Binding var searchCurrentIndex: Int
-    
+
+    private var isEditing: Bool {
+        displayMode == .editing
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(
             searchMatchCount: $searchMatchCount,
-            searchCurrentIndex: $searchCurrentIndex
+            searchCurrentIndex: $searchCurrentIndex,
+            onLiveContentChange: onLiveContentChange
         )
     }
     
@@ -34,23 +41,26 @@ struct TextFilePreview: NSViewRepresentable {
         scrollView.contentView.drawsBackground = false
         
         let textView = PreviewCodeTextView()
-        textView.isEditable = false
+        textView.allowsEditing = isEditing
+        textView.isEditable = isEditing
         textView.isSelectable = true
         textView.drawsBackground = false
-        textView.isRichText = true
+        textView.isRichText = !isEditing
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.textContainer?.lineFragmentPadding = 0
         Self.applyTextContainerInset(to: textView, showLineNumbers: showLineNumbers, edgeInset: textContentInset)
         textView.textStorage?.setAttributedString(TextSyntaxHighlighter.makePlainText(text: text, fontSize: fontSize))
         PreviewTextWrapLayout.applyParagraphWrapStyle(to: textView, wrapLines: wrapLines)
-        
+
         scrollView.documentView = textView
         context.coordinator.textView = textView
         context.coordinator.previewTextSelectionActive = $previewTextSelectionActive
+        context.coordinator.lastDisplayMode = displayMode
         textView.onInteractionStateChanged = { [weak coordinator = context.coordinator] in
             coordinator?.updatePreviewTextSelectionActive()
         }
         context.coordinator.installSelectionTracking(for: textView)
+        context.coordinator.installTextChangeTracking(for: textView, isEditing: isEditing)
         context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
         context.coordinator.wrapLayout.lastWrapLines = wrapLines
         context.coordinator.lastShowLineNumbers = showLineNumbers
@@ -69,25 +79,49 @@ struct TextFilePreview: NSViewRepresentable {
             coordinator: context.coordinator.wrapLayout
         )
         PreviewTextWrapLayout.scheduleDeferredLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
-        let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        context.coordinator.lastHighlightKey = "\(text.hashValue)|\(fileExtension)|\(fontSize)|\(isDark)"
-        context.coordinator.applyHighlight(
-            text: text,
-            fileExtension: fileExtension,
-            fontSize: fontSize,
-            wrapLines: wrapLines,
-            textView: textView
-        )
+        if !isEditing {
+            let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            context.coordinator.lastHighlightKey = "\(text.hashValue)|\(fileExtension)|\(fontSize)|\(isDark)"
+            context.coordinator.applyHighlight(
+                text: text,
+                fileExtension: fileExtension,
+                fontSize: fontSize,
+                wrapLines: wrapLines,
+                textView: textView
+            )
+        }
         return scrollView
     }
-    
+
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         scrollView.drawsBackground = false
         scrollView.backgroundColor = .clear
         scrollView.contentView.drawsBackground = false
 
         guard let textView = context.coordinator.textView else { return }
-        if textView.string != text {
+        context.coordinator.onLiveContentChange = onLiveContentChange
+
+        if context.coordinator.lastDisplayMode != displayMode {
+            context.coordinator.transitionDisplayMode(
+                from: context.coordinator.lastDisplayMode,
+                to: displayMode,
+                text: text,
+                fileExtension: fileExtension,
+                fontSize: fontSize,
+                wrapLines: wrapLines,
+                textView: textView
+            )
+            context.coordinator.lastDisplayMode = displayMode
+            context.coordinator.installTextChangeTracking(for: textView, isEditing: isEditing)
+        }
+
+        if let previewTextView = textView as? PreviewCodeTextView {
+            previewTextView.allowsEditing = isEditing
+        }
+        textView.isEditable = isEditing
+        textView.isRichText = !isEditing
+
+        if !isEditing, textView.string != text {
             textView.textStorage?.setAttributedString(TextSyntaxHighlighter.makePlainText(text: text, fontSize: fontSize))
             textView.scrollToBeginningOfDocument(nil)
             context.coordinator.searchCurrentIndex = 0
@@ -99,17 +133,19 @@ struct TextFilePreview: NSViewRepresentable {
         if textView.font?.pointSize != fontSize {
             textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         }
-        let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let highlightKey = "\(text.hashValue)|\(fileExtension)|\(fontSize)|\(isDark)"
-        if context.coordinator.lastHighlightKey != highlightKey {
-            context.coordinator.lastHighlightKey = highlightKey
-            context.coordinator.applyHighlight(
-                text: text,
-                fileExtension: fileExtension,
-                fontSize: fontSize,
-                wrapLines: wrapLines,
-                textView: textView
-            )
+        if !isEditing {
+            let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let highlightKey = "\(text.hashValue)|\(fileExtension)|\(fontSize)|\(isDark)"
+            if context.coordinator.lastHighlightKey != highlightKey {
+                context.coordinator.lastHighlightKey = highlightKey
+                context.coordinator.applyHighlight(
+                    text: text,
+                    fileExtension: fileExtension,
+                    fontSize: fontSize,
+                    wrapLines: wrapLines,
+                    textView: textView
+                )
+            }
         }
         context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
         scrollView.tile()
@@ -161,11 +197,20 @@ struct TextFilePreview: NSViewRepresentable {
                 textView.scrollToBeginningOfDocument(nil)
             case .scrollBottom:
                 textView.scrollToEndOfDocument(nil)
+            case .beginEdit, .save, .revert:
+                break
             }
             DispatchQueue.main.async {
-                self.action = nil
+                switch action {
+                case .copyAll, .scrollTop, .scrollBottom:
+                    self.action = nil
+                case .beginEdit, .save, .revert:
+                    break
+                }
             }
         }
+
+        guard !isEditing else { return }
 
         let coordinator = context.coordinator
         if coordinator.lastSearchQuery != searchQuery {
@@ -218,10 +263,12 @@ struct TextFilePreview: NSViewRepresentable {
         @Binding var searchMatchCount: Int
         var searchCurrentIndexBinding: Binding<Int>
         var previewTextSelectionActive: Binding<Bool>?
+        var onLiveContentChange: ((String) -> Void)?
         weak var textView: NSTextView?
         weak var lineNumberRuler: CodePreviewLineNumberRulerView?
         let wrapLayout = PreviewTextWrapLayoutCoordinator()
         var lastShowLineNumbers: Bool = false
+        var lastDisplayMode: PreviewTextDisplayMode = .viewing
         var lastHighlightKey: String?
         var lastSearchQuery: String = ""
         var lastSearchNextToken: UInt = 0
@@ -235,9 +282,14 @@ struct TextFilePreview: NSViewRepresentable {
         private var selectionObserver: NSObjectProtocol?
         private var firstResponderObserver: NSObjectProtocol?
 
-        init(searchMatchCount: Binding<Int>, searchCurrentIndex: Binding<Int>) {
+        init(
+            searchMatchCount: Binding<Int>,
+            searchCurrentIndex: Binding<Int>,
+            onLiveContentChange: ((String) -> Void)?
+        ) {
             _searchMatchCount = searchMatchCount
             searchCurrentIndexBinding = searchCurrentIndex
+            self.onLiveContentChange = onLiveContentChange
         }
 
         private func publishSearchCurrentIndex() {
@@ -254,6 +306,70 @@ struct TextFilePreview: NSViewRepresentable {
             if let firstResponderObserver {
                 NotificationCenter.default.removeObserver(firstResponderObserver)
             }
+        }
+
+        func installTextChangeTracking(for textView: NSTextView, isEditing: Bool) {
+            guard let previewTextView = textView as? PreviewCodeTextView else { return }
+            if isEditing {
+                previewTextView.onTextContentChanged = { [weak self, weak textView] in
+                    guard let self, let textView else { return }
+                    self.onLiveContentChange?(textView.string)
+                }
+            } else {
+                previewTextView.onTextContentChanged = nil
+            }
+        }
+
+        func transitionDisplayMode(
+            from oldMode: PreviewTextDisplayMode,
+            to newMode: PreviewTextDisplayMode,
+            text: String,
+            fileExtension: String,
+            fontSize: CGFloat,
+            wrapLines: Bool,
+            textView: NSTextView
+        ) {
+            renderWorkItem?.cancel()
+            lastHighlightedSearchRanges = []
+            searchMatchRanges = []
+            if searchMatchCount != 0 { searchMatchCount = 0 }
+            publishSearchCurrentIndex()
+
+            switch newMode {
+            case .editing:
+                lastHighlightKey = nil
+                if textView.string.isEmpty {
+                    textView.string = text
+                }
+                textView.isRichText = false
+                textView.isEditable = true
+                if let previewTextView = textView as? PreviewCodeTextView {
+                    previewTextView.allowsEditing = true
+                }
+                onLiveContentChange?(textView.string)
+            case .viewing:
+                textView.isEditable = false
+                textView.isRichText = true
+                if let previewTextView = textView as? PreviewCodeTextView {
+                    previewTextView.allowsEditing = false
+                }
+                textView.textStorage?.setAttributedString(
+                    TextSyntaxHighlighter.makePlainText(text: text, fontSize: fontSize)
+                )
+                PreviewTextWrapLayout.applyParagraphWrapStyle(to: textView, wrapLines: wrapLines)
+                PreviewTextWrapLayout.invalidateLayout(textView: textView)
+                let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                lastHighlightKey = "\(text.hashValue)|\(fileExtension)|\(fontSize)|\(isDark)"
+                applyHighlight(
+                    text: text,
+                    fileExtension: fileExtension,
+                    fontSize: fontSize,
+                    wrapLines: wrapLines,
+                    textView: textView
+                )
+            }
+
+            _ = oldMode
         }
 
         func installSelectionTracking(for textView: NSTextView) {

@@ -6,7 +6,7 @@ struct FilePreviewView: View {
     let hostWindowID: UUID
     @Binding var showPreview: Bool
     @ObservedObject var layout: ExplorerWindowLayoutState
-    let selection: Set<FileItem.ID>
+    @Binding var selection: Set<FileItem.ID>
     let items: [FileItem]
     let directoryPath: String
     let sortOrder: SortOrder
@@ -17,9 +17,17 @@ struct FilePreviewView: View {
     let onOpenItem: (FileItem) -> Void
     let onOpenTerminalAtPath: (String) -> Void
     @ObservedObject private var detachCoordinator = PreviewDetachCoordinator.shared
+    @State private var previewSelection: Set<FileItem.ID> = []
+
+    private var resolvedSelection: Set<FileItem.ID> {
+        if previewSelection.isEmpty, !selection.isEmpty {
+            return selection
+        }
+        return previewSelection
+    }
 
     private var selectedItems: [FileItem] {
-        FileItem.resolveSelection(ids: selection, from: items)
+        FileItem.resolveSelection(ids: resolvedSelection, from: items)
     }
 
     private var selectedItem: FileItem? {
@@ -27,55 +35,79 @@ struct FilePreviewView: View {
     }
 
     var body: some View {
-        if let selectedItem {
-            if detachCoordinator.placement.showsPlaceholder(forSelectedFileID: selectedItem.id),
-               case .detached(let sessionID, _) = detachCoordinator.placement,
-               let session = PreviewSessionStore.shared.session(for: sessionID) {
-                PreviewPlaceholderView(
-                    fileName: session.previewContentItem?.name ?? selectedItem.name,
-                    onFocus: { detachCoordinator.focusDetachedWindow() },
-                    onDockBack: {
-                        Task {
-                            _ = await detachCoordinator.dockBack(
-                                sessionID: sessionID,
-                                currentSelectedFileID: selectedItem.id
-                            )
+        Group {
+            if let selectedItem {
+                if detachCoordinator.placement.showsPlaceholder(forSelectedFileID: selectedItem.id),
+                   case .detached(let sessionID, _) = detachCoordinator.placement,
+                   let session = PreviewSessionStore.shared.session(for: sessionID) {
+                    PreviewPlaceholderView(
+                        fileName: session.previewContentItem?.name ?? selectedItem.name,
+                        onFocus: { detachCoordinator.focusDetachedWindow() },
+                        onDockBack: {
+                            Task {
+                                _ = await detachCoordinator.dockBack(
+                                    sessionID: sessionID,
+                                    currentSelectedFileID: selectedItem.id
+                                )
+                            }
                         }
-                    }
-                )
-                .focusedValue(\.previewDetachCommands, PreviewDetachCommands(
-                    canDetach: false,
-                    canDock: true,
-                    dockPreview: {
-                        Task {
-                            _ = await detachCoordinator.dockBack(
-                                sessionID: sessionID,
-                                currentSelectedFileID: selectedItem.id
-                            )
+                    )
+                    .focusedValue(\.previewDetachCommands, PreviewDetachCommands(
+                        canDetach: false,
+                        canDock: true,
+                        dockPreview: {
+                            Task {
+                                _ = await detachCoordinator.dockBack(
+                                    sessionID: sessionID,
+                                    currentSelectedFileID: selectedItem.id
+                                )
+                            }
                         }
-                    }
-                ))
+                    ))
+                } else {
+                    FilePreviewSessionHost(
+                        hostWindowID: hostWindowID,
+                        selectedItem: selectedItem,
+                        showPreview: $showPreview,
+                        layout: layout,
+                        directoryPath: directoryPath,
+                        directoryItems: items,
+                        sortOrder: sortOrder,
+                        showHiddenFiles: showHiddenFiles,
+                        autoCalculateDirectorySizes: autoCalculateDirectorySizes,
+                        metadataOverlay: metadataOverlay,
+                        onNavigate: onNavigate,
+                        onOpenItem: onOpenItem,
+                        onOpenTerminalAtPath: onOpenTerminalAtPath,
+                        detachCoordinator: detachCoordinator
+                    )
+                    .id(selectedItem.id)
+                }
             } else {
-                FilePreviewSessionHost(
-                    hostWindowID: hostWindowID,
-                    selectedItem: selectedItem,
-                    showPreview: $showPreview,
-                    layout: layout,
-                    directoryPath: directoryPath,
-                    directoryItems: items,
-                    sortOrder: sortOrder,
-                    showHiddenFiles: showHiddenFiles,
-                    autoCalculateDirectorySizes: autoCalculateDirectorySizes,
-                    metadataOverlay: metadataOverlay,
-                    onNavigate: onNavigate,
-                    onOpenItem: onOpenItem,
-                    onOpenTerminalAtPath: onOpenTerminalAtPath,
-                    detachCoordinator: detachCoordinator
-                )
-                .id(selectedItem.id)
+                FilePreviewEmptyChrome(showPreview: $showPreview, layout: layout)
             }
-        } else {
-            FilePreviewEmptyChrome(showPreview: $showPreview, layout: layout)
+        }
+        .onAppear {
+            previewSelection = selection
+        }
+        .onChange(of: selection) { newSelection in
+            handleSelectionChange(to: newSelection)
+        }
+    }
+
+    private func handleSelectionChange(to newSelection: Set<FileItem.ID>) {
+        guard newSelection != previewSelection else { return }
+        let previousSelection = previewSelection
+        Task { @MainActor in
+            if let session = PreviewSessionStore.shared.inlineSessionWithUnsavedTextEdits(
+                hostWindowID: hostWindowID
+            ) {
+                guard await session.confirmDiscardTextEditsIfNeeded() else {
+                    selection = previousSelection
+                    return
+                }
+            }
+            previewSelection = newSelection
         }
     }
 }

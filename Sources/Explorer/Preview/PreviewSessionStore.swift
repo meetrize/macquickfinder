@@ -65,6 +65,23 @@ final class PreviewSessionStore: ObservableObject {
         }
     }
 
+    func existingInlineSession(hostWindowID: UUID, browseTargetID: FileItem.ID) -> PreviewSession? {
+        sessions.values.first { session in
+            session.hostWindowID == hostWindowID
+                && session.browseTarget.id == browseTargetID
+                && !session.location.isDetached
+        }
+    }
+
+    func inlineSessionWithUnsavedTextEdits(hostWindowID: UUID) -> PreviewSession? {
+        sessions.values.first { session in
+            session.hostWindowID == hostWindowID
+                && !session.location.isDetached
+                && session.text.isEditing
+                && session.text.hasUnsavedChanges
+        }
+    }
+
     /// 系统内存压力：取消预取与进行中的加载；非 key 的 detached 会话释放已解码内容。
     func respondToMemoryPressure() {
         let keyWindow = NSApp.keyWindow
