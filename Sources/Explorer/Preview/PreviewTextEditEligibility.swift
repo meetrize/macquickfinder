@@ -7,7 +7,6 @@ enum PreviewTextEditDenialReason: Equatable {
     case notLoaded
     case contentTruncated
     case notWritable
-    case emptyContent
 }
 
 @MainActor
@@ -48,9 +47,6 @@ enum PreviewTextEditEligibility {
         guard session.content.loadPhase == .loaded else {
             return .notLoaded
         }
-        guard !session.content.textContent.isEmpty else {
-            return .emptyContent
-        }
         guard !isContentTruncated(session.content.textContent) else {
             return .contentTruncated
         }
@@ -62,6 +58,19 @@ enum PreviewTextEditEligibility {
 
     static func isContentTruncated(_ content: String) -> Bool {
         content.contains(TextFilePreviewReader.truncationMarker)
+    }
+
+    /// 是否应展示内置文本 / Markdown 预览（含空文件；不含 HTML 渲染模式）。
+    static func showsTextPreviewContent(file: FileItem, session: PreviewSession) -> Bool {
+        if !session.content.textContent.isEmpty {
+            return true
+        }
+        guard session.content.loadPhase == .loaded else { return false }
+        let ext = file.url.pathExtension.lowercased()
+        if PreviewTypeClassifier.isHtmlFile(ext), session.text.htmlMode == .preview {
+            return false
+        }
+        return PreviewDetachedWindowContentKind.from(file: file) == .text
     }
 
     static func usesTextFilePreviewView(file: FileItem, session: PreviewSession) -> Bool {
@@ -104,6 +113,6 @@ enum PreviewTextEditEligibility {
             return false
         }
 
-        return !session.content.textContent.isEmpty
+        return showsTextPreviewContent(file: file, session: session)
     }
 }

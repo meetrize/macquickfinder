@@ -83,7 +83,9 @@ struct FileContentView: View {
 
         if usesWordDocumentFormattedMode, session.content.officeRichText != nil { return true }
         if isHtmlPreviewMode { return true }
-        if !session.content.textContent.isEmpty { return true }
+        if PreviewTextEditEligibility.showsTextPreviewContent(file: session.browseTarget, session: session) {
+            return true
+        }
 
         if session.isLoading || session.errorMessage != nil {
             return inferredTextKindForInsets
@@ -246,7 +248,7 @@ struct FileContentView: View {
             } else if isHtmlPreviewMode {
                 HTMLFilePreview(fileURL: item.url, textContentInset: effectiveTextContentInsets)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if !session.content.textContent.isEmpty {
+            } else if PreviewTextEditEligibility.showsTextPreviewContent(file: item, session: session) {
                 if usesMarkdownPreview {
                     MarkdownFilePreview(
                         markdown: session.content.textContent,

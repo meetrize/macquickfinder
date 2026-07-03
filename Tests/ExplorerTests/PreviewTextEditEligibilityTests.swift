@@ -188,4 +188,103 @@ final class PreviewTextEditEligibilityTests: XCTestCase {
         XCTAssertTrue(PreviewTextEditEligibility.isContentTruncated("x\(TextFilePreviewReader.truncationMarker)"))
         XCTAssertFalse(PreviewTextEditEligibility.isContentTruncated("plain text"))
     }
+
+    func testShowsTextPreviewContentForEmptyPlainTextFile() {
+        let file = makeFileItem(ext: "txt")
+        let session = makeSession(file: file)
+        session.content.textContent = ""
+        session.content.loadPhase = .loaded
+
+        XCTAssertTrue(PreviewTextEditEligibility.showsTextPreviewContent(file: file, session: session))
+    }
+
+    func testCanEditEmptyPlainTextFile() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("PreviewTextEditEligibility-\(UUID().uuidString).txt")
+        try Data().write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let file = FileItem(
+            id: "empty-txt-file",
+            url: fileURL,
+            name: fileURL.lastPathComponent,
+            isDirectory: false,
+            modificationDate: .distantPast,
+            creationDate: .distantPast,
+            size: 0,
+            isHidden: false,
+            fileType: "txt",
+            sizeDisplay: "0 B",
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
+        )
+        let session = makeSession(file: file)
+        session.content.textContent = ""
+        session.content.loadPhase = .loaded
+
+        XCTAssertTrue(PreviewTextEditEligibility.canEdit(file: file, session: session))
+        XCTAssertTrue(PreviewTextEditEligibility.canOfferEdit(file: file, session: session))
+    }
+
+    func testCanOfferEditForEmptyMarkdownInPreviewMode() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("PreviewTextEditEligibility-\(UUID().uuidString).md")
+        try Data().write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let file = FileItem(
+            id: "empty-md-file",
+            url: fileURL,
+            name: fileURL.lastPathComponent,
+            isDirectory: false,
+            modificationDate: .distantPast,
+            creationDate: .distantPast,
+            size: 0,
+            isHidden: false,
+            fileType: "md",
+            sizeDisplay: "0 B",
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
+        )
+        let session = makeSession(file: file)
+        session.content.textContent = ""
+        session.content.loadPhase = .loaded
+        session.text.markdownMode = .preview
+
+        XCTAssertTrue(PreviewTextEditEligibility.canOfferEdit(file: file, session: session))
+        XCTAssertFalse(PreviewTextEditEligibility.canEdit(file: file, session: session))
+    }
+
+    func testShowsTextPreviewContentForEmptyMarkdownInPreviewMode() {
+        let file = makeFileItem(ext: "md")
+        let session = makeSession(file: file)
+        session.content.textContent = ""
+        session.content.loadPhase = .loaded
+        session.text.markdownMode = .preview
+
+        XCTAssertTrue(PreviewTextEditEligibility.showsTextPreviewContent(file: file, session: session))
+    }
+
+    func testDoesNotShowTextPreviewContentForUnavailableExtension() {
+        let file = makeFileItem(name: "sample.proto", ext: "proto")
+        let session = makeSession(file: file)
+        session.content.textContent = ""
+        session.content.loadPhase = .loaded
+
+        XCTAssertFalse(PreviewTextEditEligibility.showsTextPreviewContent(file: file, session: session))
+    }
+
+    func testDoesNotShowTextPreviewContentForEmptyHtmlInPreviewMode() {
+        let file = makeFileItem(ext: "html")
+        let session = makeSession(file: file)
+        session.content.textContent = ""
+        session.content.loadPhase = .loaded
+        session.text.htmlMode = .preview
+
+        XCTAssertFalse(PreviewTextEditEligibility.showsTextPreviewContent(file: file, session: session))
+    }
 }
