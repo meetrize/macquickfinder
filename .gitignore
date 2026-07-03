@@ -6,6 +6,9 @@
 Explorer.app/
 MeoFind.app/
 
+# 本地安装脚本 sudo 密码（Scripts/install_to_applications.sh）
+.install.local.env
+
 # IDE / local config
 .cursor/*
 !.cursor/rules/

@@ -8,6 +8,8 @@ enum ExternalSelectionPathMatcher {
 
     static func matchingItem(in items: [FileItem], selectionPath: String) -> FileItem? {
         let standardized = standardizedPath(selectionPath)
-        return items.first { $0.id == standardized || $0.id == selectionPath }
+        return items.first {
+            standardizedPath($0.id) == standardized
+        }
     }
 }

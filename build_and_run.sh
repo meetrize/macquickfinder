@@ -164,5 +164,7 @@ fi
 osascript -e 'tell application "MeoFind" to quit' >/dev/null 2>&1 || true
 sleep 0.1
 
-# Open the app
-open "./$APP_NAME"
+if [[ "${SKIP_OPEN:-0}" != "1" ]]; then
+    # Open the app
+    open "./$APP_NAME"
+fi

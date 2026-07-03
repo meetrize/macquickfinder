@@ -80,6 +80,25 @@ extension ContentView {
             loadItems()
         }
     }
+
+    func applyExternalOpenRequestIfNeeded() {
+        guard windowSceneKind == .main else { return }
+        guard let request = externalFolderOpenCenter.targetRequest else { return }
+        guard hostWindow != nil else { return }
+        applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
+    }
+
+    private func applyLaunchNavigation(_ request: ExternalFolderOpenCenter.OpenRequest) {
+        pendingExternalSelectionPath = request.selectionPath.map {
+            ExternalSelectionPathMatcher.standardizedPath($0)
+        }
+        let directory = request.directoryPath
+        if path != directory {
+            path = directory
+        } else if !applyExternalSelectionImmediatelyIfPossible(), !isLoading {
+            loadItems()
+        }
+    }
 }
 struct ContentView: View {
     private let initialPath: String?
@@ -133,6 +152,7 @@ struct ContentView: View {
     @State private var operationRecordingCloseGuard = OperationRecordingWindowCloseGuard()
     @State private var operationRecordingReview: OperationRecordingReviewContext?
     @State private var showDiscardRecordingConfirm = false
+    @State private var lastHandledOpenRequestGeneration: UInt = 0
     
     init(
         initialPath: String? = nil,
@@ -367,6 +387,8 @@ struct ContentView: View {
             ExplorerWindowTabCenter.shared.registerWindow(window, path: path, sceneKind: windowSceneKind)
             ExplorerWindowTabCenter.shared.handleExplorerWindowDidAppear(window)
             syncExplorerTabBarState()
+            applyExternalOpenRequestIfNeeded()
+            _ = applyExternalSelectionImmediatelyIfPossible()
             OperationRecordingHub.register(operationRecorder)
             operationRecordingCloseGuard.attach(
                 to: window,
@@ -417,20 +439,26 @@ struct ContentView: View {
                 pendingExternalSelectionPath = initialSelectionPath.map {
                     ExternalSelectionPathMatcher.standardizedPath($0)
                 }
-            } else if windowSceneKind == .main,
-                      let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
-                pendingExternalSelectionPath = launchRequest.selectionPath.map {
-                    ExternalSelectionPathMatcher.standardizedPath($0)
+                loadItems()
+            } else if windowSceneKind == .main {
+                let launchRequest = externalFolderOpenCenter.consumePendingRequest()
+                    ?? externalFolderOpenCenter.targetRequest
+                if let launchRequest {
+                    applyLaunchNavigation(launchRequest)
+                } else {
+                    path = restoredLaunchPath()
+                    loadItems()
                 }
-                path = launchRequest.directoryPath
             } else {
                 path = restoredLaunchPath()
+                loadItems()
             }
             lastRecordedPath = path
             layout.recordLastOpenedPath(path)
-            loadItems()
             syncExplorerTabBarState()
             externalFolderOpenCenter.markSessionEstablished()
+            lastHandledOpenRequestGeneration = externalFolderOpenCenter.openRequestGeneration
+            applyExternalOpenRequestIfNeeded()
             if let hostWindow {
                 ExplorerWindowTabCenter.shared.registerWindow(
                     hostWindow,
@@ -443,11 +471,10 @@ struct ContentView: View {
             OperationRecordingHub.unregister(operationRecorder)
             operationRecordingCloseGuard.detach()
         }
-        .onReceive(externalFolderOpenCenter.$openRequestGeneration.dropFirst()) { _ in
-            guard externalFolderOpenCenter.isSessionEstablished else { return }
-            guard let request = externalFolderOpenCenter.targetRequest else { return }
-            guard hostWindow == NSApp.keyWindow else { return }
-            applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
+        .onReceive(externalFolderOpenCenter.$openRequestGeneration) { generation in
+            guard generation > lastHandledOpenRequestGeneration else { return }
+            lastHandledOpenRequestGeneration = generation
+            applyExternalOpenRequestIfNeeded()
         }
         .onChange(of: isLoading) { loading in
             guard !loading else { return }
