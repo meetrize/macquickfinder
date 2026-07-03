@@ -12,7 +12,8 @@ struct GitPanelView: View {
     var showsTopSeparator: Bool = false
     var onRevealPath: (String) -> Void = { _ in }
 
-    @State private var showsPendingChanges = false
+    @State private var showsPendingChanges = true
+    @State private var showsCommitHistory = false
     @State private var commitMessage = ""
     @State private var isOperating = false
     @State private var lastOperationError: String?
@@ -47,7 +48,8 @@ struct GitPanelView: View {
             refreshIfNeeded(force: true)
         }
         .onChange(of: cwd) { _ in
-            showsPendingChanges = false
+            showsPendingChanges = true
+            showsCommitHistory = false
             lastOperationError = nil
             if isInRepository {
                 Task { await gitStatusStore.refresh(cwd: cwd) }
@@ -280,7 +282,14 @@ struct GitPanelView: View {
     }
 
     private func commitHistory(_ snapshot: GitWorkspaceSnapshot) -> some View {
-        GitCommitHistoryView(commits: snapshot.recentCommits)
+        DisclosureGroup(isExpanded: $showsCommitHistory) {
+            GitCommitHistoryView(commits: snapshot.recentCommits)
+                .padding(.top, 4)
+        } label: {
+            Text(L10n.Git.History.title)
+                .font(.caption)
+                .foregroundStyle(.primary)
+        }
     }
 
     private func actionFooter(_ snapshot: GitWorkspaceSnapshot) -> some View {
@@ -471,7 +480,7 @@ struct GitPanelView: View {
                 commitFieldFocused = true
             }
         } else {
-            showsPendingChanges = false
+            showsPendingChanges = true
         }
     }
 

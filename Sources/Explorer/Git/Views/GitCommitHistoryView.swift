@@ -4,11 +4,7 @@ struct GitCommitHistoryView: View {
     let commits: [GitCommitEntry]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.Git.History.title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
+        Group {
             if commits.isEmpty {
                 Text(L10n.Git.History.empty)
                     .font(.caption)
