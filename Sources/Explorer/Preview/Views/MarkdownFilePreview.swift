@@ -30,7 +30,6 @@ struct MarkdownFilePreview: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = !wrapLines
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
@@ -41,23 +40,9 @@ struct MarkdownFilePreview: NSViewRepresentable {
         textView.drawsBackground = false
         textView.isRichText = true
         textView.usesAdaptiveColorMappingForDarkAppearance = true
-        textView.textContainer?.widthTracksTextView = wrapLines
         textView.textContainer?.lineFragmentPadding = 0
         applyTextContainerInset(textContentInset, to: textView)
-        textView.autoresizingMask = wrapLines ? [.width] : []
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = !wrapLines
-        textView.maxSize = NSSize(
-            width: CGFloat.greatestFiniteMagnitude,
-            height: CGFloat.greatestFiniteMagnitude
-        )
-        textView.minSize = NSSize(width: 0, height: 0)
-        if !wrapLines {
-            textView.textContainer?.containerSize = NSSize(
-                width: CGFloat.greatestFiniteMagnitude,
-                height: CGFloat.greatestFiniteMagnitude
-            )
-        }
+        PreviewTextWrapLayout.configure(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
 
         scrollView.documentView = textView
         context.coordinator.textView = textView
@@ -68,6 +53,15 @@ struct MarkdownFilePreview: NSViewRepresentable {
         context.coordinator.installFocusTracking(for: textView)
         context.coordinator.currentScale = 1.0
         context.coordinator.lastMarkdown = markdown
+        context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
+        context.coordinator.wrapLayout.lastWrapLines = wrapLines
+        context.coordinator.wrapLayout.lastTrackedContentWidth = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
+        PreviewTextWrapLayout.installContentWidthTracking(
+            scrollView: scrollView,
+            textView: textView,
+            coordinator: context.coordinator.wrapLayout
+        )
+        PreviewTextWrapLayout.scheduleDeferredLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
 
         applyMarkdown(markdown, to: textView)
         applyScale(zoomScale, to: textView, context: context)
@@ -78,20 +72,24 @@ struct MarkdownFilePreview: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = context.coordinator.textView else { return }
 
-        scrollView.hasHorizontalScroller = !wrapLines
-        textView.textContainer?.widthTracksTextView = wrapLines
-        textView.autoresizingMask = wrapLines ? [.width] : []
-        textView.isHorizontallyResizable = !wrapLines
-        if wrapLines {
-            textView.textContainer?.containerSize = NSSize(
-                width: scrollView.contentSize.width,
-                height: CGFloat.greatestFiniteMagnitude
-            )
-        } else {
-            textView.textContainer?.containerSize = NSSize(
-                width: CGFloat.greatestFiniteMagnitude,
-                height: CGFloat.greatestFiniteMagnitude
-            )
+        context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
+        PreviewTextWrapLayout.configure(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
+
+        let wrapChanged = context.coordinator.wrapLayout.lastWrapLines != wrapLines
+        if wrapChanged {
+            context.coordinator.wrapLayout.lastWrapLines = wrapLines
+            applyMarkdown(markdown, to: textView)
+            context.coordinator.searchCurrentIndex = 0
+            context.coordinator.lastHighlightedSearchRanges = []
+            textView.scrollToBeginningOfDocument(nil)
+            scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
+            PreviewTextWrapLayout.invalidateLayout(textView: textView)
+        } else if wrapLines {
+            let width = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
+            if abs(width - context.coordinator.wrapLayout.lastTrackedContentWidth) > 0.5 {
+                context.coordinator.wrapLayout.lastTrackedContentWidth = width
+                PreviewTextWrapLayout.invalidateLayout(textView: textView)
+            }
         }
 
         if context.coordinator.lastMarkdown != markdown {
@@ -217,7 +215,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
                     )
 
                     let codeParagraph = NSMutableParagraphStyle()
-                    codeParagraph.lineBreakMode = .byClipping
+                    codeParagraph.lineBreakMode = wrapLines ? .byWordWrapping : .byClipping
                     codeParagraph.lineSpacing = 2
                     codeParagraph.firstLineHeadIndent = 8
                     codeParagraph.headIndent = 8
@@ -546,6 +544,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         var searchCurrentIndexBinding: Binding<Int>
         weak var textView: NSTextView?
         var previewTextSelectionActive: Binding<Bool>?
+        let wrapLayout = PreviewTextWrapLayoutCoordinator()
         var lastMarkdown: String = ""
         var currentScale: CGFloat = 1.0
         var lastSearchQuery: String = ""

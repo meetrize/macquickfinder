@@ -26,7 +26,6 @@ struct TextFilePreview: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = !wrapLines
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
@@ -39,25 +38,11 @@ struct TextFilePreview: NSViewRepresentable {
         textView.drawsBackground = false
         textView.isRichText = true
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        textView.textContainer?.widthTracksTextView = wrapLines
         textView.textContainer?.lineFragmentPadding = 0
         Self.applyTextContainerInset(to: textView, showLineNumbers: showLineNumbers, edgeInset: textContentInset)
-        textView.autoresizingMask = wrapLines ? [.width] : []
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = !wrapLines
-        textView.maxSize = NSSize(
-            width: CGFloat.greatestFiniteMagnitude,
-            height: CGFloat.greatestFiniteMagnitude
-        )
-        textView.minSize = NSSize(width: 0, height: 0)
-        if !wrapLines {
-            textView.textContainer?.containerSize = NSSize(
-                width: CGFloat.greatestFiniteMagnitude,
-                height: CGFloat.greatestFiniteMagnitude
-            )
-        }
+        PreviewTextWrapLayout.configure(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
         textView.textStorage?.setAttributedString(TextSyntaxHighlighter.makePlainText(text: text, fontSize: fontSize))
-        Self.applyWrapStyle(to: textView, wrapLines: wrapLines)
+        PreviewTextWrapLayout.applyParagraphWrapStyle(to: textView, wrapLines: wrapLines)
         
         scrollView.documentView = textView
         context.coordinator.textView = textView
@@ -66,7 +51,15 @@ struct TextFilePreview: NSViewRepresentable {
             coordinator?.updatePreviewTextSelectionActive()
         }
         context.coordinator.installSelectionTracking(for: textView)
-        context.coordinator.lastWrapLines = wrapLines
+        context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
+        context.coordinator.wrapLayout.lastWrapLines = wrapLines
+        context.coordinator.wrapLayout.lastTrackedContentWidth = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
+        PreviewTextWrapLayout.installContentWidthTracking(
+            scrollView: scrollView,
+            textView: textView,
+            coordinator: context.coordinator.wrapLayout
+        )
+        PreviewTextWrapLayout.scheduleDeferredLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
         context.coordinator.lastShowLineNumbers = showLineNumbers
         Self.configureLineNumbers(
             scrollView: scrollView,
@@ -117,29 +110,20 @@ struct TextFilePreview: NSViewRepresentable {
                 textView: textView
             )
         }
-        scrollView.hasHorizontalScroller = !wrapLines
-        textView.textContainer?.widthTracksTextView = wrapLines
-        textView.autoresizingMask = wrapLines ? [.width] : []
-        textView.isHorizontallyResizable = !wrapLines
-        if wrapLines {
-            textView.textContainer?.containerSize = NSSize(
-                width: scrollView.contentSize.width,
-                height: CGFloat.greatestFiniteMagnitude
-            )
-        } else {
-            textView.textContainer?.containerSize = NSSize(
-                width: CGFloat.greatestFiniteMagnitude,
-                height: CGFloat.greatestFiniteMagnitude
-            )
-        }
+        context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
+        PreviewTextWrapLayout.configure(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
 
-        if context.coordinator.lastWrapLines != wrapLines {
-            context.coordinator.lastWrapLines = wrapLines
-            Self.applyWrapStyle(to: textView, wrapLines: wrapLines)
+        if context.coordinator.wrapLayout.lastWrapLines != wrapLines {
+            context.coordinator.wrapLayout.lastWrapLines = wrapLines
+            PreviewTextWrapLayout.applyParagraphWrapStyle(to: textView, wrapLines: wrapLines)
             textView.scrollToBeginningOfDocument(nil)
             scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
-            if let textContainer = textView.textContainer {
-                textView.layoutManager?.ensureLayout(for: textContainer)
+            PreviewTextWrapLayout.invalidateLayout(textView: textView)
+        } else if wrapLines {
+            let width = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
+            if abs(width - context.coordinator.wrapLayout.lastTrackedContentWidth) > 0.5 {
+                context.coordinator.wrapLayout.lastTrackedContentWidth = width
+                PreviewTextWrapLayout.invalidateLayout(textView: textView)
             }
         }
 
@@ -225,7 +209,7 @@ struct TextFilePreview: NSViewRepresentable {
         var previewTextSelectionActive: Binding<Bool>?
         weak var textView: NSTextView?
         weak var lineNumberRuler: CodePreviewLineNumberRulerView?
-        var lastWrapLines: Bool = true
+        let wrapLayout = PreviewTextWrapLayoutCoordinator()
         var lastShowLineNumbers: Bool = false
         var lastHighlightKey: String?
         var lastSearchQuery: String = ""
@@ -368,7 +352,8 @@ struct TextFilePreview: NSViewRepresentable {
                     self.cachedSyntaxHighlight = highlighted
                     let selectedRange = textView.selectedRange()
                     textView.textStorage?.setAttributedString(highlighted)
-                    TextFilePreview.applyWrapStyle(to: textView, wrapLines: wrapLines)
+                    PreviewTextWrapLayout.applyParagraphWrapStyle(to: textView, wrapLines: wrapLines)
+                    PreviewTextWrapLayout.invalidateLayout(textView: textView)
                     self.lastHighlightedSearchRanges = []
                     self.applySearchHighlightsInPlace(
                         textView: textView,
@@ -429,14 +414,4 @@ struct TextFilePreview: NSViewRepresentable {
         }
     }
 
-    private static func applyWrapStyle(to textView: NSTextView, wrapLines: Bool) {
-        guard let storage = textView.textStorage, storage.length > 0 else { return }
-        let style = NSMutableParagraphStyle()
-        style.lineBreakMode = wrapLines ? .byWordWrapping : .byClipping
-        storage.addAttribute(
-            .paragraphStyle,
-            value: style,
-            range: NSRange(location: 0, length: storage.length)
-        )
-    }
 }
