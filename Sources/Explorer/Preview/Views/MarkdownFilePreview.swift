@@ -225,6 +225,10 @@ struct MarkdownFilePreview: NSViewRepresentable {
             }
         }
 
+        // 行内代码与加粗：去掉标记符并应用样式（跳过围栏代码块内部）。
+        applyInlineCodeSpans(in: rendered)
+        applyInlineBoldSpans(in: rendered)
+
         // 表格不希望在窄窗口里自动换行，否则竖线对齐会被破坏。
         if wrapLines {
             applyNoWrapForMarkdownTables(in: rendered)
@@ -384,6 +388,104 @@ struct MarkdownFilePreview: NSViewRepresentable {
         }
 
         return out.joined(separator: "\n")
+    }
+
+    /// 围栏代码块（含 ``` 行与中间正文）在全文中的区间，供行内格式跳过。
+    private func fencedCodeBlockRanges(in text: NSString) -> [NSRange] {
+        let fullRange = NSRange(location: 0, length: text.length)
+        let fenceRegex = try? NSRegularExpression(pattern: "^[ \\t]*```.*$", options: [.anchorsMatchLines])
+        guard let fenceRegex else { return [] }
+        let fenceMatches = fenceRegex.matches(in: text as String, options: [], range: fullRange)
+        var ranges: [NSRange] = []
+        ranges.reserveCapacity(fenceMatches.count / 2)
+        var i = 0
+        while i + 1 < fenceMatches.count {
+            let openLine = text.lineRange(for: fenceMatches[i].range)
+            let closeLine = text.lineRange(for: fenceMatches[i + 1].range)
+            let blockEnd = closeLine.location + closeLine.length
+            ranges.append(NSRange(location: openLine.location, length: blockEnd - openLine.location))
+            i += 2
+        }
+        return ranges
+    }
+
+    private func range(_ range: NSRange, intersectsAny excluded: [NSRange]) -> Bool {
+        excluded.contains { NSIntersectionRange(range, $0).length > 0 }
+    }
+
+    private func rangeHasAttribute(
+        _ key: NSAttributedString.Key,
+        in rendered: NSAttributedString,
+        range: NSRange
+    ) -> Bool {
+        var found = false
+        rendered.enumerateAttribute(key, in: range, options: []) { value, _, stop in
+            if value != nil {
+                found = true
+                stop.pointee = true
+            }
+        }
+        return found
+    }
+
+    private func applyBoldFont(to rendered: NSMutableAttributedString, range: NSRange) {
+        rendered.enumerateAttribute(.font, in: range, options: []) { value, subRange, _ in
+            let baseFont = (value as? NSFont) ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+            let boldFont = NSFontManager.shared.convert(baseFont, toHaveTrait: .boldFontMask)
+            rendered.addAttribute(.font, value: boldFont, range: subRange)
+        }
+    }
+
+    /// 行内 `` `code` ``：等宽字体 + 浅背景，用于 UI 标签、路径片段等引用文本。
+    private func applyInlineCodeSpans(in rendered: NSMutableAttributedString) {
+        let text = rendered.string as NSString
+        let excludeRanges = fencedCodeBlockRanges(in: text)
+        guard let regex = try? NSRegularExpression(pattern: "`([^`\\n]+)`", options: []) else { return }
+        let fullRange = NSRange(location: 0, length: text.length)
+        let matches = regex.matches(in: rendered.string, options: [], range: fullRange)
+        let inlineCodeBackground = NSColor.quaternaryLabelColor.withAlphaComponent(0.16)
+
+        for match in matches.reversed() {
+            guard match.numberOfRanges >= 2, match.range(at: 1).location != NSNotFound else { continue }
+            if range(match.range, intersectsAny: excludeRanges) { continue }
+
+            let contentRange = match.range(at: 1)
+            let content = text.substring(with: contentRange)
+            rendered.replaceCharacters(in: match.range, with: content)
+
+            let styledRange = NSRange(location: match.range.location, length: contentRange.length)
+            let monoSize: CGFloat
+            if let existing = rendered.attribute(.font, at: styledRange.location, effectiveRange: nil) as? NSFont {
+                monoSize = existing.pointSize
+            } else {
+                monoSize = NSFont.systemFontSize
+            }
+            let codeFont = NSFont.monospacedSystemFont(ofSize: monoSize, weight: .regular)
+            rendered.addAttribute(.font, value: codeFont, range: styledRange)
+            rendered.addAttribute(.backgroundColor, value: inlineCodeBackground, range: styledRange)
+        }
+    }
+
+    /// 行内 `**bold**`：去掉星号并加粗（跳过围栏代码块与已标记的行内代码）。
+    private func applyInlineBoldSpans(in rendered: NSMutableAttributedString) {
+        let text = rendered.string as NSString
+        let excludeRanges = fencedCodeBlockRanges(in: text)
+        guard let regex = try? NSRegularExpression(pattern: "\\*\\*(.+?)\\*\\*", options: []) else { return }
+        let fullRange = NSRange(location: 0, length: text.length)
+        let matches = regex.matches(in: rendered.string, options: [], range: fullRange)
+
+        for match in matches.reversed() {
+            guard match.numberOfRanges >= 2, match.range(at: 1).location != NSNotFound else { continue }
+            if range(match.range, intersectsAny: excludeRanges) { continue }
+            if rangeHasAttribute(.backgroundColor, in: rendered, range: match.range) { continue }
+
+            let contentRange = match.range(at: 1)
+            let content = text.substring(with: contentRange)
+            rendered.replaceCharacters(in: match.range, with: content)
+
+            let styledRange = NSRange(location: match.range.location, length: contentRange.length)
+            applyBoldFont(to: rendered, range: styledRange)
+        }
     }
 
     private func applyNoWrapForMarkdownTables(in rendered: NSMutableAttributedString) {

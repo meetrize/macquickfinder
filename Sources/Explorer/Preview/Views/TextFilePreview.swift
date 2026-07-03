@@ -40,7 +40,6 @@ struct TextFilePreview: NSViewRepresentable {
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.textContainer?.lineFragmentPadding = 0
         Self.applyTextContainerInset(to: textView, showLineNumbers: showLineNumbers, edgeInset: textContentInset)
-        PreviewTextWrapLayout.configure(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
         textView.textStorage?.setAttributedString(TextSyntaxHighlighter.makePlainText(text: text, fontSize: fontSize))
         PreviewTextWrapLayout.applyParagraphWrapStyle(to: textView, wrapLines: wrapLines)
         
@@ -53,13 +52,6 @@ struct TextFilePreview: NSViewRepresentable {
         context.coordinator.installSelectionTracking(for: textView)
         context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
         context.coordinator.wrapLayout.lastWrapLines = wrapLines
-        context.coordinator.wrapLayout.lastTrackedContentWidth = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
-        PreviewTextWrapLayout.installContentWidthTracking(
-            scrollView: scrollView,
-            textView: textView,
-            coordinator: context.coordinator.wrapLayout
-        )
-        PreviewTextWrapLayout.scheduleDeferredLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
         context.coordinator.lastShowLineNumbers = showLineNumbers
         Self.configureLineNumbers(
             scrollView: scrollView,
@@ -68,6 +60,14 @@ struct TextFilePreview: NSViewRepresentable {
             show: showLineNumbers,
             coordinator: context.coordinator
         )
+        PreviewTextWrapLayout.configure(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
+        context.coordinator.wrapLayout.lastTrackedContentWidth = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
+        PreviewTextWrapLayout.installContentWidthTracking(
+            scrollView: scrollView,
+            textView: textView,
+            coordinator: context.coordinator.wrapLayout
+        )
+        PreviewTextWrapLayout.scheduleDeferredLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
         let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         context.coordinator.lastHighlightKey = "\(text.hashValue)|\(fileExtension)|\(fontSize)|\(isDark)"
         context.coordinator.applyHighlight(
@@ -111,14 +111,20 @@ struct TextFilePreview: NSViewRepresentable {
             )
         }
         context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
+        scrollView.tile()
         PreviewTextWrapLayout.configure(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
 
         if context.coordinator.wrapLayout.lastWrapLines != wrapLines {
             context.coordinator.wrapLayout.lastWrapLines = wrapLines
+            context.coordinator.wrapLayout.lastTrackedContentWidth = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
             PreviewTextWrapLayout.applyParagraphWrapStyle(to: textView, wrapLines: wrapLines)
+            if wrapLines {
+                PreviewTextWrapLayout.syncWrapDocumentLayout(textView: textView, scrollView: scrollView)
+            }
             textView.scrollToBeginningOfDocument(nil)
-            scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
+            scrollView.contentView.scroll(to: NSPoint(x: 0, y: scrollView.contentView.bounds.origin.y))
             PreviewTextWrapLayout.invalidateLayout(textView: textView)
+            context.coordinator.lineNumberRuler?.needsDisplay = true
         } else if wrapLines {
             let width = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
             if abs(width - context.coordinator.wrapLayout.lastTrackedContentWidth) > 0.5 {
@@ -136,6 +142,10 @@ struct TextFilePreview: NSViewRepresentable {
                 show: showLineNumbers,
                 coordinator: context.coordinator
             )
+            if wrapLines {
+                PreviewTextWrapLayout.syncWrapDocumentLayout(textView: textView, scrollView: scrollView)
+                PreviewTextWrapLayout.invalidateLayout(textView: textView)
+            }
         }
 
         Self.applyTextContainerInset(to: textView, showLineNumbers: showLineNumbers, edgeInset: textContentInset)

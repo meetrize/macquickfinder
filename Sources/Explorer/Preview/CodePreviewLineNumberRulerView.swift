@@ -11,7 +11,8 @@ final class CodePreviewLineNumberRulerView: NSRulerView {
     init(scrollView: NSScrollView, textView: NSTextView) {
         self.textView = textView
         super.init(scrollView: scrollView, orientation: .verticalRuler)
-        clientView = textView
+        // 标尺应绑定 clip view，而非 document view；否则换行时调整 textView 宽度会被标尺误改 origin。
+        clientView = scrollView.contentView
         updateRuleThickness(for: textView.string)
 
         scrollObserver = NotificationCenter.default.addObserver(
