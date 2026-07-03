@@ -107,6 +107,7 @@ struct ContentView: View {
 
     @Environment(\.openWindow) private var openWindow
     @StateObject private var layout = ExplorerWindowLayoutState()
+    @StateObject private var gitStatusStore = GitStatusStore()
     @AppStorage("blankDoubleClickAction")
     private var blankDoubleClickActionRaw = BlankDoubleClickAction.navigateToParent.rawValue
     @AppStorage(AppPreferences.Preview.doubleClickAction)
@@ -314,7 +315,7 @@ struct ContentView: View {
                     HStack(spacing: 0) {
                         explorerBrowserColumn
 
-                        if layout.showPreview || layout.showSnippets {
+                        if layout.showPreview || layout.showSnippets || layout.showGit {
                             explorerRightPanelColumn(maxPreviewWidth: maxPreviewWidth)
                         }
                     }
@@ -407,6 +408,7 @@ struct ContentView: View {
         .onChange(of: path) { newPath in
             guard let hostWindow else { return }
             ExplorerWindowTabCenter.shared.registerWindow(hostWindow, path: newPath, sceneKind: windowSceneKind)
+            gitStatusStore.scheduleRefresh(cwd: newPath)
         }
         .onChange(of: windowTabCenter.tabBarRevision) { _ in
             syncExplorerTabBarState()
@@ -438,6 +440,7 @@ struct ContentView: View {
             
             // 初始化时做一次自愈：持久化宽度可能越界。
             layout.healLeftPanelSidebarWidth()
+            gitStatusStore.scheduleRefresh(cwd: path)
             if let initialPath {
                 path = initialPath
                 pendingExternalSelectionPath = initialSelectionPath.map {
@@ -611,6 +614,12 @@ struct ContentView: View {
                     onSelectHistory: navigateToHistoryPath,
                     onSubmit: { loadItems() }
                 )
+
+                GitPathBarChip(
+                    gitStatusStore: gitStatusStore,
+                    showGit: $layout.showGit,
+                    cwd: path
+                )
             }
             .frame(height: PanelTopBarMetrics.contentHeight)
             .padding(.leading, 0)
@@ -634,11 +643,13 @@ struct ContentView: View {
             WindowLayoutCommands(
                 showPreview: layout.showPreview,
                 showSnippets: layout.showSnippets,
+                showGit: layout.showGit,
                 isOutputPanelVisible: layout.isOutputPanelVisible,
                 toggleLeftPanel: { layout.toggleLeftPanelVisibility() },
                 toggleRightPanel: { layout.toggleRightPanel() },
                 togglePreview: { layout.showPreview.toggle() },
                 toggleSnippets: { layout.showSnippets.toggle() },
+                toggleGit: { layout.toggleGitPanel() },
                 toggleOutputPanel: { layout.toggleOutputPanel() }
             )
         )
@@ -878,6 +889,7 @@ struct ContentView: View {
         
         RightPanelStackView(
             layout: layout,
+            gitStatusStore: gitStatusStore,
             hostWindowID: previewHostWindowID,
             selection: selection,
             items: items,
@@ -889,7 +901,8 @@ struct ContentView: View {
             panelWidth: livePreviewPanelWidth,
             onNavigate: { path = $0 },
             onOpenItem: { openItem($0) },
-            onOpenTerminalAtPath: { TerminalHelper.open(at: $0) }
+            onOpenTerminalAtPath: { TerminalHelper.open(at: $0) },
+            onRevealGitPath: revealGitPathInFileList
         )
         .frame(width: livePreviewPanelWidth)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -1329,6 +1342,27 @@ struct ContentView: View {
             return
         }
         FileOperations.open([item]) { path = $0 }
+    }
+
+    private func revealGitPathInFileList(_ targetPath: String) {
+        let standardized = (targetPath as NSString).standardizingPath
+        if let item = items.first(where: {
+            ($0.url.path as NSString).standardizingPath == standardized
+        }) {
+            selection = [item.id]
+            fileListFocusToken &+= 1
+            return
+        }
+
+        let parent = (standardized as NSString).deletingLastPathComponent
+        guard parent != (path as NSString).standardizingPath else { return }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: parent, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            return
+        }
+        pendingExternalSelectionPath = standardized
+        path = parent
     }
 
     private func openItemInSidebarPreview(_ item: FileItem) {

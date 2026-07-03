@@ -28,6 +28,7 @@ struct TextFilePreview: NSViewRepresentable {
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
+        PreviewScrollerChrome.applyPanelSafeBounds(to: scrollView)
         scrollView.drawsBackground = false
         scrollView.backgroundColor = .clear
         scrollView.contentView.drawsBackground = false

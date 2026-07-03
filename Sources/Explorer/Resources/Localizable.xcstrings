@@ -2528,6 +2528,511 @@
         }
       }
     },
+    "menu.show_git": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Git Panel"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示 Git 面板"
+          }
+        }
+      }
+    },
+    "menu.hide_git": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide Git Panel"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭 Git 面板"
+          }
+        }
+      }
+    },
+    "git.panel.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git"
+          }
+        }
+      }
+    },
+    "git.panel.close": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close Git Panel"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭 Git 面板"
+          }
+        }
+      }
+    },
+    "git.panel.collapse": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "折叠"
+          }
+        }
+      }
+    },
+    "git.panel.expand": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展开"
+          }
+        }
+      }
+    },
+    "git.panel.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git status and sync will appear here."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git 状态与同步将显示在此处。"
+          }
+        }
+      }
+    },
+    "git.panel.refresh": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Status"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新状态"
+          }
+        }
+      }
+    },
+    "git.status.clean": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Working tree clean and synced"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作区干净，已与远程同步"
+          }
+        }
+      }
+    },
+    "git.status.dirty %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld files to commit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个文件待提交"
+          }
+        }
+      }
+    },
+    "git.status.ahead %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld commits ahead of remote"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本地领先远程 %lld 个提交"
+          }
+        }
+      }
+    },
+    "git.status.behind %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld commits behind remote"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "远程领先本地 %lld 个提交"
+          }
+        }
+      }
+    },
+    "git.status.changes %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld changes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个变更"
+          }
+        }
+      }
+    },
+    "git.status.conflict": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge conflicts detected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "存在合并冲突"
+          }
+        }
+      }
+    },
+    "git.status.pending_commit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending commit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待提交"
+          }
+        }
+      }
+    },
+    "git.status.more_changes %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld more…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还有 %lld 个…"
+          }
+        }
+      }
+    },
+    "git.empty.not_repo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not a Git repository"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前目录不在 Git 仓库中"
+          }
+        }
+      }
+    },
+    "git.chip.ahead %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "↑%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "↑%lld"
+          }
+        }
+      }
+    },
+    "git.chip.behind %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "↓%lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "↓%lld"
+          }
+        }
+      }
+    },
+    "git.action.sync": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sync" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "同步" } }
+      }
+    },
+    "git.action.commit_and_sync": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Commit & Sync" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "提交并同步" } }
+      }
+    },
+    "git.action.push": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Push" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "推送到远程" } }
+      }
+    },
+    "git.action.pull": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Pull Updates" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "拉取更新" } }
+      }
+    },
+    "git.action.commit_only": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Commit Only" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅提交" } }
+      }
+    },
+    "git.action.resolve_conflict": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Resolve Conflicts" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "需解决冲突" } }
+      }
+    },
+    "git.action.working": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Working…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "处理中…" } }
+      }
+    },
+    "git.commit.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Commit message" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "提交说明" } }
+      }
+    },
+    "git.commit.scope_all": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "All changes will be committed" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "将提交全部变更" } }
+      }
+    },
+    "git.commit.generated_files %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Update %lld files" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新 %lld 个文件" } }
+      }
+    },
+    "git.commit.generated_directory %@ %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Update %lld files under %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新 %@ 下 %lld 个文件" } }
+      }
+    },
+    "git.commit.large_title %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Commit %lld files?" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "提交 %lld 个文件？" } }
+      }
+    },
+    "git.commit.large_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This will stage and commit a large number of files." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "将暂存并提交大量文件，请确认后继续。" } }
+      }
+    },
+    "git.commit.ai_tooltip": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "AI commit message (coming soon)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "AI 生成提交说明（即将推出）" } }
+      }
+    },
+    "git.empty.init_repo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Initialize Repository" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "初始化仓库" } }
+      }
+    },
+    "git.job.init": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git: Initialize Repository" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git：初始化仓库" } }
+      }
+    },
+    "git.job.pull": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git: Pull" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git：拉取" } }
+      }
+    },
+    "git.job.commit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git: Commit" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git：提交" } }
+      }
+    },
+    "git.job.push": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git: Push" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git：推送" } }
+      }
+    },
+    "git.job.sync": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git: Sync" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git：同步" } }
+      }
+    },
+    "git.job.stage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git: Stage Changes" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git：暂存变更" } }
+      }
+    },
+    "git.error.pull_with_dirty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Commit or stash changes before pulling" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请先提交或暂存变更后再拉取" } }
+      }
+    },
+    "git.error.no_upstream": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No upstream branch configured" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未配置远程跟踪分支" } }
+      }
+    },
+    "git.error.conflict": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Resolve merge conflicts first" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请先解决合并冲突" } }
+      }
+    },
+    "git.error.empty_commit_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Enter a commit message" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请输入提交说明" } }
+      }
+    },
+    "git.error.cancelled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git operation cancelled" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git 操作已取消" } }
+      }
+    },
     "menu.toggle_left_panel": {
       "extractionState": "manual",
       "localizations": {

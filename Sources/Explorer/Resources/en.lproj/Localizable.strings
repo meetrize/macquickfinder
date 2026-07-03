@@ -228,6 +228,92 @@
 	<string>Downloads</string>
 	<key>folder.home</key>
 	<string>Home</string>
+	<key>git.action.commit_and_sync</key>
+	<string>Commit &amp; Sync</string>
+	<key>git.action.commit_only</key>
+	<string>Commit Only</string>
+	<key>git.action.pull</key>
+	<string>Pull Updates</string>
+	<key>git.action.push</key>
+	<string>Push</string>
+	<key>git.action.resolve_conflict</key>
+	<string>Resolve Conflicts</string>
+	<key>git.action.sync</key>
+	<string>Sync</string>
+	<key>git.action.working</key>
+	<string>Working…</string>
+	<key>git.chip.ahead %lld</key>
+	<string>↑%lld</string>
+	<key>git.chip.behind %lld</key>
+	<string>↓%lld</string>
+	<key>git.commit.ai_tooltip</key>
+	<string>AI commit message (coming soon)</string>
+	<key>git.commit.generated_directory %@ %lld</key>
+	<string>Update %lld files under %@</string>
+	<key>git.commit.generated_files %lld</key>
+	<string>Update %lld files</string>
+	<key>git.commit.large_message</key>
+	<string>This will stage and commit a large number of files.</string>
+	<key>git.commit.large_title %lld</key>
+	<string>Commit %lld files?</string>
+	<key>git.commit.placeholder</key>
+	<string>Commit message</string>
+	<key>git.commit.scope_all</key>
+	<string>All changes will be committed</string>
+	<key>git.empty.init_repo</key>
+	<string>Initialize Repository</string>
+	<key>git.empty.not_repo</key>
+	<string>Not a Git repository</string>
+	<key>git.error.cancelled</key>
+	<string>Git operation cancelled</string>
+	<key>git.error.conflict</key>
+	<string>Resolve merge conflicts first</string>
+	<key>git.error.empty_commit_message</key>
+	<string>Enter a commit message</string>
+	<key>git.error.no_upstream</key>
+	<string>No upstream branch configured</string>
+	<key>git.error.pull_with_dirty</key>
+	<string>Commit or stash changes before pulling</string>
+	<key>git.job.commit</key>
+	<string>Git: Commit</string>
+	<key>git.job.init</key>
+	<string>Git: Initialize Repository</string>
+	<key>git.job.pull</key>
+	<string>Git: Pull</string>
+	<key>git.job.push</key>
+	<string>Git: Push</string>
+	<key>git.job.stage</key>
+	<string>Git: Stage Changes</string>
+	<key>git.job.sync</key>
+	<string>Git: Sync</string>
+	<key>git.panel.close</key>
+	<string>Close Git Panel</string>
+	<key>git.panel.collapse</key>
+	<string>Collapse</string>
+	<key>git.panel.expand</key>
+	<string>Expand</string>
+	<key>git.panel.placeholder</key>
+	<string>Git status and sync will appear here.</string>
+	<key>git.panel.refresh</key>
+	<string>Refresh Status</string>
+	<key>git.panel.title</key>
+	<string>Git</string>
+	<key>git.status.ahead %lld</key>
+	<string>%lld commits ahead of remote</string>
+	<key>git.status.behind %lld</key>
+	<string>%lld commits behind remote</string>
+	<key>git.status.changes %lld</key>
+	<string>%lld changes</string>
+	<key>git.status.clean</key>
+	<string>Working tree clean and synced</string>
+	<key>git.status.conflict</key>
+	<string>Merge conflicts detected</string>
+	<key>git.status.dirty %lld</key>
+	<string>%lld files to commit</string>
+	<key>git.status.more_changes %lld</key>
+	<string>%lld more…</string>
+	<key>git.status.pending_commit</key>
+	<string>Pending commit</string>
 	<key>help.cheat_sheet_menu</key>
 	<string>Cheat Sheet</string>
 	<key>help.column.description</key>
@@ -780,6 +866,8 @@
 	<string>Export All Snippets…</string>
 	<key>menu.go</key>
 	<string>Go</string>
+	<key>menu.hide_git</key>
+	<string>Hide Git Panel</string>
 	<key>menu.hide_output</key>
 	<string>Hide Output Panel</string>
 	<key>menu.hide_preview</key>
@@ -796,6 +884,8 @@
 	<string>Previous Preview</string>
 	<key>menu.reattach_preview</key>
 	<string>Move Preview Back to Sidebar</string>
+	<key>menu.show_git</key>
+	<string>Show Git Panel</string>
 	<key>menu.show_output</key>
 	<string>Show Output Panel</string>
 	<key>menu.show_preview</key>

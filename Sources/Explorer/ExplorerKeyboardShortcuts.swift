@@ -5,6 +5,7 @@ enum ExplorerKeyboardShortcuts {
     static let toggleRightPanel = KeyboardShortcut("b", modifiers: [.command, .shift])
 
     static let toggleSnippets = KeyboardShortcut("s", modifiers: [.command, .shift])
+    static let toggleGit = KeyboardShortcut("g", modifiers: [.command, .shift])
     static let toggleOutputPanel = KeyboardShortcut("j", modifiers: .command)
     static let detachPreview = KeyboardShortcut("p", modifiers: [.command, .option])
     static let togglePreviewBrowserStrip = KeyboardShortcut("b", modifiers: [.command, .option])

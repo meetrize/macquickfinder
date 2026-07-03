@@ -15,6 +15,7 @@ final class JobStore: ObservableObject {
     private var outputPublishScheduled = false
     private var stderrStreamStates: [UUID: StreamProgressOutput.StreamState] = [:]
     private var archiveCompletionHandlers: [UUID: (JobStatus, JobRecord?) -> Void] = [:]
+    private var gitCompletionHandlers: [UUID: (JobStatus, JobRecord?) -> Void] = [:]
 
     private struct PendingShellRun {
         var jobID: UUID
@@ -170,6 +171,7 @@ final class JobStore: ObservableObject {
         jobs[idx].status = exitCode == 0 ? .succeeded : .failed
         OutputSessionFormatting.attachCompletionStatus(to: &jobs[idx].stdout, exitCode: exitCode)
         dispatchArchiveCompletion(jobID: jobID, status: jobs[idx].status)
+        dispatchGitCompletion(jobID: jobID, status: jobs[idx].status)
         pumpQueue()
     }
 
@@ -184,6 +186,7 @@ final class JobStore: ObservableObject {
         jobs[idx].status = .failed
         jobs[idx].exitCode = 1
         dispatchArchiveCompletion(jobID: jobID, status: .failed)
+        dispatchGitCompletion(jobID: jobID, status: .failed)
         pumpQueue()
     }
 
@@ -202,6 +205,7 @@ final class JobStore: ObservableObject {
         jobs[idx].endedAt = Date()
         OutputSessionFormatting.attachCancelledStatus(to: &jobs[idx].stdout)
         dispatchArchiveCompletion(jobID: jobID, status: .cancelled)
+        dispatchGitCompletion(jobID: jobID, status: .cancelled)
         pumpQueue()
     }
 
@@ -425,6 +429,58 @@ final class JobStore: ObservableObject {
 
     private func dispatchArchiveCompletion(jobID: UUID, status: JobStatus) {
         guard let handler = archiveCompletionHandlers.removeValue(forKey: jobID) else { return }
+        let job = jobs.first { $0.id == jobID }
+        handler(status, job)
+    }
+
+    func runGitCommand(
+        jobTitle: String,
+        displayCommand: String,
+        arguments: [String],
+        workingDirectory: String,
+        showOutputPanel: Bool,
+        layout: ExplorerWindowLayoutState?,
+        completion: @escaping (JobStatus, JobRecord?) -> Void
+    ) -> UUID {
+        let jobID = createJob(
+            snippetName: jobTitle,
+            displayCommand: displayCommand,
+            source: .gitOperation(label: jobTitle),
+            expandedContent: displayCommand,
+            workingDirectory: workingDirectory
+        )
+        gitCompletionHandlers[jobID] = completion
+
+        if showOutputPanel {
+            OutputPanelPresenter.showIfAutoEnabled(on: layout)
+        }
+
+        appendOutput(
+            jobID: jobID,
+            stdout: OutputSessionFormatting.prompt(
+                cwd: workingDirectory,
+                command: displayCommand
+            )
+        )
+
+        let process = Process()
+        process.environment = ProcessInfo.processInfo.environment
+        process.executableURL = GitCLI.resolveExecutableURL()
+        process.arguments = arguments
+        process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory, isDirectory: true)
+
+        ProcessOutputStreamer.attach(to: process, jobID: jobID)
+        do {
+            try process.run()
+            markRunning(jobID: jobID, process: process)
+        } catch {
+            markFailed(jobID: jobID, message: error.localizedDescription)
+        }
+        return jobID
+    }
+
+    private func dispatchGitCompletion(jobID: UUID, status: JobStatus) {
+        guard let handler = gitCompletionHandlers.removeValue(forKey: jobID) else { return }
         let job = jobs.first { $0.id == jobID }
         handler(status, job)
     }

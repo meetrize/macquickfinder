@@ -25,6 +25,7 @@ struct OfficeRichTextPreview: NSViewRepresentable {
         scrollView.hasHorizontalScroller = !wrapLines
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
+        PreviewScrollerChrome.applyPanelSafeBounds(to: scrollView)
         scrollView.drawsBackground = false
 
         let textView = PreviewCodeTextView()

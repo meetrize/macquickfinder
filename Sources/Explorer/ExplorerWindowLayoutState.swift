@@ -14,6 +14,10 @@ final class ExplorerWindowLayoutState: ObservableObject {
         didSet { UserDefaultsStorage.set(showSnippets, forKey: AppPreferences.Layout.showSnippets, in: defaults) }
     }
 
+    @Published var showGit: Bool {
+        didSet { UserDefaultsStorage.set(showGit, forKey: AppPreferences.Layout.showGit, in: defaults) }
+    }
+
     @Published private(set) var leftPanelModeRaw: String {
         didSet { UserDefaultsStorage.set(leftPanelModeRaw, forKey: AppPreferences.Layout.leftPanelMode, in: defaults) }
     }
@@ -50,6 +54,10 @@ final class ExplorerWindowLayoutState: ObservableObject {
                 in: defaults
             )
         }
+    }
+
+    @Published var gitPanelHeight: Double {
+        didSet { UserDefaultsStorage.set(gitPanelHeight, forKey: AppPreferences.Layout.gitPanelHeight, in: defaults) }
     }
 
     @Published var isOutputPanelVisible: Bool {
@@ -90,6 +98,16 @@ final class ExplorerWindowLayoutState: ObservableObject {
         }
     }
 
+    @Published var isGitContentCollapsed: Bool {
+        didSet {
+            UserDefaultsStorage.set(
+                isGitContentCollapsed,
+                forKey: AppPreferences.Panels.gitContentCollapsed,
+                in: defaults
+            )
+        }
+    }
+
     @Published private(set) var fileListViewModeRaw: String {
         didSet { UserDefaultsStorage.set(fileListViewModeRaw, forKey: AppPreferences.FileList.viewMode, in: defaults) }
     }
@@ -106,16 +124,19 @@ final class ExplorerWindowLayoutState: ObservableObject {
         let stored = Self.loadSnapshot(from: defaults)
         showPreview = stored.showPreview
         showSnippets = stored.showSnippets
+        showGit = stored.showGit
         leftPanelModeRaw = stored.leftPanelModeRaw
         leftPanelLastVisibleModeRaw = stored.leftPanelLastVisibleModeRaw
         leftPanelSidebarWidth = stored.leftPanelSidebarWidth
         previewPanelWidth = stored.previewPanelWidth
         previewSnippetsSplitRatio = stored.previewSnippetsSplitRatio
+        gitPanelHeight = stored.gitPanelHeight
         isOutputPanelVisible = stored.isOutputPanelVisible
         outputPanelHeight = stored.outputPanelHeight
         isSnippetsContentCollapsed = stored.isSnippetsContentCollapsed
         isOutputPanelContentCollapsed = stored.isOutputPanelContentCollapsed
         isPreviewContentCollapsed = stored.isPreviewContentCollapsed
+        isGitContentCollapsed = stored.isGitContentCollapsed
         fileListViewModeRaw = stored.fileListViewModeRaw
         thumbnailCellSize = stored.thumbnailCellSize
     }
@@ -203,13 +224,26 @@ final class ExplorerWindowLayoutState: ObservableObject {
     }
 
     func toggleRightPanel() {
-        if showPreview || showSnippets {
+        if showPreview || showSnippets || showGit {
             showPreview = false
             showSnippets = false
+            showGit = false
         } else {
             showPreview = true
             showSnippets = true
         }
+    }
+
+    func toggleGitPanel() {
+        showGit.toggle()
+    }
+
+    var gitPanelHeightValue: CGFloat {
+        CGFloat(gitPanelHeight)
+    }
+
+    func setGitPanelHeight(_ height: CGFloat) {
+        gitPanelHeight = Double(height)
     }
 
     func toggleOutputPanel() {
@@ -246,16 +280,19 @@ final class ExplorerWindowLayoutState: ObservableObject {
     private struct Snapshot {
         var showPreview: Bool
         var showSnippets: Bool
+        var showGit: Bool
         var leftPanelModeRaw: String
         var leftPanelLastVisibleModeRaw: String
         var leftPanelSidebarWidth: Double
         var previewPanelWidth: Double
         var previewSnippetsSplitRatio: Double
+        var gitPanelHeight: Double
         var isOutputPanelVisible: Bool
         var outputPanelHeight: Double
         var isSnippetsContentCollapsed: Bool
         var isOutputPanelContentCollapsed: Bool
         var isPreviewContentCollapsed: Bool
+        var isGitContentCollapsed: Bool
         var fileListViewModeRaw: String
         var thumbnailCellSize: Double
     }
@@ -264,6 +301,7 @@ final class ExplorerWindowLayoutState: ObservableObject {
         Snapshot(
             showPreview: UserDefaultsStorage.bool(forKey: AppPreferences.Layout.showPreview, default: true, in: defaults),
             showSnippets: UserDefaultsStorage.bool(forKey: AppPreferences.Layout.showSnippets, default: true, in: defaults),
+            showGit: UserDefaultsStorage.bool(forKey: AppPreferences.Layout.showGit, default: false, in: defaults),
             leftPanelModeRaw: UserDefaultsStorage.string(
                 forKey: AppPreferences.Layout.leftPanelMode,
                 default: LeftPanelMode.sidebar.rawValue,
@@ -289,6 +327,11 @@ final class ExplorerWindowLayoutState: ObservableObject {
                 default: 0.55,
                 in: defaults
             ),
+            gitPanelHeight: UserDefaultsStorage.double(
+                forKey: AppPreferences.Layout.gitPanelHeight,
+                default: Double(GitPanelMetrics.defaultHeight),
+                in: defaults
+            ),
             isOutputPanelVisible: UserDefaultsStorage.bool(
                 forKey: AppPreferences.Panels.outputVisible,
                 default: false,
@@ -311,6 +354,11 @@ final class ExplorerWindowLayoutState: ObservableObject {
             ),
             isPreviewContentCollapsed: UserDefaultsStorage.bool(
                 forKey: AppPreferences.Panels.previewContentCollapsed,
+                default: false,
+                in: defaults
+            ),
+            isGitContentCollapsed: UserDefaultsStorage.bool(
+                forKey: AppPreferences.Panels.gitContentCollapsed,
                 default: false,
                 in: defaults
             ),
@@ -381,11 +429,13 @@ final class ActiveWindowLayoutCenter: ObservableObject {
 struct WindowLayoutCommands {
     var showPreview: Bool
     var showSnippets: Bool
+    var showGit: Bool
     var isOutputPanelVisible: Bool
     var toggleLeftPanel: () -> Void
     var toggleRightPanel: () -> Void
     var togglePreview: () -> Void
     var toggleSnippets: () -> Void
+    var toggleGit: () -> Void
     var toggleOutputPanel: () -> Void
 }
 

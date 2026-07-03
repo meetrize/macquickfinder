@@ -228,6 +228,92 @@
 	<string>下载</string>
 	<key>folder.home</key>
 	<string>个人</string>
+	<key>git.action.commit_and_sync</key>
+	<string>提交并同步</string>
+	<key>git.action.commit_only</key>
+	<string>仅提交</string>
+	<key>git.action.pull</key>
+	<string>拉取更新</string>
+	<key>git.action.push</key>
+	<string>推送到远程</string>
+	<key>git.action.resolve_conflict</key>
+	<string>需解决冲突</string>
+	<key>git.action.sync</key>
+	<string>同步</string>
+	<key>git.action.working</key>
+	<string>处理中…</string>
+	<key>git.chip.ahead %lld</key>
+	<string>↑%lld</string>
+	<key>git.chip.behind %lld</key>
+	<string>↓%lld</string>
+	<key>git.commit.ai_tooltip</key>
+	<string>AI 生成提交说明（即将推出）</string>
+	<key>git.commit.generated_directory %@ %lld</key>
+	<string>更新 %@ 下 %lld 个文件</string>
+	<key>git.commit.generated_files %lld</key>
+	<string>更新 %lld 个文件</string>
+	<key>git.commit.large_message</key>
+	<string>将暂存并提交大量文件，请确认后继续。</string>
+	<key>git.commit.large_title %lld</key>
+	<string>提交 %lld 个文件？</string>
+	<key>git.commit.placeholder</key>
+	<string>提交说明</string>
+	<key>git.commit.scope_all</key>
+	<string>将提交全部变更</string>
+	<key>git.empty.init_repo</key>
+	<string>初始化仓库</string>
+	<key>git.empty.not_repo</key>
+	<string>当前目录不在 Git 仓库中</string>
+	<key>git.error.cancelled</key>
+	<string>Git 操作已取消</string>
+	<key>git.error.conflict</key>
+	<string>请先解决合并冲突</string>
+	<key>git.error.empty_commit_message</key>
+	<string>请输入提交说明</string>
+	<key>git.error.no_upstream</key>
+	<string>未配置远程跟踪分支</string>
+	<key>git.error.pull_with_dirty</key>
+	<string>请先提交或暂存变更后再拉取</string>
+	<key>git.job.commit</key>
+	<string>Git：提交</string>
+	<key>git.job.init</key>
+	<string>Git：初始化仓库</string>
+	<key>git.job.pull</key>
+	<string>Git：拉取</string>
+	<key>git.job.push</key>
+	<string>Git：推送</string>
+	<key>git.job.stage</key>
+	<string>Git：暂存变更</string>
+	<key>git.job.sync</key>
+	<string>Git：同步</string>
+	<key>git.panel.close</key>
+	<string>关闭 Git 面板</string>
+	<key>git.panel.collapse</key>
+	<string>折叠</string>
+	<key>git.panel.expand</key>
+	<string>展开</string>
+	<key>git.panel.placeholder</key>
+	<string>Git 状态与同步将显示在此处。</string>
+	<key>git.panel.refresh</key>
+	<string>刷新状态</string>
+	<key>git.panel.title</key>
+	<string>Git</string>
+	<key>git.status.ahead %lld</key>
+	<string>本地领先远程 %lld 个提交</string>
+	<key>git.status.behind %lld</key>
+	<string>远程领先本地 %lld 个提交</string>
+	<key>git.status.changes %lld</key>
+	<string>%lld 个变更</string>
+	<key>git.status.clean</key>
+	<string>工作区干净，已与远程同步</string>
+	<key>git.status.conflict</key>
+	<string>存在合并冲突</string>
+	<key>git.status.dirty %lld</key>
+	<string>%lld 个文件待提交</string>
+	<key>git.status.more_changes %lld</key>
+	<string>还有 %lld 个…</string>
+	<key>git.status.pending_commit</key>
+	<string>待提交</string>
 	<key>help.cheat_sheet_menu</key>
 	<string>功能速查表</string>
 	<key>help.column.description</key>
@@ -780,6 +866,8 @@
 	<string>导出全部 Snippets…</string>
 	<key>menu.go</key>
 	<string>前往</string>
+	<key>menu.hide_git</key>
+	<string>关闭 Git 面板</string>
 	<key>menu.hide_output</key>
 	<string>关闭输出面板</string>
 	<key>menu.hide_preview</key>
@@ -796,6 +884,8 @@
 	<string>上一个预览</string>
 	<key>menu.reattach_preview</key>
 	<string>收回预览到侧栏</string>
+	<key>menu.show_git</key>
+	<string>显示 Git 面板</string>
 	<key>menu.show_output</key>
 	<string>显示输出面板</string>
 	<key>menu.show_preview</key>

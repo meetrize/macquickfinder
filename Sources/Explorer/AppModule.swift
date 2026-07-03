@@ -675,6 +675,13 @@ struct ExplorerApp: App {
                 )
             }
             .keyboardShortcut(ExplorerKeyboardShortcuts.toggleSnippets)
+            Button((keyLayout?.showGit ?? false) ? L10n.Menu.hideGit : L10n.Menu.showGit) {
+                performWindowLayoutAction(
+                    onKeyLayout: { $0.toggleGitPanel() },
+                    fallback: { windowLayoutCommands?.toggleGit() }
+                )
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.toggleGit)
             Button((keyLayout?.isOutputPanelVisible ?? false) ? L10n.Menu.hideOutputPanel : L10n.Menu.showOutputPanel) {
                 performWindowLayoutAction(
                     onKeyLayout: { $0.toggleOutputPanel() },

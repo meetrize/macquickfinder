@@ -18,13 +18,17 @@ final class RightPanelHeightCalculatorTests: XCTestCase {
             totalHeight: total,
             showPreview: showPreview,
             showSnippets: showSnippets,
+            showGit: false,
             isPreviewContentCollapsed: previewCollapsed,
             isSnippetsContentCollapsed: snippetsCollapsed,
+            isGitContentCollapsed: false,
             previewSnippetsSplitRatio: ratio,
+            gitPanelHeight: GitPanelMetrics.defaultHeight,
             dragPreviewHeight: dragHeight,
             dividerHeight: divider,
             previewMinHeight: 80,
             snippetsMinHeight: 80,
+            gitMinHeight: GitPanelMetrics.minHeight,
             collapsedTitleBarHeight: titleBar
         )
     }

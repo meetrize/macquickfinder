@@ -16,6 +16,8 @@ enum JobSource: Equatable {
     case archiveOperation
     /// 预览面板顶栏运行脚本文件。
     case previewScript(path: String)
+    /// Git 面板触发的版本管理操作。
+    case gitOperation(label: String)
 }
 
 struct JobRecord: Identifiable {

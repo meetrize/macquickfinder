@@ -16,8 +16,10 @@ enum AppPreferences {
     enum Layout {
         static let showPreview = "showPreview"
         static let showSnippets = "showSnippets"
+        static let showGit = "showGit"
         static let previewSnippetsSplitRatio = "previewSnippetsSplitRatio"
         static let previewPanelWidth = "previewPanelWidth"
+        static let gitPanelHeight = "gitPanelHeight"
         static let leftPanelMode = "leftPanelMode"
         static let leftPanelLastVisibleMode = "leftPanelLastVisibleMode"
         static let leftPanelSidebarWidth = "leftPanelSidebarWidth"
@@ -31,6 +33,7 @@ enum AppPreferences {
         static let snippetsContentCollapsed = "snippets.contentCollapsed"
         static let outputContentCollapsed = "snippets.outputPanelContentCollapsed"
         static let previewContentCollapsed = "snippets.previewContentCollapsed"
+        static let gitContentCollapsed = "git.contentCollapsed"
     }
 
     /// Snippets 执行与展示偏好。

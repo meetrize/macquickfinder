@@ -85,6 +85,8 @@ enum L10n {
         static var showPreview: String { ModuleLocalization.localized("menu.show_preview", bundle: .module) }
         static var hideSnippets: String { ModuleLocalization.localized("menu.hide_snippets", bundle: .module) }
         static var showSnippets: String { ModuleLocalization.localized("menu.show_snippets", bundle: .module) }
+        static var hideGit: String { ModuleLocalization.localized("menu.hide_git", bundle: .module) }
+        static var showGit: String { ModuleLocalization.localized("menu.show_git", bundle: .module) }
         static var hideOutputPanel: String { ModuleLocalization.localized("menu.hide_output", bundle: .module) }
         static var showOutputPanel: String { ModuleLocalization.localized("menu.show_output", bundle: .module) }
         static var importSnippets: String { ModuleLocalization.localized("menu.import_snippets", bundle: .module) }
@@ -96,6 +98,139 @@ enum L10n {
         static var collapseStrip: String { ModuleLocalization.localized("menu.collapse_strip", bundle: .module) }
         static var expandStrip: String { ModuleLocalization.localized("menu.expand_strip", bundle: .module) }
         static var go: String { ModuleLocalization.localized("menu.go", bundle: .module) }
+    }
+
+    enum Git {
+        enum Panel {
+            static var title: String { ModuleLocalization.localized("git.panel.title", bundle: .module) }
+            static var close: String { ModuleLocalization.localized("git.panel.close", bundle: .module) }
+            static var collapse: String { ModuleLocalization.localized("git.panel.collapse", bundle: .module) }
+            static var expand: String { ModuleLocalization.localized("git.panel.expand", bundle: .module) }
+            static var placeholder: String { ModuleLocalization.localized("git.panel.placeholder", bundle: .module) }
+            static var refresh: String { ModuleLocalization.localized("git.panel.refresh", bundle: .module) }
+        }
+
+        enum Status {
+            static var clean: String { ModuleLocalization.localized("git.status.clean", bundle: .module) }
+            static var conflict: String { ModuleLocalization.localized("git.status.conflict", bundle: .module) }
+            static var pendingCommit: String { ModuleLocalization.localized("git.status.pending_commit", bundle: .module) }
+
+            static func dirty(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.status.dirty %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+
+            static func ahead(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.status.ahead %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+
+            static func behind(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.status.behind %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+
+            static func changes(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.status.changes %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+
+            static func moreChanges(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.status.more_changes %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+        }
+
+        enum Chip {
+            static func ahead(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.chip.ahead %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+
+            static func behind(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.chip.behind %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+        }
+
+        enum Empty {
+            static var notRepo: String { ModuleLocalization.localized("git.empty.not_repo", bundle: .module) }
+            static var initRepository: String { ModuleLocalization.localized("git.empty.init_repo", bundle: .module) }
+        }
+
+        enum Action {
+            static var sync: String { ModuleLocalization.localized("git.action.sync", bundle: .module) }
+            static var commitAndSync: String { ModuleLocalization.localized("git.action.commit_and_sync", bundle: .module) }
+            static var push: String { ModuleLocalization.localized("git.action.push", bundle: .module) }
+            static var pull: String { ModuleLocalization.localized("git.action.pull", bundle: .module) }
+            static var commitOnly: String { ModuleLocalization.localized("git.action.commit_only", bundle: .module) }
+            static var resolveConflict: String { ModuleLocalization.localized("git.action.resolve_conflict", bundle: .module) }
+            static var working: String { ModuleLocalization.localized("git.action.working", bundle: .module) }
+        }
+
+        enum Commit {
+            static var placeholder: String { ModuleLocalization.localized("git.commit.placeholder", bundle: .module) }
+            static var scopeAll: String { ModuleLocalization.localized("git.commit.scope_all", bundle: .module) }
+
+            static func generatedFiles(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.commit.generated_files %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+
+            static func generatedDirectory(_ directory: String, _ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.commit.generated_directory %@ %lld", bundle: .module),
+                    directory,
+                    Int64(count)
+                )
+            }
+
+            static func largeCommitTitle(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("git.commit.large_title %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+
+            static var largeCommitMessage: String {
+                ModuleLocalization.localized("git.commit.large_message", bundle: .module)
+            }
+
+            static var aiTooltip: String { ModuleLocalization.localized("git.commit.ai_tooltip", bundle: .module) }
+        }
+
+        enum Job {
+            static var initRepository: String { ModuleLocalization.localized("git.job.init", bundle: .module) }
+            static var pull: String { ModuleLocalization.localized("git.job.pull", bundle: .module) }
+            static var commit: String { ModuleLocalization.localized("git.job.commit", bundle: .module) }
+            static var push: String { ModuleLocalization.localized("git.job.push", bundle: .module) }
+            static var sync: String { ModuleLocalization.localized("git.job.sync", bundle: .module) }
+            static var stage: String { ModuleLocalization.localized("git.job.stage", bundle: .module) }
+        }
+
+        enum Error {
+            static var pullWithDirty: String { ModuleLocalization.localized("git.error.pull_with_dirty", bundle: .module) }
+            static var noUpstream: String { ModuleLocalization.localized("git.error.no_upstream", bundle: .module) }
+            static var conflict: String { ModuleLocalization.localized("git.error.conflict", bundle: .module) }
+            static var emptyCommitMessage: String { ModuleLocalization.localized("git.error.empty_commit_message", bundle: .module) }
+            static var cancelled: String { ModuleLocalization.localized("git.error.cancelled", bundle: .module) }
+        }
     }
 
     enum RemoteServer {

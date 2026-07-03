@@ -32,6 +32,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
+        PreviewScrollerChrome.applyPanelSafeBounds(to: scrollView)
         scrollView.drawsBackground = false
 
         let textView = PreviewCodeTextView()
