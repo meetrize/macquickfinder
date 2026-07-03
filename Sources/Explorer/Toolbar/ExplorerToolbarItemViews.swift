@@ -175,6 +175,8 @@ struct ExplorerToolbarItemView: View {
             return environment.layout.showPreview ? L10n.Menu.hidePreview : L10n.Menu.showPreview
         case .snippets:
             return environment.layout.showSnippets ? L10n.Menu.hideSnippets : L10n.Menu.showSnippets
+        case .git:
+            return environment.layout.showGit ? L10n.Menu.hideGit : L10n.Menu.showGit
         case .recordOperations:
             return environment.isOperationRecording
                 ? L10n.Toolbar.recordOperationsActive
@@ -253,6 +255,8 @@ extension ToolbarBuiltinID {
             return .fileImage(isActive: environment.layout.showPreview)
         case .snippets:
             return .braces(isActive: environment.layout.showSnippets)
+        case .git:
+            return .gitBranch(isActive: environment.layout.showGit)
         case .recordOperations:
             return .record(isRecording: environment.isOperationRecording)
         case .outputPanel:

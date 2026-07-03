@@ -30,6 +30,7 @@ enum ToolbarBuiltinID: String, Codable, CaseIterable, Identifiable {
     case toggleTabBar
     case preview
     case snippets
+    case git
     case recordOperations
     case outputPanel
     case newFolder
@@ -139,6 +140,7 @@ struct ToolbarLayoutConfig: Codable, Equatable {
             (.toggleTabBar, .main),
             (.preview, .main),
             (.snippets, .main),
+            (.git, .main),
             (.recordOperations, .main),
             (.outputPanel, .main),
             (.newFolder, .main),

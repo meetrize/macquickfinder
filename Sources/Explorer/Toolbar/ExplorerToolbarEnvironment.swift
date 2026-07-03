@@ -52,6 +52,8 @@ enum ToolbarBuiltinDispatcher {
             environment.layout.showPreview.toggle()
         case .snippets:
             environment.layout.showSnippets.toggle()
+        case .git:
+            environment.layout.toggleGitPanel()
         case .recordOperations:
             environment.toggleOperationRecording()
         case .outputPanel:
