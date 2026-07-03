@@ -220,6 +220,8 @@
 	<string>Unsupported file version</string>
 	<key>error.symlink_loop</key>
 	<string>Symbolic link loop detected</string>
+	<key>file.default_new_name</key>
+	<string>untitled.txt</string>
 	<key>folder.desktop</key>
 	<string>Desktop</string>
 	<key>folder.documents</key>
@@ -1936,6 +1938,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Hide Tab Bar</string>
 	<key>toolbar.list_view</key>
 	<string>List View</string>
+	<key>toolbar.new_file</key>
+	<string>New File</string>
 	<key>toolbar.new_folder</key>
 	<string>New Folder</string>
 	<key>toolbar.new_tab</key>

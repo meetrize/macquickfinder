@@ -15,6 +15,7 @@ public final class FileListTableController: FileListContentController {
     var hoverHighlightRow: Int?
     var _rowHoverHighlightEnabled = false
     var pendingRenameRow = -1
+    var pendingRenameItemID: String?
     var skipRenameArmOnCurrentMouseUp = false
 
     var columnResizeObserver: NSObjectProtocol?
@@ -167,6 +168,7 @@ public final class FileListTableController: FileListContentController {
             if useIconPreview {
                 scheduleVisibleIconPreviewLoad()
             }
+            consumePendingRenameIfNeeded()
             return
         }
 
@@ -207,6 +209,19 @@ public final class FileListTableController: FileListContentController {
         scheduleVisibleDirectoryPathsNotify(debounce: 0.15)
         if useIconPreview {
             scheduleVisibleIconPreviewLoad()
+        }
+        consumePendingRenameIfNeeded()
+    }
+
+    public func scheduleRenameAfterListingUpdate(itemID: String) {
+        pendingRenameItemID = itemID
+    }
+
+    private func consumePendingRenameIfNeeded() {
+        guard let itemID = pendingRenameItemID else { return }
+        pendingRenameItemID = nil
+        DispatchQueue.main.async { [weak self] in
+            self?.beginRename(itemID: itemID)
         }
     }
 

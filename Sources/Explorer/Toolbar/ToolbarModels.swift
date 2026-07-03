@@ -33,6 +33,7 @@ enum ToolbarBuiltinID: String, Codable, CaseIterable, Identifiable {
     case recordOperations
     case outputPanel
     case newFolder
+    case newFile
     case delete
     case toggleHiddenFiles
     case listView
@@ -141,6 +142,7 @@ struct ToolbarLayoutConfig: Codable, Equatable {
             (.recordOperations, .main),
             (.outputPanel, .main),
             (.newFolder, .main),
+            (.newFile, .main),
             (.delete, .main),
             (.toggleHiddenFiles, .main),
             (.listView, .main),
@@ -243,12 +245,32 @@ struct ToolbarLayoutConfig: Codable, Equatable {
     /// 从磁盘加载后，将新版本新增的内置项补进布局（不恢复用户已隐藏项）。
     mutating func mergeNewBuiltinItemsFromDefault() {
         var seen = visibleIDSet
-        var merged = visibleItems
         for entry in Self.default.visibleItems where !seen.contains(entry.id) {
-            merged.append(entry)
+            insertMergedDefaultEntry(entry)
             seen.insert(entry.id)
         }
-        visibleItems = merged
+    }
+
+    private mutating func insertMergedDefaultEntry(_ entry: ToolbarVisibleEntry) {
+        guard let defaultIndex = Self.default.visibleItems.firstIndex(where: { $0.id == entry.id }) else {
+            visibleItems.append(entry)
+            return
+        }
+
+        let defaultOrder = Self.default.visibleItems
+        for preceding in defaultOrder[..<defaultIndex].reversed() {
+            guard let anchorIndex = visibleItems.lastIndex(where: {
+                $0.id == preceding.id && $0.zone == entry.zone
+            }) else { continue }
+            visibleItems.insert(entry, at: anchorIndex + 1)
+            return
+        }
+
+        if let zoneFirstIndex = visibleItems.firstIndex(where: { $0.zone == entry.zone }) {
+            visibleItems.insert(entry, at: zoneFirstIndex)
+        } else {
+            visibleItems.append(entry)
+        }
     }
 
     private mutating func replaceZone(_ zone: ToolbarZone, with entries: [ToolbarVisibleEntry]) {

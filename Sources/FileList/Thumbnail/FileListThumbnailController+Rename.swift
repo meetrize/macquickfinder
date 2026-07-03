@@ -54,6 +54,24 @@ extension FileListThumbnailController: FileListRenameUIAdapter {
         FileListRenamePresenter.beginRename(row: displayRows[indexPath.item], adapter: self)
     }
 
+    public func beginRename(itemID: String) {
+        guard let row = renameRow(matching: itemID) else { return }
+        FileListRenamePresenter.beginRename(row: row, adapter: self)
+    }
+
+    func commitActiveRenameIfPossible() {
+        guard isRenaming, let rowID = renamingRowID else { return }
+        guard let indexPath = indexPath(for: rowID),
+              let item = thumbnailItem(at: indexPath),
+              let cell = item.view as? FileListThumbnailCellView,
+              let newName = cell.activeRenameFieldValue()
+        else {
+            cancelRename()
+            return
+        }
+        commitRename(newName: newName)
+    }
+
     func cancelRename() {
         FileListRenamePresenter.cancelRename(adapter: self)
     }

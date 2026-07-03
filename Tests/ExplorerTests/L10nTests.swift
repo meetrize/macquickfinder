@@ -23,6 +23,8 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Toolbar.openAppSelectionCurrentFolder, "toolbar.open_app.selection_current_folder")
         XCTAssertNotEqual(L10n.Toolbar.openAppEdit, "toolbar.open_app.edit")
         XCTAssertNotEqual(L10n.Toolbar.newWindow, "toolbar.new_window")
+        XCTAssertNotEqual(L10n.Toolbar.newFile, "toolbar.new_file")
+        XCTAssertNotEqual(L10n.File.defaultNewFileName, "file.default_new_name")
         XCTAssertNotEqual(L10n.Toolbar.recordOperations, "toolbar.record_operations")
         XCTAssertNotEqual(L10n.Toolbar.recordOperationsActive, "toolbar.record_operations_active")
         XCTAssertNotEqual(L10n.OperationRecording.noSteps, "operation_recording.no_steps")

@@ -141,7 +141,7 @@ struct FileListView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .background(FileListAutoFocusRequester(token: focusToken))
+        .background(FileListAutoFocusRequester(token: focusToken, isRenaming: isFileListRenaming))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay {
             if isCurrentDirectoryDropTargeted {
@@ -745,6 +745,7 @@ private final class QuickSearchNSTextField: NSTextField {
 
 private struct FileListAutoFocusRequester: NSViewRepresentable {
     let token: UInt
+    let isRenaming: Bool
     
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -755,11 +756,17 @@ private struct FileListAutoFocusRequester: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.syncRenamingState(isRenaming)
         context.coordinator.requestFocusIfNeeded(token: token, view: nsView)
     }
     
     final class Coordinator {
         private var lastToken: UInt = 0
+        private var isRenaming = false
+
+        func syncRenamingState(_ isRenaming: Bool) {
+            self.isRenaming = isRenaming
+        }
         
         func requestFocusIfNeeded(token: UInt, view: NSView) {
             guard token != lastToken else { return }
@@ -776,6 +783,7 @@ private struct FileListAutoFocusRequester: NSViewRepresentable {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak view] in
                 guard let self, let view else { return }
                 guard token == self.lastToken else { return }
+                guard !self.isRenaming else { return }
                 guard !OutputPanelTextEditingCenter.shared.isActive else { return }
                 guard let window = view.window,
                       let contentView = window.contentView,
@@ -785,8 +793,18 @@ private struct FileListAutoFocusRequester: NSViewRepresentable {
                 if window.firstResponder === tableView {
                     return
                 }
+                if Self.isTextEditingResponder(window.firstResponder) {
+                    return
+                }
                 window.makeFirstResponder(tableView)
             }
+        }
+
+        private static func isTextEditingResponder(_ responder: NSResponder?) -> Bool {
+            guard let responder else { return false }
+            if responder is NSTextView { return true }
+            if let field = responder as? NSTextField, field.isEditable { return true }
+            return false
         }
         
         private static func findFileListTableView(in root: NSView) -> NSTableView? {

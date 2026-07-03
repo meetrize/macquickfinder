@@ -529,6 +529,7 @@ enum L10n {
         static var tabBarCannotHideMultiple: String { ModuleLocalization.localized("toolbar.tab_bar.cannot_hide_multiple", bundle: .module) }
         static var tabBarUnavailable: String { ModuleLocalization.localized("toolbar.tab_bar.unavailable", bundle: .module) }
         static var newFolder: String { ModuleLocalization.localized("toolbar.new_folder", bundle: .module) }
+        static var newFile: String { ModuleLocalization.localized("toolbar.new_file", bundle: .module) }
         static var recordOperations: String { ModuleLocalization.localized("toolbar.record_operations", bundle: .module) }
         static var recordOperationsActive: String { ModuleLocalization.localized("toolbar.record_operations_active", bundle: .module) }
         static var delete: String { ModuleLocalization.localized("toolbar.delete", bundle: .module) }
@@ -799,6 +800,10 @@ enum L10n {
         static var fileNamePlaceholder: String { ModuleLocalization.localized("dialog.file_name_placeholder", bundle: .module) }
         static var cannotCreateFile: String { ModuleLocalization.localized("dialog.cannot_create_file", bundle: .module) }
         static var cannotCreateFileMessage: String { ModuleLocalization.localized("dialog.cannot_create_file_message", bundle: .module) }
+    }
+
+    enum File {
+        static var defaultNewFileName: String { ModuleLocalization.localized("file.default_new_name", bundle: .module) }
     }
 
     enum Sort {

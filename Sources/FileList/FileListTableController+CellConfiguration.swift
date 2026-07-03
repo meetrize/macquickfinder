@@ -75,7 +75,7 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
            let row = displayRows.firstIndex(where: { $0.id == rowID }),
            let tableView,
            !tableView.selectedRowIndexes.contains(row) {
-            cancelRename()
+            commitActiveRenameIfPossible()
         }
         recordRenameSelectionTimestamps()
         syncSelectionFromTable()

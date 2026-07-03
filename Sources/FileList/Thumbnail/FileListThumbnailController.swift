@@ -26,6 +26,7 @@ public final class FileListThumbnailController: FileListContentController {
     // Interaction state
     var mouseDownIndexPath: IndexPath?
     var pendingRenameIndexPath: IndexPath?
+    var pendingRenameItemID: String?
     var dropHighlightIndexPath: IndexPath?
     var pendingDropTargetIndexPath: IndexPath?
     var activeDragURLs: [URL]?
@@ -304,6 +305,19 @@ public final class FileListThumbnailController: FileListContentController {
         
         scheduleVisibleThumbnailLoad()
         scheduleVisibleDirectoryPathsNotify(debounce: 0.08)
+        consumePendingRenameIfNeeded()
+    }
+
+    public func scheduleRenameAfterListingUpdate(itemID: String) {
+        pendingRenameItemID = itemID
+    }
+
+    private func consumePendingRenameIfNeeded() {
+        guard let itemID = pendingRenameItemID else { return }
+        pendingRenameItemID = nil
+        DispatchQueue.main.async { [weak self] in
+            self?.beginRename(itemID: itemID)
+        }
     }
     
     // MARK: - Thumbnails

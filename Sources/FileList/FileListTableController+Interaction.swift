@@ -4,13 +4,36 @@ import Foundation
 // MARK: - Interaction state
 
 extension FileListTableController {
-    func cancelRenameIfNeededForClick(pointInTable: NSPoint, in tableView: NSTableView) {
+    func commitRenameIfNeededForClick(pointInTable: NSPoint, in tableView: NSTableView) {
         guard isRenaming else { return }
         guard let frame = activeRenameFieldFrame(in: tableView), frame.contains(pointInTable) else {
             skipRenameArmOnCurrentMouseUp = true
+            commitActiveRenameIfPossible()
+            return
+        }
+    }
+
+    func commitActiveRenameIfPossible() {
+        guard isRenaming else { return }
+        guard let field = activeRenameField() else {
             cancelRename()
             return
         }
+        commitRename(newName: field.stringValue)
+    }
+
+    private func activeRenameField() -> FileListInlineRenameField? {
+        guard let rowID = renamingRowID,
+              let tableView,
+              let row = displayRows.firstIndex(where: { $0.id == rowID }),
+              let nameColumnIndex = tableView.tableColumns.firstIndex(where: {
+                  FileListColumnID.from(column: $0) == .name
+              }),
+              let cell = tableView.view(atColumn: nameColumnIndex, row: row, makeIfNecessary: false) as? NSTableCellView,
+              let field = renameField(in: cell),
+              !field.isHidden
+        else { return nil }
+        return field
     }
 
     private func activeRenameFieldFrame(in tableView: NSTableView) -> NSRect? {

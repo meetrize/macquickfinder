@@ -7,6 +7,9 @@ extension FileListThumbnailController {
     }
     
     func willHandleItemMouseDown(_ event: NSEvent, indexPath: IndexPath) {
+        if isRenaming {
+            commitActiveRenameIfPossible()
+        }
         wasAlreadySelectedAtMouseDown = collectionView?.selectionIndexPaths.contains(indexPath) == true
             || {
                 guard indexPath.item >= 0, indexPath.item < displayRows.count else { return false }
@@ -78,6 +81,9 @@ extension FileListThumbnailController {
     }
     
     func handleBlankMouseDown(_ event: NSEvent) {
+        if isRenaming {
+            commitActiveRenameIfPossible()
+        }
         mouseDownIndexPath = nil
         mouseDownLocation = nil
         mouseDownEvent = nil

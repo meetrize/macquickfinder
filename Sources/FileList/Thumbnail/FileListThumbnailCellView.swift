@@ -342,6 +342,11 @@ final class FileListThumbnailCellView: NSView {
         renameField.onCommit = nil
         renameField.onCancel = nil
     }
+
+    func activeRenameFieldValue() -> String? {
+        guard !renameField.isHidden else { return nil }
+        return renameField.stringValue
+    }
     
     func applyLoadedImage(_ image: NSImage, isThumbnail: Bool, animated: Bool) {
         applyImage(image, presentation: isThumbnail ? .thumbnail : .icon, animated: animated)

@@ -185,6 +185,8 @@ struct ExplorerToolbarItemView: View {
                 : L10n.Menu.showOutputPanel
         case .newFolder:
             return L10n.Toolbar.newFolder
+        case .newFile:
+            return L10n.Toolbar.newFile
         case .delete:
             return L10n.Toolbar.delete
         case .listView:
@@ -257,6 +259,8 @@ extension ToolbarBuiltinID {
             return .terminal(isActive: environment.layout.isOutputPanelVisible)
         case .newFolder:
             return .folderPlus
+        case .newFile:
+            return .filePlus
         case .delete:
             return .trash2
         case .toggleHiddenFiles:

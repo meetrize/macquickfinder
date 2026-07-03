@@ -85,7 +85,7 @@ final class FileListTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil)
         let row = row(at: point)
         interactionController?.skipRenameArmOnCurrentMouseUp = false
-        interactionController?.cancelRenameIfNeededForClick(pointInTable: point, in: self)
+        interactionController?.commitRenameIfNeededForClick(pointInTable: point, in: self)
         
         if interactionController?.isBlankInteractivePoint(point, in: self) == true {
             interactionController?.handleBlankMouseDown(event)

@@ -68,6 +68,20 @@ extension ContentView {
         fileListFocusToken &+= 1
     }
 
+    func applyPendingInlineRenameIfNeeded(loadedItems: [FileItem], for directoryPath: String) {
+        guard directoryPath == path else { return }
+        guard let renamePath = pendingInlineRenamePath else { return }
+        guard loadedItems.contains(where: { $0.id == renamePath }) else { return }
+        pendingInlineRenamePath = nil
+        selection = [renamePath]
+        switch fileListViewMode {
+        case .list:
+            FileListTableController.shared?.scheduleRenameAfterListingUpdate(itemID: renamePath)
+        case .thumbnail:
+            FileListThumbnailController.shared?.scheduleRenameAfterListingUpdate(itemID: renamePath)
+        }
+    }
+
     private func applyPendingExternalNavigationForNewTab(_ navigation: ExplorerWindowTabCenter.PendingMainTabNavigation) {
         pendingExternalSelectionPath = navigation.selectionPath.map {
             ExternalSelectionPathMatcher.standardizedPath($0)
@@ -147,6 +161,7 @@ struct ContentView: View {
     @ObservedObject private var detachCoordinator = PreviewDetachCoordinator.shared
     @State private var explorerTabBarState = ExplorerTabBarState.unavailable
     @State private var pendingExternalSelectionPath: String?
+    @State private var pendingInlineRenamePath: String?
     @State private var showConnectServerSheet = false
     @State private var transientNoticeMessage: String?
     @StateObject private var operationRecorder = OperationRecorder()
@@ -801,6 +816,7 @@ struct ContentView: View {
             showAllTabs: showAllExplorerTabs,
             toggleTabBar: toggleExplorerTabBar,
             createNewFolder: createNewFolder,
+            createNewFile: createNewFile,
             deleteSelectedItems: deleteSelectedItems,
             toggleHiddenFiles: {
                 showHiddenFiles.toggle()
@@ -1005,6 +1021,10 @@ struct ContentView: View {
                         loadedItems: loadedItems,
                         for: currentPath
                     )
+                    applyPendingInlineRenameIfNeeded(
+                        loadedItems: loadedItems,
+                        for: currentPath
+                    )
                 }
 
                 await MainActor.run {
@@ -1073,6 +1093,10 @@ struct ContentView: View {
                 didApplyItems = true
                 fileListFocusToken &+= 1
                 applyPendingExternalSelectionIfNeeded(
+                    loadedItems: loadedItems,
+                    for: currentPath
+                )
+                applyPendingInlineRenameIfNeeded(
                     loadedItems: loadedItems,
                     for: currentPath
                 )
@@ -1678,36 +1702,24 @@ struct ContentView: View {
     }
     
     private func createNewFile() {
-        let alert = NSAlert()
-        alert.messageText = L10n.Dialog.newFileTitle
-        alert.informativeText = L10n.Dialog.newFileMessage
-        
-        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        textField.placeholderString = L10n.Dialog.fileNamePlaceholder
-        alert.accessoryView = textField
-        
-        alert.addButton(withTitle: L10n.Dialog.create)
-        alert.addButton(withTitle: L10n.Action.cancel)
-        
-        alert.window.initialFirstResponder = textField
-        
-        if alert.runModal() == .alertFirstButtonReturn {
-            let fileName = textField.stringValue
-            
-            if !fileName.isEmpty {
-                let fileURL = URL(fileURLWithPath: path).appendingPathComponent(fileName)
-                
-                guard FileManager.default.createFile(atPath: fileURL.path, contents: Data()) else {
-                    let errorAlert = NSAlert()
-                    errorAlert.messageText = L10n.Dialog.cannotCreateFile
-                    errorAlert.informativeText = L10n.Dialog.cannotCreateFileMessage
-                    errorAlert.runModal()
-                    return
-                }
-                OperationRecordingHub.record(.createFile(url: fileURL))
-                loadItems()
-            }
+        guard !TrashLoader.isTrashPath(path) else { return }
+
+        let directoryURL = URL(fileURLWithPath: path)
+        let fileURL = ArchiveOperations.uniqueNamedPath(
+            name: L10n.File.defaultNewFileName,
+            in: directoryURL
+        )
+
+        guard FileManager.default.createFile(atPath: fileURL.path, contents: Data()) else {
+            let errorAlert = NSAlert()
+            errorAlert.messageText = L10n.Dialog.cannotCreateFile
+            errorAlert.informativeText = L10n.Dialog.cannotCreateFileMessage
+            errorAlert.runModal()
+            return
         }
+        OperationRecordingHub.record(.createFile(url: fileURL))
+        pendingInlineRenamePath = fileURL.path
+        loadItems()
     }
 }
 private struct LeadingResizeDivider: NSViewRepresentable {

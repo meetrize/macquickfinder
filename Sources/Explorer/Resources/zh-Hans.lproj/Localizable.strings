@@ -220,6 +220,8 @@
 	<string>不支持的文件版本</string>
 	<key>error.symlink_loop</key>
 	<string>检测到循环链接</string>
+	<key>file.default_new_name</key>
+	<string>未命名.txt</string>
 	<key>folder.desktop</key>
 	<string>桌面</string>
 	<key>folder.documents</key>
@@ -1936,6 +1938,8 @@
 	<string>隐藏标签栏</string>
 	<key>toolbar.list_view</key>
 	<string>列表视图</string>
+	<key>toolbar.new_file</key>
+	<string>新建文件</string>
 	<key>toolbar.new_folder</key>
 	<string>新建文件夹</string>
 	<key>toolbar.new_tab</key>

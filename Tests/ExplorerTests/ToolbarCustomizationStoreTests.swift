@@ -128,6 +128,19 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
         XCTAssertTrue(layout.visibleIDSet.contains(ToolbarBuiltinID.preview.rawValue))
     }
 
+    func testMergeNewBuiltinItemsFromDefaultInsertsAfterAnchor() {
+        var layout = ToolbarLayoutConfig.default
+        layout.removeVisible(itemID: ToolbarBuiltinID.newFile.rawValue)
+
+        layout.mergeNewBuiltinItemsFromDefault()
+
+        let mainIDs = layout.items(in: .main).map(\.id)
+        XCTAssertEqual(
+            mainIDs[mainIDs.firstIndex(of: ToolbarBuiltinID.newFolder.rawValue)! + 1],
+            ToolbarBuiltinID.newFile.rawValue
+        )
+    }
+
     func testDeleteCustomOpenAppRemovesActionAndVisibleEntry() {
         let store = ToolbarCustomizationStore.shared
         store.loadIfNeeded()

@@ -21,6 +21,7 @@ struct ExplorerToolbarEnvironment {
     var showAllTabs: () -> Void
     var toggleTabBar: () -> Void
     var createNewFolder: () -> Void
+    var createNewFile: () -> Void
     var deleteSelectedItems: () -> Void
     var toggleHiddenFiles: () -> Void
     var setSortOrder: (SortOrder) -> Void
@@ -57,6 +58,8 @@ enum ToolbarBuiltinDispatcher {
             environment.layout.toggleOutputPanel()
         case .newFolder:
             environment.createNewFolder()
+        case .newFile:
+            environment.createNewFile()
         case .delete:
             environment.deleteSelectedItems()
         case .toggleHiddenFiles:
