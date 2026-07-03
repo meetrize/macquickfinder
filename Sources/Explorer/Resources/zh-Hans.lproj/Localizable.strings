@@ -1008,6 +1008,8 @@
 	<string>收回侧栏</string>
 	<key>preview.chrome.expand</key>
 	<string>展开预览</string>
+	<key>preview.chrome.reveal_in_file_list</key>
+	<string>在文件列表中定位</string>
 	<key>preview.close</key>
 	<string>关闭预览</string>
 	<key>preview.collapse</key>

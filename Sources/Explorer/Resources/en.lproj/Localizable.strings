@@ -1008,6 +1008,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Dock to Sidebar</string>
 	<key>preview.chrome.expand</key>
 	<string>Expand Preview</string>
+	<key>preview.chrome.reveal_in_file_list</key>
+	<string>Reveal in File List</string>
 	<key>preview.close</key>
 	<string>Close Preview</string>
 	<key>preview.collapse</key>

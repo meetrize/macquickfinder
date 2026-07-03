@@ -9,6 +9,7 @@ enum PreviewChromePlacement {
 struct PreviewChromeActions {
     var onToggleCollapse: (() -> Void)?
     var onBackFromFolderChild: () -> Void = {}
+    var onRevealInFileList: (() -> Void)?
     var onDetach: (() -> Void)?
     var onDock: (() -> Void)?
     var onClose: () -> Void
@@ -97,6 +98,17 @@ struct PreviewChromeView: View {
                     action: onDetach
                 )
                 .instantHoverTooltip(L10n.Preview.Chrome.detach)
+                .fixedSize()
+                .layoutPriority(2)
+            }
+
+            if placement == .detachedWindow, let onRevealInFileList = actions.onRevealInFileList {
+                PreviewFocuslessIconButton(
+                    systemImageName: "list.bullet.rectangle",
+                    accessibilityLabel: L10n.Preview.Chrome.revealInFileList,
+                    action: onRevealInFileList
+                )
+                .instantHoverTooltip(L10n.Preview.Chrome.revealInFileList)
                 .fixedSize()
                 .layoutPriority(2)
             }

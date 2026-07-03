@@ -377,6 +377,7 @@ struct ContentView: View {
         )
         .onChange(of: hostWindow) { window in
             guard let window else {
+                PreviewHostWindowRegistry.shared.unregister(hostWindowID: previewHostWindowID)
                 operationRecordingCloseGuard.detach()
                 return
             }
@@ -387,6 +388,7 @@ struct ContentView: View {
             }
             ExplorerWindowTabCenter.shared.registerWindow(window, path: path, sceneKind: windowSceneKind)
             ExplorerWindowTabCenter.shared.handleExplorerWindowDidAppear(window)
+            PreviewHostWindowRegistry.shared.register(hostWindowID: previewHostWindowID, window: window)
             syncExplorerTabBarState()
             applyExternalOpenRequestIfNeeded()
             _ = applyExternalSelectionImmediatelyIfPossible()
@@ -417,6 +419,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             guard let closingWindow = notification.object as? NSWindow,
                   closingWindow == hostWindow else { return }
+            PreviewHostWindowRegistry.shared.unregister(hostWindowID: previewHostWindowID)
             PreviewDetachCoordinator.shared.onHostWindowWillClose(hostWindowID: previewHostWindowID)
         }
         .background(
@@ -561,6 +564,10 @@ struct ContentView: View {
         .onChange(of: detachCoordinator.directoryItemsInvalidatedRevision) { _ in
             guard let event = detachCoordinator.lastDirectoryItemsInvalidatedEvent else { return }
             handleDirectoryItemsInvalidatedFromDetachedPreview(event)
+        }
+        .onChange(of: detachCoordinator.revealInHostRevision) { _ in
+            guard let event = detachCoordinator.lastRevealInHostEvent else { return }
+            handleRevealInHostFromDetachedPreview(event)
         }
         .overlay(alignment: .bottom) {
             if let transientNoticeMessage {
@@ -1168,6 +1175,16 @@ struct ContentView: View {
         selection.subtract(pathsToRefresh)
         items.removeAll { pathsToRefresh.contains($0.id) }
         loadItems(invalidatingPaths: pathsToRefresh)
+    }
+
+    private func handleRevealInHostFromDetachedPreview(_ event: PreviewRevealInHostEvent) {
+        guard event.hostWindowID == previewHostWindowID else { return }
+        applyExternalNavigationTarget(
+            ExternalNavigationTarget(
+                directoryPath: event.directoryPath,
+                selectionPath: event.selectionPath
+            )
+        )
     }
 
     private func pathsReferToSameDirectory(_ lhs: String, _ rhs: String) -> Bool {

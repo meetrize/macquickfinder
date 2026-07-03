@@ -68,6 +68,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Preview.Toolbar.clearSearch, "preview.toolbar.clear_search")
         XCTAssertNotEqual(L10n.Preview.Toolbar.searchNoResults, "preview.toolbar.search_no_results")
         XCTAssertNotEqual(L10n.Preview.Archive.loadingMore, "preview.archive.loading_more")
+        XCTAssertNotEqual(L10n.Preview.Chrome.revealInFileList, "preview.chrome.reveal_in_file_list")
         XCTAssertNotEqual(L10n.Settings.Preview.customize, "settings.preview.customize")
         XCTAssertNotEqual(L10n.Settings.Preview.Mode.archive, "settings.preview.mode.archive")
         XCTAssertNotEqual(L10n.Archive.passwordTitle, "archive.password.title")

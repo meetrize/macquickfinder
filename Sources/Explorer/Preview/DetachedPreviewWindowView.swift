@@ -79,6 +79,9 @@ private struct DetachedPreviewWindowContent: View {
                 placement: .detachedWindow,
                 actions: PreviewChromeActions(
                     onBackFromFolderChild: { session.folderInlineChild = nil },
+                    onRevealInFileList: {
+                        PreviewDetachCoordinator.shared.revealFileInHostWindow(for: session)
+                    },
                     onDock: session.allowsDockBack ? { dockAndDismiss() } : nil,
                     onClose: {
                         PreviewDetachCoordinator.shared.onDetachedWindowWillClose(sessionID: session.id)

@@ -3106,6 +3106,23 @@
         }
       }
     },
+    "preview.chrome.reveal_in_file_list": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal in File List"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在文件列表中定位"
+          }
+        }
+      }
+    },
     "preview.chrome.expand": {
       "extractionState": "manual",
       "localizations": {

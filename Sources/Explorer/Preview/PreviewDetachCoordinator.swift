@@ -8,6 +8,12 @@ struct DirectoryItemsInvalidatedEvent: Equatable {
     let invalidatedPaths: [String]
 }
 
+struct PreviewRevealInHostEvent: Equatable {
+    let hostWindowID: UUID
+    let directoryPath: String
+    let selectionPath: String
+}
+
 @MainActor
 final class PreviewDetachCoordinator: ObservableObject {
     static let shared = PreviewDetachCoordinator()
@@ -15,6 +21,8 @@ final class PreviewDetachCoordinator: ObservableObject {
     @Published private(set) var placement: PreviewPlacement = .inline
     @Published private(set) var directoryItemsInvalidatedRevision: UInt = 0
     private(set) var lastDirectoryItemsInvalidatedEvent: DirectoryItemsInvalidatedEvent?
+    @Published private(set) var revealInHostRevision: UInt = 0
+    private(set) var lastRevealInHostEvent: PreviewRevealInHostEvent?
 
     private var detachedWindow: NSWindow?
     private var isDockingBackSessionID: PreviewSessionID?
@@ -174,6 +182,31 @@ final class PreviewDetachCoordinator: ObservableObject {
 
     func focusDetachedSession(_ session: PreviewSession) {
         focusWindow(for: session)
+    }
+
+    /// 激活文件管理窗并定位到当前预览文件；若无对应宿主窗口则打开浏览窗并选中。
+    func revealFileInHostWindow(for session: PreviewSession) {
+        let file = session.browseTarget
+        guard !file.isDirectory else { return }
+
+        let directoryPath = session.browseContext?.directoryPath
+            ?? file.url.deletingLastPathComponent().path
+        let event = PreviewRevealInHostEvent(
+            hostWindowID: session.hostWindowID,
+            directoryPath: directoryPath,
+            selectionPath: file.url.path
+        )
+        lastRevealInHostEvent = event
+        revealInHostRevision &+= 1
+
+        NSApplication.shared.activate(ignoringOtherApps: true)
+
+        if let hostWindow = PreviewHostWindowRegistry.shared.window(for: session.hostWindowID) {
+            hostWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        ExternalFolderOpenCenter.shared.requestOpen(urls: [file.url])
     }
 
     func onHostWindowWillClose(hostWindowID: UUID) {

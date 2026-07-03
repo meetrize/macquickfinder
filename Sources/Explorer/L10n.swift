@@ -877,6 +877,7 @@ enum L10n {
             static var backToFolder: String { ModuleLocalization.localized("preview.chrome.back_to_folder", bundle: .module) }
             static var detach: String { ModuleLocalization.localized("preview.chrome.detach", bundle: .module) }
             static var dockBack: String { ModuleLocalization.localized("preview.chrome.dock_back", bundle: .module) }
+            static var revealInFileList: String { ModuleLocalization.localized("preview.chrome.reveal_in_file_list", bundle: .module) }
             static var closeWindow: String { ModuleLocalization.localized("preview.chrome.close_window", bundle: .module) }
             static var closePreview: String { ModuleLocalization.localized("preview.chrome.close_preview", bundle: .module) }
         }
