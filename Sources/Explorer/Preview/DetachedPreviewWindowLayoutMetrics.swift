@@ -6,7 +6,7 @@ enum DetachedPreviewWindowLayoutMetrics {
     /// 略收窄内容宽度，消除图片与窗口左右边缘的细缝。
     static let horizontalImageTrim: CGFloat = 14
 
-    /// 独立预览窗中文本类内容（Markdown、代码、表格文本模式等）与窗口边缘的内边距；图片预览不使用。
+    /// 文本类内容（Markdown、代码、表格文本模式等）预览与容器边缘的内边距；图片预览不使用。
     static let textContentInsets: CGFloat = 12
 
     static let chromeDividerHeight: CGFloat = 1

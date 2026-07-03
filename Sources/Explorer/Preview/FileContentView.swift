@@ -4,8 +4,6 @@ import FileList
 
 struct FileContentView: View {
     @ObservedObject var session: PreviewSession
-    /// 为 `true` 时在独立预览窗中为文本类内容留出与窗口边缘的间距（图片等不受影响）。
-    var appliesDetachedTextContentInsets: Bool = false
     @ObservedObject private var customPreviewStore = CustomPreviewRuleStore.shared
     @AppStorage(AppPreferences.Preview.codeShowLineNumbers)
     private var codePreviewShowLineNumbers = false
@@ -105,7 +103,7 @@ struct FileContentView: View {
     }
 
     private var effectiveTextContentInsets: CGFloat {
-        appliesDetachedTextContentInsets && prefersTextContentInsets
+        prefersTextContentInsets
             ? DetachedPreviewWindowLayoutMetrics.textContentInsets
             : 0
     }
