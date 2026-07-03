@@ -1,0 +1,109 @@
+---
+description: 预览区文本编辑（方案 A）开发约束与计划索引；实现 PT-01~PT-06 时必须遵循
+alwaysApply: false
+---
+
+# 预览区文本编辑 — Cursor 开发计划规则
+
+当用户或任务涉及**预览区文本编辑**、**TextFilePreview 可编辑**、**PT-0x**、或 `preview-text-edit` 文档时，必须按本规则执行。
+
+## 权威文档
+
+| 文档 | 用途 |
+|------|------|
+| [docs/preview-text-edit-design.md](../../docs/preview-text-edit-design.md) | 交互、架构、边界、i18n |
+| [docs/preview-text-edit-plan.md](../../docs/preview-text-edit-plan.md) | Issue 拆分、PR 顺序、验收清单 |
+
+**设计冲突时**：以 design 为准；plan 仅负责排期与 checkbox。
+
+## 范围（方案 A — 必须遵守）
+
+### 必须做
+
+- 默认只读；用户显式「编辑」进入 editing
+- editing 时**关闭语法高亮**（纯 monospace），避免整段 `textStorage` 替换
+- 保存：UTF-8 原子写盘 + 覆盖确认（对齐 `saveEditedImage()` 模式）
+- 放弃修改、dirty 状态、`originalContent` 快照
+- 文件切换前未保存拦截（胶片条、键盘导航、侧栏换选）
+- 截断文件（含 `[Content truncated...]`）**禁止编辑**
+- 新 UI 文案：`Localizable.xcstrings` + `L10n.swift` + `L10nTests`（见 `i18n-ui-strings.mdc`）
+
+### 禁止做（留方案 B）
+
+- 解除 20_000 字符预览上限或全文件加载
+- 编辑时实时 / 增量语法高亮
+- 外部 FSEvents 文件监听
+- Markdown 渲染模式 WYSIWYG
+- Office 转换文本编辑
+- 新第三方编辑器依赖
+- 在单个 PR 混合无关预览重构
+
+## Issue 执行顺序
+
+严格按 plan 文档顺序，**不得跳步**：
+
+```
+PT-01 eligibility + writer
+  → PT-02 Session 状态 + save/revert/confirm
+  → PT-03 TextFilePreview editing
+  → PT-04 工具栏 + i18n
+  → PT-05 切换拦截
+  → PT-06 快捷键 + 测试 + 文档
+```
+
+每步完成后：
+
+1. `swift build`
+2. 运行本步相关测试（`swift test --filter …`）
+3. 若涉及 viewing 路径，确认高亮/搜索/复制无回归
+
+## 关键实现约束
+
+### TextFilePreview
+
+- `displayMode == .editing` 时 **`updateNSView` 不得**因 `text` prop 变化覆盖 `textView.string`
+- editing 时跳过 `applyHighlight` 与搜索高亮
+- dirty：`didChangeNotification` 对比 `originalContent`（比较前可 normalize `\r\n` → `\n`）
+
+### PreviewSessionTextState
+
+- 新文件 load 完成 → `originalContent` 更新；强制 `displayMode = .viewing`
+- `resetControls()` 仅在用户 confirm 丢弃或 save 成功后清 editing
+
+### 工具栏
+
+- 扩展 `PreviewSession+ToolbarText.swift`，不新建平行 toolbar 系统
+- `PreviewTextEditEligibility.canEdit` 为单一门槛，toolbar 与 shortcuts 共用
+
+### 保存
+
+- 后台写盘：`Task.detached` + `PreviewTextEditWriter.write`
+- 成功后：`beginLoadTask` 刷新内容（与图片 save 后重载一致）
+- 错误：`textSaveErrorMessage` + alert
+
+## 复用参考（勿复制图片逻辑 verbatim）
+
+| 参考 | 文件 |
+|------|------|
+| 保存确认 + 异步写盘 | `PreviewSession+Loading.swift` → `saveEditedImage()` |
+| 工具栏 save disabled | `PreviewSession+ToolbarImage.swift` |
+| 键盘 ⌘A/C/V/X | `TextEditingSupport.swift` |
+| 浏览切换 | `PreviewBrowserStripView.swift`、`PreviewBrowserController.swift` |
+
+## 测试最低要求
+
+- `PreviewTextEditEligibilityTests` — 类型与截断
+- `PreviewTextEditWriterTests` — 写盘
+- `PreviewSessionTextEditTests` — dirty / confirm helper
+- `L10nTests` — 新键非键名
+
+## Git 提交
+
+- 类型前缀可保留，**描述用简体中文**（`git-commit-message-zh.mdc`）
+- 一次提交一个 PT 或一个 PR 切片，例如：
+  - `feat: 预览文本编辑 eligibility 与 UTF-8 写盘`
+  - `feat: TextFilePreview 编辑模式与工具栏保存`
+
+## 手动验收（PR-2 起）
+
+合并前至少验证 plan 文档「手动回归清单」中的**编辑闭环**与**只读回归**小节。
