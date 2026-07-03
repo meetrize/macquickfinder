@@ -178,6 +178,7 @@ extension PreviewSession {
             text.displayMode = .viewing
             text.hasUnsavedChanges = false
             beginLoadTask(customPreviewRevision: Int(CustomPreviewRuleStore.shared.revision))
+            GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: item.url.path)
             return true
         case .failure(let error):
             content.textSaveErrorMessage = error.localizedDescription

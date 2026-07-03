@@ -119,6 +119,9 @@ enum FileOperations {
                     mode: copy ? .copy : .move
                 )
             )
+            if let firstDestination = completedPairs.first?.destination {
+                notifyGitWorkingTreeIfNeeded(at: firstDestination)
+            }
             completion()
         }
     }
@@ -141,6 +144,9 @@ enum FileOperations {
         }
         if !hadError {
             recordOperation(.trash(urls: sourceURLs))
+            if let firstURL = sourceURLs.first {
+                notifyGitWorkingTreeIfNeeded(at: firstURL)
+            }
             completion()
         }
     }
@@ -182,11 +188,17 @@ enum FileOperations {
         }
         
         if failedItems.isEmpty {
+            if let firstItem = items.first {
+                notifyGitWorkingTreeIfNeeded(at: firstItem.url)
+            }
             completion()
             return
         }
         
         if restoredCount > 0 {
+            if let firstItem = items.first {
+                notifyGitWorkingTreeIfNeeded(at: firstItem.url)
+            }
             completion()
         }
         
@@ -264,6 +276,9 @@ enum FileOperations {
             }
         }
         recordOperation(.deleteImmediately(urls: urls))
+        if let firstURL = urls.first {
+            notifyGitWorkingTreeIfNeeded(at: firstURL)
+        }
         completion()
     }
     
@@ -328,6 +343,9 @@ enum FileOperations {
                     mode: state.isCut ? .move : .copy
                 )
             )
+            if let firstDestination = completedPairs.first?.destination {
+                notifyGitWorkingTreeIfNeeded(at: firstDestination)
+            }
             completion()
         }
     }
@@ -440,6 +458,9 @@ enum FileOperations {
             }
         }
         recordOperation(.trash(urls: urls))
+        if let firstURL = urls.first {
+            notifyGitWorkingTreeIfNeeded(at: firstURL)
+        }
         completion()
     }
     
@@ -461,6 +482,7 @@ enum FileOperations {
         do {
             try FileManager.default.moveItem(at: item.url, to: newURL)
             recordOperation(.rename(source: item.url, destination: newURL))
+            notifyGitWorkingTreeIfNeeded(at: newURL)
             return .success(newURL)
         } catch {
             return .failure(error)
@@ -593,5 +615,9 @@ enum FileOperations {
                 }
             }
         }
+    }
+
+    private static func notifyGitWorkingTreeIfNeeded(at url: URL) {
+        GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: url.path)
     }
 }

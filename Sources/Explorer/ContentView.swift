@@ -424,6 +424,14 @@ struct ContentView: View {
             guard let hostWindow else { return }
             ExplorerWindowTabCenter.shared.registerWindow(hostWindow, path: newPath, sceneKind: windowSceneKind)
             gitStatusStore.scheduleRefresh(cwd: newPath)
+            updateGitWorkspaceFSEventsMonitoring()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .gitWorkingTreeMayHaveChanged)) { notification in
+            guard let changedPath = notification.userInfo?[GitWorkingTreeRefreshCenter.pathUserInfoKey] as? String,
+                  let currentRoot = GitRepositoryDetector.findRepoRoot(from: path),
+                  let changedRoot = GitRepositoryDetector.findRepoRoot(from: changedPath),
+                  GitRepositoryDetector.rootsEqual(currentRoot, changedRoot) else { return }
+            gitStatusStore.scheduleRefresh(cwd: path)
         }
         .onChange(of: windowTabCenter.tabBarRevision) { _ in
             syncExplorerTabBarState()
@@ -1050,6 +1058,7 @@ struct ContentView: View {
                         folderPaths: folderPaths,
                         showHiddenFiles: shouldShowHiddenFiles
                     )
+                    updateGitWorkspaceFSEventsMonitoring(for: currentPath)
                 }
                 return
             }
@@ -1120,6 +1129,7 @@ struct ContentView: View {
                     folderPaths: folderPaths,
                     showHiddenFiles: shouldShowHiddenFiles
                 )
+                updateGitWorkspaceFSEventsMonitoring(for: currentPath)
             }
         }
     }
@@ -1246,6 +1256,20 @@ struct ContentView: View {
             folderPaths: folderPaths,
             showHiddenFiles: showHiddenFiles
         )
+        updateGitWorkspaceFSEventsMonitoring()
+    }
+    
+    private func updateGitWorkspaceFSEventsMonitoring(for directoryPath: String? = nil) {
+        let directoryPath = directoryPath ?? path
+        guard !TrashLoader.isTrashPath(directoryPath) else {
+            GitWorkspaceFSEventsMonitor.shared.stop()
+            return
+        }
+        guard let repoRoot = GitRepositoryDetector.findRepoRoot(from: directoryPath) else {
+            GitWorkspaceFSEventsMonitor.shared.stop()
+            return
+        }
+        GitWorkspaceFSEventsMonitor.shared.updateSession(repoRoot: repoRoot)
     }
     
     private func rescheduleDirectorySizesIfNeeded() {
@@ -1692,6 +1716,7 @@ struct ContentView: View {
                 do {
                     try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: false)
                     OperationRecordingHub.record(.createDirectory(url: folderURL))
+                    GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: folderURL.path)
                     loadItems()
                 } catch {
                     let errorAlert = NSAlert(error: error)
@@ -1718,6 +1743,7 @@ struct ContentView: View {
             return
         }
         OperationRecordingHub.record(.createFile(url: fileURL))
+        GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: fileURL.path)
         pendingInlineRenamePath = fileURL.path
         loadItems()
     }

@@ -172,6 +172,10 @@ final class JobStore: ObservableObject {
         OutputSessionFormatting.attachCompletionStatus(to: &jobs[idx].stdout, exitCode: exitCode)
         dispatchArchiveCompletion(jobID: jobID, status: jobs[idx].status)
         dispatchGitCompletion(jobID: jobID, status: jobs[idx].status)
+        GitWorkingTreeRefreshCenter.notifyIfShellJobMutatedWorkingTree(
+            job: jobs[idx],
+            status: jobs[idx].status
+        )
         pumpQueue()
     }
 

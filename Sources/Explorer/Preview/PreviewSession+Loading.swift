@@ -139,6 +139,7 @@ extension PreviewSession {
             image.zoomAction = .fit
             content.imageSaveErrorMessage = nil
             image.editUndoClearNonce += 1
+            GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: url.path)
             beginLoadTask(customPreviewRevision: Int(CustomPreviewRuleStore.shared.revision))
         case .failure(let error):
             content.imageSaveErrorMessage = error.localizedDescription
