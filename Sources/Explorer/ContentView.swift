@@ -303,7 +303,8 @@ struct ContentView: View {
                             onResize: handleLeftPanelDrag(delta:),
                             onDragEnded: handleLeftPanelDragEnded
                         )
-                        .frame(width: HorizontalResizeDividerMetrics.visualWidth)
+                        .frame(width: HorizontalResizeDividerMetrics.hitWidth)
+                        .padding(.horizontal, -(HorizontalResizeDividerMetrics.hitWidth - HorizontalResizeDividerMetrics.visualWidth) / 2)
                         .frame(maxHeight: .infinity)
                     }
                     .animation(nil, value: liveLeftPanelDragWidth)
@@ -864,7 +865,8 @@ struct ContentView: View {
                 layout.previewPanelWidth = Double(livePreviewPanelWidth)
             }
         )
-        .frame(width: HorizontalResizeDividerMetrics.visualWidth)
+        .frame(width: HorizontalResizeDividerMetrics.hitWidth)
+        .padding(.horizontal, -(HorizontalResizeDividerMetrics.hitWidth - HorizontalResizeDividerMetrics.visualWidth) / 2)
         .frame(maxHeight: .infinity)
         
         RightPanelStackView(
@@ -1754,11 +1756,29 @@ private final class ResizeDividerNSView: NSView {
         addTrackingArea(area)
         trackingArea = area
     }
-    
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.invalidateCursorRects(for: self)
+    }
+
+    override func layout() {
+        super.layout()
+        window?.invalidateCursorRects(for: self)
+    }
+
     override func cursorUpdate(with event: NSEvent) {
         NSCursor.resizeLeftRight.set()
     }
-    
+
+    override func mouseEntered(with event: NSEvent) {
+        NSCursor.resizeLeftRight.push()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        NSCursor.pop()
+    }
+
     override func mouseDown(with event: NSEvent) {
         lastMouseX = event.locationInWindow.x
     }
@@ -1777,6 +1797,10 @@ private final class ResizeDividerNSView: NSView {
     }
     
     override func draw(_ dirtyRect: NSRect) {
-        PanelSeparatorStyle.fill(dirtyRect.intersection(bounds), in: self)
+        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2.0
+        let thickness = PanelSeparatorStyle.hairlineThickness(for: scale)
+        let lineX = floor((bounds.width - thickness) / 2)
+        let lineRect = NSRect(x: lineX, y: bounds.minY, width: thickness, height: bounds.height)
+        PanelSeparatorStyle.fill(dirtyRect.intersection(lineRect), in: self)
     }
 }
