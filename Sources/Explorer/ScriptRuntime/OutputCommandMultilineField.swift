@@ -53,6 +53,9 @@ struct OutputCommandMultilineField: NSViewRepresentable {
         context.coordinator.installFocusObservers(for: textView)
         context.coordinator.installKeyMonitor()
         textView.string = text
+        OutputPanelStyle.applyCommandFieldAppearance(to: textView, scheme: colorScheme)
+        OutputPanelStyle.applyCommandInputChromeAppearance(to: scrollView, scheme: colorScheme)
+        context.coordinator.lastColorScheme = colorScheme
         return scrollView
     }
 
@@ -61,7 +64,8 @@ struct OutputCommandMultilineField: NSViewRepresentable {
         textView.isEditable = isEnabled
         if context.coordinator.lastColorScheme != colorScheme {
             context.coordinator.lastColorScheme = colorScheme
-            OutputPanelStyle.applyCommandFieldAppearance(to: textView)
+            OutputPanelStyle.applyCommandFieldAppearance(to: textView, scheme: colorScheme)
+            OutputPanelStyle.applyCommandInputChromeAppearance(to: scrollView, scheme: colorScheme)
             scrollView.verticalScroller?.needsDisplay = true
         }
         context.coordinator.syncTextIfNeeded(text)

@@ -48,8 +48,8 @@ final class OutputCommandTextField: NSTextField {
         isEditable = true
         isSelectable = true
         isBordered = false
-        drawsBackground = true
-        backgroundColor = OutputPanelStyle.commandFieldBackground
+        drawsBackground = false
+        backgroundColor = .clear
         textColor = OutputPanelStyle.commandFieldText
         font = OutputPanelStyle.commandFieldFont
         focusRingType = .none
@@ -463,6 +463,8 @@ struct OutputCommandField: NSViewRepresentable {
     func makeNSView(context: Context) -> OutputCommandTextField {
         let field = OutputCommandTextField()
         wire(field, context: context)
+        OutputPanelStyle.applyCommandFieldAppearance(to: field, scheme: colorScheme)
+        context.coordinator.lastColorScheme = colorScheme
         field.syncText(text)
         return field
     }
@@ -472,7 +474,7 @@ struct OutputCommandField: NSViewRepresentable {
         nsView.isEnabled = isEnabled
         if context.coordinator.lastColorScheme != colorScheme {
             context.coordinator.lastColorScheme = colorScheme
-            OutputPanelStyle.applyCommandFieldAppearance(to: nsView)
+            OutputPanelStyle.applyCommandFieldAppearance(to: nsView, scheme: colorScheme)
         }
         let shouldRefocus = context.coordinator.syncIfNeeded(field: nsView, text: text)
         if shouldRefocus || context.coordinator.lastRefocusToken != refocusToken {

@@ -283,7 +283,7 @@ struct OutputPanelView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(OutputPanelStyle.commandBarBackgroundColor)
         .focusedValue(\.textFieldEditing, focusedField != nil)
         .background(TextEditingKeyMonitor(isActive: focusedField != nil))
     }
@@ -338,7 +338,7 @@ struct OutputPanelView: View {
                 }
             }
         }
-        .modifier(OutputCommandInputChromeStyle(isExpanded: expanded))
+        .modifier(OutputCommandInputChromeStyle(isExpanded: expanded, colorScheme: settings.outputColorScheme))
     }
 
     /// 执行按钮
@@ -685,7 +685,7 @@ struct OutputPanelView: View {
             }
         }
         .frame(width: 176)
-        .modifier(OutputCommandInputChromeStyle(isExpanded: false))
+        .modifier(OutputCommandInputChromeStyle(isExpanded: false, colorScheme: settings.outputColorScheme))
         .onChange(of: findText) { _ in
             findNextToken = 0
         }
@@ -911,6 +911,7 @@ private enum OutputCapsuleFieldMetrics {
 
 private struct OutputCommandInputChromeStyle: ViewModifier {
     var isExpanded: Bool
+    var colorScheme: OutputPanelColorScheme
 
     func body(content: Content) -> some View {
         content
@@ -919,19 +920,19 @@ private struct OutputCommandInputChromeStyle: ViewModifier {
             .frame(minHeight: isExpanded ? nil : OutputCapsuleFieldMetrics.chromeHeight)
             .background(
                 RoundedRectangle(cornerRadius: isExpanded ? 10 : 18, style: .continuous)
-                    .fill(OutputPanelStyle.commandFieldBackgroundColor)
+                    .fill(colorScheme.theme.commandFieldBackground.color)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: isExpanded ? 10 : 18, style: .continuous)
                     .strokeBorder(
                         isExpanded
-                            ? OutputPanelStyle.commandFocusBorderColor.opacity(0.5)
-                            : OutputPanelStyle.commandFieldInactiveBorderColor,
+                            ? colorScheme.theme.commandFocusBorder.color.opacity(0.5)
+                            : colorScheme.theme.commandFieldInactiveBorder.color,
                         lineWidth: 1
                     )
             )
             .shadow(
-                color: isExpanded ? OutputPanelStyle.commandFocusBorderColor.opacity(0.12) : .clear,
+                color: isExpanded ? colorScheme.theme.commandFocusBorder.color.opacity(0.12) : .clear,
                 radius: 8,
                 y: 2
             )

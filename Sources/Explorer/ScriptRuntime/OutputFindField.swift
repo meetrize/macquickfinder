@@ -33,7 +33,7 @@ final class OutputFindTextField: NSTextField {
         placeholderAttributedString = NSAttributedString(
             string: L10n.Snippets.Output.find,
             attributes: [
-                .foregroundColor: NSColor(white: 0.55, alpha: 1),
+                .foregroundColor: OutputPanelStyle.theme.placeholder.nsColor,
                 .font: OutputPanelStyle.commandFieldFont,
             ]
         )
@@ -98,6 +98,8 @@ struct OutputFindField: NSViewRepresentable {
         field.onFocusChanged = { focused in
             context.coordinator.isFocused = focused
         }
+        OutputPanelStyle.applyFindFieldAppearance(to: field, placeholder: L10n.Snippets.Output.find, scheme: colorScheme)
+        context.coordinator.lastColorScheme = colorScheme
         return field
     }
 
@@ -107,7 +109,7 @@ struct OutputFindField: NSViewRepresentable {
         context.coordinator.onSubmit = onSubmit
         if context.coordinator.lastColorScheme != colorScheme {
             context.coordinator.lastColorScheme = colorScheme
-            OutputPanelStyle.applyFindFieldAppearance(to: nsView, placeholder: L10n.Snippets.Output.find)
+            OutputPanelStyle.applyFindFieldAppearance(to: nsView, placeholder: L10n.Snippets.Output.find, scheme: colorScheme)
         }
         if nsView.stringValue != text {
             nsView.stringValue = text

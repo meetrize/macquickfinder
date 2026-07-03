@@ -50,18 +50,42 @@ enum OutputPanelStyle {
     static var scrollerTrackNSColor: NSColor { theme.scrollerTrack.nsColor }
 
     static var commandFieldInactiveBorderColor: Color { theme.commandFieldInactiveBorder.color }
+    static var commandBarBackgroundColor: Color { theme.commandFieldBackground.color }
 
-    static func applyCommandFieldAppearance(to field: NSTextField) {
-        field.backgroundColor = theme.commandFieldBackground.nsColor
+    static func preferredAppearance(for scheme: OutputPanelColorScheme) -> NSAppearance? {
+        switch scheme {
+        case .light:
+            return NSAppearance(named: .aqua)
+        case .dark, .gray:
+            return NSAppearance(named: .darkAqua)
+        }
+    }
+
+    static func applyCommandFieldAppearance(to field: NSTextField, scheme: OutputPanelColorScheme? = nil) {
+        let resolvedScheme = scheme ?? currentScheme
+        let theme = resolvedScheme.theme
+        field.appearance = preferredAppearance(for: resolvedScheme)
+        field.drawsBackground = false
+        field.backgroundColor = .clear
         field.textColor = theme.commandFieldText.nsColor
     }
 
-    static func applyCommandFieldAppearance(to textView: NSTextView) {
+    static func applyCommandFieldAppearance(to textView: NSTextView, scheme: OutputPanelColorScheme? = nil) {
+        let resolvedScheme = scheme ?? currentScheme
+        let theme = resolvedScheme.theme
+        textView.appearance = preferredAppearance(for: resolvedScheme)
+        textView.drawsBackground = false
+        textView.backgroundColor = .clear
         textView.textColor = theme.commandFieldText.nsColor
         textView.insertionPointColor = theme.commandFieldText.nsColor
     }
 
-    static func applyFindFieldAppearance(to field: NSTextField, placeholder: String) {
+    static func applyFindFieldAppearance(to field: NSTextField, placeholder: String, scheme: OutputPanelColorScheme? = nil) {
+        let resolvedScheme = scheme ?? currentScheme
+        let theme = resolvedScheme.theme
+        field.appearance = preferredAppearance(for: resolvedScheme)
+        field.drawsBackground = false
+        field.backgroundColor = .clear
         field.textColor = theme.commandFieldText.nsColor
         field.placeholderAttributedString = NSAttributedString(
             string: placeholder,
@@ -70,5 +94,10 @@ enum OutputPanelStyle {
                 .font: commandFieldFont,
             ]
         )
+    }
+
+    static func applyCommandInputChromeAppearance(to view: NSView, scheme: OutputPanelColorScheme? = nil) {
+        let resolvedScheme = scheme ?? currentScheme
+        view.appearance = preferredAppearance(for: resolvedScheme)
     }
 }
