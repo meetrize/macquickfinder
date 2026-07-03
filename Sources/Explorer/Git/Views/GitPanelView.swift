@@ -12,7 +12,7 @@ struct GitPanelView: View {
     var showsTopSeparator: Bool = false
     var onRevealPath: (String) -> Void = { _ in }
 
-    @State private var showsAllChanges = false
+    @State private var showsPendingChanges = false
     @State private var commitMessage = ""
     @State private var isOperating = false
     @State private var lastOperationError: String?
@@ -33,16 +33,12 @@ struct GitPanelView: View {
             if layout.isGitContentCollapsed {
                 Spacer(minLength: 0)
                 Divider()
-                topBar
+                topBar(snapshot: displaySnapshot)
             } else {
                 if showsTopSeparator {
                     Divider()
                 }
-                topBar
-                if let displaySnapshot {
-                    statusStrip(displaySnapshot)
-                    Divider()
-                }
+                topBar(snapshot: displaySnapshot)
                 panelBody
             }
         }
@@ -51,7 +47,7 @@ struct GitPanelView: View {
             refreshIfNeeded(force: true)
         }
         .onChange(of: cwd) { _ in
-            showsAllChanges = false
+            showsPendingChanges = false
             lastOperationError = nil
             if isInRepository {
                 Task { await gitStatusStore.refresh(cwd: cwd) }
@@ -84,7 +80,7 @@ struct GitPanelView: View {
         displaySnapshot?.changeCount ?? 0
     }
 
-    private var topBar: some View {
+    private func topBar(snapshot: GitWorkspaceSnapshot?) -> some View {
         HStack(spacing: 6) {
             Button {
                 layout.isGitContentCollapsed.toggle()
@@ -101,6 +97,15 @@ struct GitPanelView: View {
             Text(L10n.Git.Panel.title)
                 .font(.callout)
                 .fontWeight(.medium)
+
+            if let snapshot {
+                Text(GitStatusPresentation.statusStrip(snapshot: snapshot))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(-1)
+            }
 
             Spacer(minLength: 0)
 
@@ -135,16 +140,6 @@ struct GitPanelView: View {
         .frame(height: PanelTopBarMetrics.contentHeight)
         .padding(.horizontal, 10)
         .padding(.vertical, PanelTopBarMetrics.verticalPadding)
-    }
-
-    private func statusStrip(_ snapshot: GitWorkspaceSnapshot) -> some View {
-        Text(GitStatusPresentation.statusStrip(snapshot: snapshot))
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
     }
 
     @ViewBuilder
@@ -244,10 +239,9 @@ struct GitPanelView: View {
     private func snapshotBody(_ snapshot: GitWorkspaceSnapshot) -> some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    statusCard(snapshot)
+                VStack(alignment: .leading, spacing: 8) {
                     if !snapshot.entries.isEmpty {
-                        changeList(snapshot)
+                        pendingChangesSection(snapshot)
                     }
                     commitHistory(snapshot)
                     if let lastOperationError {
@@ -257,7 +251,8 @@ struct GitPanelView: View {
                             .textSelection(.enabled)
                     }
                 }
-                .padding(12)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -266,66 +261,21 @@ struct GitPanelView: View {
         }
     }
 
-    private func statusCard(_ snapshot: GitWorkspaceSnapshot) -> some View {
-        let phase = snapshot.workspacePhase
-        return HStack(alignment: .top, spacing: 10) {
-            Circle()
-                .fill(GitStatusPresentation.cardColor(for: phase))
-                .frame(width: 10, height: 10)
-                .padding(.top, 4)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(GitStatusPresentation.cardTitle(for: phase, snapshot: snapshot))
-                    .font(.callout)
-                    .fontWeight(.medium)
-                if phase == .cleanSynced, let refreshedAt = formattedRefreshTime(snapshot.lastRefreshedAt) {
-                    Text(refreshedAt)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+    private func pendingChangesSection(_ snapshot: GitWorkspaceSnapshot) -> some View {
+        DisclosureGroup(isExpanded: $showsPendingChanges) {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(snapshot.entries) { entry in
+                    GitChangeRowView(entry: entry) {
+                        let absolute = GitStatusPresentation.absolutePath(for: entry, repoRoot: snapshot.repoRoot)
+                        onRevealPath(absolute)
+                    }
                 }
             }
-
-            Spacer(minLength: 0)
-        }
-        .padding(10)
-        .background {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(Color(nsColor: .separatorColor).opacity(0.6), lineWidth: 1)
-        }
-    }
-
-    private func changeList(_ snapshot: GitWorkspaceSnapshot) -> some View {
-        let listing = GitStatusPresentation.visibleEntries(
-            from: snapshot.entries,
-            showsAll: showsAllChanges
-        )
-
-        return VStack(alignment: .leading, spacing: 6) {
-            Text(L10n.Git.Status.pendingCommit)
+            .padding(.top, 4)
+        } label: {
+            Text(L10n.Git.Status.dirty(snapshot.changeCount))
                 .font(.caption)
-                .foregroundStyle(.secondary)
-
-            ForEach(listing.visible) { entry in
-                GitChangeRowView(entry: entry) {
-                    let absolute = GitStatusPresentation.absolutePath(for: entry, repoRoot: snapshot.repoRoot)
-                    onRevealPath(absolute)
-                }
-            }
-
-            if listing.remainingCount > 0 {
-                Button {
-                    showsAllChanges = true
-                } label: {
-                    Text(L10n.Git.Status.moreChanges(listing.remainingCount))
-                        .font(.caption)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-            }
+                .foregroundStyle(.primary)
         }
     }
 
@@ -336,17 +286,12 @@ struct GitPanelView: View {
     private func actionFooter(_ snapshot: GitWorkspaceSnapshot) -> some View {
         let primary = GitPanelActionPlanner.primaryAction(snapshot: snapshot, isOperating: isOperating)
         let showCommitField = snapshot.changeCount > 0
+        let showsSecondaryPull = primary?.kind != .pull
 
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 8) {
             if showCommitField {
-                Text(L10n.Git.Commit.scopeAll)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 HStack(spacing: 6) {
-                    TextField(L10n.Git.Commit.placeholder, text: $commitMessage)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($commitFieldFocused)
+                    commitMessageField
 
                     Button {} label: {
                         Image(systemName: "sparkles")
@@ -357,49 +302,86 @@ struct GitPanelView: View {
                 }
             }
 
+            actionButtonGroup(
+                snapshot: snapshot,
+                primary: primary,
+                showsSecondaryPull: showsSecondaryPull
+            )
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var commitMessageField: some View {
+        TextField(L10n.Git.Commit.placeholder, text: $commitMessage)
+            .textFieldStyle(.plain)
+            .focused($commitFieldFocused)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(nsColor: .textBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(
+                        commitFieldFocused
+                            ? Color.accentColor
+                            : Color(nsColor: .separatorColor).opacity(0.85),
+                        lineWidth: commitFieldFocused ? 1.5 : 1.25
+                    )
+            )
+    }
+
+    private func actionButtonGroup(
+        snapshot: GitWorkspaceSnapshot,
+        primary: GitPanelPrimaryAction?,
+        showsSecondaryPull: Bool
+    ) -> some View {
+        HStack(spacing: 6) {
+            if showsSecondaryPull {
+                Button {
+                    Task { await runOperation(.pull) }
+                } label: {
+                    Text(L10n.Git.Action.pull)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!GitPanelActionPlanner.canPull(snapshot: snapshot) || isOperating)
+                .instantHoverTooltip(GitPanelActionPlanner.pullDisabledReason(snapshot: snapshot) ?? "")
+            }
+
+            if snapshot.changeCount > 0 {
+                Button {
+                    requestOperation(.commit)
+                } label: {
+                    Text(L10n.Git.Action.commitOnly)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!GitPanelActionPlanner.canCommitOnly(snapshot: snapshot, isOperating: isOperating))
+            }
+
             if let primary {
                 Button {
                     handlePrimaryAction(primary)
                 } label: {
                     if isOperating {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             ProgressView()
                                 .controlSize(.small)
                             Text(L10n.Git.Action.working)
                         }
-                        .frame(maxWidth: .infinity)
                     } else {
                         Text(primary.title)
-                            .frame(maxWidth: .infinity)
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!primary.isEnabled || isOperating)
                 .instantHoverTooltip(primary.disabledReason ?? "")
             }
-
-            HStack(spacing: 16) {
-                Button {
-                    Task { await runOperation(.pull) }
-                } label: {
-                    Text(L10n.Git.Action.pull)
-                }
-                .buttonStyle(.plain)
-                .disabled(!GitPanelActionPlanner.canPull(snapshot: snapshot) || isOperating)
-                .instantHoverTooltip(GitPanelActionPlanner.pullDisabledReason(snapshot: snapshot) ?? "")
-
-                Button {
-                    requestOperation(.commit)
-                } label: {
-                    Text(L10n.Git.Action.commitOnly)
-                }
-                .buttonStyle(.plain)
-                .disabled(!GitPanelActionPlanner.canCommitOnly(snapshot: snapshot, isOperating: isOperating))
-            }
-            .font(.caption)
         }
-        .padding(12)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .controlSize(.small)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func handlePrimaryAction(_ action: GitPanelPrimaryAction) {
@@ -489,7 +471,7 @@ struct GitPanelView: View {
                 commitFieldFocused = true
             }
         } else {
-            showsAllChanges = false
+            showsPendingChanges = false
         }
     }
 
@@ -523,11 +505,5 @@ struct GitPanelView: View {
     private func snapshotBelongsToCurrentRepository(_ snapshot: GitWorkspaceSnapshot) -> Bool {
         guard let repoRoot = GitRepositoryDetector.findRepoRoot(from: cwd) else { return false }
         return GitRepositoryDetector.rootsEqual(snapshot.repoRoot, repoRoot)
-    }
-
-    private func formattedRefreshTime(_ date: Date) -> String? {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }

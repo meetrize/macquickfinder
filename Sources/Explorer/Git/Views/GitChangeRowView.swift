@@ -14,7 +14,7 @@ struct GitChangeRowView: View {
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(GitStatusPresentation.displayName(for: entry))
-                        .font(.callout)
+                        .font(.caption)
                         .lineLimit(1)
                     if entry.status == .renamed, let oldPath = entry.oldPath {
                         Text(oldPath)
