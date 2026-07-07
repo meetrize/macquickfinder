@@ -67,11 +67,10 @@ copy_spm_bundle() {
     local bundle_path
     bundle_path=$(find -L ".build/$BUILD_CONFIG" -name "$pattern" -type d 2>/dev/null | head -1)
     if [ -n "$bundle_path" ]; then
+        rm -rf "$MACOS_DIR/$pattern" "$RESOURCES_DIR/$pattern" "$APP_ROOT_DIR/$pattern"
+        # Bundle.module 从可执行文件同目录加载；Resources 供标准 bundle 链路。
+        cp -R "$bundle_path" "$MACOS_DIR/"
         cp -R "$bundle_path" "$RESOURCES_DIR/"
-        # 某些运行路径下 SwiftPM 资源访问器会从 `Bundle.main.bundleURL/<bundle>` 读取。
-        # 兼容该行为：在 app 根目录额外放一份（保留 Contents/Resources 供标准加载链路）。
-        rm -rf "$APP_ROOT_DIR/$pattern"
-        cp -R "$bundle_path" "$APP_ROOT_DIR/"
     else
         echo "Warning: SPM resource bundle not found: $pattern"
     fi
@@ -141,23 +140,26 @@ chmod +x "$MACOS_DIR/Explorer"
 
 # Ad-hoc 签名（含 Apple Events entitlement，废纸篓需自动化权限）
 ENTITLEMENTS="Explorer/Explorer.entitlements"
-if [ -f "$ENTITLEMENTS" ]; then
-    if [ "$FAST_DEBUG" = "1" ]; then
-        # debug 仅签可执行文件，省去 --deep 遍历 bundle
-        codesign --force --sign - --entitlements "$ENTITLEMENTS" "$MACOS_DIR/Explorer" 2>/dev/null \
-            || echo "Warning: codesign with entitlements failed"
-    else
-        codesign --force --deep --sign - --entitlements "$ENTITLEMENTS" "./$APP_NAME" 2>/dev/null \
-            || echo "Warning: codesign with entitlements failed"
+HELPER_BINARY="$APP_DIR/Library/Helpers/MeoFindDocumentOpener.app/Contents/MacOS/DocumentOpener"
+sign_meofind_app() {
+    local entitlements_arg=()
+    if [ -f "$ENTITLEMENTS" ]; then
+        entitlements_arg=(--entitlements "$ENTITLEMENTS")
     fi
+    for bundle in "$MACOS_DIR"/Explorer_*.bundle; do
+        [ -d "$bundle" ] || continue
+        codesign --force --sign - "$bundle"
+    done
+    codesign --force --sign - "${entitlements_arg[@]}" "$MACOS_DIR/Explorer" \
+        && codesign --force --sign - "$HELPER_BINARY" \
+        && codesign --force --sign - "$APP_DIR/Library/Helpers/MeoFindDocumentOpener.app" \
+        && codesign --force --sign - "./$APP_NAME"
+}
+
+if sign_meofind_app; then
+    :
 else
-    if [ "$FAST_DEBUG" = "1" ]; then
-        codesign --force --sign - "$MACOS_DIR/Explorer" 2>/dev/null \
-            || echo "Warning: codesign failed"
-    else
-        codesign --force --deep --sign - "./$APP_NAME" 2>/dev/null \
-            || echo "Warning: codesign failed"
-    fi
+    echo "Warning: codesign failed"
 fi
 
 # Quit any running instance so the new binary is loaded on launch

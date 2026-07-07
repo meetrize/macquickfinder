@@ -15,7 +15,7 @@ struct GitCLI: Sendable {
     init(
         executableURL: URL = URL(fileURLWithPath: "/usr/bin/git"),
         timeout: TimeInterval = 60,
-        runProcess: @escaping @Sendable (URL, [String], String, TimeInterval) throws -> GitProcessResult = GitCLI.defaultRunProcess
+        runProcess: @escaping @Sendable (URL, [String], String, TimeInterval) throws -> GitProcessResult = GitCLI.defaultRunProcessHandler
     ) {
         self.executableURL = executableURL
         self.timeout = timeout
@@ -69,7 +69,18 @@ struct GitProcessResult: Equatable, Sendable {
 }
 
 extension GitCLI {
-    static func defaultRunProcess(
+    static let defaultRunProcessHandler: @Sendable (
+        URL, [String], String, TimeInterval
+    ) throws -> GitProcessResult = { executableURL, arguments, workingDirectory, timeout in
+        try runDefaultProcess(
+            executableURL: executableURL,
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            timeout: timeout
+        )
+    }
+
+    static func runDefaultProcess(
         executableURL: URL,
         arguments: [String],
         workingDirectory: String,

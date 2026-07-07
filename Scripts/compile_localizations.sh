@@ -6,7 +6,18 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-Xcstringstool="${Xcstringstool:-$(xcrun --find xcstringstool 2>/dev/null || true)}"
+if [ -z "${Xcstringstool:-}" ]; then
+    Xcstringstool="$(xcrun --find xcstringstool 2>/dev/null || true)"
+fi
+if [ -z "$Xcstringstool" ]; then
+    for xcode_app in /Applications/Xcode.app /Applications/Xcode-beta.app; do
+        candidate="$xcode_app/Contents/Developer/usr/bin/xcstringstool"
+        if [ -x "$candidate" ]; then
+            Xcstringstool="$candidate"
+            break
+        fi
+    done
+fi
 
 required_outputs=(
     "Sources/Explorer/Resources/en.lproj/Localizable.strings"
@@ -24,8 +35,10 @@ if [ -z "$Xcstringstool" ] || [ ! -x "$Xcstringstool" ]; then
     done
 
     if [ "${#missing_outputs[@]}" -eq 0 ]; then
-        echo "WARN: 未找到 xcstringstool，跳过编译，使用已有 .lproj 文件"
-        echo "      （xcstringstool 随完整 Xcode 提供，非 Command Line Tools；修改 .xcstrings 后需安装 Xcode 并重新编译）"
+        if [ "${LOCALIZATION_VERBOSE:-0}" = "1" ]; then
+            echo "INFO: 未找到 xcstringstool，跳过编译，使用已有 .lproj 文件"
+            echo "      （xcstringstool 随完整 Xcode 提供；修改 .xcstrings 后需安装 Xcode）"
+        fi
         exit 0
     fi
 
