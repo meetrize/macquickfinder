@@ -41,6 +41,15 @@ final class FileListTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil)
         interactionController?.updateRowHover(at: point, in: self)
         super.mouseMoved(with: event)
+        applyHeaderResizeCursorIfNeeded(for: event)
+    }
+
+    private func applyHeaderResizeCursorIfNeeded(for event: NSEvent) {
+        guard event.type == .mouseMoved else { return }
+        guard let headerView = headerView as? FileListTableHeaderView else { return }
+        let pointInHeader = headerView.convert(event.locationInWindow, from: nil)
+        guard headerView.bounds.contains(pointInHeader) else { return }
+        _ = headerView.applyResizeCursor(at: pointInHeader)
     }
 
     override func mouseExited(with event: NSEvent) {
