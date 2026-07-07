@@ -19,7 +19,7 @@ struct RightPanelStackView: View {
     let onRevealGitPath: (String) -> Void
 
     @State private var dragPreviewHeight: CGFloat?
-    @State private var dragGitPanelHeight: CGFloat?
+    @State private var dragSnippetsHeight: CGFloat?
 
     private var previewMinHeight: CGFloat {
         layout.isPreviewContentCollapsed ? PanelTopBarMetrics.totalHeight : 80
@@ -37,14 +37,50 @@ struct RightPanelStackView: View {
         GeometryReader { geo in
             let totalHeight = geo.size.height
             let layoutInput = heightInput(totalHeight: totalHeight)
+            let stableLayoutInput = heightInput(totalHeight: totalHeight, dragPreviewHeight: nil)
+            let dividerThickness = VerticalResizeDividerMetrics.visualHeight
             let showPreviewSnippetsDivider = RightPanelHeightCalculator.shouldShowResizeDivider(for: layoutInput)
             let showSnippetsGitDivider = RightPanelHeightCalculator.shouldShowSnippetsGitDivider(for: layoutInput)
             let showPreviewGitDivider = RightPanelHeightCalculator.shouldShowPreviewGitDivider(for: layoutInput)
-            let effectivePreviewHeight = RightPanelHeightCalculator.previewHeight(for: layoutInput)
-            let effectiveGitHeight = RightPanelHeightCalculator.gitHeight(for: layoutInput)
-            let snippetsGitRegionHeight = RightPanelHeightCalculator.snippetsGitRegionHeight(for: layoutInput)
-            let previewGitRegionHeight = RightPanelHeightCalculator.previewGitRegionHeight(for: layoutInput)
-            let effectiveSnippetsHeight = RightPanelHeightCalculator.snippetsHeight(for: layoutInput)
+
+            let calculatedPreviewHeight = RightPanelHeightCalculator.previewHeight(for: layoutInput)
+            let calculatedSnippetsHeight = RightPanelHeightCalculator.snippetsHeight(for: layoutInput)
+            let calculatedGitHeight = RightPanelHeightCalculator.gitHeight(for: layoutInput)
+
+            let stablePreviewHeight = RightPanelHeightCalculator.previewHeight(for: stableLayoutInput)
+            let stableLowerStackHeight = RightPanelHeightCalculator.lowerStackHeight(for: stableLayoutInput)
+            let snippetsGitSplitRegionHeight = RightPanelHeightCalculator.snippetsGitSplitRegionHeight(for: stableLayoutInput)
+            let previewGitRegionHeight = showPreviewGitDivider
+                ? totalHeight
+                : RightPanelHeightCalculator.previewGitRegionHeight(for: stableLayoutInput)
+
+            let effectivePreviewHeight: CGFloat = {
+                if let dragPreviewHeight { return dragPreviewHeight }
+                if dragSnippetsHeight != nil { return stablePreviewHeight }
+                return calculatedPreviewHeight
+            }()
+
+            let effectiveSnippetsHeight: CGFloat = {
+                if let dragSnippetsHeight { return dragSnippetsHeight }
+                return calculatedSnippetsHeight
+            }()
+
+            let effectiveGitHeight: CGFloat = {
+                if let dragSnippetsHeight {
+                    return max(
+                        gitMinHeight,
+                        stableLowerStackHeight - dragSnippetsHeight - dividerThickness
+                    )
+                }
+                if dragPreviewHeight != nil, showPreviewGitDivider {
+                    return max(
+                        gitMinHeight,
+                        previewGitRegionHeight - dragPreviewHeight! - dividerThickness
+                    )
+                }
+                return calculatedGitHeight
+            }()
+            let shouldConstrainSnippetsHeight = layout.showGit || layout.showPreview
 
             VStack(spacing: 0) {
                 if layout.showPreview {
@@ -98,27 +134,24 @@ struct RightPanelStackView: View {
                         showHiddenFiles: showHiddenFiles,
                         panelWidth: panelWidth
                     )
-                    .frame(height: layout.showGit ? effectiveSnippetsHeight : nil)
-                    .frame(maxHeight: layout.showGit ? effectiveSnippetsHeight : .infinity)
+                    .frame(height: shouldConstrainSnippetsHeight ? effectiveSnippetsHeight : nil)
+                    .frame(maxHeight: shouldConstrainSnippetsHeight ? effectiveSnippetsHeight : .infinity)
+                    .clipShape(Rectangle())
                 }
 
                 if showSnippetsGitDivider {
                     VerticalResizeDivider(
                         previewHeight: effectiveSnippetsHeight,
-                        totalHeight: snippetsGitRegionHeight,
+                        totalHeight: snippetsGitSplitRegionHeight,
                         minTopHeight: snippetsMinHeight,
                         minBottomHeight: gitMinHeight,
-                        onHeightChange: { newSnippetsHeight in
-                            let gitHeight = snippetsGitRegionHeight
-                                - newSnippetsHeight
-                                - VerticalResizeDividerMetrics.visualHeight
-                            dragGitPanelHeight = gitHeight
-                        },
+                        onHeightChange: { dragSnippetsHeight = $0 },
                         onDragEnded: { finalSnippetsHeight in
-                            let divider = VerticalResizeDividerMetrics.visualHeight
-                            let newGitHeight = snippetsGitRegionHeight - finalSnippetsHeight - divider
+                            let newGitHeight = stableLowerStackHeight
+                                - finalSnippetsHeight
+                                - dividerThickness
                             layout.setGitPanelHeight(newGitHeight)
-                            dragGitPanelHeight = nil
+                            dragSnippetsHeight = nil
                         }
                     )
                     .frame(height: VerticalResizeDividerMetrics.hitHeight)
@@ -132,17 +165,13 @@ struct RightPanelStackView: View {
                         totalHeight: previewGitRegionHeight,
                         minTopHeight: previewMinHeight,
                         minBottomHeight: gitMinHeight,
-                        onHeightChange: { newPreviewHeight in
-                            let gitHeight = previewGitRegionHeight
-                                - newPreviewHeight
-                                - VerticalResizeDividerMetrics.visualHeight
-                            dragGitPanelHeight = gitHeight
-                        },
+                        onHeightChange: { dragPreviewHeight = $0 },
                         onDragEnded: { finalPreviewHeight in
-                            let divider = VerticalResizeDividerMetrics.visualHeight
-                            let newGitHeight = previewGitRegionHeight - finalPreviewHeight - divider
+                            let newGitHeight = previewGitRegionHeight
+                                - finalPreviewHeight
+                                - dividerThickness
                             layout.setGitPanelHeight(newGitHeight)
-                            dragGitPanelHeight = nil
+                            dragPreviewHeight = nil
                         }
                     )
                     .frame(height: VerticalResizeDividerMetrics.hitHeight)
@@ -162,10 +191,13 @@ struct RightPanelStackView: View {
                         onRevealPath: onRevealGitPath
                     )
                     .frame(height: effectiveGitHeight)
+                    .clipShape(Rectangle())
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .clipped()
             .animation(nil, value: effectivePreviewHeight)
+            .animation(nil, value: effectiveSnippetsHeight)
             .animation(nil, value: effectiveGitHeight)
             .onChange(of: layout.showPreview) { isVisible in
                 if !isVisible {
@@ -175,7 +207,10 @@ struct RightPanelStackView: View {
         }
     }
 
-    private func heightInput(totalHeight: CGFloat) -> RightPanelHeightCalculator.Input {
+    private func heightInput(
+        totalHeight: CGFloat,
+        dragPreviewHeight: CGFloat? = nil
+    ) -> RightPanelHeightCalculator.Input {
         RightPanelHeightCalculator.Input(
             totalHeight: totalHeight,
             showPreview: layout.showPreview,
@@ -185,8 +220,8 @@ struct RightPanelStackView: View {
             isSnippetsContentCollapsed: layout.isSnippetsContentCollapsed,
             isGitContentCollapsed: layout.isGitContentCollapsed,
             previewSnippetsSplitRatio: layout.previewSnippetsSplitRatio,
-            gitPanelHeight: dragGitPanelHeight ?? layout.gitPanelHeightValue,
-            dragPreviewHeight: dragPreviewHeight,
+            gitPanelHeight: layout.gitPanelHeightValue,
+            dragPreviewHeight: dragPreviewHeight ?? self.dragPreviewHeight,
             dividerHeight: VerticalResizeDividerMetrics.visualHeight,
             previewMinHeight: previewMinHeight,
             snippetsMinHeight: snippetsMinHeight,

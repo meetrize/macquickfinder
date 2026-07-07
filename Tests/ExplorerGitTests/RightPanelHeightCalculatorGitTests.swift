@@ -80,23 +80,34 @@ final class RightPanelHeightCalculatorGitTests: XCTestCase {
         XCTAssertFalse(RightPanelHeightCalculator.shouldShowSnippetsGitDivider(for: input))
     }
 
-    func testSnippetsHeightWithinRegion() {
+    func testSnippetsHeightWithinLowerStack() {
         let input = baseInput(showGit: true, gitPanelHeight: 200)
-        let region = RightPanelHeightCalculator.snippetsGitRegionHeight(for: input)
+        let lower = RightPanelHeightCalculator.lowerStackHeight(for: input)
         let snippets = RightPanelHeightCalculator.snippetsHeight(for: input)
         let git = RightPanelHeightCalculator.gitHeight(for: input)
         let divider = RightPanelHeightCalculator.gitDividerHeight(for: input)
-        XCTAssertEqual(snippets + git + divider, region, accuracy: 1)
+        XCTAssertEqual(snippets + git + divider, lower, accuracy: 1)
+    }
+
+    func testAllocatedStackHeightMatchesTotalForAllPanels() {
+        let input = baseInput(showGit: true, gitPanelHeight: 200)
+        XCTAssertEqual(
+            RightPanelHeightCalculator.allocatedStackHeight(for: input),
+            total,
+            accuracy: 1
+        )
     }
 
     func testPreviewGitDividerWhenSnippetsHidden() {
         let input = baseInput(showSnippets: false, showGit: true, gitPanelHeight: 200)
+        let lower = RightPanelHeightCalculator.lowerStackHeight(for: input)
         XCTAssertTrue(RightPanelHeightCalculator.shouldShowPreviewGitDivider(for: input))
-        XCTAssertEqual(RightPanelHeightCalculator.previewGitRegionHeight(for: input), total, accuracy: 0.01)
+        XCTAssertEqual(RightPanelHeightCalculator.previewGitRegionHeight(for: input), lower, accuracy: 0.01)
         let preview = RightPanelHeightCalculator.previewHeight(for: input)
         let git = RightPanelHeightCalculator.gitHeight(for: input)
         let divider = RightPanelHeightCalculator.previewGitDividerHeight(for: input)
         XCTAssertEqual(preview + git + divider, total, accuracy: 1)
+        XCTAssertEqual(preview + divider + git, lower, accuracy: 1)
     }
 
     func testPreviewGitDividerHiddenWhenSnippetsVisible() {

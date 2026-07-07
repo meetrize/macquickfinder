@@ -82,4 +82,13 @@ final class RightPanelHeightCalculatorTests: XCTestCase {
         XCTAssertFalse(RightPanelHeightCalculator.shouldShowResizeDivider(for: baseInput(previewCollapsed: true)))
         XCTAssertFalse(RightPanelHeightCalculator.shouldShowResizeDivider(for: baseInput(snippetsCollapsed: true)))
     }
+
+    func testAllocatedStackHeightMatchesTotalWhenBothVisible() {
+        let input = baseInput(ratio: 0.55)
+        XCTAssertEqual(
+            RightPanelHeightCalculator.allocatedStackHeight(for: input),
+            total,
+            accuracy: 1
+        )
+    }
 }

@@ -101,28 +101,9 @@ enum RightPanelHeightCalculator {
             && !input.isGitContentCollapsed
     }
 
-    /// 预览与 Git 之间的可拖拽分隔条（无 Snippets 时）。
-    static func shouldShowPreviewGitDivider(for input: Input) -> Bool {
-        input.showPreview
-            && input.showGit
-            && !input.showSnippets
-            && !input.isPreviewContentCollapsed
-            && !input.isGitContentCollapsed
-    }
-
-    /// 预览 + Git 共享的垂直区域（含中间分隔条）。
-    static func previewGitRegionHeight(for input: Input) -> CGFloat {
-        guard shouldShowPreviewGitDivider(for: input) else { return 0 }
-        return input.totalHeight
-    }
-
-    static func previewGitDividerHeight(for input: Input) -> CGFloat {
-        shouldShowPreviewGitDivider(for: input) ? input.dividerHeight : 0
-    }
-
-    /// 预览以下、Git 以上的区域（Snippets + 分隔条 + Git）。
-    static func snippetsGitRegionHeight(for input: Input) -> CGFloat {
-        var height = upperSectionHeight(for: input)
+    /// 预览以下可用于 Snippets、分隔条与 Git 的垂直空间。
+    static func lowerStackHeight(for input: Input) -> CGFloat {
+        var height = input.totalHeight
         if input.showPreview {
             height -= previewHeight(for: input)
             if shouldShowPreviewSnippetsDivider(for: input) {
@@ -132,12 +113,67 @@ enum RightPanelHeightCalculator {
         return max(0, height)
     }
 
+    /// 预览与 Git 之间的可拖拽区域（无 Snippets 时，含 Git 与分隔条）。
+    static func previewGitRegionHeight(for input: Input) -> CGFloat {
+        guard shouldShowPreviewGitDivider(for: input) else { return 0 }
+        return lowerStackHeight(for: input)
+    }
+
+    static func previewGitDividerHeight(for input: Input) -> CGFloat {
+        shouldShowPreviewGitDivider(for: input) ? input.dividerHeight : 0
+    }
+
+    /// Snippets 与 Git 之间的可拖拽区域（含 Git 与分隔条）。
+    static func snippetsGitSplitRegionHeight(for input: Input) -> CGFloat {
+        guard shouldShowSnippetsGitDivider(for: input) else { return 0 }
+        return lowerStackHeight(for: input)
+    }
+
+    /// 预览以下、Git 以上的 Snippets 占用高度。
+    static func snippetsGitRegionHeight(for input: Input) -> CGFloat {
+        snippetsHeight(for: input)
+    }
+
     static func snippetsHeight(for input: Input) -> CGFloat {
-        let region = snippetsGitRegionHeight(for: input)
-        guard region > 0 else { return 0 }
+        guard input.showSnippets else { return 0 }
+        let lower = lowerStackHeight(for: input)
+        guard input.showGit else { return lower }
         let gitSection = gitHeight(for: input)
         let divider = shouldShowSnippetsGitDivider(for: input) ? input.dividerHeight : 0
-        return max(0, region - gitSection - divider)
+        return max(0, lower - gitSection - divider)
+    }
+
+    /// 预览与 Git 之间的可拖拽分隔条（无 Snippets 时）。
+    static func shouldShowPreviewGitDivider(for input: Input) -> Bool {
+        input.showPreview
+            && input.showGit
+            && !input.showSnippets
+            && !input.isPreviewContentCollapsed
+            && !input.isGitContentCollapsed
+    }
+
+    /// 右侧面板各可见段高度之和（用于校验不超出总高度）。
+    static func allocatedStackHeight(for input: Input) -> CGFloat {
+        var height = CGFloat(0)
+        if input.showPreview {
+            height += previewHeight(for: input)
+            if shouldShowPreviewSnippetsDivider(for: input) {
+                height += input.dividerHeight
+            }
+        }
+        if input.showSnippets {
+            height += snippetsHeight(for: input)
+            if shouldShowSnippetsGitDivider(for: input) {
+                height += input.dividerHeight
+            }
+        }
+        if input.showGit {
+            height += gitHeight(for: input)
+            if shouldShowPreviewGitDivider(for: input) {
+                height += input.dividerHeight
+            }
+        }
+        return height
     }
 
     private static func shouldShowPreviewSnippetsDivider(for input: Input) -> Bool {
