@@ -54,6 +54,28 @@ struct MarkdownFilePreview: NSViewRepresentable {
         context.coordinator.installFocusTracking(for: textView)
         context.coordinator.currentScale = 1.0
         context.coordinator.lastMarkdown = markdown
+        context.coordinator.lastZoomScale = zoomScale
+        context.coordinator.textContentInset = textContentInset
+        context.coordinator.scrollView = scrollView
+        context.coordinator.relayoutMarkdown = { textView, scrollView in
+            let layoutWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
+            guard abs(layoutWidth - context.coordinator.lastTableLayoutWidth) > 0.5 else { return }
+            context.coordinator.lastTableLayoutWidth = layoutWidth
+            context.coordinator.lastZoomScale = zoomScale
+            applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
+            applyScale(zoomScale, to: textView, context: context)
+            context.coordinator.updateSearchIfNeeded(
+                textView: textView,
+                searchQuery: searchQuery,
+                searchNextToken: searchNextToken,
+                searchPrevToken: searchPrevToken
+            )
+        }
+        context.coordinator.installTableLayoutWidthTracking()
+
+        let layoutWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
+        context.coordinator.lastTableLayoutWidth = layoutWidth
+        applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
         context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
         context.coordinator.wrapLayout.lastWrapLines = wrapLines
         context.coordinator.wrapLayout.lastTrackedContentWidth = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
@@ -63,8 +85,14 @@ struct MarkdownFilePreview: NSViewRepresentable {
             coordinator: context.coordinator.wrapLayout
         )
         PreviewTextWrapLayout.scheduleDeferredLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
+        DispatchQueue.main.async {
+            let deferredWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
+            guard abs(deferredWidth - context.coordinator.lastTableLayoutWidth) > 0.5 else { return }
+            context.coordinator.lastTableLayoutWidth = deferredWidth
+            applyMarkdown(markdown, to: textView, layoutWidth: deferredWidth)
+            applyScale(zoomScale, to: textView, context: context)
+        }
 
-        applyMarkdown(markdown, to: textView)
         applyScale(zoomScale, to: textView, context: context)
 
         return scrollView
@@ -73,17 +101,47 @@ struct MarkdownFilePreview: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = context.coordinator.textView else { return }
 
+        context.coordinator.textContentInset = textContentInset
+        context.coordinator.scrollView = scrollView
+        context.coordinator.relayoutMarkdown = { textView, scrollView in
+            let layoutWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
+            guard abs(layoutWidth - context.coordinator.lastTableLayoutWidth) > 0.5 else { return }
+            context.coordinator.lastTableLayoutWidth = layoutWidth
+            context.coordinator.lastZoomScale = zoomScale
+            applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
+            applyScale(zoomScale, to: textView, context: context)
+            context.coordinator.updateSearchIfNeeded(
+                textView: textView,
+                searchQuery: searchQuery,
+                searchNextToken: searchNextToken,
+                searchPrevToken: searchPrevToken
+            )
+        }
+
         context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
         PreviewTextWrapLayout.configure(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
 
+        applyScale(zoomScale, to: textView, context: context)
+        let layoutWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
+        let layoutWidthChanged = abs(layoutWidth - context.coordinator.lastTableLayoutWidth) > 0.5
         let wrapChanged = context.coordinator.wrapLayout.lastWrapLines != wrapLines
-        if wrapChanged {
-            context.coordinator.wrapLayout.lastWrapLines = wrapLines
-            applyMarkdown(markdown, to: textView)
-            context.coordinator.searchCurrentIndex = 0
-            context.coordinator.lastHighlightedSearchRanges = []
-            textView.scrollToBeginningOfDocument(nil)
-            scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
+        let markdownChanged = context.coordinator.lastMarkdown != markdown
+        let zoomChanged = abs(context.coordinator.lastZoomScale - zoomScale) > 0.0001
+
+        if wrapChanged || markdownChanged || layoutWidthChanged || zoomChanged {
+            if wrapChanged {
+                context.coordinator.wrapLayout.lastWrapLines = wrapLines
+            }
+            context.coordinator.lastMarkdown = markdown
+            context.coordinator.lastZoomScale = zoomScale
+            context.coordinator.lastTableLayoutWidth = layoutWidth
+            applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
+            if markdownChanged || wrapChanged {
+                context.coordinator.searchCurrentIndex = 0
+                context.coordinator.lastHighlightedSearchRanges = []
+                textView.scrollToBeginningOfDocument(nil)
+                scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
+            }
             PreviewTextWrapLayout.invalidateLayout(textView: textView)
         } else if wrapLines {
             let width = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
@@ -93,15 +151,6 @@ struct MarkdownFilePreview: NSViewRepresentable {
             }
         }
 
-        if context.coordinator.lastMarkdown != markdown {
-            applyMarkdown(markdown, to: textView)
-            context.coordinator.lastMarkdown = markdown
-            context.coordinator.searchCurrentIndex = 0
-            context.coordinator.lastHighlightedSearchRanges = []
-            textView.scrollToBeginningOfDocument(nil)
-        }
-
-        applyScale(zoomScale, to: textView, context: context)
         applyTextContainerInset(textContentInset, to: textView)
         context.coordinator.updateSearchIfNeeded(
             textView: textView,
@@ -111,7 +160,14 @@ struct MarkdownFilePreview: NSViewRepresentable {
         )
     }
 
-    private func applyMarkdown(_ markdown: String, to textView: NSTextView) {
+    private func tableLayoutWidth(for scrollView: NSScrollView, scale: CGFloat) -> CGFloat {
+        let contentWidth = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
+        let normalizedScale = max(scale, 0.5)
+        let horizontalInsets = textContentInset * 2
+        return max(contentWidth / normalizedScale - horizontalInsets, 160)
+    }
+
+    private func applyMarkdown(_ markdown: String, to textView: NSTextView, layoutWidth: CGFloat? = nil) {
         // 以原始文本作为预览基准，保证换行/缩进完全保留，再做轻量样式增强。
         let rendered = NSMutableAttributedString(string: markdown)
 
@@ -235,9 +291,63 @@ struct MarkdownFilePreview: NSViewRepresentable {
         applyInlineBoldSpans(in: rendered, excludedLineIndices: tableLineIndices)
 
         // 表格必须在行内标记处理后再排版，否则 ** / ` 会破坏列对齐。
-        applyMarkdownTableLayout(in: rendered, tableLineIndices: tableLineIndices)
+        applyMarkdownTableLayout(
+            in: rendered,
+            layoutWidth: layoutWidth
+        )
+
+        applyHorizontalRules(in: rendered, layoutWidth: layoutWidth)
 
         textView.textStorage?.setAttributedString(rendered)
+    }
+
+    private func applyHorizontalRules(
+        in rendered: NSMutableAttributedString,
+        layoutWidth: CGFloat?
+    ) {
+        let lines = rendered.string.components(separatedBy: "\n")
+        let tableLineIndices = Set(
+            MarkdownPreviewTableLayout.findBlocks(
+                in: lines,
+                separatorRegex: Self.tableSeparatorRegex
+            ).flatMap { $0.startLine..<$0.endLine }
+        )
+        let hrLineIndices = MarkdownPreviewHorizontalRule.horizontalRuleLineIndices(
+            in: lines,
+            skipLineIndices: tableLineIndices
+        )
+        guard !hrLineIndices.isEmpty else { return }
+
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        let separatorColor = NSColor.separatorColor
+        var lineMap = lineRanges(in: rendered.string as NSString)
+
+        for lineIndex in hrLineIndices.reversed() {
+            guard lineIndex < lines.count, lineIndex < lineMap.count else { continue }
+            let originalLine = lines[lineIndex]
+            let indent = MarkdownPreviewHorizontalRule.leadingIndent(originalLine)
+            let renderedLine = MarkdownPreviewHorizontalRule.renderLine(
+                indent: indent,
+                availableWidth: layoutWidth,
+                font: font
+            )
+            rendered.replaceCharacters(in: lineMap[lineIndex], with: renderedLine)
+        }
+
+        lineMap = lineRanges(in: rendered.string as NSString)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakMode = .byClipping
+        paragraphStyle.lineSpacing = 6
+        paragraphStyle.paragraphSpacingBefore = 4
+        paragraphStyle.paragraphSpacing = 4
+
+        for lineIndex in hrLineIndices {
+            guard lineIndex < lineMap.count else { continue }
+            let lineRange = lineMap[lineIndex]
+            rendered.addAttribute(.font, value: font, range: lineRange)
+            rendered.addAttribute(.foregroundColor, value: separatorColor, range: lineRange)
+            rendered.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
+        }
     }
 
     private func lineRanges(in text: NSString) -> [NSRange] {
@@ -253,33 +363,42 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
     private func applyMarkdownTableLayout(
         in rendered: NSMutableAttributedString,
-        tableLineIndices: Set<Int>
+        layoutWidth: CGFloat?
     ) {
         let monoFont = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         let separatorColor = NSColor.separatorColor
-        var lines = rendered.string.components(separatedBy: "\n")
+        let layoutOptions = MarkdownPreviewTableLayout.LayoutOptions(availableWidth: layoutWidth)
+        let lines = rendered.string.components(separatedBy: "\n")
         let blocks = MarkdownPreviewTableLayout.findBlocks(in: lines, separatorRegex: Self.tableSeparatorRegex)
         guard !blocks.isEmpty else { return }
+
+        var tableDisplayLineIndices = Set<Int>()
 
         for block in blocks.reversed() {
             guard let formatted = MarkdownPreviewTableLayout.formatBlock(
                 lines: lines,
                 block: block,
-                font: monoFont
+                font: monoFont,
+                options: layoutOptions
             ) else { continue }
 
-            for (offset, newLine) in formatted.lines.enumerated() {
-                lines[block.startLine + offset] = newLine
+            var lineMap = lineRanges(in: rendered.string as NSString)
+            guard block.startLine < lineMap.count, block.endLine > 0, block.endLine - 1 < lineMap.count else {
+                continue
             }
 
-            var lineMap = lineRanges(in: rendered.string as NSString)
-            for offset in formatted.lines.indices.reversed() {
-                let lineIndex = block.startLine + offset
-                guard lineIndex < lineMap.count else { continue }
-                rendered.replaceCharacters(in: lineMap[lineIndex], with: formatted.lines[offset])
-            }
+            let blockStart = lineMap[block.startLine].location
+            let lastLineRange = lineMap[block.endLine - 1]
+            let blockRange = NSRange(
+                location: blockStart,
+                length: lastLineRange.location + lastLineRange.length - blockStart
+            )
+            rendered.replaceCharacters(in: blockRange, with: formatted.lines.joined(separator: "\n"))
 
             lineMap = lineRanges(in: rendered.string as NSString)
+            let displayRange = block.startLine..<(block.startLine + formatted.lines.count)
+            tableDisplayLineIndices.formUnion(displayRange)
+
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.lineBreakMode = .byClipping
             paragraphStyle.lineSpacing = 2
@@ -288,20 +407,20 @@ struct MarkdownFilePreview: NSViewRepresentable {
             }
             paragraphStyle.defaultTabInterval = 1_000
 
-            for lineIndex in block.startLine..<block.endLine {
+            for (offset, lineIndex) in displayRange.enumerated() {
                 guard lineIndex < lineMap.count else { continue }
                 let lineRange = lineMap[lineIndex]
                 rendered.addAttribute(.font, value: monoFont, range: lineRange)
                 rendered.addAttribute(.paragraphStyle, value: paragraphStyle, range: lineRange)
 
-                if lineIndex == block.startLine + 1 {
+                if formatted.separatorLineIndices.contains(offset) {
                     rendered.addAttribute(.foregroundColor, value: separatorColor, range: lineRange)
                 }
             }
         }
 
-        applyInlineCodeSpans(in: rendered, allowedLineIndices: tableLineIndices)
-        applyInlineBoldSpans(in: rendered, allowedLineIndices: tableLineIndices)
+        applyInlineCodeSpans(in: rendered, allowedLineIndices: tableDisplayLineIndices)
+        applyInlineBoldSpans(in: rendered, allowedLineIndices: tableDisplayLineIndices)
     }
 
     private func shouldProcessLine(
@@ -457,10 +576,15 @@ struct MarkdownFilePreview: NSViewRepresentable {
         @Binding var searchMatchCount: Int
         var searchCurrentIndexBinding: Binding<Int>
         weak var textView: NSTextView?
+        weak var scrollView: NSScrollView?
         var previewTextSelectionActive: Binding<Bool>?
         let wrapLayout = PreviewTextWrapLayoutCoordinator()
         var lastMarkdown: String = ""
+        var lastZoomScale: CGFloat = 1.0
+        var textContentInset: CGFloat = 0
         var currentScale: CGFloat = 1.0
+        var lastTableLayoutWidth: CGFloat = 0
+        var relayoutMarkdown: ((NSTextView, NSScrollView) -> Void)?
         var lastSearchQuery: String = ""
         var lastSearchNextToken: UInt = 0
         var lastSearchPrevToken: UInt = 0
@@ -468,10 +592,33 @@ struct MarkdownFilePreview: NSViewRepresentable {
         var searchMatchRanges: [NSRange] = []
         var lastHighlightedSearchRanges: [NSRange] = []
         private var firstResponderObserver: NSObjectProtocol?
+        private var tableLayoutWidthObserver: NSObjectProtocol?
 
         init(searchMatchCount: Binding<Int>, searchCurrentIndex: Binding<Int>) {
             _searchMatchCount = searchMatchCount
             searchCurrentIndexBinding = searchCurrentIndex
+        }
+
+        func installTableLayoutWidthTracking() {
+            if let tableLayoutWidthObserver {
+                NotificationCenter.default.removeObserver(tableLayoutWidthObserver)
+            }
+            guard let scrollView else { return }
+
+            scrollView.contentView.postsBoundsChangedNotifications = true
+            scrollView.contentView.postsFrameChangedNotifications = true
+            tableLayoutWidthObserver = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: scrollView.contentView,
+                queue: .main
+            ) { [weak self] _ in
+                self?.handleTableLayoutWidthChange()
+            }
+        }
+
+        private func handleTableLayoutWidthChange() {
+            guard let scrollView, let textView, let relayoutMarkdown else { return }
+            relayoutMarkdown(textView, scrollView)
         }
 
         private func publishSearchCurrentIndex() {
@@ -560,6 +707,9 @@ struct MarkdownFilePreview: NSViewRepresentable {
         deinit {
             if let firstResponderObserver {
                 NotificationCenter.default.removeObserver(firstResponderObserver)
+            }
+            if let tableLayoutWidthObserver {
+                NotificationCenter.default.removeObserver(tableLayoutWidthObserver)
             }
         }
 

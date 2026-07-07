@@ -91,4 +91,42 @@ final class MarkdownPreviewTableLayoutTests: XCTestCase {
         let blocks = MarkdownPreviewTableLayout.findBlocks(in: lines, separatorRegex: separatorRegex)
         XCTAssertEqual(blocks, [MarkdownPreviewTableLayout.Block(startLine: 4, endLine: 6, indent: "")])
     }
+
+    func testFormatBlockWrapsLongCellWhenWidthIsLimited() {
+        let lines = [
+            "| Name | Description |",
+            "| --- | --- |",
+            "| Alice | This is a very long description that should wrap across multiple lines |",
+        ]
+        let block = MarkdownPreviewTableLayout.Block(startLine: 0, endLine: 3, indent: "")
+
+        guard let formatted = MarkdownPreviewTableLayout.formatBlock(
+            lines: lines,
+            block: block,
+            font: monoFont,
+            options: MarkdownPreviewTableLayout.LayoutOptions(availableWidth: 220)
+        ) else {
+            return XCTFail("Expected formatted table block")
+        }
+
+        XCTAssertGreaterThan(
+            formatted.lines.count,
+            3,
+            "Long cell should expand the logical row into multiple display lines"
+        )
+        XCTAssertTrue(formatted.lines[2].contains("\t"))
+    }
+
+    func testAssignColumnContentWidthsDistributesByNaturalRatio() {
+        let widths = MarkdownPreviewTableLayout.assignColumnContentWidths(
+            naturalWidths: [40, 120],
+            columnCount: 2,
+            availableWidth: 180,
+            indentWidth: 0,
+            font: monoFont
+        )
+
+        XCTAssertEqual(widths.count, 2)
+        XCTAssertGreaterThan(widths[1], widths[0])
+    }
 }
