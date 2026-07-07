@@ -173,6 +173,11 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Preview.Toolbar.wordDocumentToText, "preview.toolbar.word_document_to_text")
     }
 
+    func testMarkdownMermaidPreviewStringsResolve() {
+        XCTAssertNotEqual(L10n.Preview.Markdown.mermaidRendering, "preview.markdown.mermaid_rendering")
+        XCTAssertNotEqual(L10n.Preview.Markdown.mermaidRenderFailed, "preview.markdown.mermaid_render_failed")
+    }
+
     func testMoveBlockedAlertStringsResolve() {
         XCTAssertNotEqual(L10n.Alert.moveBlockedTitle, "alert.move_blocked.title")
         XCTAssertNotEqual(

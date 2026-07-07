@@ -1001,6 +1001,15 @@ enum L10n {
             }
         }
 
+        enum Markdown {
+            static var mermaidRendering: String {
+                ModuleLocalization.localized("preview.markdown.mermaid_rendering", bundle: .module)
+            }
+            static var mermaidRenderFailed: String {
+                ModuleLocalization.localized("preview.markdown.mermaid_render_failed", bundle: .module)
+            }
+        }
+
         enum FolderInlineChild {
             static var openDirectory: String {
                 ModuleLocalization.localized("preview.folder_inline.open_directory", bundle: .module)

@@ -1132,6 +1132,10 @@
 	<string>双击进入</string>
 	<key>preview.folder_inline.preview_file</key>
 	<string>单击预览 · 双击打开 · ⌥双击独立预览</string>
+	<key>preview.markdown.mermaid_render_failed</key>
+	<string>流程图渲染失败</string>
+	<key>preview.markdown.mermaid_rendering</key>
+	<string>正在渲染流程图…</string>
 	<key>preview.image.confirm</key>
 	<string>确定</string>
 	<key>preview.image.height</key>

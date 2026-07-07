@@ -4105,6 +4105,40 @@
         }
       }
     },
+    "preview.markdown.mermaid_render_failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to render diagram"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "流程图渲染失败"
+          }
+        }
+      }
+    },
+    "preview.markdown.mermaid_rendering": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rendering diagram…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在渲染流程图…"
+          }
+        }
+      }
+    },
     "preview.next": {
       "extractionState": "manual",
       "localizations": {

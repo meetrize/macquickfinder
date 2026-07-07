@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html, body { margin: 0; padding: 8px; background: #ffffff; }
+    #container { display: inline-block; line-height: 0; }
+    #container svg { display: block; max-width: none; height: auto; }
+  </style>
+  <script src="mermaid.min.js"></script>
+  <script>
+    window.meofindStartRender = function(source, renderID, theme) {
+      function fail(message) {
+        window.webkit.messageHandlers.mermaidError.postMessage(String(message));
+      }
+      function succeed(payload) {
+        window.webkit.messageHandlers.mermaidReady.postMessage(payload);
+      }
+      function measureSVG(svg) {
+        if (!svg) { return null; }
+        try {
+          var bbox = svg.getBBox();
+          if (bbox.width > 0 && bbox.height > 0) {
+            return { width: Math.ceil(bbox.width), height: Math.ceil(bbox.height) };
+          }
+        } catch (e) {}
+        var viewBox = svg.viewBox && svg.viewBox.baseVal;
+        if (viewBox && viewBox.width > 0 && viewBox.height > 0) {
+          return { width: Math.ceil(viewBox.width), height: Math.ceil(viewBox.height) };
+        }
+        var rect = svg.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          return { width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
+        }
+        return null;
+      }
+      function renderNow() {
+        try {
+          mermaid.initialize({ startOnLoad: false, theme: theme, securityLevel: "loose" });
+          mermaid.render(renderID, source).then(function(result) {
+            var container = document.getElementById("container");
+            container.innerHTML = result.svg;
+            var svg = container.querySelector("svg");
+            var size = measureSVG(svg);
+            if (!size) {
+              fail("missing svg size");
+              return;
+            }
+            svg.setAttribute("width", String(size.width));
+            svg.setAttribute("height", String(size.height));
+            succeed({
+              svg: new XMLSerializer().serializeToString(svg),
+              width: size.width,
+              height: size.height
+            });
+          }).catch(function(error) {
+            fail(error);
+          });
+        } catch (error) {
+          fail(error);
+        }
+      }
+      function waitForMermaid() {
+        if (window.mermaid) {
+          renderNow();
+          return;
+        }
+        window.meofindMermaidAttempts = (window.meofindMermaidAttempts || 0) + 1;
+        if (window.meofindMermaidAttempts > 400) {
+          fail("missing mermaid global");
+          return;
+        }
+        setTimeout(waitForMermaid, 25);
+      }
+      window.meofindMermaidAttempts = 0;
+      waitForMermaid();
+    };
+  </script>
+</head>
+<body>
+  <div id="container"></div>
+</body>
+</html>

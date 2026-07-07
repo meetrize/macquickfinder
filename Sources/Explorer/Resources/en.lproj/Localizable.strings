@@ -1132,6 +1132,10 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Double-click to open</string>
 	<key>preview.folder_inline.preview_file</key>
 	<string>Click to preview · Double-click to open · Option-double-click for detached preview</string>
+	<key>preview.markdown.mermaid_render_failed</key>
+	<string>Failed to render diagram</string>
+	<key>preview.markdown.mermaid_rendering</key>
+	<string>Rendering diagram…</string>
 	<key>preview.image.confirm</key>
 	<string>OK</string>
 	<key>preview.image.height</key>
