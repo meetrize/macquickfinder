@@ -987,6 +987,57 @@
         }
       }
     },
+    "file.pasted_image_name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasted Image.png"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴的图片.png"
+          }
+        }
+      }
+    },
+    "file.pasted_text_name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasted Text.txt"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴的文本.txt"
+          }
+        }
+      }
+    },
+    "file.pasted_markdown_name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasted Document.md"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴的文档.md"
+          }
+        }
+      }
+    },
     "dialog.create": {
       "extractionState": "manual",
       "localizations": {

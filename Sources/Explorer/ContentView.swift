@@ -1512,10 +1512,7 @@ struct ContentView: View {
             copy: { FileOperations.copy(selected) },
             cut: { FileOperations.cut(selected) },
             paste: {
-                FileOperations.paste(to: URL(fileURLWithPath: destPath)) {
-                    selection.removeAll()
-                    loadItems()
-                }
+                FileOperations.paste(to: URL(fileURLWithPath: destPath), completion: finishPaste)
             },
             delete: deleteSelectedItems,
             canCopy: !selected.isEmpty,
@@ -1547,10 +1544,7 @@ struct ContentView: View {
             goUp: navigateUp,
             canPaste: canPaste,
             paste: {
-                FileOperations.paste(to: pasteDestination) {
-                    selection.removeAll()
-                    loadItems()
-                }
+                FileOperations.paste(to: pasteDestination, completion: finishPaste)
             },
             newFolder: createNewFolder,
             newFile: createNewFile,
@@ -1612,10 +1606,7 @@ struct ContentView: View {
                 FileOperations.canPaste(to: URL(fileURLWithPath: destPath))
             },
             paste: { destPath in
-                FileOperations.paste(to: URL(fileURLWithPath: destPath)) {
-                    selection.removeAll()
-                    loadItems()
-                }
+                FileOperations.paste(to: URL(fileURLWithPath: destPath), completion: finishPaste)
             },
             isFavorited: { FavoritesStore.shared.contains(path: $0.url.path) },
             addToFavorites: { FavoritesStore.shared.addDirectory(at: $0.url.path) },
@@ -1693,6 +1684,14 @@ struct ContentView: View {
         }
     }
     
+    private func finishPaste(createdContentFileURL: URL?) {
+        if let createdContentFileURL {
+            pendingInlineRenamePath = createdContentFileURL.path
+        }
+        selection.removeAll()
+        loadItems()
+    }
+
     private func createNewFolder() {
         let alert = NSAlert()
         alert.messageText = L10n.Dialog.newFolderTitle

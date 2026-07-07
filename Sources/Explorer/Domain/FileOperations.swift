@@ -29,12 +29,14 @@ enum FileOperations {
     
     static func canPaste(to destinationDirectory: URL) -> Bool {
         let state = pasteboardState()
-        guard !state.urls.isEmpty else { return false }
-        return canMoveItems(
-            state.urls,
-            to: destinationDirectory,
-            allowSameDirectory: !state.isCut
-        )
+        if !state.urls.isEmpty {
+            return canMoveItems(
+                state.urls,
+                to: destinationDirectory,
+                allowSameDirectory: !state.isCut
+            )
+        }
+        return ClipboardFileCreation.canCreateFile(in: destinationDirectory)
     }
     
     static func canMoveItems(
@@ -305,20 +307,31 @@ enum FileOperations {
             .replacingOccurrences(of: "\"", with: "\\\"")
     }
     
-    static func paste(to destinationDirectory: URL, completion: @escaping () -> Void) {
+    static func paste(
+        to destinationDirectory: URL,
+        completion: @escaping (_ createdContentFileURL: URL?) -> Void
+    ) {
         let state = pasteboardState()
         guard canPaste(to: destinationDirectory) else { return }
-        
+
+        if state.urls.isEmpty {
+            guard let createdURL = ClipboardFileCreation.createFile(in: destinationDirectory) else { return }
+            recordOperation(.createFile(url: createdURL))
+            notifyGitWorkingTreeIfNeeded(at: createdURL)
+            completion(createdURL)
+            return
+        }
+
         let fileManager = FileManager.default
         var hadError = false
         var completedPairs: [RecordedFilePair] = []
-        
+
         for sourceURL in state.urls {
             let destinationURL = uniqueDestinationURL(
                 for: sourceURL.lastPathComponent,
                 in: destinationDirectory
             )
-            
+
             do {
                 if state.isCut {
                     try fileManager.moveItem(at: sourceURL, to: destinationURL)
@@ -332,7 +345,7 @@ enum FileOperations {
                 break
             }
         }
-        
+
         if state.isCut && !hadError {
             clearCutPasteboard()
         }
@@ -346,7 +359,7 @@ enum FileOperations {
             if let firstDestination = completedPairs.first?.destination {
                 notifyGitWorkingTreeIfNeeded(at: firstDestination)
             }
-            completion()
+            completion(nil)
         }
     }
     

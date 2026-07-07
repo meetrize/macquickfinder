@@ -50,7 +50,7 @@ final class OperationRecordingIntegrationTests: XCTestCase {
 
         FileOperations.copy([item])
         let pasteExpectation = expectation(description: "paste")
-        FileOperations.paste(to: tempDirectory) {
+        FileOperations.paste(to: tempDirectory) { _ in
             pasteExpectation.fulfill()
         }
         wait(for: [pasteExpectation], timeout: 2)
