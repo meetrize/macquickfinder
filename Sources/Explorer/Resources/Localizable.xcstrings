@@ -2681,6 +2681,20 @@
         }
       }
     },
+    "git.panel.configure_git": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Configure Git" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "配置 Git" } }
+      }
+    },
+    "git.panel.configure_git_hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Install Git via Xcode Command Line Tools or Homebrew, then choose the git executable in Settings." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请通过 Xcode Command Line Tools 或 Homebrew 安装 Git，然后在设置中指定 git 可执行文件路径。" } }
+      }
+    },
     "git.status.clean": {
       "extractionState": "manual",
       "localizations": {
@@ -3048,6 +3062,13 @@
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Git operation cancelled" } },
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git 操作已取消" } }
+      }
+    },
+    "git.error.executable_not_found": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git is not installed or could not be found" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未安装 Git 或找不到 Git 可执行文件" } }
       }
     },
     "git.history.title": {
@@ -6037,6 +6058,69 @@
             "value": "默认文件夹查看器"
           }
         }
+      }
+    },
+    "settings.git.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git" } }
+      }
+    },
+    "settings.git.executable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git Executable" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Git 可执行文件" } }
+      }
+    },
+    "settings.git.version": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Version" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "版本" } }
+      }
+    },
+    "settings.git.choose": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Choose…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择…" } }
+      }
+    },
+    "settings.git.reset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Auto Detect" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "自动检测" } }
+      }
+    },
+    "settings.git.footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "MeoFind uses git for the Git panel. If git is not in a standard location, choose the executable manually. Install via Xcode Command Line Tools (xcode-select --install) or Homebrew (brew install git)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "MeoFind 的 Git 面板依赖 git 命令。若 git 不在标准路径，请手动选择可执行文件。可通过 Xcode Command Line Tools（xcode-select --install）或 Homebrew（brew install git）安装。" } }
+      }
+    },
+    "settings.git.not_found": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Git was not found. Install it or choose the executable path above." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未找到 Git。请安装 Git，或在上方选择可执行文件路径。" } }
+      }
+    },
+    "settings.git.invalid_executable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The selected file is not a valid git executable." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "所选文件不是有效的 git 可执行文件。" } }
+      }
+    },
+    "settings.git.choose_panel_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Choose Git Executable" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "选择 Git 可执行文件" } }
       }
     },
     "settings.default_image_viewer.title": {

@@ -59,6 +59,12 @@ final class GitStatusStore: ObservableObject {
         refreshGeneration += 1
         let generation = refreshGeneration
 
+        guard GitCLI.isAvailable else {
+            lastError = L10n.Git.Error.executableNotFound
+            isRefreshing = false
+            return
+        }
+
         let cli = cli
         trackedCWD = cwd
         isRefreshing = true
@@ -131,7 +137,7 @@ extension GitCLIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .executableNotFound:
-            return "Git executable not found"
+            return L10n.Git.Error.executableNotFound
         case .timedOut(let seconds):
             return "Git command timed out after \(Int(seconds)) seconds"
         case .nonZeroExit(let code, let stderr):

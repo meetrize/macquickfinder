@@ -268,6 +268,8 @@
 	<string>Not a Git repository</string>
 	<key>git.error.cancelled</key>
 	<string>Git operation cancelled</string>
+	<key>git.error.executable_not_found</key>
+	<string>Git is not installed or could not be found</string>
 	<key>git.error.conflict</key>
 	<string>Resolve merge conflicts first</string>
 	<key>git.error.empty_commit_message</key>
@@ -302,6 +304,10 @@
 	<string>Git status and sync will appear here.</string>
 	<key>git.panel.refresh</key>
 	<string>Refresh Status</string>
+	<key>git.panel.configure_git</key>
+	<string>Configure Git</string>
+	<key>git.panel.configure_git_hint</key>
+	<string>Install Git via Xcode Command Line Tools or Homebrew, then choose the git executable in Settings.</string>
 	<key>git.panel.title</key>
 	<string>Git</string>
 	<key>git.status.ahead %lld</key>
@@ -1400,6 +1406,24 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>MeoFind is now the default folder viewer. Log out and back in (or restart) for the change to take effect everywhere.</string>
 	<key>settings.default_viewer.title</key>
 	<string>Default Folder Viewer</string>
+	<key>settings.git.title</key>
+	<string>Git</string>
+	<key>settings.git.executable</key>
+	<string>Git Executable</string>
+	<key>settings.git.version</key>
+	<string>Version</string>
+	<key>settings.git.choose</key>
+	<string>Choose…</string>
+	<key>settings.git.reset</key>
+	<string>Auto Detect</string>
+	<key>settings.git.footer</key>
+	<string>MeoFind uses git for the Git panel. If git is not in a standard location, choose the executable manually. Install via Xcode Command Line Tools (xcode-select --install) or Homebrew (brew install git).</string>
+	<key>settings.git.not_found</key>
+	<string>Git was not found. Install it or choose the executable path above.</string>
+	<key>settings.git.invalid_executable</key>
+	<string>The selected file is not a valid git executable.</string>
+	<key>settings.git.choose_panel_title</key>
+	<string>Choose Git Executable</string>
 	<key>settings.file_list.row_hover_highlight</key>
 	<string>Highlight file list row on hover</string>
 	<key>settings.general.interface_language</key>

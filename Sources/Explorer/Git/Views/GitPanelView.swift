@@ -61,6 +61,10 @@ struct GitPanelView: View {
             guard isVisible else { return }
             refreshIfNeeded(force: true)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .gitSettingsDidChange)) { _ in
+            guard layout.showGit else { return }
+            Task { await gitStatusStore.refresh(cwd: cwd) }
+        }
         .alert(
             L10n.Git.Commit.largeCommitTitle(pendingLargeCommitCount),
             isPresented: $showLargeCommitConfirm
@@ -146,7 +150,9 @@ struct GitPanelView: View {
 
     @ViewBuilder
     private var panelBody: some View {
-        if !isInRepository {
+        if !GitCLI.isAvailable {
+            gitNotFoundBody
+        } else if !isInRepository {
             notRepositoryBody
         } else if gitStatusStore.isRefreshing, displaySnapshot == nil {
             loadingBody
@@ -184,6 +190,28 @@ struct GitPanelView: View {
         .onAppear {
             Task { await gitStatusStore.refresh(cwd: cwd) }
         }
+    }
+
+    private var gitNotFoundBody: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.Git.Error.executableNotFound)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Text(L10n.Git.Panel.configureGitHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                openGitSettings()
+            } label: {
+                Text(L10n.Git.Panel.configureGit)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var notRepositoryBody: some View {
@@ -500,6 +528,7 @@ struct GitPanelView: View {
     }
 
     private func refreshIfNeeded(force: Bool) {
+        guard GitCLI.isAvailable else { return }
         guard isInRepository || force else {
             gitStatusStore.clear()
             return

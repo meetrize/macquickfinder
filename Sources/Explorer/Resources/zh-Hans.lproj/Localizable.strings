@@ -268,6 +268,8 @@
 	<string>当前目录不在 Git 仓库中</string>
 	<key>git.error.cancelled</key>
 	<string>Git 操作已取消</string>
+	<key>git.error.executable_not_found</key>
+	<string>未安装 Git 或找不到 Git 可执行文件</string>
 	<key>git.error.conflict</key>
 	<string>请先解决合并冲突</string>
 	<key>git.error.empty_commit_message</key>
@@ -302,6 +304,10 @@
 	<string>Git 状态与同步将显示在此处。</string>
 	<key>git.panel.refresh</key>
 	<string>刷新状态</string>
+	<key>git.panel.configure_git</key>
+	<string>配置 Git</string>
+	<key>git.panel.configure_git_hint</key>
+	<string>请通过 Xcode Command Line Tools 或 Homebrew 安装 Git，然后在设置中指定 git 可执行文件路径。</string>
 	<key>git.panel.title</key>
 	<string>Git</string>
 	<key>git.status.ahead %lld</key>
@@ -1400,6 +1406,24 @@
 	<string>已将 MeoFind 设为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。</string>
 	<key>settings.default_viewer.title</key>
 	<string>默认文件夹查看器</string>
+	<key>settings.git.title</key>
+	<string>Git</string>
+	<key>settings.git.executable</key>
+	<string>Git 可执行文件</string>
+	<key>settings.git.version</key>
+	<string>版本</string>
+	<key>settings.git.choose</key>
+	<string>选择…</string>
+	<key>settings.git.reset</key>
+	<string>自动检测</string>
+	<key>settings.git.footer</key>
+	<string>MeoFind 的 Git 面板依赖 git 命令。若 git 不在标准路径，请手动选择可执行文件。可通过 Xcode Command Line Tools（xcode-select --install）或 Homebrew（brew install git）安装。</string>
+	<key>settings.git.not_found</key>
+	<string>未找到 Git。请安装 Git，或在上方选择可执行文件路径。</string>
+	<key>settings.git.invalid_executable</key>
+	<string>所选文件不是有效的 git 可执行文件。</string>
+	<key>settings.git.choose_panel_title</key>
+	<string>选择 Git 可执行文件</string>
 	<key>settings.file_list.row_hover_highlight</key>
 	<string>鼠标悬停时高亮文件列表行</string>
 	<key>settings.general.interface_language</key>

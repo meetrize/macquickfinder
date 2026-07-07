@@ -100,6 +100,11 @@ enum AppPreferences {
         static let generalizePaths = "operationRecording.generalizePaths"
         static let showBanner = "operationRecording.showBanner"
     }
+
+    /// Git 集成。
+    enum Git {
+        static let customExecutablePath = "git.customExecutablePath"
+    }
 }
 
 /// 兼容旧调用方；新代码请使用 `AppPreferences`。

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -scheme macquickfinder -configuration Debug build)",
+      "Bash(xcodebuild -list)",
+      "Bash(xcodebuild -scheme Explorer -configuration Debug build)",
+      "Bash(xcodebuild -scheme Explorer -configuration Debug -destination 'platform=macOS' build)",
+      "Bash(swift build *)",
+      "Bash(python3 *)",
+      "Bash(xcodebuild -scheme Explorer -configuration Debug -destination 'platform=macOS' -resolvePackageDependencies)"
+    ]
+  }
+}

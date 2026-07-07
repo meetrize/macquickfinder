@@ -48,6 +48,9 @@ struct SettingsView: View {
                 previewPrefillExtension = ext
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openGitSettingsRequested)) { _ in
+            selectedTab = .general
+        }
     }
 }
 
@@ -105,6 +108,7 @@ private struct GeneralSettingsTab: View {
     @AppStorage(AppPreferences.FileList.rowHoverHighlight)
     private var rowHoverHighlight = true
     @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
+    @StateObject private var gitSettings = GitSettingsModel()
 
     var body: some View {
         ScrollView {
@@ -135,6 +139,7 @@ private struct GeneralSettingsTab: View {
                     Toggle(L10n.Settings.General.fileListRowHover, isOn: $rowHoverHighlight)
                 }
 
+                GitSettingsSection(model: gitSettings)
                 DefaultFileViewerSettingsSection(model: defaultFileViewerSettings)
             }
             .formStyle(.grouped)
@@ -142,7 +147,82 @@ private struct GeneralSettingsTab: View {
         }
         .onAppear {
             defaultFileViewerSettings.refresh()
+            gitSettings.refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openGitSettingsRequested)) { _ in
+            gitSettings.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .gitSettingsDidChange)) { _ in
+            gitSettings.refresh()
+        }
+    }
+}
+
+private struct GitSettingsSection: View {
+    @ObservedObject var model: GitSettingsModel
+
+    var body: some View {
+        Section {
+            LabeledContent(L10n.Settings.Git.executable) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(model.isAvailable ? Color.green : Color.secondary.opacity(0.5))
+                        .frame(width: 8, height: 8)
+                    Text(model.resolvedPath)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+
+            if let versionString = model.versionString {
+                LabeledContent(L10n.Settings.Git.version) {
+                    Text(versionString)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack {
+                Button(L10n.Settings.Git.choose) {
+                    model.chooseExecutable()
+                }
+
+                Button(L10n.Settings.Git.reset) {
+                    model.resetToAutoDetect()
+                }
+                .disabled(!model.hasCustomPath)
+            }
+
+            if !model.isAvailable {
+                Text(L10n.Settings.Git.notFound)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text(L10n.Settings.Git.title)
+        } footer: {
+            Text(L10n.Settings.Git.footer)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .alert(L10n.Settings.Git.title, isPresented: alertBinding) {
+            Button(L10n.Action.ok, role: .cancel) {
+                model.alertMessage = nil
+            }
+        } message: {
+            if let alertMessage = model.alertMessage {
+                Text(alertMessage)
+            }
+        }
+    }
+
+    private var alertBinding: Binding<Bool> {
+        Binding(
+            get: { model.alertMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    model.alertMessage = nil
+                }
+            }
+        )
     }
 }
 

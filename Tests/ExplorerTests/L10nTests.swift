@@ -148,6 +148,9 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Settings.DefaultViewer.title, "settings.default_viewer.title")
         XCTAssertNotEqual(L10n.Settings.DefaultViewer.setSuccess, "settings.default_viewer.set_success")
         XCTAssertNotEqual(L10n.Settings.DefaultViewer.restoreSuccess, "settings.default_viewer.restore_success")
+        XCTAssertNotEqual(L10n.Settings.Git.title, "settings.git.title")
+        XCTAssertNotEqual(L10n.Settings.Git.choose, "settings.git.choose")
+        XCTAssertNotEqual(L10n.Settings.Git.notFound, "settings.git.not_found")
         XCTAssertNotEqual(
             L10n.Error.DefaultViewer.launchServices(-50),
             "error.default_viewer.launch_services %lld"

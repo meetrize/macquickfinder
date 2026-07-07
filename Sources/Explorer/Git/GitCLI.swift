@@ -22,18 +22,31 @@ struct GitCLI: Sendable {
         self.runProcess = runProcess
     }
 
-    static let live = GitCLI(executableURL: GitCLI.resolveExecutableURL())
+    static var live: GitCLI { GitCLI() }
+
+    private static let defaultCandidates = [
+        "/opt/homebrew/bin/git",
+        "/usr/local/bin/git",
+        "/usr/bin/git",
+    ]
 
     static func resolveExecutableURL() -> URL {
-        let candidates = [
-            "/opt/homebrew/bin/git",
-            "/usr/local/bin/git",
-            "/usr/bin/git",
-        ]
-        for path in candidates where FileManager.default.isExecutableFile(atPath: path) {
+        if let custom = UserDefaultsStorage.optionalString(forKey: AppPreferences.Git.customExecutablePath),
+           !custom.isEmpty {
+            return URL(fileURLWithPath: (custom as NSString).standardizingPath)
+        }
+        for path in defaultCandidates where FileManager.default.isExecutableFile(atPath: path) {
             return URL(fileURLWithPath: path)
         }
         return URL(fileURLWithPath: "/usr/bin/git")
+    }
+
+    static var isAvailable: Bool {
+        isExecutableFile(at: resolveExecutableURL())
+    }
+
+    static func isExecutableFile(at url: URL) -> Bool {
+        FileManager.default.isExecutableFile(atPath: url.path)
     }
 
     func run(_ arguments: [String], workingDirectory: String) throws -> String {
@@ -45,7 +58,7 @@ struct GitCLI: Sendable {
     }
 
     func runData(_ arguments: [String], workingDirectory: String) throws -> GitProcessResult {
-        try runProcess(executableURL, arguments, workingDirectory, timeout)
+        try runProcess(Self.resolveExecutableURL(), arguments, workingDirectory, timeout)
     }
 }
 

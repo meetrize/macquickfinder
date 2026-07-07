@@ -108,6 +108,8 @@ enum L10n {
             static var expand: String { ModuleLocalization.localized("git.panel.expand", bundle: .module) }
             static var placeholder: String { ModuleLocalization.localized("git.panel.placeholder", bundle: .module) }
             static var refresh: String { ModuleLocalization.localized("git.panel.refresh", bundle: .module) }
+            static var configureGit: String { ModuleLocalization.localized("git.panel.configure_git", bundle: .module) }
+            static var configureGitHint: String { ModuleLocalization.localized("git.panel.configure_git_hint", bundle: .module) }
         }
 
         enum Status {
@@ -230,6 +232,7 @@ enum L10n {
             static var conflict: String { ModuleLocalization.localized("git.error.conflict", bundle: .module) }
             static var emptyCommitMessage: String { ModuleLocalization.localized("git.error.empty_commit_message", bundle: .module) }
             static var cancelled: String { ModuleLocalization.localized("git.error.cancelled", bundle: .module) }
+            static var executableNotFound: String { ModuleLocalization.localized("git.error.executable_not_found", bundle: .module) }
         }
 
         enum History {
@@ -315,6 +318,18 @@ enum L10n {
             static var restartHint: String { ModuleLocalization.localized("settings.default_viewer.restart_hint", bundle: .module) }
             static var setSuccess: String { ModuleLocalization.localized("settings.default_viewer.set_success", bundle: .module) }
             static var restoreSuccess: String { ModuleLocalization.localized("settings.default_viewer.restore_success", bundle: .module) }
+        }
+
+        enum Git {
+            static var title: String { ModuleLocalization.localized("settings.git.title", bundle: .module) }
+            static var executable: String { ModuleLocalization.localized("settings.git.executable", bundle: .module) }
+            static var version: String { ModuleLocalization.localized("settings.git.version", bundle: .module) }
+            static var choose: String { ModuleLocalization.localized("settings.git.choose", bundle: .module) }
+            static var reset: String { ModuleLocalization.localized("settings.git.reset", bundle: .module) }
+            static var footer: String { ModuleLocalization.localized("settings.git.footer", bundle: .module) }
+            static var notFound: String { ModuleLocalization.localized("settings.git.not_found", bundle: .module) }
+            static var invalidExecutable: String { ModuleLocalization.localized("settings.git.invalid_executable", bundle: .module) }
+            static var choosePanelTitle: String { ModuleLocalization.localized("settings.git.choose_panel_title", bundle: .module) }
         }
 
         enum Snippets {
