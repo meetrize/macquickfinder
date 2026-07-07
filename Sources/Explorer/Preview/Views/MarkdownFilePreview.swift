@@ -630,7 +630,11 @@ struct MarkdownFilePreview: NSViewRepresentable {
             let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
 
             for item in pending {
-                let cacheKey = MarkdownPreviewMermaidBlock.cacheKey(source: item.source, isDark: isDark)
+                let cacheKey = MarkdownPreviewMermaidBlock.cacheKey(
+                    source: item.source,
+                    isDark: isDark,
+                    layoutWidth: item.layoutWidth
+                )
                 if mermaidInFlightKeys.contains(cacheKey) {
                     continue
                 }
@@ -673,7 +677,11 @@ struct MarkdownFilePreview: NSViewRepresentable {
             storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
                 guard
                     let attachment = value as? MarkdownMermaidAttachment,
-                    MarkdownPreviewMermaidBlock.cacheKey(source: attachment.source, isDark: attachment.isDark) == cacheKey
+                    MarkdownPreviewMermaidBlock.cacheKey(
+                        source: attachment.source,
+                        isDark: attachment.isDark,
+                        layoutWidth: attachment.layoutWidth
+                    ) == cacheKey
                 else { return }
 
                 attachment.image = cached.image
@@ -697,7 +705,11 @@ struct MarkdownFilePreview: NSViewRepresentable {
             storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
                 guard
                     let attachment = value as? MarkdownMermaidAttachment,
-                    MarkdownPreviewMermaidBlock.cacheKey(source: attachment.source, isDark: attachment.isDark) == cacheKey
+                    MarkdownPreviewMermaidBlock.cacheKey(
+                        source: attachment.source,
+                        isDark: attachment.isDark,
+                        layoutWidth: attachment.layoutWidth
+                    ) == cacheKey
                 else { return }
 
                 attachment.image = MarkdownPreviewMermaidBlock.makeFailedPlaceholder(

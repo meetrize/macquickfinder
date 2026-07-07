@@ -42,7 +42,7 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
     }
 
     func render(source: String, layoutWidth: CGFloat, isDark: Bool) async -> RenderResult {
-        let key = MarkdownPreviewMermaidBlock.cacheKey(source: source, isDark: isDark)
+        let key = MarkdownPreviewMermaidBlock.cacheKey(source: source, isDark: isDark, layoutWidth: layoutWidth)
         if let existing = inflight[key] {
             return await existing.value
         }
@@ -129,7 +129,7 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
                     return { error: "render bridge missing" };
                   }
                   return await window.meofindRenderDiagram(
-                    source, renderID, theme, maxDisplayWidth, maxDisplayHeight
+                    source, renderID, theme, maxDisplayWidth
                   );
                 } catch (error) {
                   return { error: String(error && error.message ? error.message : error) };
@@ -140,7 +140,6 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
                     "renderID": renderID,
                     "theme": theme,
                     "maxDisplayWidth": Double(maxDisplayWidth),
-                    "maxDisplayHeight": 3_200.0,
                 ],
                 in: nil,
                 contentWorld: .page
@@ -191,24 +190,24 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
         contentOrigin: CGPoint,
         contentSize: NSSize
     ) async -> NSImage? {
-        let padding: CGFloat = 8
         let captureRect = CGRect(
-            x: max(contentOrigin.x - padding, 0),
-            y: max(contentOrigin.y - padding, 0),
-            width: contentSize.width + padding * 2,
-            height: contentSize.height + padding * 2
+            x: contentOrigin.x,
+            y: contentOrigin.y,
+            width: contentSize.width,
+            height: contentSize.height
         )
 
         webView.layoutSubtreeIfNeeded()
         try? await Task.sleep(nanoseconds: 150_000_000)
 
         if let snapshot = await takeSnapshot(from: webView, rect: captureRect) {
+            snapshot.size = contentSize
             return snapshot
         }
 
         guard let rep = webView.bitmapImageRepForCachingDisplay(in: captureRect) else { return nil }
         webView.cacheDisplay(in: captureRect, to: rep)
-        let image = NSImage(size: captureRect.size)
+        let image = NSImage(size: contentSize)
         image.addRepresentation(rep)
         return image
     }
@@ -388,80 +387,74 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
               flowchart: {
                 htmlLabels: true,
                 curve: "linear",
-                padding: 12,
+                padding: 16,
                 useMaxWidth: false
+              },
+              gantt: {
+                useMaxWidth: false,
+                fontSize: 16,
+                barHeight: 22,
+                barGap: 6
               }
             });
             meofindConfiguredTheme = theme;
           }
 
-          function meofindMeasureDiagram(root, svgElement) {
-            let width = 0;
-            let height = 0;
+          function meofindNaturalSize(root, svgElement) {
+            const padX = 8;
+            const padTop = 8;
+            const padBottom = 14;
 
             try {
               const bbox = svgElement.getBBox();
-              width = Math.ceil(bbox.width);
-              height = Math.ceil(bbox.height);
+              const x = bbox.x - padX;
+              const y = bbox.y - padTop;
+              const width = bbox.width + padX * 2;
+              const height = bbox.height + padTop + padBottom;
+              svgElement.setAttribute("viewBox", x + " " + y + " " + width + " " + height);
+              return { width: Math.ceil(width), height: Math.ceil(height) };
             } catch (_) {}
 
-            if (width <= 0 || height <= 0) {
-              const vb = svgElement.viewBox && svgElement.viewBox.baseVal;
-              if (vb && vb.width > 0 && vb.height > 0) {
-                width = Math.ceil(vb.width);
-                height = Math.ceil(vb.height);
-              }
+            const rootRect = root.getBoundingClientRect();
+            if (rootRect.width > 0 && rootRect.height > 0) {
+              const width = Math.ceil(rootRect.width) + padX * 2;
+              const height = Math.ceil(rootRect.height) + padTop + padBottom;
+              svgElement.setAttribute("viewBox", "0 0 " + width + " " + height);
+              return { width: width, height: height };
             }
 
-            if (width <= 0 || height <= 0) {
-              const rootRect = root.getBoundingClientRect();
-              const svgRect = svgElement.getBoundingClientRect();
-              width = Math.ceil(Math.max(
-                rootRect.width, svgRect.width, root.scrollWidth, svgElement.scrollWidth || 0
-              ));
-              height = Math.ceil(Math.max(
-                rootRect.height, svgRect.height, root.scrollHeight, svgElement.scrollHeight || 0
-              ));
+            const vb = svgElement.viewBox && svgElement.viewBox.baseVal;
+            if (vb && vb.width > 0 && vb.height > 0) {
+              const width = Math.ceil(vb.width) + padX * 2;
+              const height = Math.ceil(vb.height) + padTop + padBottom;
+              return { width: width, height: height };
             }
 
-            return { width: width, height: height };
+            return { width: 0, height: 0 };
           }
 
-          function meofindApplyDisplayScale(root, svgElement, width, height, maxDisplayWidth, maxDisplayHeight) {
-            const maxWidth = Math.max(Number(maxDisplayWidth) || width, 160);
-            const maxHeight = Math.max(Number(maxDisplayHeight) || height, 160);
-            let scale = 1;
-            if (width > maxWidth) {
-              scale = maxWidth / width;
-            }
-            if (height * scale > maxHeight) {
-              scale = maxHeight / height;
-            }
+          function meofindFitToDisplay(root, svgElement, naturalWidth, naturalHeight, targetWidth) {
+            const target = Math.max(Number(targetWidth) || naturalWidth, 160);
+            const scale = target / naturalWidth;
+            const displayWidth = Math.max(Math.ceil(naturalWidth * scale), 1);
+            const displayHeight = Math.max(Math.ceil(naturalHeight * scale), 1);
 
-            root.style.width = "";
-            root.style.height = "";
-            root.style.overflow = "visible";
+            svgElement.setAttribute("width", String(displayWidth));
+            svgElement.setAttribute("height", String(displayHeight));
             svgElement.style.transform = "";
             svgElement.style.transformOrigin = "";
+            svgElement.style.maxWidth = "none";
 
-            if (scale < 1) {
-              const scaledWidth = Math.max(Math.ceil(width * scale), 1);
-              const scaledHeight = Math.max(Math.ceil(height * scale), 1);
-              root.style.width = scaledWidth + "px";
-              root.style.height = scaledHeight + "px";
-              root.style.overflow = "hidden";
-              svgElement.style.transformOrigin = "top left";
-              svgElement.style.transform = "scale(" + scale + ")";
-              return { width: scaledWidth, height: scaledHeight };
-            }
+            root.style.width = displayWidth + "px";
+            root.style.height = displayHeight + "px";
+            root.style.overflow = "visible";
+            root.style.paddingBottom = "0";
 
-            root.style.width = width + "px";
-            root.style.height = height + "px";
-            return { width: width, height: height };
+            return { width: displayWidth, height: displayHeight };
           }
 
           window.meofindRenderDiagram = async function(
-            source, renderID, theme, maxDisplayWidth, maxDisplayHeight
+            source, renderID, theme, maxDisplayWidth
           ) {
             meofindEnsureMermaid(theme);
 
@@ -492,18 +485,17 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
             });
             await new Promise(function(resolve) { setTimeout(resolve, 60); });
 
-            const measured = meofindMeasureDiagram(root, svgElement);
-            if (measured.width <= 0 || measured.height <= 0) {
+            const natural = meofindNaturalSize(root, svgElement);
+            if (natural.width <= 0 || natural.height <= 0) {
               throw new Error("invalid svg size");
             }
 
-            const fitted = meofindApplyDisplayScale(
+            const fitted = meofindFitToDisplay(
               root,
               svgElement,
-              measured.width,
-              measured.height,
-              maxDisplayWidth,
-              maxDisplayHeight
+              natural.width,
+              natural.height,
+              maxDisplayWidth
             );
 
             await new Promise(function(resolve) {

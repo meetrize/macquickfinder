@@ -21,8 +21,8 @@ enum MarkdownPreviewMermaidBlock {
         let displaySize: NSSize
     }
 
-    static func cacheKey(source: String, isDark: Bool) -> String {
-        "\(isDark ? "dark" : "light")|\(source)"
+    static func cacheKey(source: String, isDark: Bool, layoutWidth: CGFloat) -> String {
+        "\(isDark ? "dark" : "light")|\(Int(layoutWidth.rounded()))|\(source)"
     }
 
     private static let openFenceRegex = try? NSRegularExpression(
@@ -109,7 +109,7 @@ enum MarkdownPreviewMermaidBlock {
                 layoutWidth: contentWidth,
                 isDark: isDark
             )
-            let cacheKey = cacheKey(source: block.source, isDark: isDark)
+            let cacheKey = cacheKey(source: block.source, isDark: isDark, layoutWidth: contentWidth)
             if let cached = cachedRenders[cacheKey] {
                 attachment.image = cached.image
                 attachment.bounds = attachmentBounds(for: cached.displaySize)
