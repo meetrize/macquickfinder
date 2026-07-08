@@ -47,8 +47,10 @@ final class ExplorerWindowTabCenter: ObservableObject {
     private var pendingMainTabNavigations: [ObjectIdentifier: PendingMainTabNavigation] = [:]
     @Published private(set) var tabBarRevision: UInt = 0
     private var notificationObservers: [NSObjectProtocol] = []
+    private var tabDoubleClickMonitor: Any?
 
     private init() {
+        installTabDoubleClickMonitor()
         let center = NotificationCenter.default
         notificationObservers = [
             center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] _ in
@@ -216,5 +218,40 @@ final class ExplorerWindowTabCenter: ObservableObject {
 
     private func bumpTabBarRevision() {
         tabBarRevision &+= 1
+    }
+
+    private func installTabDoubleClickMonitor() {
+        guard tabDoubleClickMonitor == nil else { return }
+        tabDoubleClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+            guard event.clickCount == 2 else { return event }
+            guard let window = event.window else { return event }
+            guard Self.isRegisteredExplorerWindow(window) else { return event }
+            guard Self.isMouseInTabBar(window, screenLocation: NSEvent.mouseLocation) else { return event }
+            window.close()
+            return nil
+        }
+    }
+
+    private static func isRegisteredExplorerWindow(_ window: NSWindow) -> Bool {
+        guard window.tabbingMode != .disallowed,
+              let tabGroup = window.tabGroup,
+              tabGroup.isTabBarVisible,
+              tabGroup.windows.count > 1 else {
+            return false
+        }
+        return shared.windowPaths[ObjectIdentifier(window)] != nil
+    }
+
+    /// 标签栏位于内容区正上方的一条窄带内。
+    private static func isMouseInTabBar(_ window: NSWindow, screenLocation: NSPoint) -> Bool {
+        guard window.frame.contains(screenLocation) else { return false }
+
+        let windowPoint = NSPoint(
+            x: screenLocation.x - window.frame.origin.x,
+            y: screenLocation.y - window.frame.origin.y
+        )
+        let contentTop = window.contentLayoutRect.maxY
+        let tabBarHeight: CGFloat = 32
+        return windowPoint.y >= contentTop && windowPoint.y <= contentTop + tabBarHeight
     }
 }

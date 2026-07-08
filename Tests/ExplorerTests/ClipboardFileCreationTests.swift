@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import XCTest
 @testable import Explorer
 
@@ -95,6 +96,13 @@ final class ClipboardFileCreationTests: XCTestCase {
         XCTAssertEqual(createdURL.lastPathComponent, "plain notes.txt")
     }
 
+    func testSuggestedImageFileNameUsesProperExtension() {
+        let fileName = ClipboardFileCreation.suggestedImageFileName(fileExtension: "png")
+        XCTAssertEqual(fileName, "\(L10n.File.pastedImageBaseName).png")
+        XCTAssertTrue(fileName.hasSuffix(".png"))
+        XCTAssertFalse(fileName.hasSuffix(".pasted_image_name"))
+    }
+
     func testCreateFileFromImagePasteboard() throws {
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("test-image-\(UUID().uuidString)"))
         pasteboard.clearContents()
@@ -107,8 +115,41 @@ final class ClipboardFileCreationTests: XCTestCase {
 
         let createdURL = try XCTUnwrap(ClipboardFileCreation.createFile(in: tempDirectory, pasteboard: pasteboard))
         XCTAssertEqual(createdURL.pathExtension, "png")
-        XCTAssertEqual(createdURL.lastPathComponent, L10n.File.pastedImageFileName)
+        XCTAssertEqual(createdURL.lastPathComponent, ClipboardFileCreation.suggestedImageFileName(fileExtension: "png"))
         XCTAssertTrue(FileManager.default.fileExists(atPath: createdURL.path))
+    }
+
+    func testCreateFileFromJPEGPasteboard() throws {
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("test-jpeg-\(UUID().uuidString)"))
+        pasteboard.clearContents()
+        let jpegType = NSPasteboard.PasteboardType(UTType.jpeg.identifier)
+        let jpegData = Data([0xFF, 0xD8, 0xFF, 0xD9])
+        pasteboard.setData(jpegData, forType: jpegType)
+
+        let createdURL = try XCTUnwrap(ClipboardFileCreation.createFile(in: tempDirectory, pasteboard: pasteboard))
+        XCTAssertEqual(createdURL.pathExtension, "jpg")
+        XCTAssertEqual(createdURL.lastPathComponent, ClipboardFileCreation.suggestedImageFileName(fileExtension: "jpg"))
+    }
+
+    func testCreateFileFromTIFFPasteboardCompressesToPNG() throws {
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("test-tiff-\(UUID().uuidString)"))
+        pasteboard.clearContents()
+        let image = NSImage(size: NSSize(width: 64, height: 64))
+        image.lockFocus()
+        NSColor.blue.setFill()
+        NSRect(x: 0, y: 0, width: 64, height: 64).fill()
+        image.unlockFocus()
+        guard let tiffData = image.tiffRepresentation else {
+            XCTFail("Expected TIFF representation")
+            return
+        }
+        pasteboard.setData(tiffData, forType: .tiff)
+
+        let createdURL = try XCTUnwrap(ClipboardFileCreation.createFile(in: tempDirectory, pasteboard: pasteboard))
+        XCTAssertEqual(createdURL.pathExtension, "png")
+        let outputData = try Data(contentsOf: createdURL)
+        XCTAssertTrue(outputData.starts(with: Data([0x89, 0x50, 0x4E, 0x47])))
+        XCTAssertLessThan(outputData.count, tiffData.count)
     }
 
     func testCanCreateFileReturnsFalseInTrash() {

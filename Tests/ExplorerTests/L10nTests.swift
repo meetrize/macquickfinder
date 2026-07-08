@@ -25,6 +25,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Toolbar.newWindow, "toolbar.new_window")
         XCTAssertNotEqual(L10n.Toolbar.newFile, "toolbar.new_file")
         XCTAssertNotEqual(L10n.File.defaultNewFileName, "file.default_new_name")
+        XCTAssertNotEqual(L10n.File.pastedImageBaseName, "file.pasted_image_base")
         XCTAssertNotEqual(L10n.File.pastedImageFileName, "file.pasted_image_name")
         XCTAssertNotEqual(L10n.File.pastedTextFileName, "file.pasted_text_name")
         XCTAssertNotEqual(L10n.File.pastedMarkdownFileName, "file.pasted_markdown_name")

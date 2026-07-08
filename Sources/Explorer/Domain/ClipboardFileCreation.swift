@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ImageIO
 import UniformTypeIdentifiers
 
 enum ClipboardFileCreation {
@@ -8,14 +9,19 @@ enum ClipboardFileCreation {
         case plain
     }
 
+    struct ImagePayload: Equatable {
+        let data: Data
+        let fileExtension: String
+    }
+
     enum ContentKind: Equatable {
-        case image(Data)
+        case image(ImagePayload)
         case text(String, TextFormat)
     }
 
     static func contentKind(from pasteboard: NSPasteboard = .general) -> ContentKind? {
-        if let imageData = pngData(from: pasteboard) {
-            return .image(imageData)
+        if let imagePayload = imagePayload(from: pasteboard) {
+            return .image(imagePayload)
         }
         guard let text = pasteboard.string(forType: .string) else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -49,9 +55,9 @@ enum ClipboardFileCreation {
         let data: Data
 
         switch kind {
-        case .image(let pngData):
-            fileName = L10n.File.pastedImageFileName
-            data = pngData
+        case .image(let payload):
+            fileName = suggestedImageFileName(fileExtension: payload.fileExtension)
+            data = payload.data
         case .text(let text, let format):
             fileName = suggestedTextFileName(for: text, format: format)
             guard let encoded = text.data(using: .utf8) else { return nil }
@@ -107,6 +113,10 @@ enum ClipboardFileCreation {
         if trimmed.range(of: #"_.+?_"#, options: .regularExpression) != nil { return true }
 
         return false
+    }
+
+    static func suggestedImageFileName(fileExtension: String) -> String {
+        "\(L10n.File.pastedImageBaseName).\(fileExtension)"
     }
 
     static func suggestedTextFileName(for text: String, format: TextFormat) -> String {
@@ -173,16 +183,62 @@ enum ClipboardFileCreation {
         return result
     }
 
-    private static func pngData(from pasteboard: NSPasteboard) -> Data? {
-        if let png = pasteboard.data(forType: .png) {
-            return png
+    private static func imagePayload(from pasteboard: NSPasteboard) -> ImagePayload? {
+        if let data = pasteboard.data(forType: .png) {
+            return normalizedCompressedPNG(from: data)
         }
-        guard let image = NSImage(pasteboard: pasteboard) else { return nil }
-        guard let tiff = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let png = bitmap.representation(using: .png, properties: [:]) else {
+        if let data = pasteboard.data(forType: .tiff) {
+            return normalizedCompressedPNG(from: data)
+        }
+        for candidate in preferredLossyImageTypes {
+            if let data = pasteboard.data(forType: candidate.pasteboardType) {
+                return ImagePayload(data: data, fileExtension: candidate.fileExtension)
+            }
+        }
+
+        guard let image = NSImage(pasteboard: pasteboard),
+              let tiff = image.tiffRepresentation else { return nil }
+        return normalizedCompressedPNG(from: tiff)
+    }
+
+    /// 将剪贴板中的位图（截图常见 PNG/TIFF）统一转为压缩 PNG。
+    private static func normalizedCompressedPNG(from imageData: Data) -> ImagePayload? {
+        guard let compressed = compressToPNG(imageData) else {
+            guard let bitmap = NSBitmapImageRep(data: imageData),
+                  let png = bitmap.representation(using: .png, properties: [.interlaced: false]) else {
+                return nil
+            }
+            return ImagePayload(data: png, fileExtension: "png")
+        }
+        return ImagePayload(data: compressed, fileExtension: "png")
+    }
+
+    private static func compressToPNG(_ imageData: Data) -> Data? {
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+              let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             return nil
         }
-        return png
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            output,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ) else { return nil }
+
+        let properties: [CFString: Any] = [
+            kCGImageDestinationOptimizeColorForSharing: true,
+        ]
+        CGImageDestinationAddImage(destination, cgImage, properties as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return output as Data
     }
+
+    private static let preferredLossyImageTypes: [(pasteboardType: NSPasteboard.PasteboardType, fileExtension: String)] = [
+        (NSPasteboard.PasteboardType(UTType.jpeg.identifier), "jpg"),
+        (NSPasteboard.PasteboardType(UTType.heic.identifier), "heic"),
+        (NSPasteboard.PasteboardType(UTType.gif.identifier), "gif"),
+        (NSPasteboard.PasteboardType(UTType.bmp.identifier), "bmp"),
+        (NSPasteboard.PasteboardType(UTType.webP.identifier), "webp"),
+    ]
 }

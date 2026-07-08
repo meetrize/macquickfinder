@@ -987,6 +987,23 @@
         }
       }
     },
+    "file.pasted_image_base": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasted Image"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴的图片"
+          }
+        }
+      }
+    },
     "file.pasted_image_name": {
       "extractionState": "manual",
       "localizations": {

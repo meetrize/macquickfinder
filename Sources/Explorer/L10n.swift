@@ -819,6 +819,7 @@ enum L10n {
 
     enum File {
         static var defaultNewFileName: String { ModuleLocalization.localized("file.default_new_name", bundle: .module) }
+        static var pastedImageBaseName: String { ModuleLocalization.localized("file.pasted_image_base", bundle: .module) }
         static var pastedImageFileName: String { ModuleLocalization.localized("file.pasted_image_name", bundle: .module) }
         static var pastedTextFileName: String { ModuleLocalization.localized("file.pasted_text_name", bundle: .module) }
         static var pastedMarkdownFileName: String { ModuleLocalization.localized("file.pasted_markdown_name", bundle: .module) }

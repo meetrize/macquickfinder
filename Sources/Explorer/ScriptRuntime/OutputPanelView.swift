@@ -216,6 +216,10 @@ struct OutputPanelView: View {
         .cornerRadius(4)
         .padding(.trailing, 4)
         .frame(height: OutputPanelMetrics.titleBarHeight, alignment: .center)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            closeCurrentJobTab(jobID: job.id)
+        }
         .contextMenu {
             Button(L10n.Snippets.Output.closeCurrent) {
                 jobStore.removeJob(id: job.id)
