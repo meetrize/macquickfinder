@@ -110,11 +110,11 @@ struct CustomPreviewRule: Codable, Identifiable, Equatable {
 
 /// 内置预览扩展名集合，与 `FileContentView.loadContent` 保持一致。
 enum BuiltinPreviewExtensions {
-    static let image: Set<String> = ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp"]
+    static let image: Set<String> = ["jpg", "jpeg", "png", "gif", "tiff", "bmp", "heic", "webp", "svg"]
     /// 基于 Quick Look 的矢量/设计类预览（避免直接解码超大源文件带来的内存峰值）。
     static let quickLookImage: Set<String> = [
         "psd",
-        "ai", "eps", "svg",
+        "ai", "eps",
         "dxf",
     ]
     static let media: Set<String> = ["mp4", "mov", "mp3", "wav"]

@@ -28,6 +28,9 @@ enum ImagePreviewLoader {
 
     static func decode(data: Data, maxPixelSize: Int?) -> NSImage? {
         autoreleasepool {
+            if SVGPreviewSupport.isSVGData(data) {
+                return SVGPreviewSupport.decode(data: data, maxPixelSize: maxPixelSize)
+            }
             guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             return decodeFromSource(source, maxPixelSize: maxPixelSize)
         }
@@ -44,6 +47,9 @@ enum ImagePreviewLoader {
 
     private static func decodeFromURL(_ url: URL, maxPixelSize: Int?) -> NSImage? {
         autoreleasepool {
+            if SVGPreviewSupport.isSVGURL(url) {
+                return SVGPreviewSupport.decode(from: url, maxPixelSize: maxPixelSize)
+            }
             guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
             return decodeFromSource(source, maxPixelSize: maxPixelSize)
         }

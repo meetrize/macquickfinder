@@ -45,6 +45,46 @@ final class ImagePreviewLoaderTests: XCTestCase {
         XCTAssertEqual(pixelSize.height, 48, accuracy: 0.5)
     }
 
+    func testDecodeSVGUsesLogicalSizeForLayout() throws {
+        let markup = """
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" fill="red"/>
+        </svg>
+        """
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("svg-preview-\(UUID().uuidString).svg")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try markup.write(to: url, atomically: true, encoding: .utf8)
+
+        let decoded = ImagePreviewLoader.decode(data: try Data(contentsOf: url), maxPixelSize: 256)
+        XCTAssertNotNil(decoded)
+        XCTAssertEqual(decoded?.size.width ?? 0, 24, accuracy: 0.5)
+        XCTAssertEqual(decoded?.size.height ?? 0, 24, accuracy: 0.5)
+    }
+
+    func testSVGLogicalSizeReadsViewBox() {
+        let markup = """
+        <svg viewBox="0 0 800 600"><rect width="800" height="600"/></svg>
+        """
+        let size = SVGPreviewSupport.logicalSize(from: markup)
+        XCTAssertEqual(size?.width ?? 0, 800, accuracy: 0.5)
+        XCTAssertEqual(size?.height ?? 0, 600, accuracy: 0.5)
+    }
+
+    func testSVGPixelSizeReaderUsesLogicalDimensions() throws {
+        let markup = """
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="32"></svg>
+        """
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("svg-dimensions-\(UUID().uuidString).svg")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try markup.write(to: url, atomically: true, encoding: .utf8)
+
+        let size = ImageFileDimensionsReader.pixelSize(for: url)
+        XCTAssertEqual(size?.width ?? 0, 48, accuracy: 0.5)
+        XCTAssertEqual(size?.height ?? 0, 32, accuracy: 0.5)
+    }
+
     private func makeTemporaryPNG(width: Int, height: Int) throws -> URL {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let context = CGContext(
