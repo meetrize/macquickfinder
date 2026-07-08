@@ -75,7 +75,7 @@ final class MarkdownPreviewMermaidBlockTests: XCTestCase {
         let rendered = NSMutableAttributedString(string: markdown)
         let pending = MarkdownPreviewMermaidBlock.apply(
             in: rendered,
-            layoutWidth: 320,
+            viewport: MarkdownPreviewMermaidFitting.Viewport(maxWidth: 320, maxHeight: 240),
             renderingLabel: "Rendering diagram…",
             isDark: false,
             cachedRenderForKey: { _ in nil }
@@ -114,15 +114,23 @@ final class MarkdownPreviewMermaidBlockTests: XCTestCase {
         )
         let cached = MarkdownPreviewMermaidBlock.CachedRender(
             image: image,
-            displaySize: NSSize(width: 120, height: 80)
+            naturalSize: NSSize(width: 120, height: 80)
         )
         let pending = MarkdownPreviewMermaidBlock.apply(
             in: rendered,
-            layoutWidth: 640,
+            viewport: MarkdownPreviewMermaidFitting.Viewport(maxWidth: 640, maxHeight: 480),
             renderingLabel: "Rendering diagram…",
             isDark: true,
             cachedRenderForKey: { $0 == cacheKey ? cached : nil }
         )
         XCTAssertTrue(pending.isEmpty)
+
+        var attachmentBounds: CGRect?
+        rendered.enumerateAttribute(.attachment, in: NSRange(location: 0, length: rendered.length)) { value, _, _ in
+            guard let attachment = value as? MarkdownMermaidAttachment else { return }
+            attachmentBounds = attachment.bounds
+        }
+        XCTAssertEqual(attachmentBounds?.width, 640)
+        XCTAssertEqual(attachmentBounds?.height, 427)
     }
 }

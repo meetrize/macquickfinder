@@ -27,7 +27,7 @@ final class MermaidPreviewCache {
                 storage.removeObject(forKey: key as NSString)
                 return
             }
-            let cost = max(1, Int(newValue.displaySize.width * newValue.displaySize.height * 4))
+            let cost = max(1, Int(newValue.naturalSize.width * newValue.naturalSize.height * 4))
             storage.setObject(Box(newValue), forKey: key as NSString, cost: cost)
         }
     }

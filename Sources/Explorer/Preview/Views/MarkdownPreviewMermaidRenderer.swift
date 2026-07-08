@@ -9,7 +9,7 @@ import WebKit
 final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
     struct RenderResult: Equatable {
         let image: NSImage?
-        let displaySize: NSSize
+        let naturalSize: NSSize
         let svg: String?
     }
 
@@ -50,7 +50,7 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
         MermaidPreviewCache.shared.clear()
     }
 
-    func render(source: String, layoutWidth: CGFloat, isDark: Bool) async -> RenderResult {
+    func render(source: String, isDark: Bool) async -> RenderResult {
         let key = MarkdownPreviewMermaidBlock.cacheKey(source: source, isDark: isDark)
         if let existing = inflight[key] {
             return await existing.value
@@ -60,7 +60,7 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
             await self.renderTail.value
 
             let renderTask = Task { @MainActor in
-                await self.renderWithTimeout(source: source, layoutWidth: layoutWidth, isDark: isDark)
+                await self.renderWithTimeout(source: source, isDark: isDark)
             }
             self.renderTail = Task { _ = await renderTask.value }
             return await renderTask.value
@@ -99,32 +99,31 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
 
     // MARK: - Private
 
-    private func renderWithTimeout(source: String, layoutWidth: CGFloat, isDark: Bool) async -> RenderResult {
+    private func renderWithTimeout(source: String, isDark: Bool) async -> RenderResult {
         await withTaskGroup(of: RenderResult.self) { group in
             group.addTask {
-                await self.performRender(source: source, layoutWidth: layoutWidth, isDark: isDark)
+                await self.performRender(source: source, isDark: isDark)
             }
             group.addTask {
                 try? await Task.sleep(nanoseconds: 25_000_000_000)
-                return RenderResult(image: nil, displaySize: .zero, svg: nil)
+                return RenderResult(image: nil, naturalSize: .zero, svg: nil)
             }
             guard let first = await group.next() else {
-                return RenderResult(image: nil, displaySize: .zero, svg: nil)
+                return RenderResult(image: nil, naturalSize: .zero, svg: nil)
             }
             group.cancelAll()
             return first
         }
     }
 
-    private func performRender(source: String, layoutWidth: CGFloat, isDark: Bool) async -> RenderResult {
+    private func performRender(source: String, isDark: Bool) async -> RenderResult {
         guard !Self.mermaidJSSource.isEmpty else {
             Self.logger.error("mermaid.min.js missing or empty in bundle")
-            return RenderResult(image: nil, displaySize: .zero, svg: nil)
+            return RenderResult(image: nil, naturalSize: .zero, svg: nil)
         }
 
         let webView = ensureWebView()
-        let maxDisplayWidth = max(layoutWidth, 320)
-        let prepWidth = max(maxDisplayWidth, 1_200)
+        let prepWidth: CGFloat = 2_048
         let prepHeight: CGFloat = 8_192
         resizeWebView(webView, to: NSSize(width: prepWidth, height: prepHeight))
 
@@ -146,7 +145,7 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
                     return { error: "render bridge missing" };
                   }
                   return await window.meofindRenderDiagram(
-                    source, renderID, theme, maxDisplayWidth
+                    source, renderID, theme
                   );
                 } catch (error) {
                   return { error: String(error && error.message ? error.message : error) };
@@ -156,7 +155,6 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
                     "source": source,
                     "renderID": renderID,
                     "theme": theme,
-                    "maxDisplayWidth": Double(maxDisplayWidth),
                 ],
                 in: nil,
                 contentWorld: .page
@@ -164,35 +162,35 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
 
             if let jsError = Self.parseJavaScriptError(value) {
                 Self.logger.error("Mermaid JavaScript error: \(jsError, privacy: .public)")
-                return RenderResult(image: nil, displaySize: .zero, svg: nil)
+                return RenderResult(image: nil, naturalSize: .zero, svg: nil)
             }
 
             guard let parsed = Self.parseRenderPayload(value) else {
                 Self.logger.error(
                     "Mermaid render returned invalid payload: \(String(describing: value), privacy: .public)"
                 )
-                return RenderResult(image: nil, displaySize: .zero, svg: nil)
+                return RenderResult(image: nil, naturalSize: .zero, svg: nil)
             }
 
-            let displaySize = NSSize(width: parsed.width, height: parsed.height)
+            let naturalSize = NSSize(width: parsed.naturalWidth, height: parsed.naturalHeight)
             let image = await captureWebViewBitmap(
                 from: webView,
                 contentOrigin: CGPoint(x: parsed.offsetX, y: parsed.offsetY),
-                contentSize: displaySize
-            ) ?? parsed.svg.flatMap { Self.makeImage(fromSVG: $0, size: displaySize) }
+                contentSize: naturalSize
+            ) ?? parsed.svg.flatMap { Self.makeImage(fromSVG: $0, size: naturalSize) }
 
             if image == nil {
                 Self.logger.error(
-                    "Mermaid bitmap capture failed for \(Int(parsed.width))x\(Int(parsed.height))"
+                    "Mermaid bitmap capture failed for \(Int(parsed.naturalWidth))x\(Int(parsed.naturalHeight))"
                 )
             } else {
-                Self.logger.info("Mermaid render succeeded \(Int(parsed.width))x\(Int(parsed.height))")
+                Self.logger.info("Mermaid render succeeded \(Int(parsed.naturalWidth))x\(Int(parsed.naturalHeight))")
             }
 
-            return RenderResult(image: image, displaySize: displaySize, svg: parsed.svg)
+            return RenderResult(image: image, naturalSize: naturalSize, svg: parsed.svg)
         } catch {
             Self.logJavaScriptFailure(error, context: "callAsyncJavaScript")
-            return RenderResult(image: nil, displaySize: .zero, svg: nil)
+            return RenderResult(image: nil, naturalSize: .zero, svg: nil)
         }
     }
 
@@ -471,7 +469,7 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
           }
 
           window.meofindRenderDiagram = async function(
-            source, renderID, theme, maxDisplayWidth
+            source, renderID, theme
           ) {
             meofindEnsureMermaid(theme);
 
@@ -507,13 +505,10 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
               throw new Error("invalid svg size");
             }
 
-            const fitted = meofindFitToDisplay(
-              root,
-              svgElement,
-              natural.width,
-              natural.height,
-              maxDisplayWidth
-            );
+            svgElement.setAttribute("width", String(natural.width));
+            svgElement.setAttribute("height", String(natural.height));
+            root.style.width = natural.width + "px";
+            root.style.height = natural.height + "px";
 
             await new Promise(function(resolve) {
               requestAnimationFrame(function() {
@@ -524,8 +519,8 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
             const bounds = root.getBoundingClientRect();
             return {
               svg: new XMLSerializer().serializeToString(svgElement),
-              width: fitted.width,
-              height: fitted.height,
+              naturalWidth: natural.width,
+              naturalHeight: natural.height,
               offsetX: bounds.left,
               offsetY: bounds.top
             };
@@ -553,8 +548,8 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
 
     private struct ParsedPayload {
         let svg: String?
-        let width: CGFloat
-        let height: CGFloat
+        let naturalWidth: CGFloat
+        let naturalHeight: CGFloat
         let offsetX: CGFloat
         let offsetY: CGFloat
     }
@@ -572,18 +567,18 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
         guard let dictionary = dictionaryValue(from: value) else { return nil }
 
         guard
-            let width = numericValue(from: dictionary["width"]),
-            let height = numericValue(from: dictionary["height"]),
-            width > 0,
-            height > 0
+            let naturalWidth = numericValue(from: dictionary["naturalWidth"]),
+            let naturalHeight = numericValue(from: dictionary["naturalHeight"]),
+            naturalWidth > 0,
+            naturalHeight > 0
         else {
             return nil
         }
 
         return ParsedPayload(
             svg: dictionary["svg"] as? String,
-            width: width,
-            height: height,
+            naturalWidth: naturalWidth,
+            naturalHeight: naturalHeight,
             offsetX: numericValue(from: dictionary["offsetX"]) ?? 0,
             offsetY: numericValue(from: dictionary["offsetY"]) ?? 0
         )

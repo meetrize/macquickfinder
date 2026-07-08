@@ -18,7 +18,8 @@ enum MarkdownPreviewMermaidBlock {
 
     struct CachedRender {
         let image: NSImage
-        let displaySize: NSSize
+        /// Mermaid 渲染的原始尺寸（未按视口缩放）。
+        let naturalSize: NSSize
     }
 
     /// 缓存键不含 layoutWidth：缩放由 `scaleUnitSquare` 处理，避免 zoom 触发 WebView 重渲染。
@@ -78,7 +79,7 @@ enum MarkdownPreviewMermaidBlock {
     /// 将 Mermaid 围栏块替换为附件占位，并返回待异步渲染的任务列表（文档顺序）。
     static func apply(
         in rendered: NSMutableAttributedString,
-        layoutWidth: CGFloat?,
+        viewport: MarkdownPreviewMermaidFitting.Viewport,
         renderingLabel: String,
         isDark: Bool,
         cachedRenderForKey: (String) -> CachedRender?
@@ -87,7 +88,7 @@ enum MarkdownPreviewMermaidBlock {
         let blocks = findBlocks(in: lines)
         guard !blocks.isEmpty else { return [] }
 
-        let contentWidth = max(layoutWidth ?? 400, 160)
+        let contentWidth = max(viewport.maxWidth, 160)
         var lineMap = lineRanges(in: rendered.string as NSString)
         var pending: [PendingRender] = []
 
@@ -113,7 +114,11 @@ enum MarkdownPreviewMermaidBlock {
             let cacheKey = cacheKey(source: block.source, isDark: isDark)
             if let cached = cachedRenderForKey(cacheKey) {
                 attachment.image = cached.image
-                attachment.bounds = attachmentBounds(for: cached.displaySize)
+                let displaySize = MarkdownPreviewMermaidFitting.displaySize(
+                    naturalSize: cached.naturalSize,
+                    viewport: viewport
+                )
+                attachment.bounds = attachmentBounds(for: displaySize)
             } else {
                 attachment.image = placeholderImage(
                     width: contentWidth,

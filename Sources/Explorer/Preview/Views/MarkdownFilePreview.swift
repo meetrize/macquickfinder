@@ -58,11 +58,12 @@ struct MarkdownFilePreview: NSViewRepresentable {
         context.coordinator.textContentInset = textContentInset
         context.coordinator.scrollView = scrollView
         context.coordinator.relayoutMarkdown = { textView, scrollView in
-            let layoutWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
-            guard abs(layoutWidth - context.coordinator.lastTableLayoutWidth) > 0.5 else { return }
-            context.coordinator.lastTableLayoutWidth = layoutWidth
+            let viewport = mermaidViewport(for: scrollView, scale: zoomScale)
+            guard !viewport.isApproximatelyEqual(to: context.coordinator.lastMermaidViewport) else { return }
+            context.coordinator.lastMermaidViewport = viewport
+            context.coordinator.lastTableLayoutWidth = viewport.maxWidth
             context.coordinator.lastZoomScale = zoomScale
-            let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
+            let pending = applyMarkdown(markdown, to: textView, viewport: viewport)
             context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
             applyScale(zoomScale, to: textView, context: context)
             context.coordinator.updateSearchIfNeeded(
@@ -74,9 +75,10 @@ struct MarkdownFilePreview: NSViewRepresentable {
         }
         context.coordinator.installTableLayoutWidthTracking()
 
-        let layoutWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
-        context.coordinator.lastTableLayoutWidth = layoutWidth
-        let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
+        let viewport = mermaidViewport(for: scrollView, scale: zoomScale)
+        context.coordinator.lastMermaidViewport = viewport
+        context.coordinator.lastTableLayoutWidth = viewport.maxWidth
+        let pending = applyMarkdown(markdown, to: textView, viewport: viewport)
         context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
         context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
         context.coordinator.wrapLayout.lastWrapLines = wrapLines
@@ -88,10 +90,11 @@ struct MarkdownFilePreview: NSViewRepresentable {
         )
         PreviewTextWrapLayout.scheduleDeferredLayout(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
         DispatchQueue.main.async {
-            let deferredWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
-            guard abs(deferredWidth - context.coordinator.lastTableLayoutWidth) > 0.5 else { return }
-            context.coordinator.lastTableLayoutWidth = deferredWidth
-            let deferredPending = applyMarkdown(markdown, to: textView, layoutWidth: deferredWidth)
+            let deferredViewport = mermaidViewport(for: scrollView, scale: zoomScale)
+            guard !deferredViewport.isApproximatelyEqual(to: context.coordinator.lastMermaidViewport) else { return }
+            context.coordinator.lastMermaidViewport = deferredViewport
+            context.coordinator.lastTableLayoutWidth = deferredViewport.maxWidth
+            let deferredPending = applyMarkdown(markdown, to: textView, viewport: deferredViewport)
             context.coordinator.scheduleMermaidRenders(pending: deferredPending, textView: textView)
             applyScale(zoomScale, to: textView, context: context)
         }
@@ -107,11 +110,12 @@ struct MarkdownFilePreview: NSViewRepresentable {
         context.coordinator.textContentInset = textContentInset
         context.coordinator.scrollView = scrollView
         context.coordinator.relayoutMarkdown = { textView, scrollView in
-            let layoutWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
-            guard abs(layoutWidth - context.coordinator.lastTableLayoutWidth) > 0.5 else { return }
-            context.coordinator.lastTableLayoutWidth = layoutWidth
+            let viewport = mermaidViewport(for: scrollView, scale: zoomScale)
+            guard !viewport.isApproximatelyEqual(to: context.coordinator.lastMermaidViewport) else { return }
+            context.coordinator.lastMermaidViewport = viewport
+            context.coordinator.lastTableLayoutWidth = viewport.maxWidth
             context.coordinator.lastZoomScale = zoomScale
-            let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
+            let pending = applyMarkdown(markdown, to: textView, viewport: viewport)
             context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
             applyScale(zoomScale, to: textView, context: context)
             context.coordinator.updateSearchIfNeeded(
@@ -126,8 +130,8 @@ struct MarkdownFilePreview: NSViewRepresentable {
         PreviewTextWrapLayout.configure(textView: textView, scrollView: scrollView, wrapLines: wrapLines)
 
         applyScale(zoomScale, to: textView, context: context)
-        let layoutWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
-        let layoutWidthChanged = abs(layoutWidth - context.coordinator.lastTableLayoutWidth) > 0.5
+        let viewport = mermaidViewport(for: scrollView, scale: zoomScale)
+        let viewportChanged = !viewport.isApproximatelyEqual(to: context.coordinator.lastMermaidViewport)
         let wrapChanged = context.coordinator.wrapLayout.lastWrapLines != wrapLines
         let markdownChanged = context.coordinator.lastMarkdown != markdown
         let zoomChanged = abs(context.coordinator.lastZoomScale - zoomScale) > 0.0001
@@ -136,14 +140,15 @@ struct MarkdownFilePreview: NSViewRepresentable {
             context.coordinator.lastZoomScale = zoomScale
         }
 
-        if wrapChanged || markdownChanged || layoutWidthChanged {
+        if wrapChanged || markdownChanged || viewportChanged {
             if wrapChanged {
                 context.coordinator.wrapLayout.lastWrapLines = wrapLines
             }
             context.coordinator.lastMarkdown = markdown
             context.coordinator.lastZoomScale = zoomScale
-            context.coordinator.lastTableLayoutWidth = layoutWidth
-            let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
+            context.coordinator.lastMermaidViewport = viewport
+            context.coordinator.lastTableLayoutWidth = viewport.maxWidth
+            let pending = applyMarkdown(markdown, to: textView, viewport: viewport)
             context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
             if markdownChanged || wrapChanged {
                 context.coordinator.searchCurrentIndex = 0
@@ -169,18 +174,23 @@ struct MarkdownFilePreview: NSViewRepresentable {
         )
     }
 
+    private func mermaidViewport(for scrollView: NSScrollView, scale: CGFloat) -> MarkdownPreviewMermaidFitting.Viewport {
+        MarkdownPreviewMermaidFitting.viewport(
+            scrollView: scrollView,
+            zoomScale: scale,
+            textContentInset: textContentInset
+        )
+    }
+
     private func tableLayoutWidth(for scrollView: NSScrollView, scale: CGFloat) -> CGFloat {
-        let contentWidth = PreviewTextWrapLayout.effectiveContentWidth(for: scrollView)
-        let normalizedScale = max(scale, 0.5)
-        let horizontalInsets = textContentInset * 2
-        return max(contentWidth / normalizedScale - horizontalInsets, 160)
+        mermaidViewport(for: scrollView, scale: scale).maxWidth
     }
 
     @discardableResult
     private func applyMarkdown(
         _ markdown: String,
         to textView: NSTextView,
-        layoutWidth: CGFloat? = nil
+        viewport: MarkdownPreviewMermaidFitting.Viewport
     ) -> [MarkdownPreviewMermaidBlock.PendingRender] {
         // 以原始文本作为预览基准，保证换行/缩进完全保留，再做轻量样式增强。
         let rendered = NSMutableAttributedString(string: markdown)
@@ -307,15 +317,15 @@ struct MarkdownFilePreview: NSViewRepresentable {
         // 表格必须在行内标记处理后再排版，否则 ** / ` 会破坏列对齐。
         applyMarkdownTableLayout(
             in: rendered,
-            layoutWidth: layoutWidth
+            layoutWidth: viewport.maxWidth
         )
 
-        applyHorizontalRules(in: rendered, layoutWidth: layoutWidth)
+        applyHorizontalRules(in: rendered, layoutWidth: viewport.maxWidth)
 
         let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         let pending = MarkdownPreviewMermaidBlock.apply(
             in: rendered,
-            layoutWidth: layoutWidth,
+            viewport: viewport,
             renderingLabel: L10n.Preview.Markdown.mermaidRendering,
             isDark: isDark,
             cachedRenderForKey: { MermaidPreviewCache.shared[$0] }
@@ -608,6 +618,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         var textContentInset: CGFloat = 0
         var currentScale: CGFloat = 1.0
         var lastTableLayoutWidth: CGFloat = 0
+        var lastMermaidViewport = MarkdownPreviewMermaidFitting.Viewport(maxWidth: 0, maxHeight: 0)
         var relayoutMarkdown: ((NSTextView, NSScrollView) -> Void)?
         var lastSearchQuery: String = ""
         var lastSearchNextToken: UInt = 0
@@ -648,19 +659,18 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
                     let result = await MarkdownPreviewMermaidRenderer.shared.render(
                         source: item.source,
-                        layoutWidth: item.layoutWidth,
                         isDark: isDark
                     )
 
                     let resolvedImage = result.image
                         ?? result.svg.flatMap {
-                            MarkdownPreviewMermaidRenderer.makeImage(fromSVG: $0, size: result.displaySize)
+                            MarkdownPreviewMermaidRenderer.makeImage(fromSVG: $0, size: result.naturalSize)
                         }
 
-                    if let resolvedImage, result.displaySize.width > 0, result.displaySize.height > 0 {
+                    if let resolvedImage, result.naturalSize.width > 0, result.naturalSize.height > 0 {
                         MermaidPreviewCache.shared[cacheKey] = MarkdownPreviewMermaidBlock.CachedRender(
                             image: resolvedImage,
-                            displaySize: result.displaySize
+                            naturalSize: result.naturalSize
                         )
                         self.applyMermaidCache(cacheKey: cacheKey, to: textView)
                     } else {
@@ -687,7 +697,17 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 else { return }
 
                 attachment.image = cached.image
-                attachment.bounds = MarkdownPreviewMermaidBlock.attachmentBounds(for: cached.displaySize)
+                let viewport = lastMermaidViewport.maxWidth > 0
+                    ? lastMermaidViewport
+                    : MarkdownPreviewMermaidFitting.Viewport(
+                        maxWidth: attachment.layoutWidth,
+                        maxHeight: 600
+                    )
+                let displaySize = MarkdownPreviewMermaidFitting.displaySize(
+                    naturalSize: cached.naturalSize,
+                    viewport: viewport
+                )
+                attachment.bounds = MarkdownPreviewMermaidBlock.attachmentBounds(for: displaySize)
                 updatedRanges.append(range)
             }
 
