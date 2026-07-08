@@ -143,7 +143,7 @@ struct ContentView: View {
     @State private var pathNavigation = PathNavigationHistory()
     @State private var isApplyingHistoryNavigation = false
     @State private var lastRecordedPath: String?
-    @AppStorage(AppPreferences.Directory.autoCalculateDirectorySizes) private var autoCalculateDirectorySizes = true
+    @AppStorage(AppPreferences.Directory.autoCalculateDirectorySizes) private var autoCalculateDirectorySizes = false
     @AppStorage(AppPreferences.Directory.useIconPreview) private var useIconPreview = false
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
@@ -165,6 +165,7 @@ struct ContentView: View {
     @State private var showConnectServerSheet = false
     @State private var transientNoticeMessage: String?
     @ObservedObject private var pasteboardAvailability = PasteboardPasteAvailability.shared
+    @ObservedObject private var pasteOperationCenter = PasteOperationCenter.shared
     @StateObject private var operationRecorder = OperationRecorder()
     @State private var operationRecordingCloseGuard = OperationRecordingWindowCloseGuard()
     @State private var operationRecordingReview: OperationRecordingReviewContext?
@@ -544,6 +545,7 @@ struct ContentView: View {
             Text(L10n.OperationRecording.discardConfirmMessage)
         }
         .onChange(of: path) { newPath in
+            FileOperations.cancelActivePaste()
             let wasHistoryNavigation = isApplyingHistoryNavigation
             if let oldPath = lastRecordedPath, oldPath != newPath, !wasHistoryNavigation {
                 var history = pathNavigation
@@ -597,17 +599,24 @@ struct ContentView: View {
             handleRevealInHostFromDetachedPreview(event)
         }
         .overlay(alignment: .bottom) {
-            if let transientNoticeMessage {
-                Text(transientNoticeMessage)
-                    .font(.callout)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .padding(.bottom, 12)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            VStack(spacing: 8) {
+                if let pasteProgress = pasteOperationCenter.activeProgress {
+                    pasteProgressBanner(pasteProgress)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                if let transientNoticeMessage {
+                    Text(transientNoticeMessage)
+                        .font(.callout)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
+            .padding(.bottom, 12)
         }
         .animation(.easeInOut(duration: 0.2), value: transientNoticeMessage)
+        .animation(.easeInOut(duration: 0.2), value: pasteOperationCenter.activeProgress)
     }
     
     private var filteredItems: [FileItem] {
@@ -1160,6 +1169,26 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func pasteProgressBanner(_ progress: PasteOperationCenter.ActiveProgress) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(progress.message)
+                .font(.callout)
+                .lineLimit(2)
+            if progress.showsDeterminateProgress, let fraction = progress.progressFraction {
+                ProgressView(value: fraction)
+                    .progressViewStyle(.linear)
+            } else {
+                ProgressView()
+                    .progressViewStyle(.linear)
+            }
+        }
+        .frame(maxWidth: 420, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
     
     private func updateDirectoryFSEventsMonitoring(

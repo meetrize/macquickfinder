@@ -199,11 +199,21 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
             }
 
             let naturalSize = NSSize(width: parsed.naturalWidth, height: parsed.naturalHeight)
-            let image = await captureWebViewBitmap(
+            let snapshot = await captureWebViewBitmap(
                 from: webView,
                 contentOrigin: CGPoint(x: parsed.offsetX, y: parsed.offsetY),
                 contentSize: naturalSize
-            ) ?? parsed.svg.flatMap { Self.makeImage(fromSVG: $0, size: naturalSize) }
+            )
+            let svg = parsed.svg
+            let image: NSImage? = await Task.detached(priority: .userInitiated) {
+                if let snapshot {
+                    return snapshot
+                }
+                if let svg {
+                    return Self.makeImage(fromSVG: svg, size: naturalSize)
+                }
+                return nil
+            }.value
 
             if image == nil {
                 Self.logger.error(

@@ -5,6 +5,16 @@ import UniformTypeIdentifiers
 
 enum FileOperations {
     private static let finderCopyPasteboardType = NSPasteboard.PasteboardType("com.apple.finder.copy")
+    private static var activePasteTask: Task<Void, Never>?
+
+    /// 切换目录或新粘贴开始时取消仍在进行的后台粘贴。
+    static func cancelActivePaste() {
+        activePasteTask?.cancel()
+        activePasteTask = nil
+        Task { @MainActor in
+            PasteOperationCenter.shared.cancelAll()
+        }
+    }
     
     struct PasteboardState {
         let urls: [URL]
@@ -326,16 +336,22 @@ enum FileOperations {
         completion: @escaping (PasteCompletion) -> Void
     ) {
         Task { @MainActor in
+            cancelActivePaste()
+
             let state = pasteboardState()
             guard canPaste(with: state, to: destinationDirectory) else { return }
 
             DirectoryFSEventsMonitor.shared.noteUserInitiatedListingRefresh()
 
             if state.urls.isEmpty {
+                let sessionID = PasteOperationCenter.shared.beginCreatingFromClipboard(
+                    destination: destinationDirectory.path
+                )
                 let createdURL = await ClipboardFileCreation.createFileAsync(
                     in: destinationDirectory,
                     pasteboard: .general
                 )
+                PasteOperationCenter.shared.finish(sessionID: sessionID)
                 guard let createdURL else {
                     ClipboardFileCreation.presentCreateFileFailure()
                     completion(PasteCompletion(inlineRenameURL: nil, destinationURLs: []))
@@ -354,9 +370,30 @@ enum FileOperations {
 
             let urls = state.urls
             let isCut = state.isCut
-            Task.detached(priority: .userInitiated) {
-                let outcome = performFilePaste(urls: urls, isCut: isCut, to: destinationDirectory)
+            let sessionID = PasteOperationCenter.shared.beginFilePaste(
+                total: urls.count,
+                destination: destinationDirectory.path
+            )
+            activePasteTask = Task.detached(priority: .userInitiated) {
+                let outcome = performFilePaste(
+                    urls: urls,
+                    isCut: isCut,
+                    to: destinationDirectory,
+                    onProgress: { completed, total, fileName in
+                        Task { @MainActor in
+                            PasteOperationCenter.shared.updateFilePaste(
+                                sessionID: sessionID,
+                                completed: completed,
+                                total: total,
+                                currentName: fileName
+                            )
+                        }
+                    }
+                )
                 await MainActor.run {
+                    activePasteTask = nil
+                    PasteOperationCenter.shared.finish(sessionID: sessionID)
+                    guard !Task.isCancelled else { return }
                     finishFilePaste(outcome: outcome, isCut: isCut, completion: completion)
                 }
             }
@@ -371,12 +408,17 @@ enum FileOperations {
     private static func performFilePaste(
         urls: [URL],
         isCut: Bool,
-        to destinationDirectory: URL
+        to destinationDirectory: URL,
+        onProgress: ((Int, Int, String) -> Void)? = nil
     ) -> FilePasteOutcome {
         let fileManager = FileManager.default
         var completedPairs: [RecordedFilePair] = []
 
         for sourceURL in urls {
+            if Task.isCancelled {
+                return FilePasteOutcome(completedPairs: completedPairs, error: nil)
+            }
+
             let destinationURL = uniqueDestinationURL(
                 for: sourceURL.lastPathComponent,
                 in: destinationDirectory
@@ -389,6 +431,7 @@ enum FileOperations {
                     try fileManager.copyItem(at: sourceURL, to: destinationURL)
                 }
                 completedPairs.append(RecordedFilePair(source: sourceURL, destination: destinationURL))
+                onProgress?(completedPairs.count, urls.count, sourceURL.lastPathComponent)
             } catch {
                 return FilePasteOutcome(completedPairs: completedPairs, error: error)
             }

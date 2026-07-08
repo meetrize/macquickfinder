@@ -823,6 +823,24 @@ enum L10n {
         static var pastedImageFileName: String { ModuleLocalization.localized("file.pasted_image_name", bundle: .module) }
         static var pastedTextFileName: String { ModuleLocalization.localized("file.pasted_text_name", bundle: .module) }
         static var pastedMarkdownFileName: String { ModuleLocalization.localized("file.pasted_markdown_name", bundle: .module) }
+        static var pasteCreatingFromClipboard: String {
+            ModuleLocalization.localized("file.paste_creating_from_clipboard", bundle: .module)
+        }
+        static func pasteProgress(_ completed: Int, _ total: Int) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("file.paste_progress", bundle: .module),
+                completed,
+                total
+            )
+        }
+        static func pasteProgressWithName(_ completed: Int, _ total: Int, _ name: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("file.paste_progress_with_name", bundle: .module),
+                completed,
+                total,
+                name
+            )
+        }
     }
 
     enum Sort {

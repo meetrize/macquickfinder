@@ -369,14 +369,14 @@ Task.detached(priority: .userInitiated) {
 | 12.3 | FSEvents 增量 listing | §4.2 | ✅ `DirectoryListingIncrementalPatcher` + `onListingPatch` |
 | 12.4 | Metadata overlay 下沉 AppKit | §4.3 | ✅ `DirectoryMetadataAppKitBridge` 订阅 revision |
 
-### Phase 13 — 体验与可选深度优化
+### Phase 13 — 体验与可选深度优化 ✅ 已完成
 
-| 编号 | 项 | 方案 |
-|------|-----|------|
-| 13.1 | Mermaid 可视区域 lazy render | M9 |
-| 13.2 | WebView 渲染下沉 | M8 |
-| 13.3 | 粘贴进度 UI | P6 |
-| 13.4 | 目录大小默认关 + 设置文案 | §4.1 |
+| 编号 | 项 | 方案 | 状态 |
+|------|-----|------|------|
+| 13.1 | Mermaid 可视区域 lazy render | M9 | ✅ 滚动/resize 时仅渲染可见 diagram（320pt 预加载边距） |
+| 13.2 | WebView 渲染下沉 | M8 | ✅ 快照/SVG→NSImage 后处理移入 `Task.detached`（WebView 仍 @MainActor） |
+| 13.3 | 粘贴进度 UI | P6 | ✅ `PasteOperationCenter` + 底部进度条；切换目录取消后台粘贴 |
+| 13.4 | 目录大小默认关 + 设置文案 | §4.1 | ✅ 默认 `false`；工具栏文案标注「较慢」 |
 
 ---
 

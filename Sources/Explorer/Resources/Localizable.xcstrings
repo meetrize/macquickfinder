@@ -1055,6 +1055,57 @@
         }
       }
     },
+    "file.paste_creating_from_clipboard": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating file from clipboard…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在从剪贴板创建文件…"
+          }
+        }
+      }
+    },
+    "file.paste_progress": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasting %1$lld of %2$lld…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在粘贴 %1$lld / %2$lld…"
+          }
+        }
+      }
+    },
+    "file.paste_progress_with_name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasting %1$lld of %2$lld: %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在粘贴 %1$lld / %2$lld：%3$@"
+          }
+        }
+      }
+    },
     "dialog.create": {
       "extractionState": "manual",
       "localizations": {
@@ -10425,13 +10476,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Calculate All Folder Sizes"
+            "value": "Calculate Folder Sizes (Slower)"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "自动计算文件夹大小"
+            "value": "自动计算文件夹大小（较慢）"
           }
         }
       }

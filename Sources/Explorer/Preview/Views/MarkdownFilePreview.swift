@@ -648,6 +648,8 @@ struct MarkdownFilePreview: NSViewRepresentable {
         private var firstResponderObserver: NSObjectProtocol?
         private var tableLayoutWidthObserver: NSObjectProtocol?
         private var tableLayoutWidthDebounceWorkItem: DispatchWorkItem?
+        private var mermaidVisibilityDebounceWorkItem: DispatchWorkItem?
+        private var deferredMermaidRenders: [MarkdownPreviewMermaidBlock.PendingRender] = []
         private var mermaidInFlightKeys: Set<String> = []
 
         init(searchMatchCount: Binding<Int>, searchCurrentIndex: Binding<Int>) {
@@ -691,17 +693,36 @@ struct MarkdownFilePreview: NSViewRepresentable {
             textView: NSTextView
         ) {
             guard !pending.isEmpty else { return }
+            deferredMermaidRenders = pending
+            scheduleVisibleMermaidRenders(textView: textView)
+        }
+
+        func scheduleVisibleMermaidRenders(textView: NSTextView) {
+            guard !deferredMermaidRenders.isEmpty else { return }
 
             let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let scrollView = scrollView ?? textView.enclosingScrollView
 
-            for item in pending {
+            for item in deferredMermaidRenders {
                 let cacheKey = MarkdownPreviewMermaidBlock.cacheKey(
                     source: item.source,
                     isDark: isDark
                 )
+                if MermaidPreviewCache.shared[cacheKey] != nil {
+                    continue
+                }
                 if mermaidInFlightKeys.contains(cacheKey) {
                     continue
                 }
+                if let scrollView,
+                   !MarkdownPreviewMermaidVisibility.isAttachmentVisible(
+                       renderID: item.renderID,
+                       in: textView,
+                       scrollView: scrollView
+                   ) {
+                    continue
+                }
+
                 mermaidInFlightKeys.insert(cacheKey)
 
                 Task { @MainActor in
@@ -712,15 +733,21 @@ struct MarkdownFilePreview: NSViewRepresentable {
                         isDark: isDark
                     )
 
-                    let resolvedImage = result.image
-                        ?? result.svg.flatMap {
-                            MarkdownPreviewMermaidRenderer.makeImage(fromSVG: $0, size: result.naturalSize)
+                    let naturalSize = result.naturalSize
+                    let resolvedImage: NSImage? = await Task.detached(priority: .userInitiated) {
+                        if let image = result.image {
+                            return image
                         }
+                        if let svg = result.svg {
+                            return MarkdownPreviewMermaidRenderer.makeImage(fromSVG: svg, size: naturalSize)
+                        }
+                        return nil
+                    }.value
 
-                    if let resolvedImage, result.naturalSize.width > 0, result.naturalSize.height > 0 {
+                    if let resolvedImage, naturalSize.width > 0, naturalSize.height > 0 {
                         MermaidPreviewCache.shared[cacheKey] = MarkdownPreviewMermaidBlock.CachedRender(
                             image: resolvedImage,
-                            naturalSize: result.naturalSize
+                            naturalSize: naturalSize
                         )
                         self.applyMermaidCache(cacheKey: cacheKey, to: textView)
                     } else {
@@ -728,6 +755,16 @@ struct MarkdownFilePreview: NSViewRepresentable {
                     }
                 }
             }
+        }
+
+        private func handleMermaidVisibilityChange() {
+            mermaidVisibilityDebounceWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in
+                guard let self, let textView = self.textView else { return }
+                self.scheduleVisibleMermaidRenders(textView: textView)
+            }
+            mermaidVisibilityDebounceWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: work)
         }
 
         private func applyMermaidCache(cacheKey: String, to textView: NSTextView) {
@@ -816,6 +853,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 queue: .main
             ) { [weak self] _ in
                 self?.handleTableLayoutWidthChange()
+                self?.handleMermaidVisibilityChange()
             }
         }
 
@@ -919,6 +957,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
         deinit {
             tableLayoutWidthDebounceWorkItem?.cancel()
+            mermaidVisibilityDebounceWorkItem?.cancel()
             if let firstResponderObserver {
                 NotificationCenter.default.removeObserver(firstResponderObserver)
             }
