@@ -4,7 +4,7 @@ import Foundation
 // MARK: - Directory size metadata
 
 extension FileListTableController {
-    func refreshDirectorySizeColumnIfNeeded(_ provider: DirectorySizeColumnProvider?) {
+    public func refreshDirectorySizeColumnIfNeeded(_ provider: DirectorySizeColumnProvider?) {
         directorySizeDisplay = provider?.display
         guard let provider else { return }
         guard provider.revision != lastDirectorySizeRevision else {

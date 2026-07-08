@@ -50,7 +50,8 @@ final class OperationRecordingIntegrationTests: XCTestCase {
 
         FileOperations.copy([item])
         let pasteExpectation = expectation(description: "paste")
-        FileOperations.paste(to: tempDirectory) { _ in
+        FileOperations.paste(to: tempDirectory) { result in
+            XCTAssertEqual(result.destinationURLs.count, 1)
             pasteExpectation.fulfill()
         }
         wait(for: [pasteExpectation], timeout: 2)

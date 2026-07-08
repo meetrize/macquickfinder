@@ -10,6 +10,11 @@ enum FileOperations {
         let urls: [URL]
         let isCut: Bool
     }
+
+    struct PasteCompletion {
+        let inlineRenameURL: URL?
+        let destinationURLs: [URL]
+    }
     
     static func pasteboardState() -> PasteboardState {
         let pasteboard = NSPasteboard.general
@@ -318,7 +323,7 @@ enum FileOperations {
     
     static func paste(
         to destinationDirectory: URL,
-        completion: @escaping (_ createdContentFileURL: URL?) -> Void
+        completion: @escaping (PasteCompletion) -> Void
     ) {
         Task { @MainActor in
             let state = pasteboardState()
@@ -333,12 +338,17 @@ enum FileOperations {
                 )
                 guard let createdURL else {
                     ClipboardFileCreation.presentCreateFileFailure()
-                    completion(nil)
+                    completion(PasteCompletion(inlineRenameURL: nil, destinationURLs: []))
                     return
                 }
                 recordOperation(.createFile(url: createdURL))
                 notifyGitWorkingTreeIfNeeded(at: createdURL)
-                completion(createdURL)
+                completion(
+                    PasteCompletion(
+                        inlineRenameURL: createdURL,
+                        destinationURLs: [createdURL]
+                    )
+                )
                 return
             }
 
@@ -391,11 +401,11 @@ enum FileOperations {
     private static func finishFilePaste(
         outcome: FilePasteOutcome,
         isCut: Bool,
-        completion: @escaping (_ createdContentFileURL: URL?) -> Void
+        completion: @escaping (PasteCompletion) -> Void
     ) {
         if let error = outcome.error {
             NSAlert(error: error).runModal()
-            completion(nil)
+            completion(PasteCompletion(inlineRenameURL: nil, destinationURLs: []))
             return
         }
 
@@ -412,7 +422,12 @@ enum FileOperations {
         if let firstDestination = outcome.completedPairs.first?.destination {
             notifyGitWorkingTreeIfNeeded(at: firstDestination)
         }
-        completion(nil)
+        completion(
+            PasteCompletion(
+                inlineRenameURL: nil,
+                destinationURLs: outcome.completedPairs.map(\.destination)
+            )
+        )
     }
     
     static func open(_ items: [FileItem], onNavigate: (String) -> Void) {

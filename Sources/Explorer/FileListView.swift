@@ -2,38 +2,6 @@ import SwiftUI
 import AppKit
 import FileList
 
-private struct DirectorySizeTableBridge<Content: View>: View {
-    @ObservedObject var overlay: DirectoryMetadataOverlay
-    @ViewBuilder let content: (DirectorySizeColumnProvider) -> Content
-
-    var body: some View {
-        content(
-            DirectorySizeColumnProvider(
-                revision: overlay.sizeRevision,
-                display: { overlay.sizeDisplay(for: $0) }
-            )
-        )
-    }
-}
-
-/// 缩略图模式目录元数据（大小 + 子项数量）回填桥接。
-private struct ThumbnailMetadataBridge<Content: View>: View {
-    @ObservedObject var overlay: DirectoryMetadataOverlay
-    @ViewBuilder let content: (DirectorySizeColumnProvider, DirectoryItemCountColumnProvider) -> Content
-
-    var body: some View {
-        content(
-            DirectorySizeColumnProvider(
-                revision: overlay.sizeRevision,
-                display: { overlay.sizeDisplay(for: $0) }
-            ),
-            DirectoryItemCountColumnProvider(
-                revision: overlay.countRevision,
-                display: { overlay.countDisplay(for: $0) }
-            )
-        )
-    }
-}
 struct FileListView: View {
     let items: [FileItem]
     @Binding var selection: Set<FileItem.ID>
@@ -192,64 +160,60 @@ struct FileListView: View {
     private var fileTable: some View {
         let listRows = makeListRows()
         let tableInteraction = makeFileListInteraction()
-        
-        return DirectorySizeTableBridge(overlay: directoryMetadataOverlay) { sizeProvider in
-            FileListTableHost(
-                rows: listRows,
-                interaction: tableInteraction,
-                selection: Binding(
-                    get: { selection },
-                    set: { selection = $0 }
-                ),
-                preferencesStore: preferencesStore,
-                onOpenRow: { intent in
-                    guard let item = tableRowItems.first(where: { $0.id == intent.row.id }) else { return }
-                    onItemOpen(item, intent.openInDetachedPreview)
-                },
-                onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
-                directorySizeProvider: sizeProvider,
-                useIconPreview: useIconPreview,
-                rowHoverHighlight: rowHoverHighlight
-            )
-            .onAppear {
-                preferencesStore.resetToDefaultIfNeeded()
-            }
+
+        return FileListTableHost(
+            rows: listRows,
+            interaction: tableInteraction,
+            selection: Binding(
+                get: { selection },
+                set: { selection = $0 }
+            ),
+            preferencesStore: preferencesStore,
+            onOpenRow: { intent in
+                guard let item = tableRowItems.first(where: { $0.id == intent.row.id }) else { return }
+                onItemOpen(item, intent.openInDetachedPreview)
+            },
+            onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
+            directorySizeProvider: nil,
+            useIconPreview: useIconPreview,
+            rowHoverHighlight: rowHoverHighlight
+        )
+        .onAppear {
+            preferencesStore.resetToDefaultIfNeeded()
+            DirectoryMetadataAppKitBridge.shared.installIfNeeded(overlay: directoryMetadataOverlay)
         }
     }
-    
+
     private var fileThumbnailGrid: some View {
         let listRows = makeListRows()
         let tableInteraction = makeFileListInteraction()
-        
-        return ThumbnailMetadataBridge(
-            overlay: directoryMetadataOverlay
-        ) { sizeProvider, countProvider in
-            FileListThumbnailHost(
-                rows: listRows,
-                interaction: tableInteraction,
-                selection: Binding(
-                    get: { selection },
-                    set: { selection = $0 }
-                ),
-                preferencesStore: preferencesStore,
-                cellSize: thumbnailCellSize,
-                onCellSizeChange: onThumbnailCellSizeChange,
-                onOpenRow: { intent in
-                    guard let item = tableRowItems.first(where: { $0.id == intent.row.id }) else { return }
-                    onItemOpen(item, intent.openInDetachedPreview)
-                },
-                onVisibleDirectoryPathsChanged: { paths in
-                    onScheduleVisibleDirectorySizes(paths)
-                    onScheduleVisibleDirectoryItemCounts(paths)
-                },
-                directorySizeProvider: sizeProvider,
-                directoryItemCountProvider: countProvider,
-                preferWorkspaceIcons: preferWorkspaceIconsInThumbnail,
-                rowHoverHighlight: rowHoverHighlight
-            )
-            .onAppear {
-                preferencesStore.resetToDefaultIfNeeded()
-            }
+
+        return FileListThumbnailHost(
+            rows: listRows,
+            interaction: tableInteraction,
+            selection: Binding(
+                get: { selection },
+                set: { selection = $0 }
+            ),
+            preferencesStore: preferencesStore,
+            cellSize: thumbnailCellSize,
+            onCellSizeChange: onThumbnailCellSizeChange,
+            onOpenRow: { intent in
+                guard let item = tableRowItems.first(where: { $0.id == intent.row.id }) else { return }
+                onItemOpen(item, intent.openInDetachedPreview)
+            },
+            onVisibleDirectoryPathsChanged: { paths in
+                onScheduleVisibleDirectorySizes(paths)
+                onScheduleVisibleDirectoryItemCounts(paths)
+            },
+            directorySizeProvider: nil,
+            directoryItemCountProvider: nil,
+            preferWorkspaceIcons: preferWorkspaceIconsInThumbnail,
+            rowHoverHighlight: rowHoverHighlight
+        )
+        .onAppear {
+            preferencesStore.resetToDefaultIfNeeded()
+            DirectoryMetadataAppKitBridge.shared.installIfNeeded(overlay: directoryMetadataOverlay)
         }
     }
     

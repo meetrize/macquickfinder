@@ -165,7 +165,7 @@ public final class FileListThumbnailController: FileListContentController {
     
     private var pendingScrollToTop = false
     
-    func refreshDirectorySizeColumnIfNeeded(_ provider: DirectorySizeColumnProvider?) {
+    public func refreshDirectorySizeColumnIfNeeded(_ provider: DirectorySizeColumnProvider?) {
         directorySizeDisplay = provider?.display
         guard let provider else { return }
         guard provider.revision != lastDirectorySizeRevision else {
@@ -176,7 +176,7 @@ public final class FileListThumbnailController: FileListContentController {
         applyDirectorySizeDisplayUpdates()
     }
     
-    func refreshDirectoryItemCountColumnIfNeeded(_ provider: DirectoryItemCountColumnProvider?) {
+    public func refreshDirectoryItemCountColumnIfNeeded(_ provider: DirectoryItemCountColumnProvider?) {
         directoryItemCountDisplay = provider?.display
         guard let provider else { return }
         guard provider.revision != lastDirectoryItemCountRevision else {

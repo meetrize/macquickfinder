@@ -26,9 +26,9 @@ final class GitWorkspaceFSEventsMonitor {
         stop()
         watchedRepoRoot = normalizedRoot
 
-        watcher = DirectoryFSEventsWatcher { [weak self] eventPaths in
+        watcher = DirectoryFSEventsWatcher { [weak self] events in
             Task { @MainActor in
-                self?.handleEventPaths(eventPaths)
+                self?.handleEventPaths(events.map(\.path))
             }
         }
         watcher?.start(path: normalizedRoot)

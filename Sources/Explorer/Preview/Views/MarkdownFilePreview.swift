@@ -140,7 +140,17 @@ struct MarkdownFilePreview: NSViewRepresentable {
             context.coordinator.lastZoomScale = zoomScale
         }
 
-        if wrapChanged || markdownChanged || viewportChanged {
+        if viewportChanged && !markdownChanged && !wrapChanged {
+            context.coordinator.lastMermaidViewport = viewport
+            context.coordinator.lastTableLayoutWidth = viewport.maxWidth
+            if markdownContainsTables(markdown) {
+                let pending = applyMarkdown(markdown, to: textView, viewport: viewport)
+                context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
+                PreviewTextWrapLayout.invalidateLayout(textView: textView)
+            } else {
+                context.coordinator.refreshMermaidAttachmentLayout(viewport: viewport, in: textView)
+            }
+        } else if wrapChanged || markdownChanged || viewportChanged {
             if wrapChanged {
                 context.coordinator.wrapLayout.lastWrapLines = wrapLines
             }
@@ -148,6 +158,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
             context.coordinator.lastZoomScale = zoomScale
             context.coordinator.lastMermaidViewport = viewport
             context.coordinator.lastTableLayoutWidth = viewport.maxWidth
+            context.coordinator.lastMermaidBlockSources = MarkdownPreviewMermaidBlock.blockSources(in: markdown)
             let pending = applyMarkdown(markdown, to: textView, viewport: viewport)
             context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
             if markdownChanged || wrapChanged {
@@ -184,6 +195,13 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
     private func tableLayoutWidth(for scrollView: NSScrollView, scale: CGFloat) -> CGFloat {
         mermaidViewport(for: scrollView, scale: scale).maxWidth
+    }
+
+    private func markdownContainsTables(_ markdown: String) -> Bool {
+        !MarkdownPreviewTableLayout.findBlocks(
+            in: markdown.components(separatedBy: "\n"),
+            separatorRegex: Self.tableSeparatorRegex
+        ).isEmpty
     }
 
     @discardableResult
@@ -619,6 +637,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         var currentScale: CGFloat = 1.0
         var lastTableLayoutWidth: CGFloat = 0
         var lastMermaidViewport = MarkdownPreviewMermaidFitting.Viewport(maxWidth: 0, maxHeight: 0)
+        var lastMermaidBlockSources: [String] = []
         var relayoutMarkdown: ((NSTextView, NSScrollView) -> Void)?
         var lastSearchQuery: String = ""
         var lastSearchNextToken: UInt = 0
@@ -634,6 +653,37 @@ struct MarkdownFilePreview: NSViewRepresentable {
         init(searchMatchCount: Binding<Int>, searchCurrentIndex: Binding<Int>) {
             _searchMatchCount = searchMatchCount
             searchCurrentIndexBinding = searchCurrentIndex
+        }
+
+        func refreshMermaidAttachmentLayout(
+            viewport: MarkdownPreviewMermaidFitting.Viewport,
+            in textView: NSTextView
+        ) {
+            guard let storage = textView.textStorage else { return }
+
+            var updatedRanges: [NSRange] = []
+            storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+                guard let attachment = value as? MarkdownMermaidAttachment else { return }
+                let cacheKey = MarkdownPreviewMermaidBlock.cacheKey(
+                    source: attachment.source,
+                    isDark: attachment.isDark
+                )
+                guard let cached = MermaidPreviewCache.shared[cacheKey] else { return }
+                let displaySize = MarkdownPreviewMermaidFitting.displaySize(
+                    naturalSize: cached.naturalSize,
+                    viewport: viewport
+                )
+                attachment.bounds = MarkdownPreviewMermaidBlock.attachmentBounds(for: displaySize)
+                updatedRanges.append(range)
+            }
+
+            for range in updatedRanges {
+                storage.edited(.editedAttributes, range: range, changeInLength: 0)
+                textView.layoutManager?.invalidateLayout(forCharacterRange: range, actualCharacterRange: nil)
+            }
+            if !updatedRanges.isEmpty {
+                textView.setNeedsDisplay(textView.bounds)
+            }
         }
 
         func scheduleMermaidRenders(

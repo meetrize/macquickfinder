@@ -10,6 +10,7 @@ final class DirectoryFSEventsMonitor {
     private var showHiddenFiles = false
     private var watchedDirectoryPath: String?
     private var autoCalculateDirectorySizes = false
+    private var onListingPatch: ((DirectoryListingIncrementalPatcher.Patch) -> Void)?
     private var onListingRefresh: (() -> Void)?
     
     private var pendingListingRefresh = false
@@ -26,6 +27,7 @@ final class DirectoryFSEventsMonitor {
         folderPaths: [String],
         showHiddenFiles: Bool,
         autoCalculateDirectorySizes: Bool,
+        onListingPatch: @escaping (DirectoryListingIncrementalPatcher.Patch) -> Void,
         onListingRefresh: @escaping () -> Void
     ) {
         stop()
@@ -36,11 +38,12 @@ final class DirectoryFSEventsMonitor {
         self.listedFolderPaths = Set(folderPaths)
         self.showHiddenFiles = showHiddenFiles
         self.autoCalculateDirectorySizes = autoCalculateDirectorySizes
+        self.onListingPatch = onListingPatch
         self.onListingRefresh = onListingRefresh
         
-        watcher = DirectoryFSEventsWatcher { [weak self] eventPaths in
+        watcher = DirectoryFSEventsWatcher { [weak self] events in
             Task { @MainActor in
-                self?.handleEventPaths(eventPaths)
+                self?.handleEvents(events)
             }
         }
         watcher?.start(path: directoryPath)
@@ -51,6 +54,7 @@ final class DirectoryFSEventsMonitor {
         listingRefreshWorkItem = nil
         pendingListingRefresh = false
         suppressListingRefreshUntil = nil
+        onListingPatch = nil
         onListingRefresh = nil
         
         sizeInvalidateWorkItem?.cancel()
@@ -81,19 +85,30 @@ final class DirectoryFSEventsMonitor {
         return false
     }
 
-    private func handleEventPaths(_ eventPaths: [String]) {
+    private func handleEvents(_ events: [DirectoryFSEvent]) {
         guard let watchedDirectoryPath else { return }
-        
-        if DirectoryListingFSEventsPolicy.listingAffectedByEvents(
-            eventPaths: eventPaths,
+
+        switch DirectoryListingIncrementalPatcher.evaluate(
+            events: events,
             directoryPath: watchedDirectoryPath
         ) {
-            scheduleListingRefresh()
+        case .noListingChange:
+            break
+        case .patch(let patch):
+            guard !shouldSuppressListingRefresh() else { break }
+            onListingPatch?(patch)
+        case .requiresFullReload:
+            if DirectoryListingFSEventsPolicy.listingAffectedByEvents(
+                eventPaths: events.map(\.path),
+                directoryPath: watchedDirectoryPath
+            ) {
+                scheduleListingRefresh()
+            }
         }
         
         guard autoCalculateDirectorySizes else { return }
         let affected = DirectorySizeComputePolicy.foldersAffectedByEvents(
-            eventPaths: eventPaths,
+            eventPaths: events.map(\.path),
             listedFolderPaths: listedFolderPaths
         )
         guard !affected.isEmpty else { return }

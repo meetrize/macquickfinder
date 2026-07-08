@@ -1176,7 +1176,69 @@ struct ContentView: View {
             folderPaths: folderPaths,
             showHiddenFiles: showHiddenFiles,
             autoCalculateDirectorySizes: shouldAutoCalculateDirectorySizes(for: directoryPath),
+            onListingPatch: { patch in
+                applyIncrementalListingPatch(patch)
+            },
             onListingRefresh: { loadItems() }
+        )
+    }
+
+    private func applyIncrementalListingPatch(_ patch: DirectoryListingIncrementalPatcher.Patch) {
+        let removed = Set(patch.removedPaths)
+        if !removed.isEmpty {
+            items = DirectoryListingIncrementalUpdate.merge(
+                adding: [],
+                removing: removed,
+                into: items,
+                sort: FileListPreferencesStore.shared.sort
+            )
+            selection.subtract(removed)
+        }
+
+        guard !patch.addedPaths.isEmpty else { return }
+
+        let urls = patch.addedPaths.map { URL(fileURLWithPath: $0) }
+        let currentPath = path
+        let shouldShowHiddenFiles = showHiddenFiles
+        let listingOptions = DirectoryListingOptions.forPath(currentPath)
+        let sort = FileListPreferencesStore.shared.sort
+
+        Task {
+            let addedItems = await Task.detached(priority: .userInitiated) {
+                (try? DirectoryListingIncrementalUpdate.loadFileItems(
+                    at: urls,
+                    showHiddenFiles: shouldShowHiddenFiles,
+                    options: listingOptions
+                )) ?? []
+            }.value
+
+            await MainActor.run {
+                guard !addedItems.isEmpty else { return }
+                items = DirectoryListingIncrementalUpdate.merge(
+                    adding: addedItems,
+                    removing: [],
+                    into: items,
+                    sort: sort
+                )
+                scheduleMetadataForInsertedFolders(addedItems, in: currentPath)
+            }
+        }
+    }
+
+    private func scheduleMetadataForInsertedFolders(_ addedItems: [FileItem], in directoryPath: String) {
+        let newFolders = addedItems.filter(\.isDirectory).map(\.id)
+        guard !newFolders.isEmpty else { return }
+        Task {
+            await DirectoryMetadataScheduler.scheduleAfterListingLoad(
+                folderPaths: newFolders,
+                showHiddenFiles: showHiddenFiles,
+                includeSizes: shouldAutoCalculateDirectorySizes(for: directoryPath)
+            )
+        }
+        updateDirectoryFSEventsMonitoring(
+            directoryPath: directoryPath,
+            folderPaths: items.filter(\.isDirectory).map(\.id),
+            showHiddenFiles: showHiddenFiles
         )
     }
     
@@ -1685,14 +1747,49 @@ struct ContentView: View {
         }
     }
     
-    private func finishPaste(createdContentFileURL: URL?) {
-        if let createdContentFileURL {
-            pendingInlineRenamePath = createdContentFileURL.path
+    private func finishPaste(_ result: FileOperations.PasteCompletion) {
+        insertListingItems(at: result.destinationURLs, inlineRenamePath: result.inlineRenameURL?.path)
+    }
+
+    private func insertListingItems(at urls: [URL], inlineRenamePath: String?) {
+        if let inlineRenamePath {
+            pendingInlineRenamePath = inlineRenamePath
         }
         selection.removeAll()
         PasteboardPasteAvailability.shared.refreshNow()
         DirectoryFSEventsMonitor.shared.noteUserInitiatedListingRefresh()
-        loadItems()
+
+        guard !urls.isEmpty else { return }
+
+        let currentPath = path
+        let shouldShowHiddenFiles = showHiddenFiles
+        let listingOptions = DirectoryListingOptions.forPath(currentPath)
+        let sort = FileListPreferencesStore.shared.sort
+
+        Task {
+            let addedItems = await Task.detached(priority: .userInitiated) {
+                (try? DirectoryListingIncrementalUpdate.loadFileItems(
+                    at: urls,
+                    showHiddenFiles: shouldShowHiddenFiles,
+                    options: listingOptions
+                )) ?? []
+            }.value
+
+            await MainActor.run {
+                guard !addedItems.isEmpty else {
+                    loadItems()
+                    return
+                }
+                items = DirectoryListingIncrementalUpdate.merge(
+                    adding: addedItems,
+                    removing: [],
+                    into: items,
+                    sort: sort
+                )
+                applyPendingInlineRenameIfNeeded(loadedItems: items, for: currentPath)
+                scheduleMetadataForInsertedFolders(addedItems, in: currentPath)
+            }
+        }
     }
 
     private func createNewFolder() {

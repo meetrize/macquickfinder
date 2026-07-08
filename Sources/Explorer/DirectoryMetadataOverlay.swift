@@ -18,6 +18,9 @@ final class DirectoryMetadataOverlay: ObservableObject {
     private(set) var sizeSessionGeneration: UInt = 0
     private(set) var countSessionGeneration: UInt = 0
 
+    private var sizeRevisionHandlers: [UUID: (UInt) -> Void] = [:]
+    private var countRevisionHandlers: [UUID: (UInt) -> Void] = [:]
+
     private init() {}
 
     /// 路径切换等场景：同时重置大小与子项数量会话。
@@ -46,12 +49,52 @@ final class DirectoryMetadataOverlay: ObservableObject {
             sizes[path] = size
         }
         sizeRevision &+= 1
+        notifySizeRevisionHandlers()
     }
 
     func apply(path: String, count: Int, generation: UInt) {
         guard generation == countSessionGeneration else { return }
         counts[path] = count
         countRevision &+= 1
+        notifyCountRevisionHandlers()
+    }
+
+    @discardableResult
+    func addSizeRevisionHandler(_ handler: @escaping (UInt) -> Void) -> UUID {
+        let id = UUID()
+        sizeRevisionHandlers[id] = handler
+        handler(sizeRevision)
+        return id
+    }
+
+    func removeSizeRevisionHandler(_ id: UUID) {
+        sizeRevisionHandlers.removeValue(forKey: id)
+    }
+
+    @discardableResult
+    func addCountRevisionHandler(_ handler: @escaping (UInt) -> Void) -> UUID {
+        let id = UUID()
+        countRevisionHandlers[id] = handler
+        handler(countRevision)
+        return id
+    }
+
+    func removeCountRevisionHandler(_ id: UUID) {
+        countRevisionHandlers.removeValue(forKey: id)
+    }
+
+    private func notifySizeRevisionHandlers() {
+        let revision = sizeRevision
+        for handler in sizeRevisionHandlers.values {
+            handler(revision)
+        }
+    }
+
+    private func notifyCountRevisionHandlers() {
+        let revision = countRevision
+        for handler in countRevisionHandlers.values {
+            handler(revision)
+        }
     }
 
     func removeSizes(paths: [String]) {
@@ -61,7 +104,10 @@ final class DirectoryMetadataOverlay: ObservableObject {
             if sizes.removeValue(forKey: path) != nil { changed = true }
             if lowerBoundPaths.remove(path) != nil { changed = true }
         }
-        if changed { sizeRevision &+= 1 }
+        if changed {
+            sizeRevision &+= 1
+            notifySizeRevisionHandlers()
+        }
     }
 
     func removeCounts(paths: [String]) {
@@ -70,7 +116,10 @@ final class DirectoryMetadataOverlay: ObservableObject {
         for path in paths {
             if counts.removeValue(forKey: path) != nil { changed = true }
         }
-        if changed { countRevision &+= 1 }
+        if changed {
+            countRevision &+= 1
+            notifyCountRevisionHandlers()
+        }
     }
 
     func sizeDisplay(for path: String) -> DirectorySizeDisplayInfo {

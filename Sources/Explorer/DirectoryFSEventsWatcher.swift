@@ -1,12 +1,13 @@
 import CoreServices
 import Foundation
+import FileList
 
 final class DirectoryFSEventsWatcher {
     private var stream: FSEventStreamRef?
-    private let onEventPaths: ([String]) -> Void
+    private let onEvents: ([DirectoryFSEvent]) -> Void
     
-    init(onEventPaths: @escaping ([String]) -> Void) {
-        self.onEventPaths = onEventPaths
+    init(onEvents: @escaping ([DirectoryFSEvent]) -> Void) {
+        self.onEvents = onEvents
     }
     
     deinit {
@@ -54,23 +55,29 @@ final class DirectoryFSEventsWatcher {
         self.stream = nil
     }
     
-    fileprivate func deliver(eventPaths: [String]) {
-        guard !eventPaths.isEmpty else { return }
-        onEventPaths(eventPaths)
+    fileprivate func deliver(events: [DirectoryFSEvent]) {
+        guard !events.isEmpty else { return }
+        onEvents(events)
     }
     
     private static let eventCallback: FSEventStreamCallback = {
-        _, clientCallBackInfo, numEvents, eventPaths, _, _ in
+        _, clientCallBackInfo, numEvents, eventPaths, eventFlags, _ in
         guard let clientCallBackInfo else { return }
         let watcher = Unmanaged<DirectoryFSEventsWatcher>.fromOpaque(clientCallBackInfo).takeUnretainedValue()
         
         let cPaths = eventPaths.assumingMemoryBound(to: UnsafePointer<CChar>?.self)
-        var paths: [String] = []
-        paths.reserveCapacity(numEvents)
+        let cFlags = eventFlags
+        var events: [DirectoryFSEvent] = []
+        events.reserveCapacity(numEvents)
         for index in 0..<numEvents {
             guard let cPath = cPaths[index] else { continue }
-            paths.append(String(cString: cPath))
+            events.append(
+                DirectoryFSEvent(
+                    path: String(cString: cPath),
+                    flags: cFlags[index]
+                )
+            )
         }
-        watcher.deliver(eventPaths: paths)
+        watcher.deliver(events: events)
     }
 }

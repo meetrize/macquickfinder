@@ -76,6 +76,10 @@ enum MarkdownPreviewMermaidBlock {
         return blocks
     }
 
+    static func blockSources(in markdown: String) -> [String] {
+        findBlocks(in: markdown.components(separatedBy: "\n")).map(\.source)
+    }
+
     /// 将 Mermaid 围栏块替换为附件占位，并返回待异步渲染的任务列表（文档顺序）。
     static func apply(
         in rendered: NSMutableAttributedString,

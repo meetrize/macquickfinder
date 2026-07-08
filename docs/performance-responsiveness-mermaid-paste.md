@@ -360,14 +360,14 @@ Task.detached(priority: .userInitiated) {
 
 **验收**：Release 构建通过；⌘V 大文件粘贴 UI 不冻结；粘贴后无 double reload。
 
-### Phase 12 — 列表与渲染增量（1–2 周，中风险）
+### Phase 12 — 列表与渲染增量（1–2 周，中风险）✅ 已完成
 
-| 编号 | 项 | 方案 |
-|------|-----|------|
-| 12.1 | 粘贴后增量插入 FileItem | P2 |
-| 12.2 | Mermaid 块增量 diff | M4 |
-| 12.3 | FSEvents 增量 listing（基础：单文件 create/delete） | §4.2 |
-| 12.4 | Metadata overlay 下沉 AppKit | §4.3 |
+| 编号 | 项 | 方案 | 状态 |
+|------|-----|------|------|
+| 12.1 | 粘贴后增量插入 FileItem | P2 | ✅ `insertListingItems` + `DirectoryListingIncrementalUpdate` |
+| 12.2 | Mermaid 块增量 diff | M4 | ✅ 视口变更仅刷新附件 bounds；无表格时跳过全文重渲染 |
+| 12.3 | FSEvents 增量 listing | §4.2 | ✅ `DirectoryListingIncrementalPatcher` + `onListingPatch` |
+| 12.4 | Metadata overlay 下沉 AppKit | §4.3 | ✅ `DirectoryMetadataAppKitBridge` 订阅 revision |
 
 ### Phase 13 — 体验与可选深度优化
 
