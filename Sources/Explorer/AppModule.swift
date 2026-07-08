@@ -915,6 +915,10 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
         AppMemoryPressure.installHandler()
         PasteboardPasteAvailability.shared.install()
         GlobalHotkeyService.shared.start()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            MarkdownPreviewMermaidRenderer.preloadJSSourceIfIdle()
+        }
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {

@@ -15,21 +15,46 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
 
     static let shared = MarkdownPreviewMermaidRenderer()
     private static let logger = Logger(subsystem: "com.meofind.Explorer", category: "MermaidPreview")
+    private static var mermaidJSSourceCache: String?
+    private static var mermaidJSLoadTask: Task<String, Never>?
 
-    private static let mermaidJSSource: String = {
-        guard
-            let url = Bundle.module.url(forResource: "mermaid", withExtension: "min.js"),
-            var script = try? String(contentsOf: url, encoding: .utf8)
-        else {
-            return ""
+    /// 启动后空闲预温 Mermaid JS，避免首次打开含 diagram 的 Markdown 时读盘卡顿。
+    static func preloadJSSourceIfIdle() {
+        Task { @MainActor in
+            _ = await loadMermaidJSSource()
         }
-        script = script.replacingOccurrences(
-            of: "</script>",
-            with: "<\\/script>",
-            options: .caseInsensitive
-        )
-        return script
-    }()
+    }
+
+    private static func loadMermaidJSSource() async -> String {
+        if let mermaidJSSourceCache {
+            return mermaidJSSourceCache
+        }
+        if let mermaidJSLoadTask {
+            return await mermaidJSLoadTask.value
+        }
+
+        let task = Task<String, Never> {
+            await Task.detached(priority: .utility) {
+                guard
+                    let url = Bundle.module.url(forResource: "mermaid", withExtension: "min.js"),
+                    var script = try? String(contentsOf: url, encoding: .utf8)
+                else {
+                    return ""
+                }
+                script = script.replacingOccurrences(
+                    of: "</script>",
+                    with: "<\\/script>",
+                    options: .caseInsensitive
+                )
+                return script
+            }.value
+        }
+        mermaidJSLoadTask = task
+        let loaded = await task.value
+        mermaidJSSourceCache = loaded
+        mermaidJSLoadTask = nil
+        return loaded
+    }
 
     private var webView: WKWebView?
     private var hostWindow: NSWindow?
@@ -117,7 +142,8 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
     }
 
     private func performRender(source: String, isDark: Bool) async -> RenderResult {
-        guard !Self.mermaidJSSource.isEmpty else {
+        let mermaidJSSource = await Self.loadMermaidJSSource()
+        guard !mermaidJSSource.isEmpty else {
             Self.logger.error("mermaid.min.js missing or empty in bundle")
             return RenderResult(image: nil, naturalSize: .zero, svg: nil)
         }
@@ -128,7 +154,7 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
         resizeWebView(webView, to: NSSize(width: prepWidth, height: prepHeight))
 
         if !isShellReady {
-            await loadShell(in: webView)
+            await loadShell(in: webView, mermaidJSSource: mermaidJSSource)
         }
 
         let renderID = "m" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
@@ -213,7 +239,6 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
         )
 
         webView.layoutSubtreeIfNeeded()
-        try? await Task.sleep(nanoseconds: 150_000_000)
 
         if let snapshot = await takeSnapshot(from: webView, rect: captureRect) {
             snapshot.size = contentSize
@@ -240,10 +265,10 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
         }
     }
 
-    private func loadShell(in webView: WKWebView) async {
+    private func loadShell(in webView: WKWebView, mermaidJSSource: String) async {
         await withCheckedContinuation { continuation in
             shellLoadContinuation = continuation
-            webView.loadHTMLString(Self.shellHTML(), baseURL: Bundle.module.resourceURL)
+            webView.loadHTMLString(Self.shellHTML(mermaidJSSource: mermaidJSSource), baseURL: Bundle.module.resourceURL)
         }
     }
 
@@ -310,7 +335,7 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
         return webView
     }
 
-    private static func shellHTML() -> String {
+    private static func shellHTML(mermaidJSSource: String) -> String {
         """
         <!DOCTYPE html>
         <html>
@@ -494,11 +519,8 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
             document.body.appendChild(root);
 
             await new Promise(function(resolve) {
-              requestAnimationFrame(function() {
-                requestAnimationFrame(resolve);
-              });
+              requestAnimationFrame(resolve);
             });
-            await new Promise(function(resolve) { setTimeout(resolve, 60); });
 
             const natural = meofindNaturalSize(root, svgElement);
             if (natural.width <= 0 || natural.height <= 0) {
@@ -511,9 +533,7 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
             root.style.height = natural.height + "px";
 
             await new Promise(function(resolve) {
-              requestAnimationFrame(function() {
-                requestAnimationFrame(resolve);
-              });
+              requestAnimationFrame(resolve);
             });
 
             const bounds = root.getBoundingClientRect();

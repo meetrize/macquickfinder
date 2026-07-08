@@ -14,6 +14,7 @@ final class DirectoryFSEventsMonitor {
     
     private var pendingListingRefresh = false
     private var listingRefreshWorkItem: DispatchWorkItem?
+    private var suppressListingRefreshUntil: Date?
     
     private var pendingAffectedPaths: Set<String> = []
     private var sizeInvalidateWorkItem: DispatchWorkItem?
@@ -49,6 +50,7 @@ final class DirectoryFSEventsMonitor {
         listingRefreshWorkItem?.cancel()
         listingRefreshWorkItem = nil
         pendingListingRefresh = false
+        suppressListingRefreshUntil = nil
         onListingRefresh = nil
         
         sizeInvalidateWorkItem?.cancel()
@@ -62,6 +64,23 @@ final class DirectoryFSEventsMonitor {
         autoCalculateDirectorySizes = false
     }
     
+    /// 用户主动刷新目录（如粘贴后的 `loadItems`）期间抑制 FSEvents 触发的重复全量 reload。
+    func noteUserInitiatedListingRefresh(suppressFor duration: TimeInterval = 0.8) {
+        let until = Date().addingTimeInterval(duration)
+        if let existing = suppressListingRefreshUntil {
+            suppressListingRefreshUntil = max(existing, until)
+        } else {
+            suppressListingRefreshUntil = until
+        }
+    }
+
+    private func shouldSuppressListingRefresh() -> Bool {
+        guard let until = suppressListingRefreshUntil else { return false }
+        if Date() < until { return true }
+        suppressListingRefreshUntil = nil
+        return false
+    }
+
     private func handleEventPaths(_ eventPaths: [String]) {
         guard let watchedDirectoryPath else { return }
         
@@ -83,6 +102,7 @@ final class DirectoryFSEventsMonitor {
     }
     
     private func scheduleListingRefresh() {
+        guard !shouldSuppressListingRefresh() else { return }
         pendingListingRefresh = true
         listingRefreshWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in

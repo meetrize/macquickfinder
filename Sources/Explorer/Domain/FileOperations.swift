@@ -320,56 +320,99 @@ enum FileOperations {
         to destinationDirectory: URL,
         completion: @escaping (_ createdContentFileURL: URL?) -> Void
     ) {
-        let state = pasteboardState()
-        guard canPaste(with: state, to: destinationDirectory) else { return }
+        Task { @MainActor in
+            let state = pasteboardState()
+            guard canPaste(with: state, to: destinationDirectory) else { return }
 
-        if state.urls.isEmpty {
-            guard let createdURL = ClipboardFileCreation.createFile(in: destinationDirectory) else { return }
-            recordOperation(.createFile(url: createdURL))
-            notifyGitWorkingTreeIfNeeded(at: createdURL)
-            completion(createdURL)
-            return
+            DirectoryFSEventsMonitor.shared.noteUserInitiatedListingRefresh()
+
+            if state.urls.isEmpty {
+                let createdURL = await ClipboardFileCreation.createFileAsync(
+                    in: destinationDirectory,
+                    pasteboard: .general
+                )
+                guard let createdURL else {
+                    ClipboardFileCreation.presentCreateFileFailure()
+                    completion(nil)
+                    return
+                }
+                recordOperation(.createFile(url: createdURL))
+                notifyGitWorkingTreeIfNeeded(at: createdURL)
+                completion(createdURL)
+                return
+            }
+
+            let urls = state.urls
+            let isCut = state.isCut
+            Task.detached(priority: .userInitiated) {
+                let outcome = performFilePaste(urls: urls, isCut: isCut, to: destinationDirectory)
+                await MainActor.run {
+                    finishFilePaste(outcome: outcome, isCut: isCut, completion: completion)
+                }
+            }
         }
+    }
 
+    private struct FilePasteOutcome {
+        let completedPairs: [RecordedFilePair]
+        let error: Error?
+    }
+
+    private static func performFilePaste(
+        urls: [URL],
+        isCut: Bool,
+        to destinationDirectory: URL
+    ) -> FilePasteOutcome {
         let fileManager = FileManager.default
-        var hadError = false
         var completedPairs: [RecordedFilePair] = []
 
-        for sourceURL in state.urls {
+        for sourceURL in urls {
             let destinationURL = uniqueDestinationURL(
                 for: sourceURL.lastPathComponent,
                 in: destinationDirectory
             )
 
             do {
-                if state.isCut {
+                if isCut {
                     try fileManager.moveItem(at: sourceURL, to: destinationURL)
                 } else {
                     try fileManager.copyItem(at: sourceURL, to: destinationURL)
                 }
                 completedPairs.append(RecordedFilePair(source: sourceURL, destination: destinationURL))
             } catch {
-                NSAlert(error: error).runModal()
-                hadError = true
-                break
+                return FilePasteOutcome(completedPairs: completedPairs, error: error)
             }
         }
 
-        if state.isCut && !hadError {
+        return FilePasteOutcome(completedPairs: completedPairs, error: nil)
+    }
+
+    @MainActor
+    private static func finishFilePaste(
+        outcome: FilePasteOutcome,
+        isCut: Bool,
+        completion: @escaping (_ createdContentFileURL: URL?) -> Void
+    ) {
+        if let error = outcome.error {
+            NSAlert(error: error).runModal()
+            completion(nil)
+            return
+        }
+
+        if isCut {
             clearCutPasteboard()
         }
-        if !hadError {
-            recordOperation(
-                .paste(
-                    pairs: completedPairs,
-                    mode: state.isCut ? .move : .copy
-                )
+
+        recordOperation(
+            .paste(
+                pairs: outcome.completedPairs,
+                mode: isCut ? .move : .copy
             )
-            if let firstDestination = completedPairs.first?.destination {
-                notifyGitWorkingTreeIfNeeded(at: firstDestination)
-            }
-            completion(nil)
+        )
+        if let firstDestination = outcome.completedPairs.first?.destination {
+            notifyGitWorkingTreeIfNeeded(at: firstDestination)
         }
+        completion(nil)
     }
     
     static func open(_ items: [FileItem], onNavigate: (String) -> Void) {

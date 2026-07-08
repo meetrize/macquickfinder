@@ -1691,6 +1691,7 @@ struct ContentView: View {
         }
         selection.removeAll()
         PasteboardPasteAvailability.shared.refreshNow()
+        DirectoryFSEventsMonitor.shared.noteUserInitiatedListingRefresh()
         loadItems()
     }
 

@@ -12,6 +12,14 @@ enum ClipboardFileCreation {
     struct ImagePayload: Equatable {
         let data: Data
         let fileExtension: String
+        /// PNG/TIFF 等需在写入前压缩；JPEG 等可直接落盘。
+        let requiresCompression: Bool
+
+        init(data: Data, fileExtension: String, requiresCompression: Bool = false) {
+            self.data = data
+            self.fileExtension = fileExtension
+            self.requiresCompression = requiresCompression
+        }
     }
 
     enum ContentKind: Equatable {
@@ -55,14 +63,34 @@ enum ClipboardFileCreation {
         pasteboard: NSPasteboard = .general
     ) -> URL? {
         guard let kind = contentKind(from: pasteboard) else { return nil }
+        return writeFile(for: kind, in: directory, showErrors: true)
+    }
 
+    static func createFileAsync(
+        in directory: URL,
+        pasteboard: NSPasteboard = .general
+    ) async -> URL? {
+        guard let kind = contentKind(from: pasteboard) else { return nil }
+        return await Task.detached(priority: .userInitiated) {
+            writeFile(for: kind, in: directory)
+        }.value
+    }
+
+    private static func writeFile(for kind: ContentKind, in directory: URL, showErrors: Bool = false) -> URL? {
         let fileName: String
         let data: Data
 
         switch kind {
         case .image(let payload):
-            fileName = suggestedImageFileName(fileExtension: payload.fileExtension)
-            data = payload.data
+            let resolved: ImagePayload
+            if payload.requiresCompression {
+                resolved = normalizedCompressedPNG(from: payload.data)
+                    ?? ImagePayload(data: payload.data, fileExtension: payload.fileExtension)
+            } else {
+                resolved = payload
+            }
+            fileName = suggestedImageFileName(fileExtension: resolved.fileExtension)
+            data = resolved.data
         case .text(let text, let format):
             fileName = suggestedTextFileName(for: text, format: format)
             guard let encoded = text.data(using: .utf8) else { return nil }
@@ -74,8 +102,28 @@ enum ClipboardFileCreation {
             try data.write(to: fileURL, options: .atomic)
             return fileURL
         } catch {
-            NSAlert(error: error).runModal()
+            if showErrors {
+                Task { @MainActor in
+                    NSAlert(error: error).runModal()
+                }
+            }
             return nil
+        }
+    }
+
+    static func presentCreateFileError(_ error: Error) {
+        Task { @MainActor in
+            NSAlert(error: error).runModal()
+        }
+    }
+
+    static func presentCreateFileFailure() {
+        Task { @MainActor in
+            let alert = NSAlert()
+            alert.messageText = L10n.Alert.operationFailed
+            alert.informativeText = L10n.Alert.operationFailed
+            alert.alertStyle = .warning
+            alert.runModal()
         }
     }
 
@@ -190,10 +238,10 @@ enum ClipboardFileCreation {
 
     private static func imagePayload(from pasteboard: NSPasteboard) -> ImagePayload? {
         if let data = pasteboard.data(forType: .png) {
-            return normalizedCompressedPNG(from: data)
+            return ImagePayload(data: data, fileExtension: "png", requiresCompression: true)
         }
         if let data = pasteboard.data(forType: .tiff) {
-            return normalizedCompressedPNG(from: data)
+            return ImagePayload(data: data, fileExtension: "png", requiresCompression: true)
         }
         for candidate in preferredLossyImageTypes {
             if let data = pasteboard.data(forType: candidate.pasteboardType) {
@@ -203,7 +251,7 @@ enum ClipboardFileCreation {
 
         guard let image = NSImage(pasteboard: pasteboard),
               let tiff = image.tiffRepresentation else { return nil }
-        return normalizedCompressedPNG(from: tiff)
+        return ImagePayload(data: tiff, fileExtension: "png", requiresCompression: true)
     }
 
     /// 将剪贴板中的位图（截图常见 PNG/TIFF）统一转为压缩 PNG。

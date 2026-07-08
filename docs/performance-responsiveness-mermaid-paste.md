@@ -348,17 +348,17 @@ Task.detached(priority: .userInitiated) {
 
 **验收**：Release 构建通过；Instruments 手动验收见 §6。
 
-### Phase 11 — 主线程 I/O 迁出（2–4 天，低风险）
+### Phase 11 — 主线程 I/O 迁出（2–4 天，低风险）✅ 已完成
 
-| 编号 | 项 | 方案 |
-|------|-----|------|
-| 11.1 | 粘贴 copy/move 后台化 | P1 |
-| 11.2 | 图片压缩后台化 | P4 |
-| 11.3 | Mermaid JS 懒加载 | M5 |
-| 11.4 | 降低 Mermaid 快照延迟 | M6 |
-| 11.5 | 粘贴与 FSEvents 去重 | P5 |
+| 编号 | 项 | 方案 | 状态 |
+|------|-----|------|------|
+| 11.1 | 粘贴 copy/move 后台化 | P1 | ✅ `Task.detached` + `performFilePaste` |
+| 11.2 | 图片压缩后台化 | P4 | ✅ `createFileAsync` + `requiresCompression` |
+| 11.3 | Mermaid JS 懒加载 | M5 | ✅ `loadMermaidJSSource()` + 启动 2s 预温 |
+| 11.4 | 降低 Mermaid 快照延迟 | M6 | ✅ 移除 150ms sleep；JS 单次 rAF |
+| 11.5 | 粘贴与 FSEvents 去重 | P5 | ✅ `noteUserInitiatedListingRefresh` |
 
-**验收**：⌘V 粘贴 100MB 文件时 UI 仍可滚动；首次 Mermaid 不阻塞启动。
+**验收**：Release 构建通过；⌘V 大文件粘贴 UI 不冻结；粘贴后无 double reload。
 
 ### Phase 12 — 列表与渲染增量（1–2 周，中风险）
 
