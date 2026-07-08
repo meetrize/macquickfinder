@@ -34,14 +34,19 @@ enum ClipboardFileCreation {
         in directory: URL,
         pasteboard: NSPasteboard = .general
     ) -> Bool {
+        guard contentKind(from: pasteboard) != nil else { return false }
+        return canCreateFile(in: directory, assumingContentAvailable: true)
+    }
+
+    static func canCreateFile(in directory: URL, assumingContentAvailable: Bool) -> Bool {
+        guard assumingContentAvailable else { return false }
         guard !TrashLoader.isTrashPath(directory.path) else { return false }
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
               isDirectory.boolValue else {
             return false
         }
-        guard FileManager.default.isWritableFile(atPath: directory.path) else { return false }
-        return contentKind(from: pasteboard) != nil
+        return FileManager.default.isWritableFile(atPath: directory.path)
     }
 
     @discardableResult

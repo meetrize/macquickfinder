@@ -28,7 +28,14 @@ enum FileOperations {
     }
     
     static func canPaste(to destinationDirectory: URL) -> Bool {
-        let state = pasteboardState()
+        canPaste(with: pasteboardState(), to: destinationDirectory)
+    }
+
+    static func canPaste(
+        with state: PasteboardState,
+        to destinationDirectory: URL,
+        hasCreatableContent: Bool? = nil
+    ) -> Bool {
         if !state.urls.isEmpty {
             return canMoveItems(
                 state.urls,
@@ -36,7 +43,9 @@ enum FileOperations {
                 allowSameDirectory: !state.isCut
             )
         }
-        return ClipboardFileCreation.canCreateFile(in: destinationDirectory)
+        let canCreate = hasCreatableContent ?? (ClipboardFileCreation.contentKind() != nil)
+        guard canCreate else { return false }
+        return ClipboardFileCreation.canCreateFile(in: destinationDirectory, assumingContentAvailable: true)
     }
     
     static func canMoveItems(
@@ -312,7 +321,7 @@ enum FileOperations {
         completion: @escaping (_ createdContentFileURL: URL?) -> Void
     ) {
         let state = pasteboardState()
-        guard canPaste(to: destinationDirectory) else { return }
+        guard canPaste(with: state, to: destinationDirectory) else { return }
 
         if state.urls.isEmpty {
             guard let createdURL = ClipboardFileCreation.createFile(in: destinationDirectory) else { return }

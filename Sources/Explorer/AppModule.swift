@@ -913,6 +913,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         FileServicesMenuSupport.registerIfNeeded()
         AppMemoryPressure.installHandler()
+        PasteboardPasteAvailability.shared.install()
         GlobalHotkeyService.shared.start()
     }
 

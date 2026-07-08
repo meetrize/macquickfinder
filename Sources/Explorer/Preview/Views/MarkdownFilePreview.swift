@@ -62,7 +62,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
             guard abs(layoutWidth - context.coordinator.lastTableLayoutWidth) > 0.5 else { return }
             context.coordinator.lastTableLayoutWidth = layoutWidth
             context.coordinator.lastZoomScale = zoomScale
-            let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth, coordinator: context.coordinator)
+            let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
             context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
             applyScale(zoomScale, to: textView, context: context)
             context.coordinator.updateSearchIfNeeded(
@@ -76,7 +76,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
         let layoutWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
         context.coordinator.lastTableLayoutWidth = layoutWidth
-        let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth, coordinator: context.coordinator)
+        let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
         context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
         context.coordinator.wrapLayout.wrapLinesEnabled = wrapLines
         context.coordinator.wrapLayout.lastWrapLines = wrapLines
@@ -91,7 +91,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
             let deferredWidth = tableLayoutWidth(for: scrollView, scale: zoomScale)
             guard abs(deferredWidth - context.coordinator.lastTableLayoutWidth) > 0.5 else { return }
             context.coordinator.lastTableLayoutWidth = deferredWidth
-            let deferredPending = applyMarkdown(markdown, to: textView, layoutWidth: deferredWidth, coordinator: context.coordinator)
+            let deferredPending = applyMarkdown(markdown, to: textView, layoutWidth: deferredWidth)
             context.coordinator.scheduleMermaidRenders(pending: deferredPending, textView: textView)
             applyScale(zoomScale, to: textView, context: context)
         }
@@ -111,7 +111,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
             guard abs(layoutWidth - context.coordinator.lastTableLayoutWidth) > 0.5 else { return }
             context.coordinator.lastTableLayoutWidth = layoutWidth
             context.coordinator.lastZoomScale = zoomScale
-            let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth, coordinator: context.coordinator)
+            let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
             context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
             applyScale(zoomScale, to: textView, context: context)
             context.coordinator.updateSearchIfNeeded(
@@ -132,14 +132,18 @@ struct MarkdownFilePreview: NSViewRepresentable {
         let markdownChanged = context.coordinator.lastMarkdown != markdown
         let zoomChanged = abs(context.coordinator.lastZoomScale - zoomScale) > 0.0001
 
-        if wrapChanged || markdownChanged || layoutWidthChanged || zoomChanged {
+        if zoomChanged {
+            context.coordinator.lastZoomScale = zoomScale
+        }
+
+        if wrapChanged || markdownChanged || layoutWidthChanged {
             if wrapChanged {
                 context.coordinator.wrapLayout.lastWrapLines = wrapLines
             }
             context.coordinator.lastMarkdown = markdown
             context.coordinator.lastZoomScale = zoomScale
             context.coordinator.lastTableLayoutWidth = layoutWidth
-            let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth, coordinator: context.coordinator)
+            let pending = applyMarkdown(markdown, to: textView, layoutWidth: layoutWidth)
             context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
             if markdownChanged || wrapChanged {
                 context.coordinator.searchCurrentIndex = 0
@@ -176,8 +180,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
     private func applyMarkdown(
         _ markdown: String,
         to textView: NSTextView,
-        layoutWidth: CGFloat? = nil,
-        coordinator: Coordinator
+        layoutWidth: CGFloat? = nil
     ) -> [MarkdownPreviewMermaidBlock.PendingRender] {
         // 以原始文本作为预览基准，保证换行/缩进完全保留，再做轻量样式增强。
         let rendered = NSMutableAttributedString(string: markdown)
@@ -315,7 +318,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
             layoutWidth: layoutWidth,
             renderingLabel: L10n.Preview.Markdown.mermaidRendering,
             isDark: isDark,
-            cachedRenders: coordinator.mermaidCache
+            cachedRenderForKey: { MermaidPreviewCache.shared[$0] }
         )
         textView.textStorage?.setAttributedString(rendered)
         return pending
@@ -592,6 +595,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         context.coordinator.currentScale = clamped
     }
 
+    @MainActor
     final class Coordinator {
         @Binding var searchMatchCount: Int
         var searchCurrentIndexBinding: Binding<Int>
@@ -613,7 +617,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         var lastHighlightedSearchRanges: [NSRange] = []
         private var firstResponderObserver: NSObjectProtocol?
         private var tableLayoutWidthObserver: NSObjectProtocol?
-        var mermaidCache: [String: MarkdownPreviewMermaidBlock.CachedRender] = [:]
+        private var tableLayoutWidthDebounceWorkItem: DispatchWorkItem?
         private var mermaidInFlightKeys: Set<String> = []
 
         init(searchMatchCount: Binding<Int>, searchCurrentIndex: Binding<Int>) {
@@ -632,8 +636,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
             for item in pending {
                 let cacheKey = MarkdownPreviewMermaidBlock.cacheKey(
                     source: item.source,
-                    isDark: isDark,
-                    layoutWidth: item.layoutWidth
+                    isDark: isDark
                 )
                 if mermaidInFlightKeys.contains(cacheKey) {
                     continue
@@ -655,7 +658,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
                         }
 
                     if let resolvedImage, result.displaySize.width > 0, result.displaySize.height > 0 {
-                        self.mermaidCache[cacheKey] = MarkdownPreviewMermaidBlock.CachedRender(
+                        MermaidPreviewCache.shared[cacheKey] = MarkdownPreviewMermaidBlock.CachedRender(
                             image: resolvedImage,
                             displaySize: result.displaySize
                         )
@@ -669,7 +672,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
         private func applyMermaidCache(cacheKey: String, to textView: NSTextView) {
             guard
-                let cached = mermaidCache[cacheKey],
+                let cached = MermaidPreviewCache.shared[cacheKey],
                 let storage = textView.textStorage
             else { return }
 
@@ -679,8 +682,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
                     let attachment = value as? MarkdownMermaidAttachment,
                     MarkdownPreviewMermaidBlock.cacheKey(
                         source: attachment.source,
-                        isDark: attachment.isDark,
-                        layoutWidth: attachment.layoutWidth
+                        isDark: attachment.isDark
                     ) == cacheKey
                 else { return }
 
@@ -707,8 +709,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
                     let attachment = value as? MarkdownMermaidAttachment,
                     MarkdownPreviewMermaidBlock.cacheKey(
                         source: attachment.source,
-                        isDark: attachment.isDark,
-                        layoutWidth: attachment.layoutWidth
+                        isDark: attachment.isDark
                     ) == cacheKey
                 else { return }
 
@@ -749,8 +750,18 @@ struct MarkdownFilePreview: NSViewRepresentable {
         }
 
         private func handleTableLayoutWidthChange() {
-            guard let scrollView, let textView, let relayoutMarkdown else { return }
-            relayoutMarkdown(textView, scrollView)
+            tableLayoutWidthDebounceWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in
+                guard
+                    let self,
+                    let scrollView = self.scrollView,
+                    let textView = self.textView,
+                    let relayoutMarkdown = self.relayoutMarkdown
+                else { return }
+                relayoutMarkdown(textView, scrollView)
+            }
+            tableLayoutWidthDebounceWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
         }
 
         private func publishSearchCurrentIndex() {
@@ -837,6 +848,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         }
 
         deinit {
+            tableLayoutWidthDebounceWorkItem?.cancel()
             if let firstResponderObserver {
                 NotificationCenter.default.removeObserver(firstResponderObserver)
             }

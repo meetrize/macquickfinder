@@ -21,8 +21,9 @@ enum MarkdownPreviewMermaidBlock {
         let displaySize: NSSize
     }
 
-    static func cacheKey(source: String, isDark: Bool, layoutWidth: CGFloat) -> String {
-        "\(isDark ? "dark" : "light")|\(Int(layoutWidth.rounded()))|\(source)"
+    /// 缓存键不含 layoutWidth：缩放由 `scaleUnitSquare` 处理，避免 zoom 触发 WebView 重渲染。
+    static func cacheKey(source: String, isDark: Bool) -> String {
+        "\(isDark ? "dark" : "light")|\(source)"
     }
 
     private static let openFenceRegex = try? NSRegularExpression(
@@ -80,7 +81,7 @@ enum MarkdownPreviewMermaidBlock {
         layoutWidth: CGFloat?,
         renderingLabel: String,
         isDark: Bool,
-        cachedRenders: [String: CachedRender]
+        cachedRenderForKey: (String) -> CachedRender?
     ) -> [PendingRender] {
         let lines = rendered.string.components(separatedBy: "\n")
         let blocks = findBlocks(in: lines)
@@ -109,8 +110,8 @@ enum MarkdownPreviewMermaidBlock {
                 layoutWidth: contentWidth,
                 isDark: isDark
             )
-            let cacheKey = cacheKey(source: block.source, isDark: isDark, layoutWidth: contentWidth)
-            if let cached = cachedRenders[cacheKey] {
+            let cacheKey = cacheKey(source: block.source, isDark: isDark)
+            if let cached = cachedRenderForKey(cacheKey) {
                 attachment.image = cached.image
                 attachment.bounds = attachmentBounds(for: cached.displaySize)
             } else {

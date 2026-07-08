@@ -28,6 +28,7 @@ enum AppMemoryPressure {
         PreviewSessionStore.shared.respondToMemoryPressure()
         ThumbnailGenerator.shared.clearMemoryCache()
         ThumbnailGenerator.shared.trimDiskCache()
+        MarkdownPreviewMermaidRenderer.shared.clearCachesOnMemoryPressure()
         Task {
             await DirectoryMetadataScheduler.trimCachesOnMemoryPressure()
         }

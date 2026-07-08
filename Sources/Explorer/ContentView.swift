@@ -164,6 +164,7 @@ struct ContentView: View {
     @State private var pendingInlineRenamePath: String?
     @State private var showConnectServerSheet = false
     @State private var transientNoticeMessage: String?
+    @ObservedObject private var pasteboardAvailability = PasteboardPasteAvailability.shared
     @StateObject private var operationRecorder = OperationRecorder()
     @State private var operationRecordingCloseGuard = OperationRecordingWindowCloseGuard()
     @State private var operationRecordingReview: OperationRecordingReviewContext?
@@ -1517,7 +1518,7 @@ struct ContentView: View {
             delete: deleteSelectedItems,
             canCopy: !selected.isEmpty,
             canCut: !selected.isEmpty,
-            canPaste: FileOperations.canPaste(to: URL(fileURLWithPath: destPath)),
+            canPaste: pasteboardAvailability.canPaste(to: URL(fileURLWithPath: destPath)),
             canDelete: !deletableSelectedItems.isEmpty
         )
     }
@@ -1526,7 +1527,7 @@ struct ContentView: View {
         let inTrash = TrashLoader.isTrashPath(path)
         let isNetworkVolume = DirectorySizeVolumeFilter.isNetworkVolume(path: path)
         let pasteDestination = URL(fileURLWithPath: path, isDirectory: true)
-        let canPaste = !inTrash && FileOperations.canPaste(to: pasteDestination)
+        let canPaste = !inTrash && pasteboardAvailability.canPaste(to: pasteDestination)
         let serviceFileURLs: () -> [URL] = {
             let selected = FileItem.resolveSelection(ids: selection, from: items)
                 .filter { !$0.isParentDirectoryEntry }
@@ -1603,7 +1604,7 @@ struct ContentView: View {
             },
             showInfo: FileOperations.showInfo,
             canPaste: { destPath in
-                FileOperations.canPaste(to: URL(fileURLWithPath: destPath))
+                pasteboardAvailability.canPaste(to: URL(fileURLWithPath: destPath))
             },
             paste: { destPath in
                 FileOperations.paste(to: URL(fileURLWithPath: destPath), completion: finishPaste)
@@ -1689,6 +1690,7 @@ struct ContentView: View {
             pendingInlineRenamePath = createdContentFileURL.path
         }
         selection.removeAll()
+        PasteboardPasteAvailability.shared.refreshNow()
         loadItems()
     }
 

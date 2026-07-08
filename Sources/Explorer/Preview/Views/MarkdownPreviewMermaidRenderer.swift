@@ -36,18 +36,35 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
     private var isShellReady = false
     private var shellLoadContinuation: CheckedContinuation<Void, Never>?
     private var inflight: [String: Task<RenderResult, Never>] = [:]
+    /// 串行渲染链：保证同一 WebView 同一时刻只处理一个 diagram。
+    private var renderTail: Task<Void, Never> = Task { }
 
     private override init() {
         super.init()
     }
 
+    func clearCachesOnMemoryPressure() {
+        inflight.values.forEach { $0.cancel() }
+        inflight.removeAll()
+        renderTail = Task { }
+        MermaidPreviewCache.shared.clear()
+    }
+
     func render(source: String, layoutWidth: CGFloat, isDark: Bool) async -> RenderResult {
-        let key = MarkdownPreviewMermaidBlock.cacheKey(source: source, isDark: isDark, layoutWidth: layoutWidth)
+        let key = MarkdownPreviewMermaidBlock.cacheKey(source: source, isDark: isDark)
         if let existing = inflight[key] {
             return await existing.value
         }
 
-        let task = Task { await self.renderWithTimeout(source: source, layoutWidth: layoutWidth, isDark: isDark) }
+        let task = Task { @MainActor in
+            await self.renderTail.value
+
+            let renderTask = Task { @MainActor in
+                await self.renderWithTimeout(source: source, layoutWidth: layoutWidth, isDark: isDark)
+            }
+            self.renderTail = Task { _ = await renderTask.value }
+            return await renderTask.value
+        }
         inflight[key] = task
         let result = await task.value
         inflight[key] = nil
