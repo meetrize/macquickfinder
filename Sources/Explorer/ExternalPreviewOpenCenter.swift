@@ -59,11 +59,12 @@ final class ExternalPreviewOpenCenter: ObservableObject {
             shouldSuppressExplorerWindows = false
             return false
         }
-        return openPreviewWindow(for: firstURL)
+        let additionalURLs = Array(previewableURLs.dropFirst())
+        return openPreviewWindow(for: firstURL, additionalURLs: additionalURLs)
     }
 
     @discardableResult
-    private func openPreviewWindow(for url: URL) -> Bool {
+    private func openPreviewWindow(for url: URL, additionalURLs: [URL] = []) -> Bool {
         guard let item = FileItem.resolveSelection(ids: [url.path], from: []).first else {
             return false
         }
@@ -73,7 +74,11 @@ final class ExternalPreviewOpenCenter: ObservableObject {
             return true
         }
 
-        guard let previewValue = makePreviewWindowValue(for: url, file: item) else {
+        guard let previewValue = makePreviewWindowValue(
+            for: url,
+            file: item,
+            additionalURLs: additionalURLs
+        ) else {
             return false
         }
 
@@ -86,13 +91,22 @@ final class ExternalPreviewOpenCenter: ObservableObject {
         return true
     }
 
-    private func makePreviewWindowValue(for url: URL, file: FileItem) -> PreviewWindowValue? {
+    private func makePreviewWindowValue(
+        for url: URL,
+        file: FileItem,
+        additionalURLs: [URL] = []
+    ) -> PreviewWindowValue? {
         let parent = url.deletingLastPathComponent().path
+        let directoryItems = directoryItemsForPreview(
+            primaryURL: url,
+            file: file,
+            additionalURLs: additionalURLs
+        )
         let options = PreviewStandaloneOpenPreferences.options(for: file)
         let sessionID = PreviewDetachCoordinator.shared.openStandalonePreview(
             file: file,
             directoryPath: parent,
-            directoryItems: [file],
+            directoryItems: directoryItems,
             options: options
         )
         return PreviewWindowValue(
@@ -100,6 +114,36 @@ final class ExternalPreviewOpenCenter: ObservableObject {
             fitImageToScreen: options.fitImageToScreen,
             initialWindowSize: options.initialWindowSize
         )
+    }
+
+    /// 列举同级目录可预览项，并合并外部多选 URL（供胶片条浏览）。
+    private func directoryItemsForPreview(
+        primaryURL: URL,
+        file: FileItem,
+        additionalURLs: [URL]
+    ) -> [FileItem] {
+        let parent = primaryURL.deletingLastPathComponent().path
+        let listingOptions = DirectoryListingOptions.forPath(parent)
+        var items = (try? DirectoryListingLoader.loadFileItems(
+            at: parent,
+            showHiddenFiles: false,
+            options: listingOptions
+        )) ?? []
+
+        if !items.contains(where: { $0.id == file.id }) {
+            items.append(file)
+        }
+
+        for url in additionalURLs where url != primaryURL {
+            guard let item = FileItem.resolveSelection(ids: [url.path], from: items).first else {
+                continue
+            }
+            if !items.contains(where: { $0.id == item.id }) {
+                items.append(item)
+            }
+        }
+
+        return items
     }
 
     private func flushPendingPreviewWindows() {

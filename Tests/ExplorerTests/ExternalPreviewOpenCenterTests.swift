@@ -65,4 +65,63 @@ final class ExternalPreviewOpenCenterTests: XCTestCase {
         XCTAssertEqual(openedValues.count, 2)
         UserDefaults.standard.removeObject(forKey: AppPreferences.Preview.externalMultiImageOpen)
     }
+
+    func testTryOpenLoadsSiblingDirectoryForBrowserStrip() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let a = directory.appendingPathComponent("a.png")
+        let b = directory.appendingPathComponent("b.png")
+        let c = directory.appendingPathComponent("c.png")
+        let pngHeader = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+        try pngHeader.write(to: a)
+        try pngHeader.write(to: b)
+        try pngHeader.write(to: c)
+
+        var openedSessionID: PreviewSessionID?
+        ExternalPreviewOpenCenter.shared.setOpenPreviewWindowHandler { value in
+            openedSessionID = value.sessionID
+        }
+
+        XCTAssertTrue(ExternalPreviewOpenCenter.shared.tryOpen(urls: [b]))
+
+        let sessionID = try XCTUnwrap(openedSessionID)
+        let session = try XCTUnwrap(PreviewSessionStore.shared.session(for: sessionID))
+        let context = try XCTUnwrap(session.browseContext)
+        XCTAssertTrue(context.canBrowse)
+        XCTAssertEqual(context.count, 3)
+        XCTAssertEqual(context.currentItem.id, b.path)
+    }
+
+    func testTryOpenMergesAdditionalSelectedURLsIntoBrowserStrip() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let a = directory.appendingPathComponent("a.png")
+        let b = directory.appendingPathComponent("b.png")
+        let pngHeader = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+        try pngHeader.write(to: a)
+        try pngHeader.write(to: b)
+
+        var openedSessionID: PreviewSessionID?
+        ExternalPreviewOpenCenter.shared.setOpenPreviewWindowHandler { value in
+            openedSessionID = value.sessionID
+        }
+
+        XCTAssertTrue(ExternalPreviewOpenCenter.shared.tryOpen(urls: [a, b]))
+
+        let sessionID = try XCTUnwrap(openedSessionID)
+        let session = try XCTUnwrap(PreviewSessionStore.shared.session(for: sessionID))
+        let context = try XCTUnwrap(session.browseContext)
+        XCTAssertTrue(context.canBrowse)
+        XCTAssertEqual(context.count, 2)
+        XCTAssertEqual(context.currentItem.id, a.path)
+    }
+
+    private func makeTemporaryDirectory() throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("external-preview-open-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
 }
