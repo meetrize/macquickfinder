@@ -6,6 +6,7 @@ public enum FileListStorageKeys {
     /// 旧版仅持久化列配置的键，用于迁移。
     public static let legacyColumns = "fileListColumns"
     public static let viewMode = "explorer.fileList.viewMode"
+    public static let thumbnailLayoutMode = "explorer.fileList.thumbnailLayoutMode"
     public static let thumbnailCellSize = "explorer.fileList.thumbnailCellSize"
     public static let rowHoverHighlight = "explorer.fileList.rowHoverHighlight"
 }

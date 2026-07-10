@@ -8,8 +8,14 @@ enum AppPreferences {
         static let preferences = FileListStorageKeys.preferences
         static let legacyColumns = FileListStorageKeys.legacyColumns
         static let viewMode = FileListStorageKeys.viewMode
+        static let thumbnailLayoutMode = FileListStorageKeys.thumbnailLayoutMode
         static let thumbnailCellSize = FileListStorageKeys.thumbnailCellSize
         static let rowHoverHighlight = FileListStorageKeys.rowHoverHighlight
+    }
+
+    /// 子目录全景缩略图偏好。
+    enum Panorama {
+        static let expandDepthPolicy = "explorer.panorama.expandDepthPolicy"
     }
 
     /// 窗口与面板布局。

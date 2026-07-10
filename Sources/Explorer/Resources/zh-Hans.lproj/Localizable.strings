@@ -1100,6 +1100,22 @@
 	<string>返回本应用后，点击「重启应用」使权限生效。</string>
 	<key>permission.fda.title</key>
 	<string>需要完全磁盘访问权限</string>
+	<key>panorama.collapse_folder</key>
+	<string>收起文件夹</string>
+	<key>panorama.expand_depth.automatic</key>
+	<string>自动</string>
+	<key>panorama.expand_depth.depth2</key>
+	<string>深度 2</string>
+	<key>panorama.expand_depth.depth5</key>
+	<string>深度 5</string>
+	<key>panorama.expand_depth.unlimited</key>
+	<string>全部</string>
+	<key>panorama.folder_kind</key>
+	<string>文件夹</string>
+	<key>panorama.item_count %lld</key>
+	<string>%lld 项</string>
+	<key>panorama.loading</key>
+	<string>正在加载</string>
 	<key>preview.archive.loading_more</key>
 	<string>正在加载更多条目…</string>
 	<key>preview.archive.selection_count %lld</key>
@@ -2058,6 +2074,16 @@
 	<string>用 %@ 打开</string>
 	<key>toolbar.open_app.use_app_icon</key>
 	<string>使用应用图标</string>
+	<key>toolbar.panorama.collapse_all</key>
+	<string>全部收起</string>
+	<key>toolbar.panorama.expand_all</key>
+	<string>全部展开</string>
+	<key>toolbar.panorama.expand_depth</key>
+	<string>展开深度</string>
+	<key>toolbar.panorama.layout_grid</key>
+	<string>标准网格</string>
+	<key>toolbar.panorama.layout_panorama</key>
+	<string>子目录全景</string>
 	<key>toolbar.record_operations</key>
 	<string>录制操作用于生成 Snippet</string>
 	<key>toolbar.record_operations_active</key>

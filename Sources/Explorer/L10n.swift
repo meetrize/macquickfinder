@@ -556,6 +556,11 @@ enum L10n {
         static var viewPicker: String { ModuleLocalization.localized("toolbar.view_picker", bundle: .module) }
         static var autoFolderSize: String { ModuleLocalization.localized("toolbar.auto_folder_size", bundle: .module) }
         static var useIconPreview: String { ModuleLocalization.localized("toolbar.use_icon_preview", bundle: .module) }
+        static var panoramaExpandAll: String { ModuleLocalization.localized("toolbar.panorama.expand_all", bundle: .module) }
+        static var panoramaCollapseAll: String { ModuleLocalization.localized("toolbar.panorama.collapse_all", bundle: .module) }
+        static var panoramaLayoutGrid: String { ModuleLocalization.localized("toolbar.panorama.layout_grid", bundle: .module) }
+        static var panoramaLayoutPanorama: String { ModuleLocalization.localized("toolbar.panorama.layout_panorama", bundle: .module) }
+        static var panoramaExpandDepth: String { ModuleLocalization.localized("toolbar.panorama.expand_depth", bundle: .module) }
         static var customize: String { ModuleLocalization.localized("toolbar.customize", bundle: .module) }
         static var customizeTitle: String { ModuleLocalization.localized("toolbar.customize.title", bundle: .module) }
         static var customizeHint: String { ModuleLocalization.localized("toolbar.customize.hint", bundle: .module) }
@@ -851,6 +856,24 @@ enum L10n {
         static var dateOldest: String { ModuleLocalization.localized("sort.date_oldest", bundle: .module) }
         static var sizeSmallest: String { ModuleLocalization.localized("sort.size_smallest", bundle: .module) }
         static var sizeLargest: String { ModuleLocalization.localized("sort.size_largest", bundle: .module) }
+    }
+
+    enum Panorama {
+        static var collapseFolder: String { ModuleLocalization.localized("panorama.collapse_folder", bundle: .module) }
+        static var folderKind: String { ModuleLocalization.localized("panorama.folder_kind", bundle: .module) }
+        static var loading: String { ModuleLocalization.localized("panorama.loading", bundle: .module) }
+
+        static func itemCount(_ count: Int) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("panorama.item_count %lld", bundle: .module),
+                Int64(count)
+            )
+        }
+
+        static var expandDepthAutomatic: String { ModuleLocalization.localized("panorama.expand_depth.automatic", bundle: .module) }
+        static var expandDepth2: String { ModuleLocalization.localized("panorama.expand_depth.depth2", bundle: .module) }
+        static var expandDepth5: String { ModuleLocalization.localized("panorama.expand_depth.depth5", bundle: .module) }
+        static var expandDepthUnlimited: String { ModuleLocalization.localized("panorama.expand_depth.unlimited", bundle: .module) }
     }
 
     enum Permission {

@@ -17,6 +17,7 @@ extension FileListRow {
     init(
         item: FileItem,
         directorySizeDisplay: DirectorySizeDisplayInfo?,
+        childCountDisplay: DirectoryItemCountDisplayInfo? = nil,
         depth: Int,
         parentID: String?,
         isExpandable: Bool,
@@ -45,6 +46,7 @@ extension FileListRow {
             name: item.isParentDirectoryEntry ? ".." : item.name,
             fileType: item.fileType,
             sizeDisplay: effectiveDisplay,
+            childCountDisplay: childCountDisplay?.text,
             dateDisplay: item.dateDisplay,
             creationDateDisplay: item.creationDateDisplay,
             comment: item.finderComment,

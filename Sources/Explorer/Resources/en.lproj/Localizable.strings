@@ -1100,6 +1100,22 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Return to this app and click Restart App to apply the permission.</string>
 	<key>permission.fda.title</key>
 	<string>Full Disk Access Required</string>
+	<key>panorama.collapse_folder</key>
+	<string>Collapse folder</string>
+	<key>panorama.expand_depth.automatic</key>
+	<string>Automatic</string>
+	<key>panorama.expand_depth.depth2</key>
+	<string>Depth 2</string>
+	<key>panorama.expand_depth.depth5</key>
+	<string>Depth 5</string>
+	<key>panorama.expand_depth.unlimited</key>
+	<string>Unlimited</string>
+	<key>panorama.folder_kind</key>
+	<string>Folder</string>
+	<key>panorama.item_count %lld</key>
+	<string>%lld items</string>
+	<key>panorama.loading</key>
+	<string>Loading</string>
 	<key>preview.archive.loading_more</key>
 	<string>Loading more entries…</string>
 	<key>preview.archive.selection_count %lld</key>
@@ -2058,6 +2074,16 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Open with %@</string>
 	<key>toolbar.open_app.use_app_icon</key>
 	<string>Use application icon</string>
+	<key>toolbar.panorama.collapse_all</key>
+	<string>Collapse All Folders</string>
+	<key>toolbar.panorama.expand_all</key>
+	<string>Expand All Folders</string>
+	<key>toolbar.panorama.expand_depth</key>
+	<string>Expand Depth</string>
+	<key>toolbar.panorama.layout_grid</key>
+	<string>Standard Grid</string>
+	<key>toolbar.panorama.layout_panorama</key>
+	<string>Subfolder Panorama</string>
 	<key>toolbar.record_operations</key>
 	<string>Record operations to create a Snippet</string>
 	<key>toolbar.record_operations_active</key>

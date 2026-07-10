@@ -16,6 +16,8 @@ struct FileListView: View {
     let showHiddenFiles: Bool
     let directoryMetadataOverlay: DirectoryMetadataOverlay
     let viewMode: FileListViewMode
+    let thumbnailLayoutMode: FileListThumbnailLayoutMode
+    let panoramaExpandDepthPolicy: PanoramaExpandDepthPolicy
     let thumbnailCellSize: CGFloat
     let useIconPreview: Bool
     let preferWorkspaceIconsInThumbnail: Bool
@@ -30,8 +32,10 @@ struct FileListView: View {
     let blankMenuActions: FileListBlankMenuActions
     let canNavigateBack: Bool
     let onNavigateBack: () -> Void
+    let onNavigateToDirectory: (String) -> Void
     
     @ObservedObject private var preferencesStore = FileListPreferencesStore.shared
+    @StateObject private var panoramaController = PanoramaTreeController()
     @State private var isCurrentDirectoryDropTargeted = false
     @State private var isQuickSearchFieldFocused = false
     @State private var quickSearchAutoCloseWorkItem: DispatchWorkItem?
@@ -60,6 +64,15 @@ struct FileListView: View {
     
     private var treeEnabled: Bool {
         viewMode == .list && treeExpandEnabled && searchText.isEmpty
+    }
+
+    private var effectiveThumbnailLayoutMode: FileListThumbnailLayoutMode {
+        guard viewMode == .thumbnail, searchText.isEmpty, !isLoading else { return .grid }
+        return thumbnailLayoutMode
+    }
+
+    private var panoramaActive: Bool {
+        effectiveThumbnailLayoutMode == .panorama
     }
     
     private var visibleTreeNodes: [VisibleNode] {
@@ -103,7 +116,11 @@ struct FileListView: View {
                     case .list:
                         fileTable
                     case .thumbnail:
-                        fileThumbnailGrid
+                        if panoramaActive {
+                            panoramaTree
+                        } else {
+                            fileThumbnailGrid
+                        }
                     }
                 }
             }
@@ -140,20 +157,46 @@ struct FileListView: View {
         }
         .onDisappear {
             cancelQuickSearchAutoClose()
+            PanoramaTreeControllerBridge.bind(nil)
+            panoramaController.shutdown()
         }
         .onChange(of: currentDirectoryPath) { _ in
             closeQuickSearch()
             isFileListRenaming = false
             FileListTableController.shared?.cancelRenameIfNeededForDataUpdate()
             resetTreeState(keepExpanded: false)
+            syncPanoramaLifecycle(forceReset: true)
         }
         .onChange(of: showHiddenFiles) { _ in
             resetTreeState(keepExpanded: true)
+            syncPanoramaLifecycle(forceReset: true)
         }
         .onChange(of: searchText) { newValue in
             if !newValue.isEmpty {
                 expandingDirectoryIDs.removeAll()
             }
+            syncPanoramaLifecycle(forceReset: false)
+        }
+        .onChange(of: items) { _ in
+            syncPanoramaRootItemsIfNeeded()
+        }
+        .onChange(of: thumbnailLayoutMode) { _ in
+            syncPanoramaLifecycle(forceReset: true)
+        }
+        .onChange(of: panoramaExpandDepthPolicy) { _ in
+            syncPanoramaLifecycle(forceReset: true)
+        }
+        .onChange(of: viewMode) { _ in
+            syncPanoramaLifecycle(forceReset: true)
+        }
+        .onChange(of: isLoading) { _ in
+            syncPanoramaLifecycle(forceReset: false)
+        }
+        .onChange(of: preferencesStore.preferences.sort) { _ in
+            syncPanoramaLifecycle(forceReset: true)
+        }
+        .onAppear {
+            syncPanoramaLifecycle(forceReset: true)
         }
     }
     
@@ -215,6 +258,53 @@ struct FileListView: View {
             preferencesStore.resetToDefaultIfNeeded()
             DirectoryMetadataAppKitBridge.shared.installIfNeeded(overlay: directoryMetadataOverlay)
         }
+    }
+
+    private var panoramaTree: some View {
+        PanoramaTreeView(
+            controller: panoramaController,
+            cellSize: thumbnailCellSize,
+            selection: $selection,
+            rowHoverHighlight: rowHoverHighlight,
+            rootItems: items,
+            onThumbnailCellSizeChange: onThumbnailCellSizeChange,
+            onItemOpen: onItemOpen,
+            onNavigateToDirectory: onNavigateToDirectory
+        )
+        .onAppear {
+            preferencesStore.resetToDefaultIfNeeded()
+            DirectoryMetadataAppKitBridge.shared.installIfNeeded(overlay: directoryMetadataOverlay)
+            syncPanoramaLifecycle(forceReset: true)
+        }
+    }
+
+    private func syncPanoramaLifecycle(forceReset: Bool) {
+        if panoramaActive {
+            PanoramaTreeControllerBridge.bind(panoramaController)
+        } else {
+            PanoramaTreeControllerBridge.bind(nil)
+            panoramaController.shutdown()
+            return
+        }
+        guard !isLoading else { return }
+
+        let sort = preferencesStore.preferences.sort
+        if forceReset || panoramaController.dataSource.rootDirectoryPath != currentDirectoryPath {
+            panoramaController.reset(
+                rootPath: currentDirectoryPath,
+                rootItems: items,
+                showHiddenFiles: showHiddenFiles,
+                sort: sort,
+                depthPolicy: panoramaExpandDepthPolicy
+            )
+        } else {
+            syncPanoramaRootItemsIfNeeded()
+        }
+    }
+
+    private func syncPanoramaRootItemsIfNeeded() {
+        guard panoramaActive, !isLoading else { return }
+        panoramaController.applyRootItems(items)
     }
     
     private func makeFileListInteraction() -> FileListTableInteraction {

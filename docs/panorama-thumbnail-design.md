@@ -1,8 +1,9 @@
 # 子目录全景缩略图（Panorama Thumbnail）— 设计方案
 
-> 目标：在缩略图模式下增加 **「子目录全景」** 子模式，采用 **「纵向分区 + 横向胶片条」** 布局，一次浏览当前目录下各直接子文件夹的内容概貌；性能优先、内存可控、按需加载。  
-> 关联文档：[thumbnail-view-design.md](./thumbnail-view-design.md)、[preview-browser-strip-design.md](./preview-browser-strip-design.md)  
-> 开发计划：[panorama-thumbnail-plan.md](./panorama-thumbnail-plan.md)
+> 目标：在缩略图模式下增加 **「子目录全景」** 子模式，采用 **「树形递归展开 + 目录标题行 + 下方多行网格」** 布局；进入时逻辑上全树展开，物理上渐进加载；支持收起为普通缩略图格。性能优先、内存可控。  
+> 关联文档：[thumbnail-view-design.md](./thumbnail-view-design.md)  
+> 开发计划：[panorama-thumbnail-plan.md](./panorama-thumbnail-plan.md)  
+> **决策记录**：原「一级分区 + 横向胶片条」方案已废弃，由本文档完全替代。
 
 ---
 
@@ -12,109 +13,126 @@
 
 | 区域 | 现状 |
 |------|------|
-| 缩略图模式 | 单层扁平 `NSCollectionViewGridLayout`，仅展示当前目录一层条目 |
-| 树形展开 | 仅在 **列表模式** 启用（`FileListView.treeEnabled`） |
-| 分组 / Section | 缩略图网格无 supplementary header、无按文件夹分组 |
-| 水平胶片条 | `PreviewBrowserStripView` 已在预览区实现，可复用交互与缩略图调度模式 |
+| 缩略图模式 | 单层扁平 `NSCollectionViewGridLayout`，仅当前目录一层 |
+| 树形展开 | 仅在 **列表模式**（`FileListView.treeEnabled`） |
+| 列表树基础设施 | `expandedDirectoryIDs`、`cachedChildrenByDirectoryID`、`loadChildren(for:)` 已存在 |
 | 缩略图管线 | `ThumbnailGenerator`（QL 并发 4）+ `ThumbnailCache`（500 项 / 80MB LRU） |
+| 类似树 flatten | `ArchiveTreeBuilder.visibleRows` 可参考 |
 
 ### 1.2 目标
 
-1. 缩略图模式下新增子模式 **「子目录全景」**，与现有 **「标准网格」** 互斥切换。
-2. 每个 **直接子文件夹** 占一行分区：标题 + 可横向滚动的缩略图胶片条。
-3. 任意缩略图可立刻辨识所属子目录（分区标题 + 左侧色条）。
-4. **不影响性能**：首帧零额外 I/O、按视口 lazy 列举与加载缩略图、严格内存预算。
-5. 复用现有排序、缩放、选中、打开、进入目录等交互能力。
+1. 缩略图模式下新增子模式 **「子目录全景」**，与 **「标准网格」** 互斥切换。
+2. 进入全景时：**一级、二级及所有子目录逻辑上全部展开**；每个 **有内容** 的目录独占一行 **标题行**（随深度左缩进）。
+3. 标题行含 **折叠按钮**；收起后该目录变为 **普通文件夹缩略图格**，与同级收起的目录、文件混排于 **父目录下方网格**（多行铺满）。
+4. 每个展开目录下方：**子目录优先**（展开的递归为标题行；收起的为网格格）→ **文件缩略图网格**（常规多行）。
+5. **性能**：禁止进入时同步全树扫描；渐进 BFS 加载 + 视口缩略图 + 网格 cap + 子树 evict。
+6. 复用排序、缩放、选中、打开、进入目录；与列表树共享数据层。
 
 ### 1.3 非目标（首版）
 
-- 递归全树扫描（默认 **仅一级子目录**）
-- 修改现有 `FileListThumbnailController` / AppKit 网格 layout
+- 修改现有 `FileListThumbnailController` / AppKit 标准网格
 - 框选、拖放（Phase 2）
-- 按类型 / 日期分组标题
-- 各分区异步计算总大小（避免触发 DirectorySize 递归）
-- 搜索模式下启用全景（首版搜索非空时禁用或回退标准网格）
+- 各目录异步计算递归总大小
+- 搜索模式下启用全景
+- 横向胶片条布局（已废弃）
 
 ---
 
 ## 二、体验设计
 
-### 2.1 布局示意
+### 2.1 展开态（默认进入）
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  当前目录（3）                                                   │
-│  [img] [doc] [vid]                                              │
-├─────────────────────────────────────────────────────────────────┤
-│  ▌ 📁 Photos                              24 项        [→ 进入] │
-│  ┌──────────────────────────────────────────────────────────→  │
-│  │ [🖼] [🖼] [🖼] [🖼] [🖼] [🖼] [🖼] [🖼] [+16]              │  ← 横向滚动
-│  └──────────────────────────────────────────────────────────→  │
-├─────────────────────────────────────────────────────────────────┤
-│  ▌ 📁 Documents                           12 项        [→ 进入] │
-│  [📄] [📄] [📄] [📄] [📄] ... →                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  ▌ 📁 Videos                               8 项        [→ 进入] │
-│  [🎬] [🎬] [🎬] ... →                                           │
-└─────────────────────────────────────────────────────────────────┘
-         ↑ 纵向 ScrollView（LazyVStack），逐区浏览
+📁 当前目录                                    [全部收起]
+  📁 Photos                                    [▼ 收起]
+    📁 Vacation                                [▼]
+      📁 2024                                  [▼]
+        ┌──────────────────────────────────────────────┐
+        │ [📁 Trip 收起] [file] [file] [file] [file]      │  ← depth=3 网格
+        │ [file] [file] ... [+12]                       │
+        └──────────────────────────────────────────────┘
+      ┌──────────────────────────────────────────────┐
+      │ [file] [file] ...                               │  ← Vacation 层网格
+      └──────────────────────────────────────────────┘
+    ┌──────────────────────────────────────────────┐
+    │ [📁 Archive 收起] [file] ...                    │  ← Photos 层网格
+    └──────────────────────────────────────────────┘
+  📁 Documents                                 [▼]
+    ...
+  ┌──────────────────────────────────────────────┐
+  │ [file] [file] [file]                            │  ← 当前目录根层网格（仅文件+收起目录）
+  └──────────────────────────────────────────────┘
 ```
 
-### 2.2 分区标题
+**缩进规则：** `leadingPadding = depth × indentStep`（建议 `indentStep = 20pt`）。
+
+### 2.2 收起态
+
+用户点击标题行 **[▼]** → 该目录及 **整个子树 UI** 折叠：
+
+- 子树内所有标题行、子网格不再渲染
+- 该目录在 **父级网格** 中呈现为一个 **普通文件夹缩略图格**
+- 可与同级其他 **收起的目录**、**文件** 在同一 `LazyVGrid` 多行排列
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ ▌ 📁 Photos                              24 项      [→ 进入] │
-└──────────────────────────────────────────────────────────────┘
-  ↑ 4pt 色条（folderPath hash 着色，稳定可辨）
+父目录网格：
+┌──────────────────────────────────────────────┐
+│ [📁 Photos 已收起] [📁 Docs 已收起] [file] [file] │
+│ [file] [file] ...                              │
+└──────────────────────────────────────────────┘
 ```
 
-| 元素 | 说明 |
-|------|------|
-| 左侧色条 | 4pt 宽；`accentHue = hash(folderPath) % 360` |
-| 文件夹图标 + 名称 | 主标识；tooltip 显示完整路径 |
-| 统计 | `N 项`（列举完成后显示；首版不算总大小） |
-| 进入 | 点击标题区 → `onItemOpen(folderItem)` |
+再次点击文件夹格上的展开 affordance（或双击，见 §2.5）→ 恢复展开。
 
-### 2.3 胶片条
+### 2.3 「有内容的目录」
 
-- 格子尺寸 = 全局 `thumbnailCellSize`（64–256 pt，与标准缩略图同步）
-- 复用 `PreviewBrowserStripCell` 视觉规格，或抽公共 `ThumbnailStripCellView`
-- 每区最多渲染 **24** 格；超出显示 **`+N`** 卡片，点击 → 进入该子目录
-- 横向 `ScrollView(.horizontal)`，`showsIndicators: false`
+| 类型 | 标题行 | 网格中的表现 |
+|------|--------|--------------|
+| 非空目录（含文件和/或子目录） | ✅ 展开时独占一行 | 收起时为文件夹格 |
+| 空目录 | ❌ 无标题行 | 父网格中一个文件夹格 |
+| 文件 | ❌ | 父网格中文件格 |
 
-### 2.4 当前目录块
+### 2.4 目录区块内排序
 
-- 仅当当前目录存在非文件夹条目时显示
-- 标题「当前目录」+ 同样横向胶片条
-- 可选 cap=48 防止极端大目录（常量可配置）
+每个目录的 **直接子项** 展示顺序（与 `FileListSortEngine` 一致）：
 
-### 2.5 工具栏与子模式切换
+1. **展开的子目录** → 各自递归为「标题行 + 子树 + 网格」（不占父网格）
+2. **收起的子目录** → 父网格中的文件夹格（排在文件之前）
+3. **文件** → 父网格多行排列
 
-在缩略图视图激活时，工具栏提供子模式 Menu：
+同层网格内：**文件夹（收起态）优先于文件**；各自内部仍按全局排序设置。
+
+### 2.5 工具栏
 
 ```
 [列表] [缩略图 ▼]
-         ├─ 标准网格      ← 现有 NSCollectionView
-         └─ 子目录全景    ← 本功能
+         ├─ 标准网格
+         └─ 子目录全景
+
+全景模式附加（工具栏或溢出菜单）：
+  [全部展开] [全部收起]
+  展开深度：自动 / 2 / 5 / 全部     ← 设置项，默认「自动」
 ```
 
 | 状态 | 行为 |
 |------|------|
-| 搜索非空 | 禁用「子目录全景」或自动回退标准网格 |
+| 搜索非空 | 禁用全景或强制回退标准网格 |
 | loading | 禁用切换 |
-| ⌘+滚轮 | 调节 `thumbnailCellSize`，全部分区同步 reflow |
+| ⌘+滚轮 | 调节 `thumbnailCellSize`，全部网格同步 reflow |
 
-### 2.6 交互
+### 2.6 交互一览
 
 | 操作 | 行为 |
 |------|------|
-| 单击 cell | 更新 `selection: Set<FileItem.ID>`（⌘ 多选） |
-| 双击 cell | `onItemOpen(item)` |
-| 单击分区标题 | 进入子目录 |
-| 点击 `+N` | 进入子目录 |
-| 切换子模式 | grid ↔ panorama；清理 scheduler + section cache |
-| 切换目录 | `PanoramaController.reset()` |
+| 点击标题行 **[▼]** | 收起该目录子树 → 父网格中显示文件夹格 |
+| 点击收起态文件夹格上的 **[▶]** | 展开该目录 |
+| 双击文件夹格 | 进入该目录（`onItemOpen`） |
+| 单击 / ⌘ 单击 cell | 更新 `selection` |
+| 双击文件格 | 打开 / 预览 |
+| 点击标题行文件夹名区域 | 进入该目录 |
+| 点击 `+N` | 进入该目录查看全部 |
+| 全部收起 / 全部展开 | 批量更新 `collapsedDirectoryIDs` |
+| 切换目录 / 子模式 | `PanoramaTreeController.reset()` |
 
 ---
 
@@ -126,44 +144,48 @@
 flowchart TB
     subgraph Explorer
         FLV[FileListView]
-        TB[Toolbar 子模式切换]
+        TB[Toolbar]
     end
 
-    subgraph PanoramaModule["Panorama（新增 SwiftUI 模块）"]
-        PV[PanoramaView]
-        PC[PanoramaController]
-        SL[PanoramaSectionLoader]
+    subgraph PanoramaTree["Panorama/（SwiftUI 树形全景）"]
+        PV[PanoramaTreeView]
+        PC[PanoramaTreeController]
+        TDS[PanoramaTreeDataSource]
+        TDB[PanoramaTreeDisplayBuilder]
+        BS[PanoramaTreeBootstrapper]
         TS[PanoramaThumbnailScheduler]
     end
 
-    subgraph Reuse["复用现有"]
+    subgraph Reuse
         DLL[DirectoryListingLoader]
         TG[ThumbnailGenerator.shared]
-        TC[ThumbnailCache 80MB LRU]
         FSE[FileListSortEngine]
+        FT[FileListView 树模式 loadChildren 模式]
     end
 
     TB --> FLV
-    FLV -->|viewMode=.thumbnail + layout=.panorama| PV
+    FLV -->|layout=.panorama| PV
     PV --> PC
-    PC --> SL
+    PC --> TDS
+    PC --> TDB
+    PC --> BS
     PC --> TS
-    SL --> DLL
+    TDS --> DLL
+    BS --> DLL
     TS --> TG
-    TG --> TC
-    PC --> FSE
+    TDB --> FSE
+    TDS -.参考.-> FT
 ```
 
 **核心原则：**
 
-1. **独立视图路径** — 全景走 SwiftUI；标准缩略图仍走 `FileListThumbnailHost`，互不影响。
-2. **按需列举** — 父目录 `items` 已有子文件夹列表；**分区进入视口 ±1 才 enumerate 子项**。
-3. **全局缩略图预算** — 所有分区共享一个调度器（QL 并发 4、batch 8）。
-4. **零额外大图缓存** — 解码图只进全局 `ThumbnailCache`；scheduler 仅保留可见 cell 引用。
+1. **独立 SwiftUI 路径** — 不改动 `FileListThumbnailController`。
+2. **逻辑全展开、物理渐进加载** — UI 默认 expanded；I/O 由 `Bootstrapper` BFS 队列按视口优先级填充。
+3. **共享树数据层** — 从 `FileListView` 抽取或镜像 `loadChildren` + generation 取消模式。
+4. **全局缩略图预算** — 单一 `PanoramaThumbnailScheduler`；QL 并发 4、batch 8。
+5. **Display 与 Data 分离** — `PanoramaTreeDisplayBuilder` 纯函数：`(treeState, collapsedIDs) → [DisplayBlock]`。
 
 ### 3.2 集成点
-
-`FileListView` 分支：
 
 ```swift
 switch viewMode {
@@ -172,232 +194,364 @@ case .list:
 case .thumbnail:
     switch thumbnailLayoutMode {
     case .grid:
-        FileListThumbnailHost(...)      // 现有
+        FileListThumbnailHost(...)
     case .panorama:
-        PanoramaView(...)
+        PanoramaTreeView(...)
     }
 }
 ```
 
-### 3.3 建议文件路径
+### 3.3 文件规划
 
 ```
 Sources/Explorer/Panorama/
-  PanoramaView.swift
-  PanoramaSectionHeaderView.swift
-  PanoramaSectionStripView.swift
-  PanoramaOverflowCellView.swift
-  PanoramaController.swift
-  PanoramaSectionLoader.swift
-  PanoramaThumbnailScheduler.swift
   PanoramaMetrics.swift
-  PanoramaVisibleRangeTracker.swift
+  PanoramaTreeModels.swift
+  PanoramaTreeDataSource.swift
+  PanoramaTreeBootstrapper.swift
+  PanoramaTreeDisplayBuilder.swift
+  PanoramaTreeController.swift
+  PanoramaThumbnailScheduler.swift
+  PanoramaVisibleCellTracker.swift
+  PanoramaTreeView.swift
+  PanoramaFolderHeaderView.swift
+  PanoramaItemGridView.swift
+  PanoramaGridCellView.swift
+  PanoramaOverflowCellView.swift
+  PanoramaFolderSectionView.swift      // 递归：header + children + grid
 
 Sources/FileList/
   FileListThumbnailLayoutMode.swift
 
 Tests/ExplorerTests/
-  PanoramaControllerTests.swift
-  PanoramaSectionLoaderTests.swift
+  PanoramaTreeDisplayBuilderTests.swift
+  PanoramaTreeDataSourceTests.swift
+  PanoramaTreeControllerTests.swift
+  PanoramaThumbnailSchedulerTests.swift
 ```
 
 ---
 
 ## 四、数据模型
 
-### 4.1 枚举与配置
+### 4.1 配置常量
 
 ```swift
-/// 缩略图子布局（持久化）
 enum FileListThumbnailLayoutMode: String, Codable {
-    case grid       // 现有 NSCollectionView
-    case panorama   // 子目录全景
+    case grid
+    case panorama
 }
 
 enum PanoramaMetrics {
-    static let sectionSpacing: CGFloat = 16
+    static let indentStep: CGFloat = 20
     static let headerHeight: CGFloat = 32
-    static let stripVerticalPadding: CGFloat = 8
-    static let itemsPerSectionCap = 24
-    static let prefetchSectionCount = 1
-    static let thumbnailPrefetchRadius = 3
-    static let listingDebounce: TimeInterval = 0.05
+    static let sectionVerticalSpacing: CGFloat = 8
+    static let gridSpacing: CGFloat = 4          // 对齐 FileListThumbnailMetrics.cellSpacing
+    static let gridContentInset: CGFloat = 8
+    static let itemsPerGridCap = 48              // 每目录网格 soft cap
+    static let thumbnailPrefetchRadius = 2
     static let visibilityDebounce: TimeInterval = 0.08
-    static let maxConcurrentSections = 6
+    static let bootstrapBatchSize = 4            // BFS 每批 enumerate 目录数
+    static let maxCachedDirectoryListings = 32   // 内存中保留 children 的目录上限
+    static let bootstrapPriorityDepth = 2        // 「自动」模式下优先 I/O 深度
+}
+
+enum PanoramaExpandDepthPolicy: String, Codable {
+    case automatic   // 视口 + depth≤2 优先，其余 BFS 后台
+    case depth2
+    case depth5
+    case unlimited
 }
 ```
 
-持久化键：`explorer.fileList.thumbnailLayoutMode`（`grid` / `panorama`）。
+持久化：
 
-### 4.2 分区模型
+| 键 | 说明 |
+|----|------|
+| `explorer.fileList.thumbnailLayoutMode` | `grid` / `panorama` |
+| `explorer.panorama.expandDepthPolicy` | 展开深度策略 |
+
+### 4.2 树节点状态
 
 ```swift
-struct PanoramaSectionID: Hashable, Sendable {
-    let folderPath: String
+struct PanoramaDirectoryID: Hashable, Sendable {
+    let path: String
 }
 
-enum PanoramaSectionLoadState: Equatable {
-    case idle
+enum PanoramaListingState: Equatable {
+    case unloaded
     case loading
-    case loaded(totalCount: Int, displayRows: [FileListRow])
-    case failed(message: String)
+    case loaded([FileItem])
+    case failed(String)
 }
 
-struct PanoramaSectionModel: Identifiable {
-    let id: PanoramaSectionID
-    let folderItem: FileItem
-    var loadState: PanoramaSectionLoadState
-    var accentHue: Double
+struct PanoramaDirectoryNode: Identifiable {
+    let id: PanoramaDirectoryID
+    let item: FileItem
+    let depth: Int
+    var listing: PanoramaListingState
+    var childCountHint: Int?          // 未 load 时可选，来自父 listing
 }
 ```
 
-### 4.3 根模型与构建（零 I/O）
+### 4.3 展开 / 收起状态机
 
 ```swift
-struct PanoramaRootModel {
-    let currentDirectoryPath: String
-    var currentDirectoryFiles: [FileListRow]
-    var sections: [PanoramaSectionModel]
+/// 进入全景模式时：collapsedDirectoryIDs = ∅（全部展开）
+/// 用户点击收起：insert directoryID（该节点 subtree UI 隐藏，父网格显示 folder cell）
+var collapsedDirectoryIDs: Set<String>
+
+func isExpanded(_ id: String) -> Bool {
+    !collapsedDirectoryIDs.contains(id)
+}
+
+func collapse(_ id: String) {
+    collapsedDirectoryIDs.insert(id)
+    // 同时 collapse 所有 descendant（可选，推荐：只标记自身，DisplayBuilder 递归判断）
+}
+
+func expand(_ id: String) {
+    collapsedDirectoryIDs.remove(id)
 }
 ```
 
-**PanoramaRootBuilder** 从父目录已有 `[FileItem]` 构建：
+**DisplayBuilder 规则：**
+
+- `collapsedDirectoryIDs.contains(folderID)` → 该节点 **不渲染** 标题行与子树；在 **父节点 gridItems** 中加入 `.folderCollapsed(folder)`
+- 否则 → 渲染 `folderHeader` + 递归子目录 + `gridItems`
+
+### 4.4 展示块（Display Model）
+
+```swift
+enum PanoramaGridItem: Identifiable {
+    case file(FileListRow)
+    case folderCollapsed(FileListRow)   // 收起态目录
+    case overflow(directoryID: String, remaining: Int)
+}
+
+enum PanoramaDisplayBlock: Identifiable {
+    case folderHeader(FolderHeaderModel)
+    case itemGrid(depth: Int, directoryID: String, items: [PanoramaGridItem])
+    case childBlocks([PanoramaDisplayBlock])   // 展开子目录递归内容
+}
+
+struct FolderHeaderModel: Identifiable {
+    let directoryID: String
+    let name: String
+    let depth: Int
+    let itemCount: Int?
+    let isLoading: Bool
+    let loadError: String?
+}
+```
+
+**构建流程：**
 
 ```
-父目录 items（ContentView 已有）
-  → isDirectory → sections
-  → !isDirectory → currentDirectoryFiles
-  → sections 按 FileListSortEngine 排序
-  → 不立即 enumerate 子目录内容
+PanoramaTreeDataSource.nodes + collapsedDirectoryIDs
+  → PanoramaTreeDisplayBuilder.build(rootPath:)
+  → [PanoramaDisplayBlock] 扁平化供 LazyVStack 递归渲染
+  → 每个 itemGrid 应用 itemsPerGridCap + overflow
 ```
 
 ---
 
-## 五、性能与内存策略
+## 五、加载与性能策略
 
-### 5.1 三层加载管线
+### 5.1 四层管线
 
 ```mermaid
 sequenceDiagram
-    participant UI as PanoramaView
-    participant PC as PanoramaController
-    participant SL as SectionLoader
+    participant UI as PanoramaTreeView
+    participant PC as PanoramaTreeController
+    participant BS as Bootstrapper
+    participant DS as TreeDataSource
     participant TS as ThumbnailScheduler
-    participant TG as ThumbnailGenerator
 
-    UI->>PC: 滚动 / onAppear
-    PC->>PC: 计算 visibleSectionIDs ±1
-    PC->>SL: loadSection(id) 若 idle
-    SL->>SL: DirectoryListingLoader 后台
-    SL-->>PC: loaded rows sorted + capped
-    PC->>TS: updateVisible(cells)
-    TS->>TG: batch 8, QL max 4
-    TG-->>UI: placeholder → thumbnail
+    UI->>PC: 进入全景 / 滚动
+    PC->>BS: scheduleBootstrap(visiblePaths, depthPolicy)
+    BS->>DS: BFS loadChildren(batch=4)
+    DS-->>PC: listing 更新 → rebuild display
+    UI->>PC: visible cells changed
+    PC->>TS: updateVisible(cells ±radius)
+    TS-->>UI: placeholder → thumbnail
 ```
 
 | 层级 | 触发 | 成本 | 取消 |
 |------|------|------|------|
-| **L0 分区骨架** | 进入全景模式 | 0 额外 I/O | path 变化 |
-| **L1 目录列举** | 分区进入视口 ±1 | 1× `contentsOfDirectory` | generation token |
-| **L2 缩略图** | cell 进入视口 ±3 | QL / 磁盘缓存 | generation + scroll |
+| **L0 骨架** | 进入全景 | 0；用 ContentView 已有 `items` 渲染根层 | path 变化 |
+| **L1 目录列举** | BFS 队列 + 视口优先 | 每目录 1× `contentsOfDirectory` | generation token |
+| **L2 Display rebuild** | listing / collapse 变化 | 纯 CPU，O(可见节点) | — |
+| **L3 缩略图** | 可见 grid cell ±2 | QL / 磁盘缓存 | generation + scroll |
 
-### 5.2 内存预算
+### 5.2 渐进式全展开（Bootstrapper）
+
+**禁止：** 进入瞬间 DFS 同步扫完整个子树。
+
+**做法：**
+
+```
+onEnterPanorama:
+  collapsedDirectoryIDs = ∅
+  enqueue(rootPath) // 根已 by ContentView items，标记 loaded
+  for each direct subdirectory in sort order:
+      enqueue(path, priority: depthFirst ≤ bootstrapPriorityDepth ? .high : .low)
+
+onScroll(visibleDirectoryIDs):
+  boost priority for visible ±1 directories
+
+worker loop (background, batch=4):
+  dequeue → DirectoryListingLoader.loadFileItems
+  MainActor → update listing state
+  for each child directory in result:
+      if shouldAutoExpand(depthPolicy, depth): enqueue(child)
+```
+
+**「自动」深度策略：** 首屏保证 depth ≤ 2 的目录优先 load；更深层随滚动 / 空闲队列渐进。
+
+### 5.3 内存预算
 
 | 资源 | 上限 | 策略 |
 |------|------|------|
-| **ThumbnailCache（全局）** | 500 项 / 80MB | 与标准网格共享，不翻倍 |
-| **Section item 列表** | 最多 6 分区 × 24 行 | 超出视口 evict 到 `.idle` |
-| **Scheduler 解码引用** | 可见 cell ±3 × 可见分区 | 滚出视口 `imageByRowID.filter` |
-| **FileItem 元数据** | 每区 cap 24 | 不保留全量 URL 数组 |
+| **ThumbnailCache** | 500 / 80MB | 全局共享，不增加 cap |
+| **cached listings** | 32 目录 | LRU evict：`listing → .unloaded`，保留节点骨架 |
+| **Display blocks** | 按需 rebuild | 不持久化大数组跨 frame |
+| **Scheduler images** | 可见 cell ±2 | prune `imageByRowID` |
+| **collapsedDirectoryIDs** | O(目录数) | 仅 path 字符串 Set |
 
-**Evict 规则：**
+**Evict：** 滚出视口且非 ancestor  of visible 的目录 listing 可 evict；用户滚回时重新 enumerate（有 disk cache 的缩略图不受影响）。
 
-```
-visibleSections = viewport ± prefetchSectionCount
-loadedSections 超过 maxConcurrentSections 时：
-  LRU 淘汰最远分区 → loadState = .idle，释放 displayRows
-```
+### 5.4 网格 cap
 
-### 5.3 缩略图调度
+每个 `itemGrid`：
 
-`PanoramaThumbnailScheduler`（参考 `PreviewBrowserStripThumbnailLoader`，升级为多 section）：
+- 渲染 `min(items.count, itemsPerGridCap - 1)` 个 cell
+- 若有剩余 → 末尾 `overflow(remaining)` 卡片，`+N` 点击进入目录
+- cap 仅限制 **渲染**；listing 仍完整保存在 memory 直到 evict
 
-- 输入：各可见分区的 `(sectionID, rows, visibleIndexRange)`
-- 合并所有可见 cell 的 index ± `thumbnailPrefetchRadius`
-- `loadGeneration++` 时 `cancelInFlightRequests()` 并 prune `imageByItemID`
-- 先 `instantPlaceholder` → `cachedThumbnailImage` → `load()`
-- 全局 in-flight ≤ 8
+### 5.5 缩略图调度
 
-模式切换 / 内存压力：监听 `.meoFindMemoryPressure`，evict 所有 section + `scheduler.shutdown()`。
+`PanoramaThumbnailScheduler`（多 grid 可见窗口）：
 
-### 5.4 速度优化
+- 输入：`[(rowID, indexPathInFlatVisibleList)]`
+- 合并 index ± `thumbnailPrefetchRadius`
+- `loadGeneration++` → cancel + prune
+- batch ≤ 8；网络卷 radius = 0
+- `shutdown()` on 模式切换 / memory pressure
 
-| 优化点 | 做法 |
-|--------|------|
-| 首帧 | L0 骨架即时渲染（文件夹名来自父 listing） |
-| 排序 | enumerate 后在后台跑 `FileListSortEngine`，主线程只 apply cap 切片 |
-| 网络卷 | `DirectoryListingOptions.forPath` lightweight；缩略图 radius=0 |
-| 搜索 | 非空 → 禁用全景 |
-| FSEvents | 仅 refresh 受影响 section |
-| debounce | visibility 0.08s；与 `scheduleVisibleThumbnailLoad` 对齐 |
+### 5.6 明确禁止
 
-### 5.5 明确不做（防性能坑）
-
-- ❌ 进入模式时递归扫描所有子树
-- ❌ 每区展示全部文件（无 cap）
-- ❌ 每区独立 ThumbnailGenerator / 独立缓存
-- ❌ 分区未可见时 preload 缩略图
-- ❌ 首版各分区异步计算总大小
+- ❌ 进入时单线程递归 enumerate 全树
+- ❌ 无 cap 渲染超大网格（500+ cell 同时 mount）
+- ❌ 每个目录独立 ThumbnailGenerator
+- ❌ 未可见 grid 预加载 QL
+- ❌ 收起子树后仍保留子树 listing（应允许 evict）
 
 ---
 
-## 六、验收指标
+## 六、UI 组件规格
 
-| 指标 | 目标 | 测量方式 |
-|------|------|----------|
-| 首帧骨架 | < 100ms | 50 个子文件夹，仅标题、无 enumerate |
-| 分区列举 | < 200ms/区（本地 SSD） | 1000 文件子目录，后台完成 |
-| 缩略图占位 | 即时 | `instantPlaceholder` 同步 |
-| 内存增量 | ≤ +15MB（典型） | 10 区可见、每区 24 格，Instruments |
-| 滚出 evict | 分区 idle 后 item 数组释放 | Memory Graph |
-| 模式切换 | 无 QL 泄漏 | 切换 20 次 grid↔panorama |
+### 6.1 PanoramaFolderHeaderView
+
+| 元素 | 说明 |
+|------|------|
+| 缩进 | `depth × indentStep` |
+| 折叠钮 | `[▼]` expanded / 点击 → collapse |
+| 图标 + 名称 | 文件夹名；tooltip 完整路径 |
+| 统计 | `N 项`（listing loaded 后）；loading skeleton |
+| 进入 | 点击名称 → `onEnterDirectory` |
+
+### 6.2 PanoramaItemGridView
+
+- `LazyVGrid` 列数：`(availableWidth) / (cellSize + spacing)`  
+  `availableWidth = viewportWidth - depth×indentStep - inset×2`
+- Cell：`PanoramaGridCellView`（复用标准缩略图视觉：图标/QL + 底部文件名 + 大小角标）
+- 收起态文件夹格：角标或 overlay 显示 **[▶]** 展开
+- 选中态：与 `FileListThumbnailCellView` 一致 accent border
+
+### 6.3 PanoramaFolderSectionView（递归）
+
+```swift
+// 伪结构
+@ViewBuilder
+func folderSection(header: FolderHeaderModel, children: ...) -> some View {
+    PanoramaFolderHeaderView(...)
+    ForEach(expandedChildSections) { child in
+        folderSection(...)  // 递归
+    }
+    PanoramaItemGridView(items: gridItems, depth: header.depth + 1)
+}
+```
+
+根 `PanoramaTreeView`：`ScrollView` + `LazyVStack` 包裹根目录 section。
 
 ---
 
-## 七、Phase 2 预留
+## 七、与列表树的关系
+
+| 能力 | 列表模式 | 全景模式 |
+|------|----------|----------|
+| 数据源 | `FileListView` 内联 state | `PanoramaTreeDataSource`（抽取共享逻辑） |
+| 展开语义 | `expandedDirectoryIDs` | **inverse**：默认全展开，`collapsedDirectoryIDs` |
+| loadChildren | `Task.detached` + generation | 同模式 |
+| 排序 | `FileListSortEngine` | 同 |
+
+**Phase 1 实现选项：**
+
+- **A（推荐）**：新建 `PanoramaTreeDataSource`，复制 generation 模式；后续 refactor 与列表共用 `FileTreeListingService`
+- **B**：直接在 `FileListView` 暴露 tree state binding 给 Panorama（耦合高，不推荐）
+
+---
+
+## 八、验收指标
+
+| 指标 | 目标 | 测量 |
+|------|------|------|
+| 首帧骨架 | < 100ms | 50 子目录，仅根层 + 标题 skeleton |
+| 深度 2 列举 | < 500ms 本地 SSD | 自动策略下首屏可交互 |
+| 单目录 1000 文件网格 | 仅 48 格 + `+N` | UI 不 mount 全量 |
+| 缩略图占位 | 即时 | instantPlaceholder |
+| 内存增量（典型） | ≤ +20MB | 32 cached listings + 可见 thumbnails |
+| 收起/展开 reflow | selection 不丢（同一 item） | 手动 |
+| grid ↔ panorama ×20 | 无 QL 泄漏 | Instruments |
+| 500+ 子目录仓库 | 不 freeze | 渐进 BFS，可滚动 |
+
+---
+
+## 九、Phase 2 预留
 
 | 功能 | 说明 |
 |------|------|
-| 递归深度 2+ | 扁平 path 分组，BFS + 深度预算 |
-| 分区折叠持久化 | `collapsedSectionIDs` |
-| 框选 / 拖放 | 需 AppKit 层或统一交互协调器 |
-| 按扩展名过滤 | 工具栏「仅图片」 |
-| 分区总大小 | 复用 `DirectoryMetadataOverlay` 按需单区计算 |
-| 布局切换 | 分区内「胶片 / 网格」密度切换 |
+| 框选 / 拖放 | 统一 `FileListInteractionCoordinator` |
+| 收起状态持久化 | 按 rootPath 存 `collapsedDirectoryIDs` |
+| 扩展名过滤 | 工具栏「仅图片」隐藏非匹配 grid cell |
+| 目录总大小 | 单目录按需 overlay |
+| 与列表树 state 统一 | `FileTreeListingService` 抽取 |
 
 ---
 
-## 八、备选方案对比（决策记录）
+## 十、废弃方案记录
 
-| 方案 | 全景感 | 目录区分 | 信息密度 | 实现成本 | 结论 |
-|------|--------|----------|----------|----------|------|
-| **A. 分区 + 水平胶片条** | ★★★★★ | ★★★★★ | ★★★☆ | 中 | **采用** |
-| B. 纵向网格 + Sticky 分区头 | ★★★☆ | ★★★★☆ | ★★★★★ | 中高 | 密度优先时备选 |
-| C. 单一连续网格 + 角标路径 | ★★★☆ | ★★☆☆ | ★★★★★ | 低 | 目录多时难辨 |
-| D. Cover Flow 式 3D | ★★★★☆ | ★★★☆ | ★★☆ | 高 | 与归属辨识冲突 |
-| E. 树形可折叠 + 内嵌网格 | ★★☆ | ★★★★★ | ★★☆ | 高 | 不够「全景」 |
+| 原方案 | 废弃原因 |
+|--------|----------|
+| 一级分区 + 横向胶片条 | 无法表达多级目录从属；用户选定树形递归交互 |
+| 每区 cap 24 横向 strip | 替换为每目录网格 cap 48 + 多行 |
 
 ---
 
-## 九、i18n
+## 十一、i18n
 
-新增用户可见文案须写入 `Sources/Explorer/Resources/Localizable.xcstrings`（`en` + `zh-Hans`），并在 `L10n.swift` 暴露。预计键：
+键前缀 `panorama.*`，写入 `Sources/Explorer/Resources/Localizable.xcstrings`（`en` + `zh-Hans`），`L10n.Panorama.*` 暴露：
 
-- `viewMode.thumbnail.layout.grid` / `viewMode.thumbnail.layout.panorama`
-- `panorama.current_directory`
-- `panorama.section.item_count`（`%lld 项`）
-- `panorama.overflow.more`（`+%lld`）
-- `panorama.empty_folder`
-- `panorama.load_failed`
+| 键 | 示例（zh-Hans） |
+|----|----------------|
+| `viewMode.thumbnail.layout.panorama` | 子目录全景 |
+| `panorama.expand_all` | 全部展开 |
+| `panorama.collapse_all` | 全部收起 |
+| `panorama.expand_depth.automatic` | 自动 |
+| `panorama.section.item_count` | `%lld 项` |
+| `panorama.overflow.more` | `+%lld` |
+| `panorama.loading` | 正在加载… |
+| `panorama.load_failed` | 无法加载此文件夹 |
 
 详见 [i18n-design.md](./i18n-design.md)。

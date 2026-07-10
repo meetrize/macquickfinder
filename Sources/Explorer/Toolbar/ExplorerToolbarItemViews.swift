@@ -1,4 +1,5 @@
 import AppKit
+import FileList
 import SwiftUI
 
 struct ToolbarAppIconView: View {
@@ -86,18 +87,7 @@ struct ExplorerToolbarItemView: View {
                 ExplorerToolbarLucideMenu(
                     icon: LucideIcon.settings,
                     tooltip: L10n.Toolbar.browseSettings,
-                    menuActions: [
-                        ExplorerToolbarMenuAction(
-                            title: L10n.Toolbar.autoFolderSize,
-                            isOn: environment.autoCalculateDirectorySizes,
-                            handler: environment.toggleAutoCalculateDirectorySizes
-                        ),
-                        ExplorerToolbarMenuAction(
-                            title: L10n.Toolbar.useIconPreview,
-                            isOn: environment.useIconPreview,
-                            handler: environment.toggleUseIconPreview
-                        ),
-                    ]
+                    menuActions: browseSettingsMenuActions
                 )
                 .disabled(environment.isCustomizing)
             default:
@@ -143,6 +133,69 @@ struct ExplorerToolbarItemView: View {
             return L10n.Toolbar.Error.noSelection
         }
         return L10n.Toolbar.openAppTooltip(action.displayName)
+    }
+
+    private var browseSettingsMenuActions: [ExplorerToolbarMenuAction] {
+        var actions: [ExplorerToolbarMenuAction] = [
+            ExplorerToolbarMenuAction(
+                title: L10n.Toolbar.autoFolderSize,
+                isOn: environment.autoCalculateDirectorySizes,
+                handler: environment.toggleAutoCalculateDirectorySizes
+            ),
+            ExplorerToolbarMenuAction(
+                title: L10n.Toolbar.useIconPreview,
+                isOn: environment.useIconPreview,
+                handler: environment.toggleUseIconPreview
+            ),
+        ]
+
+        guard environment.fileListViewMode == .thumbnail else {
+            return actions
+        }
+
+        actions.append(
+            ExplorerToolbarMenuAction(
+                title: L10n.Toolbar.panoramaLayoutGrid,
+                isSelected: environment.layout.thumbnailLayoutMode == .grid,
+                handler: { environment.layout.setThumbnailLayoutMode(.grid) }
+            )
+        )
+        actions.append(
+            ExplorerToolbarMenuAction(
+                title: L10n.Toolbar.panoramaLayoutPanorama,
+                isSelected: environment.layout.thumbnailLayoutMode == .panorama,
+                handler: { environment.layout.setThumbnailLayoutMode(.panorama) }
+            )
+        )
+
+        guard environment.layout.thumbnailLayoutMode == .panorama else {
+            return actions
+        }
+
+        actions.append(
+            ExplorerToolbarMenuAction(
+                title: L10n.Toolbar.panoramaExpandAll,
+                handler: { PanoramaTreeControllerBridge.controller?.expandAll() }
+            )
+        )
+        actions.append(
+            ExplorerToolbarMenuAction(
+                title: L10n.Toolbar.panoramaCollapseAll,
+                handler: { PanoramaTreeControllerBridge.controller?.collapseAll() }
+            )
+        )
+
+        for policy in PanoramaExpandDepthPolicy.allCases {
+            actions.append(
+                ExplorerToolbarMenuAction(
+                    title: "\(L10n.Toolbar.panoramaExpandDepth): \(policy.displayName)",
+                    isSelected: environment.layout.panoramaExpandDepthPolicy == policy,
+                    handler: { environment.layout.setPanoramaExpandDepthPolicy(policy) }
+                )
+            )
+        }
+
+        return actions
     }
 
     private func iconForBuiltin(_ builtin: ToolbarBuiltinID) -> LucideIcon {

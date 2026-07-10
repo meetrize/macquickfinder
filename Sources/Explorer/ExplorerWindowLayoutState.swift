@@ -112,6 +112,26 @@ final class ExplorerWindowLayoutState: ObservableObject {
         didSet { UserDefaultsStorage.set(fileListViewModeRaw, forKey: AppPreferences.FileList.viewMode, in: defaults) }
     }
 
+    @Published private(set) var thumbnailLayoutModeRaw: String {
+        didSet {
+            UserDefaultsStorage.set(
+                thumbnailLayoutModeRaw,
+                forKey: AppPreferences.FileList.thumbnailLayoutMode,
+                in: defaults
+            )
+        }
+    }
+
+    @Published private(set) var panoramaExpandDepthPolicyRaw: String {
+        didSet {
+            UserDefaultsStorage.set(
+                panoramaExpandDepthPolicyRaw,
+                forKey: AppPreferences.Panorama.expandDepthPolicy,
+                in: defaults
+            )
+        }
+    }
+
     @Published var thumbnailCellSize: Double {
         didSet { UserDefaultsStorage.set(thumbnailCellSize, forKey: AppPreferences.FileList.thumbnailCellSize, in: defaults) }
     }
@@ -138,6 +158,8 @@ final class ExplorerWindowLayoutState: ObservableObject {
         isPreviewContentCollapsed = stored.isPreviewContentCollapsed
         isGitContentCollapsed = stored.isGitContentCollapsed
         fileListViewModeRaw = stored.fileListViewModeRaw
+        thumbnailLayoutModeRaw = stored.thumbnailLayoutModeRaw
+        panoramaExpandDepthPolicyRaw = stored.panoramaExpandDepthPolicyRaw
         thumbnailCellSize = stored.thumbnailCellSize
     }
 
@@ -147,6 +169,22 @@ final class ExplorerWindowLayoutState: ObservableObject {
 
     func setFileListViewMode(_ mode: FileListViewMode) {
         fileListViewModeRaw = mode.rawValue
+    }
+
+    var thumbnailLayoutMode: FileListThumbnailLayoutMode {
+        FileListThumbnailLayoutMode(rawValue: thumbnailLayoutModeRaw) ?? .grid
+    }
+
+    func setThumbnailLayoutMode(_ mode: FileListThumbnailLayoutMode) {
+        thumbnailLayoutModeRaw = mode.rawValue
+    }
+
+    var panoramaExpandDepthPolicy: PanoramaExpandDepthPolicy {
+        PanoramaExpandDepthPolicy(rawValue: panoramaExpandDepthPolicyRaw) ?? .automatic
+    }
+
+    func setPanoramaExpandDepthPolicy(_ policy: PanoramaExpandDepthPolicy) {
+        panoramaExpandDepthPolicyRaw = policy.rawValue
     }
 
     var thumbnailCellSizeValue: CGFloat {
@@ -294,6 +332,8 @@ final class ExplorerWindowLayoutState: ObservableObject {
         var isPreviewContentCollapsed: Bool
         var isGitContentCollapsed: Bool
         var fileListViewModeRaw: String
+        var thumbnailLayoutModeRaw: String
+        var panoramaExpandDepthPolicyRaw: String
         var thumbnailCellSize: Double
     }
 
@@ -365,6 +405,16 @@ final class ExplorerWindowLayoutState: ObservableObject {
             fileListViewModeRaw: UserDefaultsStorage.string(
                 forKey: AppPreferences.FileList.viewMode,
                 default: FileListViewMode.list.rawValue,
+                in: defaults
+            ),
+            thumbnailLayoutModeRaw: UserDefaultsStorage.string(
+                forKey: AppPreferences.FileList.thumbnailLayoutMode,
+                default: FileListThumbnailLayoutMode.grid.rawValue,
+                in: defaults
+            ),
+            panoramaExpandDepthPolicyRaw: UserDefaultsStorage.string(
+                forKey: AppPreferences.Panorama.expandDepthPolicy,
+                default: PanoramaExpandDepthPolicy.automatic.rawValue,
                 in: defaults
             ),
             thumbnailCellSize: UserDefaultsStorage.double(

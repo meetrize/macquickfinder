@@ -983,6 +983,8 @@ struct ContentView: View {
             showHiddenFiles: showHiddenFiles,
             directoryMetadataOverlay: directoryMetadataOverlay,
             viewMode: fileListViewMode,
+            thumbnailLayoutMode: layout.thumbnailLayoutMode,
+            panoramaExpandDepthPolicy: layout.panoramaExpandDepthPolicy,
             thumbnailCellSize: thumbnailCellSize,
             useIconPreview: useIconPreview && !isNetworkVolume,
             preferWorkspaceIconsInThumbnail: isNetworkVolume,
@@ -998,7 +1000,8 @@ struct ContentView: View {
             contextActions: fileContextActions,
             blankMenuActions: blankMenuActions,
             canNavigateBack: canNavigateBack,
-            onNavigateBack: navigateBack
+            onNavigateBack: navigateBack,
+            onNavigateToDirectory: navigateToDirectory
         )
         .focusedValue(\.fileCommandHandlers, fileCommandHandlers)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
