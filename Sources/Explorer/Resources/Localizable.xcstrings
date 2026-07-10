@@ -12099,6 +12099,23 @@
         }
       }
     },
+    "toolbar.panorama_mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panorama Mode"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全景模式"
+          }
+        }
+      }
+    },
     "toolbar.thumbnail_size": {
       "extractionState": "manual",
       "localizations": {

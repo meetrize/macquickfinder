@@ -35,6 +35,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Toolbar.autoFolderSize, "toolbar.auto_folder_size")
         XCTAssertNotEqual(L10n.Toolbar.panoramaLayoutGrid, "toolbar.panorama.layout_grid")
         XCTAssertNotEqual(L10n.Toolbar.panoramaLayoutPanorama, "toolbar.panorama.layout_panorama")
+        XCTAssertNotEqual(L10n.Toolbar.panoramaMode, "toolbar.panorama_mode")
         XCTAssertNotEqual(L10n.Toolbar.panoramaExpandAll, "toolbar.panorama.expand_all")
         XCTAssertNotEqual(L10n.Toolbar.panoramaCollapseAll, "toolbar.panorama.collapse_all")
         XCTAssertNotEqual(L10n.Toolbar.panoramaExpandDepth, "toolbar.panorama.expand_depth")

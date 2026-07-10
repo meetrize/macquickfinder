@@ -70,6 +70,10 @@ enum ToolbarBuiltinDispatcher {
             environment.layout.setFileListViewMode(.list)
         case .thumbnailView:
             environment.layout.setFileListViewMode(.thumbnail)
+            environment.layout.setThumbnailLayoutMode(.grid)
+        case .panoramaView:
+            environment.layout.setFileListViewMode(.thumbnail)
+            environment.layout.setThumbnailLayoutMode(.panorama)
         case .thumbnailSizeSlider, .sortMenu, .browseSettingsMenu:
             break
         }

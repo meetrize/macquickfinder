@@ -149,26 +149,8 @@ struct ExplorerToolbarItemView: View {
             ),
         ]
 
-        guard environment.fileListViewMode == .thumbnail else {
-            return actions
-        }
-
-        actions.append(
-            ExplorerToolbarMenuAction(
-                title: L10n.Toolbar.panoramaLayoutGrid,
-                isSelected: environment.layout.thumbnailLayoutMode == .grid,
-                handler: { environment.layout.setThumbnailLayoutMode(.grid) }
-            )
-        )
-        actions.append(
-            ExplorerToolbarMenuAction(
-                title: L10n.Toolbar.panoramaLayoutPanorama,
-                isSelected: environment.layout.thumbnailLayoutMode == .panorama,
-                handler: { environment.layout.setThumbnailLayoutMode(.panorama) }
-            )
-        )
-
-        guard environment.layout.thumbnailLayoutMode == .panorama else {
+        guard environment.fileListViewMode == .thumbnail,
+              environment.layout.thumbnailLayoutMode == .panorama else {
             return actions
         }
 
@@ -248,6 +230,8 @@ struct ExplorerToolbarItemView: View {
             return L10n.Toolbar.listView
         case .thumbnailView:
             return L10n.Toolbar.thumbnailView
+        case .panoramaView:
+            return L10n.Toolbar.panoramaMode
         default:
             return nil
         }
@@ -325,7 +309,15 @@ extension ToolbarBuiltinID {
         case .listView:
             return .list(isActive: environment.fileListViewMode == .list)
         case .thumbnailView:
-            return .layoutGrid(isActive: environment.fileListViewMode == .thumbnail)
+            return .layoutGrid(
+                isActive: environment.fileListViewMode == .thumbnail
+                    && environment.layout.thumbnailLayoutMode == .grid
+            )
+        case .panoramaView:
+            return .folderTree(
+                isActive: environment.fileListViewMode == .thumbnail
+                    && environment.layout.thumbnailLayoutMode == .panorama
+            )
         case .thumbnailSizeSlider, .sortMenu, .browseSettingsMenu:
             return .settings
         }

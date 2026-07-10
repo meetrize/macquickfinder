@@ -19,11 +19,7 @@ struct PanoramaGridCellView: View {
     @State private var isHovered = false
 
     private var cellBackground: Color {
-        let isDark = colorScheme == .dark
-        if let tint = FileListThumbnailTypeTint.backgroundColor(for: row, isDark: isDark) {
-            return Color(nsColor: tint).opacity(isDark ? 0.92 : 0.88)
-        }
-        return isDark ? Color(white: 0.16) : Color(white: 0.84)
+        Color(nsColor: PanoramaMetrics.cellBackgroundColor(isDark: colorScheme == .dark))
     }
 
     private var borderColor: Color {

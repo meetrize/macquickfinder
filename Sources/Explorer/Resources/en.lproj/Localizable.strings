@@ -2084,6 +2084,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Standard Grid</string>
 	<key>toolbar.panorama.layout_panorama</key>
 	<string>Subfolder Panorama</string>
+	<key>toolbar.panorama_mode</key>
+	<string>Panorama Mode</string>
 	<key>toolbar.record_operations</key>
 	<string>Record operations to create a Snippet</string>
 	<key>toolbar.record_operations_active</key>

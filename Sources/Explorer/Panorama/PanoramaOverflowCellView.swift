@@ -15,7 +15,7 @@ struct PanoramaOverflowCellView: View {
                     cornerRadius: FileListThumbnailMetrics.cellCornerRadius,
                     style: .continuous
                 )
-                .fill(colorScheme == .dark ? Color(white: 0.18) : Color(white: 0.90))
+                .fill(Color(nsColor: PanoramaMetrics.cellBackgroundColor(isDark: colorScheme == .dark)))
 
                 VStack(spacing: 6) {
                     Image(systemName: "ellipsis")

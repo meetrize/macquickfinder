@@ -39,6 +39,7 @@ enum ToolbarBuiltinID: String, Codable, CaseIterable, Identifiable {
     case toggleHiddenFiles
     case listView
     case thumbnailView
+    case panoramaView
     case thumbnailSizeSlider
     case sortMenu
     case browseSettingsMenu
@@ -149,6 +150,7 @@ struct ToolbarLayoutConfig: Codable, Equatable {
             (.toggleHiddenFiles, .main),
             (.listView, .main),
             (.thumbnailView, .main),
+            (.panoramaView, .main),
             (.thumbnailSizeSlider, .trailing),
             (.sortMenu, .trailing),
             (.browseSettingsMenu, .trailing),

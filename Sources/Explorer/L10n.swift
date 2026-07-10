@@ -551,6 +551,7 @@ enum L10n {
         static var delete: String { ModuleLocalization.localized("toolbar.delete", bundle: .module) }
         static var listView: String { ModuleLocalization.localized("toolbar.list_view", bundle: .module) }
         static var thumbnailView: String { ModuleLocalization.localized("toolbar.thumbnail_view", bundle: .module) }
+        static var panoramaMode: String { ModuleLocalization.localized("toolbar.panorama_mode", bundle: .module) }
         static var thumbnailSize: String { ModuleLocalization.localized("toolbar.thumbnail_size", bundle: .module) }
         static var browseSettings: String { ModuleLocalization.localized("toolbar.browse_settings", bundle: .module) }
         static var viewPicker: String { ModuleLocalization.localized("toolbar.view_picker", bundle: .module) }

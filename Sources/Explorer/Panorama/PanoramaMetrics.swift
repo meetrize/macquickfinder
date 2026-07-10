@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import FileList
 import Foundation
@@ -15,6 +16,14 @@ enum PanoramaMetrics {
     static let bootstrapBatchSize = 4
     static let maxCachedDirectoryListings = 32
     static let bootstrapPriorityDepth = 2
+
+    /// 全景模式缩略图格统一浅蓝背景（浅色/深色各一档）。
+    static func cellBackgroundColor(isDark: Bool) -> NSColor {
+        if isDark {
+            return NSColor(red: 0.18, green: 0.24, blue: 0.34, alpha: 1)
+        }
+        return NSColor(red: 0.86, green: 0.93, blue: 0.99, alpha: 1)
+    }
 
     /// 目录标题行左侧缩进。
     static func leadingPadding(forDepth depth: Int) -> CGFloat {

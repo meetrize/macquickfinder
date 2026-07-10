@@ -2084,6 +2084,8 @@
 	<string>标准网格</string>
 	<key>toolbar.panorama.layout_panorama</key>
 	<string>子目录全景</string>
+	<key>toolbar.panorama_mode</key>
+	<string>全景模式</string>
 	<key>toolbar.record_operations</key>
 	<string>录制操作用于生成 Snippet</string>
 	<key>toolbar.record_operations_active</key>
