@@ -39,6 +39,16 @@ enum EPSPreviewSupport {
     /// 系统是否安装了 Ghostscript。
     static var isGhostscriptAvailable: Bool { gsPath != nil }
 
+    /// Ghostscript 未安装时的友好提示信息。
+    static let missingGhostscriptMessage = """
+EPS 矢量图预览需要 Ghostscript 支持。
+
+请通过 Homebrew 安装：
+  brew install ghostscript
+
+安装后重新打开文件即可预览。
+"""
+
     static func isEPSURL(_ url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()
         return ext == "eps" || ext == "epsf" || ext == "epsi"

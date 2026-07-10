@@ -71,7 +71,13 @@ extension PreviewSession {
         }
         guard let decodedImage = await ImagePreviewLoader.loadImage(from: url, maxPixelSize: maxPixelSize) else {
             guard !Task.isCancelled else { return }
-            applyLoadPayload(.failure("Unable to decode image format"), expectedItemID: itemID)
+            let errorMessage: String = {
+                if EPSPreviewSupport.isEPSURL(url), !EPSPreviewSupport.isGhostscriptAvailable {
+                    return EPSPreviewSupport.missingGhostscriptMessage
+                }
+                return "Unable to decode image format"
+            }()
+            applyLoadPayload(.failure(errorMessage), expectedItemID: itemID)
             scheduleBrowseContentPrefetch(
                 settleDelayMilliseconds: PreviewBrowserStripMetrics.contentPrefetchImmediateDelay
             )
