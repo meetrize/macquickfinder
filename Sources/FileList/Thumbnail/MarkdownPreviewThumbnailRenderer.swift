@@ -89,7 +89,6 @@ enum MarkdownPreviewThumbnailRenderer {
 
         let padding = MarkdownThumbnailLayoutMetrics.horizontalPadding(for: cellSize)
         let contentWidth = max(1, cellSize - padding * 2)
-        let topInset = MarkdownThumbnailLayoutMetrics.contentTopInset(for: cellSize)
         let titleZoneHeight = MarkdownThumbnailLayoutMetrics.titleZoneHeight(cellSize: cellSize)
         let bodyZoneHeight = MarkdownThumbnailLayoutMetrics.bodyZoneHeight(cellSize: cellSize)
         let sectionGap = MarkdownThumbnailLayoutMetrics.sectionGap(for: cellSize)
@@ -130,21 +129,17 @@ enum MarkdownPreviewThumbnailRenderer {
             NSRect(x: 0, y: 0, width: cellSize, height: cellSize).fill()
 
             if titleString.length > 0 {
-                drawText(
+                drawTitle(
                     titleString,
                     in: titleRect,
-                    attributes: titleAttributes(font: titleFont),
-                    maxLines: 2,
-                    alignment: .natural
+                    font: titleFont
                 )
             }
             if bodyString.length > 0 {
-                drawText(
+                drawBody(
                     bodyString,
                     in: bodyRect,
-                    attributes: bodyAttributes(font: bodyFont),
-                    maxLines: 3,
-                    alignment: .natural
+                    font: bodyFont
                 )
             }
 
@@ -187,10 +182,15 @@ enum MarkdownPreviewThumbnailRenderer {
         let title = snippet.titleText as NSString
         while size >= minSize {
             let font = NSFont.systemFont(ofSize: size, weight: .semibold)
+            let attrs = titleAttributes(font: font)
+            let singleLineWidth = ceil(title.size(withAttributes: attrs).width)
+            if singleLineWidth <= width {
+                return font
+            }
             let height = measuredTextHeight(
                 title,
                 width: width,
-                attributes: titleAttributes(font: font),
+                attributes: attrs,
                 maxLines: 2
             )
             if height <= maxHeight {
@@ -201,26 +201,47 @@ enum MarkdownPreviewThumbnailRenderer {
         return NSFont.systemFont(ofSize: minSize, weight: .semibold)
     }
 
-    private static func titleAttributes(font: NSFont) -> [NSAttributedString.Key: Any] {
+    private static func drawTitle(_ text: NSString, in rect: CGRect, font: NSFont) {
         let style = NSMutableParagraphStyle()
-        style.lineBreakMode = .byWordWrapping
+        style.alignment = .left
+        style.lineBreakMode = .byCharWrapping
         style.lineSpacing = 1
-        return [
+        let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: NSColor(calibratedWhite: 0.08, alpha: 1),
             .paragraphStyle: style,
         ]
+        text.draw(
+            with: rect,
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attrs
+        )
     }
 
-    private static func bodyAttributes(font: NSFont) -> [NSAttributedString.Key: Any] {
+    private static func drawBody(_ text: NSString, in rect: CGRect, font: NSFont) {
         let style = NSMutableParagraphStyle()
+        style.alignment = .left
         style.lineBreakMode = .byTruncatingTail
         style.lineSpacing = 1
-        style.maximumLineHeight = font.pointSize * 1.15
-        style.minimumLineHeight = font.pointSize * 1.15
-        return [
+        let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: NSColor(calibratedWhite: 0.38, alpha: 1),
+            .paragraphStyle: style,
+        ]
+        text.draw(
+            with: rect,
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attrs
+        )
+    }
+
+    private static func titleAttributes(font: NSFont) -> [NSAttributedString.Key: Any] {
+        let style = NSMutableParagraphStyle()
+        style.lineBreakMode = .byCharWrapping
+        style.lineSpacing = 1
+        return [
+            .font: font,
+            .foregroundColor: NSColor(calibratedWhite: 0.08, alpha: 1),
             .paragraphStyle: style,
         ]
     }
@@ -231,47 +252,19 @@ enum MarkdownPreviewThumbnailRenderer {
         attributes: [NSAttributedString.Key: Any],
         maxLines: Int
     ) -> CGFloat {
-        let rect = text.boundingRect(
-            with: NSSize(width: width, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: attributes
-        )
-        let lineHeight = (attributes[.font] as? NSFont)?.pointSize ?? 12
-        let maxHeight = lineHeight * 1.15 * CGFloat(maxLines) + CGFloat(max(0, maxLines - 1))
-        return min(ceil(rect.height), maxHeight)
-    }
-
-    private static func drawText(
-        _ text: NSString,
-        in rect: CGRect,
-        attributes: [NSAttributedString.Key: Any],
-        maxLines: Int,
-        alignment: NSTextAlignment
-    ) {
         let style = ((attributes[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle)
             ?? NSMutableParagraphStyle()
-        style.alignment = alignment
+        style.lineBreakMode = .byCharWrapping
         var attrs = attributes
         attrs[.paragraphStyle] = style
 
-        let storage = NSMutableAttributedString(string: text as String, attributes: attrs)
-        let textContainer = NSTextContainer(size: NSSize(width: rect.width, height: rect.height))
-        textContainer.lineFragmentPadding = 0
-        textContainer.maximumNumberOfLines = maxLines
-        textContainer.lineBreakMode = style.lineBreakMode
-
-        let layoutManager = NSLayoutManager()
-        layoutManager.usesFontLeading = true
-        layoutManager.addTextContainer(textContainer)
-        let textStorage = NSTextStorage(attributedString: storage)
-        textStorage.addLayoutManager(layoutManager)
-
-        let glyphRange = layoutManager.glyphRange(for: textContainer)
-        guard glyphRange.length > 0 else { return }
-
-        NSGraphicsContext.saveGraphicsState()
-        layoutManager.drawBackground(forGlyphRange: glyphRange, at: rect.origin)
-        layoutManager.drawGlyphs(forGlyphRange: glyphRange, at: rect.origin)
-        NSGraphicsContext.restoreGraphicsState()
+        let rect = text.boundingRect(
+            with: NSSize(width: width, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attrs
+        )
+        let lineHeight = (attributes[.font] as? NSFont)?.pointSize ?? 12
+        let maxHeight = lineHeight * 1.2 * CGFloat(maxLines) + CGFloat(max(0, maxLines - 1))
+        return min(ceil(rect.height), maxHeight)
     }
 }

@@ -34,6 +34,13 @@ final class MarkdownThumbnailSnippetExtractorTests: XCTestCase {
         XCTAssertEqual(snippet?.bodyPreview, "正文内容。")
     }
 
+    func testHeadingPreservesLeadingEnglishPrefix() {
+        let markdown = "# Tier 1 格式预览 — 技术评估\n\n正文"
+        let snippet = MarkdownThumbnailSnippetExtractor.extract(from: markdown)
+        XCTAssertEqual(snippet?.titleText, "Tier 1 格式预览 — 技术评估")
+        XCTAssertFalse(snippet?.isFallbackTitle ?? true)
+    }
+
     func testFallbackToFirstLineWhenNoHeading() {
         let markdown = """
         这是没有标题的笔记，应该从首句截取标题。

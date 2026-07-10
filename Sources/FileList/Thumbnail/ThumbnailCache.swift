@@ -42,7 +42,7 @@ final class ThumbnailCache {
         }
 
         /// Markdown 自定义缩略图版本；调整渲染逻辑时递增以使旧缓存失效。
-        static let markdownThumbnailRendererRevision = 2
+        static let markdownThumbnailRendererRevision = 3
     }
     
     struct Entry {

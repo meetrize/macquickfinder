@@ -24,7 +24,7 @@ enum MarkdownThumbnailSnippetExtractor {
     static let bodyMaxCharacters = 120
 
     private static let atxHeadingRegex = try? NSRegularExpression(
-        pattern: "^(#{1,6})\\s+(.+)$",
+        pattern: "^[ \\t]{0,3}(#{1,6})\\s+(.+)$",
         options: []
     )
     private static let frontMatterMarkerRegex = try? NSRegularExpression(
