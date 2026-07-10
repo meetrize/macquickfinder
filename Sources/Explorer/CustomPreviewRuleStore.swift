@@ -117,7 +117,7 @@ enum BuiltinPreviewExtensions {
         "ai",
         "dxf",
     ]
-    static let media: Set<String> = ["mp4", "mov", "mp3", "wav"]
+    static let media: Set<String> = ["mp4", "mov", "mp3", "wav", "aac", "flac", "m4a"]
     static let office: Set<String> = ["doc", "docx", "xls", "xlsx", "ppt", "pptx"]
     /// 电子表格 / CSV：优先纯文本预览，可切换 Quick Look 表格预览。
     static let spreadsheet: Set<String> = ["xls", "xlsx", "csv"]

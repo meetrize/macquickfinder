@@ -28,6 +28,16 @@ final class PreviewLoadDispatchTests: XCTestCase {
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "mp4")), .builtInMedia)
     }
 
+    func testResolveBuiltInAudioExtensions() {
+        for ext in ["mp3", "wav", "aac", "flac", "m4a"] {
+            XCTAssertEqual(
+                PreviewLoadDispatch.resolve(input(ext: ext)),
+                .builtInMedia,
+                "Expected built-in media route for .\(ext)"
+            )
+        }
+    }
+
     func testResolveOfficeAndDocx() {
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "docx")), .docx)
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "doc")), .doc)
