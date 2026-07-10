@@ -212,6 +212,112 @@ struct PreviewTextSearchToolbarControls: View {
     }
 }
 
+private enum PreviewEpubChapterMenuMetrics {
+    static let popoverWidth: CGFloat = 300
+    static let popoverMaxHeight: CGFloat = 360
+    static let rowHeight: CGFloat = 28
+}
+
+struct PreviewEpubChapterMenu: View {
+    @ObservedObject var session: PreviewSession
+    @State private var isPresented = false
+
+    private var package: EpubPreviewPackage? { session.content.epubPackage }
+
+    private var chapters: [EpubChapterPreview] {
+        package?.chapters ?? []
+    }
+
+    private var currentChapterIndex: Int {
+        guard let package else { return 0 }
+        return min(max(session.epub.currentChapterIndex, 0), max(package.chapters.count - 1, 0))
+    }
+
+    var body: some View {
+        Button {
+            isPresented.toggle()
+        } label: {
+            Image(systemName: "list.bullet.indent")
+                .font(.body)
+                .frame(width: 20, height: PanelTopBarMetrics.contentHeight)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .focusable(false)
+        .instantHoverTooltip(L10n.Preview.Toolbar.epubChapters)
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+            chapterList
+        }
+        .disabled(chapters.isEmpty)
+    }
+
+    @ViewBuilder
+    private var chapterList: some View {
+        if chapters.isEmpty {
+            Text(L10n.Preview.Epub.noChapters)
+                .foregroundStyle(.secondary)
+                .padding(12)
+                .frame(width: PreviewEpubChapterMenuMetrics.popoverWidth)
+        } else {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(chapters.enumerated()), id: \.element.id) { index, chapter in
+                        Button {
+                            session.epub.selectChapter(at: index, chapterCount: chapters.count)
+                            isPresented = false
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(chapter.title)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                if index == currentChapterIndex {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .background(index == currentChapterIndex ? Color.accentColor.opacity(0.12) : Color.clear)
+                    }
+                }
+            }
+            .frame(
+                width: PreviewEpubChapterMenuMetrics.popoverWidth,
+                height: min(
+                    PreviewEpubChapterMenuMetrics.popoverMaxHeight,
+                    CGFloat(chapters.count) * PreviewEpubChapterMenuMetrics.rowHeight + 8
+                )
+            )
+        }
+    }
+}
+
+struct PreviewEpubChapterProgressLabel: View {
+    @ObservedObject var session: PreviewSession
+
+    private var package: EpubPreviewPackage? { session.content.epubPackage }
+
+    private var label: String {
+        guard let package, !package.chapters.isEmpty else { return "--" }
+        let currentIndex = min(max(session.epub.currentChapterIndex, 0), package.chapters.count - 1)
+        return L10n.Preview.Epub.chapterProgress(currentIndex + 1, package.chapters.count)
+    }
+
+    var body: some View {
+        Text(label)
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .frame(minWidth: 72, alignment: .center)
+            .instantHoverTooltip(L10n.Preview.Toolbar.epubChapters)
+    }
+}
+
 struct PreviewPDFPageInputField: View {
     @ObservedObject var session: PreviewSession
 

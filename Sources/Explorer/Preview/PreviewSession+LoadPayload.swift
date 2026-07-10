@@ -53,6 +53,32 @@ extension PreviewSession {
         content.archiveEntries = payload.archiveEntries ?? []
         content.archiveTruncated = payload.archiveTruncated
 
+        if let epubPackage = payload.epubPackage {
+            if content.epubPackage?.extractedRoot != epubPackage.extractedRoot {
+                EpubPreviewLoader.cleanup(extractedRoot: content.epubPackage?.extractedRoot)
+            }
+            content.epubPackage = epubPackage
+        } else {
+            EpubPreviewLoader.cleanup(extractedRoot: content.epubPackage?.extractedRoot)
+            content.epubPackage = nil
+        }
+
+        content.emlContent = payload.emlContent
+
+        if let fontContent = payload.fontContent {
+            if content.fontContent?.sourcePath != fontContent.sourcePath {
+                if let previous = content.fontContent {
+                    FontPreviewLoader.unregisterFontForPreview(at: previous.sourceURL)
+                }
+            }
+            content.fontContent = fontContent
+        } else {
+            if let previous = content.fontContent {
+                FontPreviewLoader.unregisterFontForPreview(at: previous.sourceURL)
+            }
+            content.fontContent = nil
+        }
+
         if let textContent = payload.textContent {
             content.textContent = textContent
             syncTextEditStateAfterLoad()

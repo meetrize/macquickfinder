@@ -18,11 +18,12 @@ enum PreviewDetachedWindowContentKind: String, Codable {
         case .builtInPDF, .customOverride(.pdf), .customSupplement(.pdf):
             return .pdf
         case .builtInText, .customOverride(.text), .customOverride(.markdown), .customOverride(.html),
+             .epub, .eml, .font,
              .customSupplement(.text), .customSupplement(.markdown), .customSupplement(.html):
             return .text
         case .builtInMedia, .customOverride(.media), .customSupplement(.media):
             return .media
-        case .builtInOffice, .docx, .doc, .xlsx, .xls, .csv,
+        case .builtInOffice, .docx, .doc, .xlsx, .xls, .csv, .rtf,
              .customOverride(.quickLook), .customSupplement(.quickLook):
             return .office
         case .archive, .customOverride(.archive), .customSupplement(.archive):

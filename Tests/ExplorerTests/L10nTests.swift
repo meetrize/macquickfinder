@@ -180,6 +180,15 @@ final class ExplorerL10nTests: XCTestCase {
     func testMarkdownMermaidPreviewStringsResolve() {
         XCTAssertNotEqual(L10n.Preview.Markdown.mermaidRendering, "preview.markdown.mermaid_rendering")
         XCTAssertNotEqual(L10n.Preview.Markdown.mermaidRenderFailed, "preview.markdown.mermaid_render_failed")
+        XCTAssertNotEqual(L10n.Preview.Epub.chapterProgress(1, 3), "preview.epub.chapter_progress %lld %lld")
+        XCTAssertNotEqual(L10n.Preview.Epub.noChapters, "preview.epub.no_chapters")
+        XCTAssertNotEqual(L10n.Preview.Toolbar.epubChapters, "preview.toolbar.epub_chapters")
+        XCTAssertNotEqual(L10n.Error.Epub.unzipFailed, "error.epub.unzip_failed")
+        XCTAssertNotEqual(L10n.Preview.Eml.from, "preview.eml.from")
+        XCTAssertNotEqual(L10n.Preview.Eml.attachments, "preview.eml.attachments")
+        XCTAssertNotEqual(L10n.Error.Eml.invalidFormat, "error.eml.invalid_format")
+        XCTAssertNotEqual(L10n.Preview.Font.family, "preview.font.family")
+        XCTAssertNotEqual(L10n.Error.Font.unableToLoad, "error.font.unable_to_load")
     }
 
     func testMoveBlockedAlertStringsResolve() {

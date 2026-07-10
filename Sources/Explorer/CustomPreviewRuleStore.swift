@@ -122,14 +122,18 @@ enum BuiltinPreviewExtensions {
     /// 电子表格 / CSV：优先纯文本预览，可切换 Quick Look 表格预览。
     static let spreadsheet: Set<String> = ["xls", "xlsx", "csv"]
     /// Word 文档：优先纯文本预览，可切换为格式化富文本预览。
-    static let wordDocument: Set<String> = ["doc", "docx"]
+    static let wordDocument: Set<String> = ["doc", "docx", "rtf"]
     /// 幻灯片类 Office 文件（Quick Look 多页预览）。
     static let presentation: Set<String> = ["ppt", "pptx"]
     static let pdf: Set<String> = ["pdf"]
+    static let ebook: Set<String> = ["epub"]
+    static let email: Set<String> = ["eml"]
+    static let font: Set<String> = ["ttf", "otf"]
     static let text: Set<String> = [
         "txt", "md", "swift", "java", "py", "js", "ts", "go", "rs", "kt", "php", "rb",
         "html", "css", "json", "xml", "c", "cpp", "h", "sh", "bash", "zsh", "yaml", "yml", "vue",
-        "config", "ini", "gitignore", "properties", "log", "sql", "csv", "applescript"
+        "config", "ini", "gitignore", "properties", "log", "sql", "csv", "applescript",
+        "toml", "srt", "vtt", "gpx"
     ]
     static let html: Set<String> = ["html", "htm"]
     static let markdown: Set<String> = ["md"]
@@ -142,7 +146,11 @@ enum BuiltinPreviewExtensions {
         if quickLookImage.contains(lower) { return true }
         if media.contains(lower) { return true }
         if office.contains(lower) { return true }
+        if wordDocument.contains(lower) { return true }
         if pdf.contains(lower) { return true }
+        if ebook.contains(lower) { return true }
+        if email.contains(lower) { return true }
+        if font.contains(lower) { return true }
         if text.contains(lower) { return true }
         return false
     }
@@ -153,6 +161,8 @@ enum BuiltinPreviewExtensions {
             || lower.hasSuffix(".tar")
             || lower.hasSuffix(".tar.gz")
             || lower.hasSuffix(".tgz")
+            || lower.hasSuffix(".rar")
+            || lower.hasSuffix(".7z")
     }
 
     static var catalogByMode: [(mode: String, extensions: [String])] {
@@ -160,10 +170,13 @@ enum BuiltinPreviewExtensions {
             ("图片", image.sorted()),
             ("图片/矢量 (QuickLook)", quickLookImage.sorted()),
             ("PDF", pdf.sorted()),
+            ("电子书", ebook.sorted()),
+            ("邮件", email.sorted()),
+            ("字体", font.sorted()),
             ("媒体", media.sorted()),
             ("Office (QuickLook)", office.sorted()),
             ("文本 / 代码", text.sorted()),
-            ("压缩包", ["zip", "tar", "tar.gz", "tgz"])
+            ("压缩包", ["zip", "tar", "tar.gz", "tgz", "rar", "7z"])
         ]
     }
 }
@@ -215,6 +228,18 @@ enum PreviewTypeClassifier {
 
     static func isWordDocumentFile(_ ext: String) -> Bool {
         BuiltinPreviewExtensions.wordDocument.contains(ext.lowercased())
+    }
+
+    static func isEpubFile(_ ext: String) -> Bool {
+        BuiltinPreviewExtensions.ebook.contains(ext.lowercased())
+    }
+
+    static func isEmlFile(_ ext: String) -> Bool {
+        BuiltinPreviewExtensions.email.contains(ext.lowercased())
+    }
+
+    static func isFontFile(_ ext: String) -> Bool {
+        BuiltinPreviewExtensions.font.contains(ext.lowercased())
     }
 
     static func isArchivePreviewFile(_ file: FileItem) -> Bool {

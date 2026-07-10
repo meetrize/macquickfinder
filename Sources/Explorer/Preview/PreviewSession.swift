@@ -20,6 +20,7 @@ final class PreviewSession: ObservableObject, Identifiable {
     var text = PreviewSessionTextState()
     var media = PreviewSessionMediaState()
     var office = PreviewSessionOfficeState()
+    var epub = PreviewSessionEpubState()
     var archive = PreviewSessionArchiveState()
     var content = PreviewSessionContentState()
 
@@ -63,6 +64,7 @@ final class PreviewSession: ObservableObject, Identifiable {
         observeNestedState(text, storage: &nestedStateCancellables)
         observeNestedState(media, storage: &nestedStateCancellables)
         observeNestedState(office, storage: &nestedStateCancellables)
+        observeNestedState(epub, storage: &nestedStateCancellables)
         observeNestedState(archive, storage: &nestedStateCancellables)
         observeNestedState(content, storage: &nestedStateCancellables)
     }

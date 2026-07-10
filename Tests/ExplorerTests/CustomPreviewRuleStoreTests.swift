@@ -112,4 +112,32 @@ final class CustomPreviewRuleStoreTests: XCTestCase {
         let parsed = CustomPreviewRule.parseExtensions(from: "（无扩展名）, proto")
         XCTAssertEqual(parsed, [CustomPreviewRule.extensionlessKey, "proto"])
     }
+
+    func testBuiltinPreviewExtensionsTier1Coverage() {
+        for ext in ["toml", "srt", "vtt", "gpx"] {
+            XCTAssertTrue(
+                BuiltinPreviewExtensions.matchesBuiltIn(ext),
+                "Expected built-in match for .\(ext)"
+            )
+            XCTAssertTrue(PreviewTypeClassifier.isTextFile(ext))
+            XCTAssertTrue(PreviewTypeClassifier.isCodeFile(ext))
+        }
+
+        XCTAssertTrue(BuiltinPreviewExtensions.matchesBuiltIn("rtf"))
+        XCTAssertTrue(PreviewTypeClassifier.isWordDocumentFile("rtf"))
+        XCTAssertFalse(PreviewTypeClassifier.isTextFile("rtf"))
+        XCTAssertFalse(PreviewTypeClassifier.isCodeFile("rtf"))
+
+        XCTAssertTrue(BuiltinPreviewExtensions.matchesBuiltIn("epub"))
+        XCTAssertTrue(PreviewTypeClassifier.isEpubFile("epub"))
+        XCTAssertFalse(PreviewTypeClassifier.isTextFile("epub"))
+
+        XCTAssertTrue(BuiltinPreviewExtensions.matchesBuiltIn("eml"))
+        XCTAssertTrue(PreviewTypeClassifier.isEmlFile("eml"))
+        XCTAssertFalse(PreviewTypeClassifier.isTextFile("eml"))
+
+        XCTAssertTrue(BuiltinPreviewExtensions.matchesBuiltIn("ttf"))
+        XCTAssertTrue(PreviewTypeClassifier.isFontFile("otf"))
+        XCTAssertFalse(PreviewTypeClassifier.isTextFile("ttf"))
+    }
 }

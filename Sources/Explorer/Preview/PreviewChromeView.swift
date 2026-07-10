@@ -75,6 +75,13 @@ struct PreviewChromeView: View {
 
             if showsToolbarItems,
                let item = session.toolbarFileItem,
+               session.showsEpubChapterPicker(for: item) {
+                PreviewEpubChapterMenu(session: session)
+                    .layoutPriority(3)
+            }
+
+            if showsToolbarItems,
+               let item = session.toolbarFileItem,
                session.showsPreviewTextSearch(for: item) {
                 PreviewTextSearchToolbarControls(session: session)
                     .layoutPriority(3)

@@ -1480,6 +1480,176 @@
         }
       }
     },
+    "error.epub.container_not_found": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EPUB container metadata not found"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到 EPUB 容器元数据"
+          }
+        }
+      }
+    },
+    "error.epub.empty_spine": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EPUB has no readable chapters"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EPUB 没有可读的章节"
+          }
+        }
+      }
+    },
+    "error.epub.invalid_opf": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to parse EPUB package document"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法解析 EPUB 包文档"
+          }
+        }
+      }
+    },
+    "error.epub.opf_not_found": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EPUB package document not found"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到 EPUB 包文档"
+          }
+        }
+      }
+    },
+    "error.epub.unzip_failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to extract EPUB archive"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法解压 EPUB 文件"
+          }
+        }
+      }
+    },
+    "error.eml.empty_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email has no readable body"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "邮件没有可读正文"
+          }
+        }
+      }
+    },
+    "error.eml.empty_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email file is empty"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "邮件文件为空"
+          }
+        }
+      }
+    },
+    "error.eml.invalid_format": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to parse email format"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法解析邮件格式"
+          }
+        }
+      }
+    },
+    "error.eml.unreadable_encoding": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to decode email text encoding"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法解码邮件文本编码"
+          }
+        }
+      }
+    },
+    "error.font.unable_to_load": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to load font file"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法加载字体文件"
+          }
+        }
+      }
+    },
     "error.default_viewer.defaults_command %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -3901,6 +4071,229 @@
         }
       }
     },
+    "preview.eml.attachment_size %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld bytes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 字节"
+          }
+        }
+      }
+    },
+    "preview.eml.attachments": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachments"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "附件"
+          }
+        }
+      }
+    },
+    "preview.eml.cc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "抄送"
+          }
+        }
+      }
+    },
+    "preview.eml.date": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日期"
+          }
+        }
+      }
+    },
+    "preview.eml.empty_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No message body"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无正文内容"
+          }
+        }
+      }
+    },
+    "preview.eml.from": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发件人"
+          }
+        }
+      }
+    },
+    "preview.eml.subject": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subject"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主题"
+          }
+        }
+      }
+    },
+    "preview.eml.to": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收件人"
+          }
+        }
+      }
+    },
+    "preview.epub.chapter_progress %lld %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chapter %lld of %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld / %lld 章"
+          }
+        }
+      }
+    },
+    "preview.epub.no_chapters": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No chapters" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无章节" } }
+      }
+    },
+    "preview.font.copyright": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copyright" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "版权" } }
+      }
+    },
+    "preview.font.family": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Family" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "字体族" } }
+      }
+    },
+    "preview.font.glyphs": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Glyphs" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "字形数" } }
+      }
+    },
+    "preview.font.point_size %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld pt" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld 磅" } }
+      }
+    },
+    "preview.font.post_script_name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "PostScript" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "PostScript 名" } }
+      }
+    },
+    "preview.font.registration_failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unable to register font for preview" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法注册字体用于预览" } }
+      }
+    },
+    "preview.font.samples": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Samples" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "样张" } }
+      }
+    },
+    "preview.font.style": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Style" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "风格" } }
+      }
+    },
+    "preview.font.version": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Version" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "版本" } }
+      }
+    },
     "preview.error_loading": {
       "extractionState": "manual",
       "localizations": {
@@ -4817,6 +5210,27 @@
             "value": "取色棒"
           }
         }
+      }
+    },
+    "preview.toolbar.epub_chapters": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Chapters" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "章节" } }
+      }
+    },
+    "preview.toolbar.epub_next_chapter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Next Chapter" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "下一章" } }
+      }
+    },
+    "preview.toolbar.epub_previous_chapter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Previous Chapter" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "上一章" } }
       }
     },
     "preview.toolbar.fit_page": {

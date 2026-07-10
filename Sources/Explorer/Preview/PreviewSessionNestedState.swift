@@ -277,6 +277,47 @@ final class PreviewSessionOfficeState: ObservableObject {
     }
 }
 
+// MARK: - EPUB toolbar
+
+@MainActor
+final class PreviewSessionEpubState: ObservableObject {
+    @Published var currentChapterIndex = 0
+
+    func resetToolbar() {
+        currentChapterIndex = 0
+    }
+
+    func prepareForLoad() {
+        currentChapterIndex = 0
+    }
+
+    func clampChapterIndex(chapterCount: Int) {
+        guard chapterCount > 0 else {
+            currentChapterIndex = 0
+            return
+        }
+        currentChapterIndex = min(max(currentChapterIndex, 0), chapterCount - 1)
+    }
+
+    func showPreviousChapter() {
+        guard currentChapterIndex > 0 else { return }
+        currentChapterIndex -= 1
+    }
+
+    func showNextChapter(chapterCount: Int) {
+        guard chapterCount > 0, currentChapterIndex < chapterCount - 1 else { return }
+        currentChapterIndex += 1
+    }
+
+    func selectChapter(at index: Int, chapterCount: Int) {
+        guard chapterCount > 0 else {
+            currentChapterIndex = 0
+            return
+        }
+        currentChapterIndex = min(max(index, 0), chapterCount - 1)
+    }
+}
+
 // MARK: - Archive toolbar
 
 @MainActor
@@ -322,6 +363,9 @@ final class PreviewSessionContentState: ObservableObject {
     @Published var officeRichText: NSAttributedString?
     @Published var archiveEntries: [ArchiveEntryPreview] = []
     @Published var archiveTruncated = false
+    @Published var epubPackage: EpubPreviewPackage?
+    @Published var emlContent: EmlPreviewContent?
+    @Published var fontContent: FontPreviewContent?
     @Published var imageSaveErrorMessage: String?
     @Published var textSaveErrorMessage: String?
 
@@ -349,6 +393,17 @@ final class PreviewSessionContentState: ObservableObject {
         officeRichText = nil
         archiveEntries = []
         archiveTruncated = false
+        EpubPreviewLoader.cleanup(extractedRoot: epubPackage?.extractedRoot)
+        epubPackage = nil
+        emlContent = nil
+        clearFontPreviewRegistration()
+    }
+
+    private func clearFontPreviewRegistration() {
+        if let fontContent {
+            FontPreviewLoader.unregisterFontForPreview(at: fontContent.sourceURL)
+        }
+        fontContent = nil
     }
 }
 

@@ -30,6 +30,13 @@ extension PreviewSession {
         content.officeRichText = nil
         content.archiveEntries = []
         content.archiveTruncated = false
+        EpubPreviewLoader.cleanup(extractedRoot: content.epubPackage?.extractedRoot)
+        content.epubPackage = nil
+        content.emlContent = nil
+        if let font = content.fontContent {
+            FontPreviewLoader.unregisterFontForPreview(at: font.sourceURL)
+        }
+        content.fontContent = nil
         content.loadPhase = .idle
         contentLoadedItemID = nil
     }

@@ -32,6 +32,9 @@ extension PreviewSession {
         if PreviewTypeClassifier.isArchivePreviewFile(item) {
             return prependRunnableScriptRunButton(to: previewArchiveToolbarItems(), for: item)
         }
+        if PreviewTypeClassifier.isEpubFile(ext), content.epubPackage != nil {
+            return prependRunnableScriptRunButton(to: previewEpubToolbarItems(), for: item)
+        }
         return prependRunnableScriptRunButton(to: [], for: item)
     }
 

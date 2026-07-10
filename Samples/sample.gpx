@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="MeoFind Samples"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+
+  <!-- 元数据 -->
+  <metadata>
+    <name>杭州西湖环湖徒步</name>
+    <desc>2026年春季西湖环湖徒步路线记录，全长约10.5公里</desc>
+    <author>
+      <name>MeoFind User</name>
+    </author>
+    <time>2026-04-15T08:00:00+08:00</time>
+    <keywords>西湖, 杭州, 徒步, 环湖</keywords>
+  </metadata>
+
+  <!-- 途经点 -->
+  <wpt lat="30.2495" lon="120.1475">
+    <name>断桥残雪</name>
+    <desc>西湖十景之一，起点</desc>
+    <ele>10</ele>
+    <time>2026-04-15T08:00:00+08:00</time>
+  </wpt>
+
+  <wpt lat="30.2423" lon="120.1472">
+    <name>苏堤春晓</name>
+    <desc>西湖十景之一，苏堤南端</desc>
+    <ele>12</ele>
+    <time>2026-04-15T09:15:00+08:00</time>
+  </wpt>
+
+  <wpt lat="30.2385" lon="120.1420">
+    <name>雷峰塔</name>
+    <desc>西湖标志性建筑</desc>
+    <ele>25</ele>
+    <time>2026-04-15T09:45:00+08:00</time>
+  </wpt>
+
+  <wpt lat="30.2450" lon="120.1300">
+    <name>花港观鱼</name>
+    <desc>西湖十景之一</desc>
+    <ele>8</ele>
+    <time>2026-04-15T10:20:00+08:00</time>
+  </wpt>
+
+  <!-- 轨迹 -->
+  <trk>
+    <name>环湖主路线</name>
+    <desc>逆时针环西湖徒步轨迹</desc>
+    <type>hiking</type>
+
+    <trkseg>
+      <trkpt lat="30.2495" lon="120.1475">
+        <ele>10</ele>
+        <time>2026-04-15T08:00:00+08:00</time>
+        <extensions>
+          <heartrate>72</heartrate>
+          <cadence>95</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2502" lon="120.1483">
+        <ele>11</ele>
+        <time>2026-04-15T08:05:30+08:00</time>
+        <extensions>
+          <heartrate>78</heartrate>
+          <cadence>98</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2510" lon="120.1490">
+        <ele>9</ele>
+        <time>2026-04-15T08:11:00+08:00</time>
+        <extensions>
+          <heartrate>82</heartrate>
+          <cadence>100</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2508" lon="120.1502">
+        <ele>10</ele>
+        <time>2026-04-15T08:17:30+08:00</time>
+        <extensions>
+          <heartrate>85</heartrate>
+          <cadence>102</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2498" lon="120.1515">
+        <ele>12</ele>
+        <time>2026-04-15T08:24:00+08:00</time>
+        <extensions>
+          <heartrate>88</heartrate>
+          <cadence>105</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2485" lon="120.1528">
+        <ele>14</ele>
+        <time>2026-04-15T08:31:00+08:00</time>
+        <extensions>
+          <heartrate>90</heartrate>
+          <cadence>103</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2470" lon="120.1535">
+        <ele>16</ele>
+        <time>2026-04-15T08:38:30+08:00</time>
+        <extensions>
+          <heartrate>92</heartrate>
+          <cadence>100</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2455" lon="120.1530">
+        <ele>11</ele>
+        <time>2026-04-15T08:46:00+08:00</time>
+        <extensions>
+          <heartrate>86</heartrate>
+          <cadence>98</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2440" lon="120.1520">
+        <ele>10</ele>
+        <time>2026-04-15T08:53:00+08:00</time>
+        <extensions>
+          <heartrate>80</heartrate>
+          <cadence>96</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2425" lon="120.1505">
+        <ele>8</ele>
+        <time>2026-04-15T09:00:00+08:00</time>
+        <extensions>
+          <heartrate>75</heartrate>
+          <cadence>94</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2423" lon="120.1485">
+        <ele>12</ele>
+        <time>2026-04-15T09:07:30+08:00</time>
+        <extensions>
+          <heartrate>80</heartrate>
+          <cadence>97</cadence>
+        </extensions>
+      </trkpt>
+
+      <trkpt lat="30.2423" lon="120.1472">
+        <ele>12</ele>
+        <time>2026-04-15T09:15:00+08:00</time>
+        <extensions>
+          <heartrate>74</heartrate>
+          <cadence>92</cadence>
+        </extensions>
+      </trkpt>
+    </trkseg>
+
+    <!-- 苏堤南段 -->
+    <trkseg>
+      <trkpt lat="30.2415" lon="120.1458">
+        <ele>10</ele>
+        <time>2026-04-15T09:20:00+08:00</time>
+      </trkpt>
+
+      <trkpt lat="30.2408" lon="120.1445">
+        <ele>9</ele>
+        <time>2026-04-15T09:26:30+08:00</time>
+      </trkpt>
+
+      <trkpt lat="30.2400" lon="120.1435">
+        <ele>10</ele>
+        <time>2026-04-15T09:33:00+08:00</time>
+      </trkpt>
+
+      <trkpt lat="30.2392" lon="120.1428">
+        <ele>18</ele>
+        <time>2026-04-15T09:39:30+08:00</time>
+      </trkpt>
+
+      <trkpt lat="30.2385" lon="120.1420">
+        <ele>25</ele>
+        <time>2026-04-15T09:45:00+08:00</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+
+  <!-- 路线统计（Extensions） -->
+  <extensions>
+    <stats>
+      <total_distance_km>10.48</total_distance_km>
+      <total_time_min>105</total_time_min>
+      <avg_speed_kmh>6.0</avg_speed_kmh>
+      <max_elevation_m>25</max_elevation_m>
+      <min_elevation_m>8</min_elevation_m>
+      <total_ascent_m>42</total_ascent_m>
+      <avg_heartrate>82</avg_heartrate>
+      <calories>520</calories>
+    </stats>
+  </extensions>
+</gpx>

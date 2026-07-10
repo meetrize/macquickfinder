@@ -188,6 +188,8 @@
 	<string>Directory not found</string>
 	<key>error.empty_name</key>
 	<string>Name cannot be empty</string>
+	<key>error.font.unable_to_load</key>
+	<string>Unable to load font file</string>
 	<key>error.image.unable_to_encode</key>
 	<string>Unable to encode image</string>
 	<key>error.image.unable_to_write</key>
@@ -1122,6 +1124,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Move Back to Sidebar</string>
 	<key>preview.empty_state</key>
 	<string>Select a file to preview</string>
+	<key>preview.epub.chapter_progress %lld %lld</key>
+	<string>Chapter %lld of %lld</string>
 	<key>preview.error_loading</key>
 	<string>Error Loading Preview</string>
 	<key>preview.expand</key>
@@ -1132,6 +1136,24 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Double-click to open</string>
 	<key>preview.folder_inline.preview_file</key>
 	<string>Click to preview · Double-click to open · Option-double-click for detached preview</string>
+	<key>preview.font.copyright</key>
+	<string>Copyright</string>
+	<key>preview.font.family</key>
+	<string>Family</string>
+	<key>preview.font.glyphs</key>
+	<string>Glyphs</string>
+	<key>preview.font.point_size %lld</key>
+	<string>%lld pt</string>
+	<key>preview.font.post_script_name</key>
+	<string>PostScript</string>
+	<key>preview.font.registration_failed</key>
+	<string>Unable to register font for preview</string>
+	<key>preview.font.samples</key>
+	<string>Samples</string>
+	<key>preview.font.style</key>
+	<string>Style</string>
+	<key>preview.font.version</key>
+	<string>Version</string>
 	<key>preview.markdown.mermaid_render_failed</key>
 	<string>Failed to render diagram</string>
 	<key>preview.markdown.mermaid_rendering</key>

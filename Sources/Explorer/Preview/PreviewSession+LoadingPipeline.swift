@@ -39,6 +39,14 @@ extension PreviewSession {
             await loadSpreadsheetPreview(url: url, itemID: itemID)
         case .csv:
             await loadCSVPreview(url: url, itemID: itemID)
+        case .rtf:
+            await loadRTFPreview(url: url, itemID: itemID)
+        case .epub:
+            await loadEpubPreview(url: url, itemID: itemID)
+        case .eml:
+            await loadEmlPreview(url: url, itemID: itemID)
+        case .font:
+            await loadFontPreview(url: url, itemID: itemID)
         case .builtInOffice:
             guard !Task.isCancelled else { return }
             applyLoadPayload(.office(url: url), expectedItemID: itemID)
@@ -135,6 +143,53 @@ extension PreviewSession {
         } else {
             applyLoadPayload(.office(url: url), expectedItemID: itemID)
             office.wordDocumentMode = .formatted
+        }
+    }
+
+    private func loadRTFPreview(url: URL, itemID: String) async {
+        guard !Task.isCancelled else { return }
+        if let richText = await PreviewContentLoader.loadRTFRichText(from: url) {
+            applyLoadPayload(.wordDocument(text: richText.string, richText: richText), expectedItemID: itemID)
+            office.wordDocumentMode = .formatted
+        } else {
+            applyLoadPayload(.failure("Unable to load RTF document"), expectedItemID: itemID)
+        }
+    }
+
+    private func loadEpubPreview(url: URL, itemID: String) async {
+        guard !Task.isCancelled else { return }
+        let result = await PreviewContentLoader.loadEpub(from: url)
+        guard !Task.isCancelled else { return }
+        switch result {
+        case .success(let package):
+            applyLoadPayload(.epub(package), expectedItemID: itemID)
+            epub.currentChapterIndex = 0
+        case .failure(let error):
+            applyLoadPayload(.failure(error.localizedDescription), expectedItemID: itemID)
+        }
+    }
+
+    private func loadEmlPreview(url: URL, itemID: String) async {
+        guard !Task.isCancelled else { return }
+        let result = await PreviewContentLoader.loadEml(from: url)
+        guard !Task.isCancelled else { return }
+        switch result {
+        case .success(let content):
+            applyLoadPayload(.eml(content), expectedItemID: itemID)
+        case .failure(let error):
+            applyLoadPayload(.failure(error.localizedDescription), expectedItemID: itemID)
+        }
+    }
+
+    private func loadFontPreview(url: URL, itemID: String) async {
+        guard !Task.isCancelled else { return }
+        let result = await PreviewContentLoader.loadFont(from: url)
+        guard !Task.isCancelled else { return }
+        switch result {
+        case .success(let content):
+            applyLoadPayload(.font(content), expectedItemID: itemID)
+        case .failure(let error):
+            applyLoadPayload(.failure(error.localizedDescription), expectedItemID: itemID)
         }
     }
 

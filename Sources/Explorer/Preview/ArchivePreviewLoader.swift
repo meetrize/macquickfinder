@@ -21,12 +21,32 @@ enum ArchivePreviewLoader {
     enum LoaderError: LocalizedError {
         case emptyListing
         case timedOut
+        case encrypted
+        case unsupportedFormat
 
         var errorDescription: String? {
             switch self {
             case .emptyListing: return L10n.Error.Archive.emptyListing
             case .timedOut: return L10n.Error.Archive.timedOut
+            case .encrypted: return L10n.Archive.errorEncrypted
+            case .unsupportedFormat: return L10n.Archive.errorUnsupported
             }
+        }
+    }
+
+    enum ArchiveKind: Equatable {
+        case zip
+        case tar
+        case sevenZip
+        case rar
+
+        static func from(fileName: String) -> ArchiveKind? {
+            let lower = fileName.lowercased()
+            if lower.hasSuffix(".zip") { return .zip }
+            if lower.hasSuffix(".tar") || lower.hasSuffix(".tar.gz") || lower.hasSuffix(".tgz") { return .tar }
+            if lower.hasSuffix(".7z") { return .sevenZip }
+            if lower.hasSuffix(".rar") { return .rar }
+            return nil
         }
     }
 
@@ -50,18 +70,49 @@ enum ArchivePreviewLoader {
     }
 
     static func isArchiveFileName(_ lowercasedName: String) -> Bool {
-        lowercasedName.hasSuffix(".zip")
-            || lowercasedName.hasSuffix(".tar")
-            || lowercasedName.hasSuffix(".tar.gz")
-            || lowercasedName.hasSuffix(".tgz")
+        ArchiveKind.from(fileName: lowercasedName) != nil
     }
 
-    /// 流式读取归档路径（`tar -tf`），按批返回以便首屏尽快展示。
+    /// 流式读取归档路径，按批返回以便首屏尽快展示。
     static func streamArchiveEntryPaths(
         at url: URL,
         maxEntries: Int? = nil,
         timeoutSeconds: Int = streamTimeoutSeconds,
         batchSize: Int = streamBatchSize
+    ) -> AsyncThrowingStream<ArchivePreviewStreamEvent, Error> {
+        switch ArchiveKind.from(fileName: url.lastPathComponent) {
+        case .rar:
+            return ArchiveAlternateListing.streamEntries(
+                at: url,
+                maxEntries: maxEntries,
+                timeoutSeconds: timeoutSeconds,
+                batchSize: batchSize
+            )
+        case .sevenZip:
+            return streamBsdtarEntryPaths(
+                at: url,
+                maxEntries: maxEntries,
+                timeoutSeconds: timeoutSeconds,
+                batchSize: batchSize,
+                fallbackToAlternateOnFailure: true
+            )
+        case .zip, .tar, .none:
+            return streamBsdtarEntryPaths(
+                at: url,
+                maxEntries: maxEntries,
+                timeoutSeconds: timeoutSeconds,
+                batchSize: batchSize,
+                fallbackToAlternateOnFailure: false
+            )
+        }
+    }
+
+    private static func streamBsdtarEntryPaths(
+        at url: URL,
+        maxEntries: Int?,
+        timeoutSeconds: Int,
+        batchSize: Int,
+        fallbackToAlternateOnFailure: Bool
     ) -> AsyncThrowingStream<ArchivePreviewStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
@@ -120,6 +171,25 @@ enum ArchivePreviewLoader {
                         continuation.finish(throwing: LoaderError.timedOut)
                     }
                 } catch {
+                    if fallbackToAlternateOnFailure,
+                       ArchiveKind.from(fileName: url.lastPathComponent) == .sevenZip,
+                       ArchiveAlternateListing.resolveLSAR() != nil
+                        || ArchiveAlternateListing.resolveSevenZip() != nil {
+                        do {
+                            for try await event in ArchiveAlternateListing.streamEntries(
+                                at: url,
+                                maxEntries: maxEntries,
+                                timeoutSeconds: timeoutSeconds,
+                                batchSize: batchSize
+                            ) {
+                                continuation.yield(event)
+                            }
+                            continuation.finish()
+                        } catch {
+                            continuation.finish(throwing: error)
+                        }
+                        return
+                    }
                     continuation.finish(throwing: error)
                 }
             }
@@ -137,25 +207,47 @@ enum ArchivePreviewLoader {
         timeoutSeconds: Int = 8
     ) async throws -> (entries: [ArchiveEntryPreview], truncated: Bool) {
         let limit = maxEntries ?? (detail == .summary ? summaryMaxEntries : verboseMaxEntries)
-        let lowerName = url.lastPathComponent.lowercased()
-        if lowerName.hasSuffix(".zip") {
+        switch ArchiveKind.from(fileName: url.lastPathComponent) {
+        case .zip:
             switch detail {
             case .summary:
                 return try await listPlainTarEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
             case .verbose:
                 return try await listZipVerboseEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
             }
-        }
-        if lowerName.hasSuffix(".tar") || lowerName.hasSuffix(".tar.gz") || lowerName.hasSuffix(".tgz") {
+        case .tar:
             switch detail {
             case .summary:
                 return try await listPlainTarEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
             case .verbose:
                 return try await listTarVerboseEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
             }
+        case .sevenZip:
+            do {
+                switch detail {
+                case .summary:
+                    return try await listPlainTarEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
+                case .verbose:
+                    return try await listTarVerboseEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
+                }
+            } catch {
+                return try await ArchiveAlternateListing.listEntries(
+                    at: url,
+                    detail: detail,
+                    maxEntries: limit,
+                    timeoutSeconds: timeoutSeconds
+                )
+            }
+        case .rar:
+            return try await ArchiveAlternateListing.listEntries(
+                at: url,
+                detail: detail,
+                maxEntries: limit,
+                timeoutSeconds: timeoutSeconds
+            )
+        case .none:
+            return try await listPlainTarEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
         }
-        // 无扩展名或未知后缀：用户指定压缩包预览时仍尝试 `tar -tf`（bsdtar 自动识别格式）。
-        return try await listPlainTarEntries(at: url, maxEntries: limit, timeoutSeconds: timeoutSeconds)
     }
 
     static func listTarVerboseEntries(

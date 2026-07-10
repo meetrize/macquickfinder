@@ -188,6 +188,8 @@
 	<string>目录不存在</string>
 	<key>error.empty_name</key>
 	<string>名称不能为空</string>
+	<key>error.font.unable_to_load</key>
+	<string>无法加载字体文件</string>
 	<key>error.image.unable_to_encode</key>
 	<string>无法编码图片</string>
 	<key>error.image.unable_to_write</key>
@@ -1122,6 +1124,8 @@
 	<string>收回侧栏</string>
 	<key>preview.empty_state</key>
 	<string>选择文件以预览</string>
+	<key>preview.epub.chapter_progress %lld %lld</key>
+	<string>第 %lld / %lld 章</string>
 	<key>preview.error_loading</key>
 	<string>预览加载失败</string>
 	<key>preview.expand</key>
@@ -1132,6 +1136,24 @@
 	<string>双击进入</string>
 	<key>preview.folder_inline.preview_file</key>
 	<string>单击预览 · 双击打开 · ⌥双击独立预览</string>
+	<key>preview.font.copyright</key>
+	<string>版权</string>
+	<key>preview.font.family</key>
+	<string>字体族</string>
+	<key>preview.font.glyphs</key>
+	<string>字形数</string>
+	<key>preview.font.point_size %lld</key>
+	<string>%lld 磅</string>
+	<key>preview.font.post_script_name</key>
+	<string>PostScript 名</string>
+	<key>preview.font.registration_failed</key>
+	<string>无法注册字体用于预览</string>
+	<key>preview.font.samples</key>
+	<string>样张</string>
+	<key>preview.font.style</key>
+	<string>风格</string>
+	<key>preview.font.version</key>
+	<string>版本</string>
 	<key>preview.markdown.mermaid_render_failed</key>
 	<string>流程图渲染失败</string>
 	<key>preview.markdown.mermaid_rendering</key>

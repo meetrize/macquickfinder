@@ -38,6 +38,7 @@ enum PreviewStandaloneOpenPreferences {
                 initialWindowSize: CGSize(width: 800, height: 1000)
             )
         case .builtInText, .customOverride(.text), .customOverride(.markdown), .customOverride(.html),
+             .epub, .eml, .font,
              .customSupplement(.text), .customSupplement(.markdown), .customSupplement(.html):
             return PreviewStandaloneOpenOptions(
                 allowsDockBack: allowsDockBack,
@@ -50,7 +51,7 @@ enum PreviewStandaloneOpenPreferences {
                 fitImageToScreen: false,
                 initialWindowSize: CGSize(width: 960, height: 540)
             )
-        case .builtInOffice, .docx, .doc, .xlsx, .xls, .csv,
+        case .builtInOffice, .docx, .doc, .xlsx, .xls, .csv, .rtf,
              .customOverride(.quickLook), .customSupplement(.quickLook):
             return PreviewStandaloneOpenOptions(
                 allowsDockBack: allowsDockBack,

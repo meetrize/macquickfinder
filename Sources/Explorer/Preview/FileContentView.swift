@@ -82,6 +82,9 @@ struct FileContentView: View {
         if PreviewTypeClassifier.isCodeFile(fileExtension) { return false }
 
         if usesWordDocumentFormattedMode, session.content.officeRichText != nil { return true }
+        if session.content.epubPackage != nil { return true }
+        if session.content.emlContent != nil { return true }
+        if session.content.fontContent != nil { return true }
         if isHtmlPreviewMode { return true }
         if PreviewTextEditEligibility.showsTextPreviewContent(file: session.browseTarget, session: session) {
             return true
@@ -245,6 +248,25 @@ struct FileContentView: View {
                 .onChange(of: session.archive.reloadToken) { _ in
                     session.archive.selectedEntryPaths = []
                 }
+            } else if let epubPackage = session.content.epubPackage {
+                EpubPreviewView(
+                    session: session,
+                    package: epubPackage,
+                    textContentInset: effectiveTextContentInsets
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let emlContent = session.content.emlContent {
+                EmlPreviewView(
+                    content: emlContent,
+                    textContentInset: effectiveTextContentInsets
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let fontContent = session.content.fontContent {
+                FontPreviewView(
+                    content: fontContent,
+                    textContentInset: effectiveTextContentInsets
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if isHtmlPreviewMode {
                 HTMLFilePreview(fileURL: item.url, textContentInset: effectiveTextContentInsets)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

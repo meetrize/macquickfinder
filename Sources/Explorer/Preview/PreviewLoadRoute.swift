@@ -11,6 +11,10 @@ enum PreviewLoadRoute: Equatable {
     case xlsx
     case xls
     case csv
+    case rtf
+    case epub
+    case eml
+    case font
     case builtInOffice
     case builtInPDF
     case archive
@@ -58,6 +62,18 @@ enum PreviewLoadDispatch {
         }
         if ext == "csv" {
             return .csv
+        }
+        if ext == "rtf" {
+            return .rtf
+        }
+        if ext == "epub" {
+            return .epub
+        }
+        if ext == "eml" {
+            return .eml
+        }
+        if BuiltinPreviewExtensions.font.contains(ext) {
+            return .font
         }
         if BuiltinPreviewExtensions.office.contains(ext) {
             return .builtInOffice

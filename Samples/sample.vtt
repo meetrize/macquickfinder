@@ -1,0 +1,86 @@
+WEBVTT - MeoFind 功能介绍
+
+NOTE
+本字幕文件用于测试 MeoFind 文件预览的 WebVTT 格式支持
+包含样式、注释、章节等 WebVTT 特性
+
+STYLE
+::cue {
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  font-family: "PingFang SC", sans-serif;
+  font-size: 1.2em;
+}
+::cue(.highlight) {
+  color: #FFD700;
+  font-weight: bold;
+}
+::cue(.en) {
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+chapter-1
+00:00:00.000 --> 00:00:05.000
+<c.highlight>欢迎使用 MeoFind</c.highlight>
+<c.en>Welcome to MeoFind</c.en>
+
+00:00:01.000 --> 00:00:04.500
+macOS 平台的全能文件管理器与预览工具
+A universal file manager and preview tool for macOS
+
+chapter-2
+00:00:05.000 --> 00:00:15.000
+核心功能概览
+
+00:00:05.500 --> 00:00:09.200
+📁 双面板文件浏览，支持列表与缩略图两种视图
+📁 Dual-pane file browsing with list and thumbnail views
+
+00:00:09.500 --> 00:00:14.800
+🔍 内置预览面板，支持 <c.highlight>50+</c.highlight> 种文件格式
+🔍 Built-in preview panel supporting <c.highlight>50+</c.highlight> file formats
+
+chapter-3
+00:00:15.000 --> 00:00:30.000
+预览功能详解
+
+00:00:15.500 --> 00:00:21.000
+图片预览支持缩放、旋转、取色器
+Image preview with zoom, rotate, and color picker
+
+00:00:21.500 --> 00:00:27.300
+Office 文档可在 <c.highlight>纯文本</c.highlight> 和 <c.highlight>格式化</c.highlight> 间切换
+Office docs switchable between text and formatted views
+
+00:00:27.800 --> 00:00:33.500
+支持 PDF 搜索、代码语法高亮、Markdown 渲染
+PDF search, code highlighting, Markdown rendering
+
+chapter-4
+00:00:34.000 --> 00:00:50.000
+高级特性
+
+00:00:34.200 --> 00:00:40.000
+压缩包内文件列表预览（zip, tar, rar, 7z）
+Archive content listing preview (zip, tar, rar, 7z)
+
+00:00:40.500 --> 00:00:46.800
+预览窗口可弹出为独立窗口
+Detachable preview window for multi-monitor setups
+
+00:00:47.000 --> 00:00:53.000
+文件名快速搜索与正则表达式过滤
+Quick file search with regex filtering
+
+chapter-5
+00:00:54.000 --> 00:01:05.000
+了解更多
+
+00:00:54.000 --> 00:01:00.500
+访问官网 meofind.app 了解更多功能
+Visit meofind.app for more information
+
+00:01:01.000 --> 00:01:04.500
+<c.highlight>感谢观看！</c.highlight>
+<c.highlight>Thank you for watching!</c.highlight>

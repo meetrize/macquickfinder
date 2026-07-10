@@ -24,6 +24,10 @@ enum PreviewSessionStateReset {
         session.office.resetToolbar()
     }
 
+    static func resetEpubToolbar(on session: PreviewSession) {
+        session.epub.resetToolbar()
+    }
+
     static func resetArchiveToolbar(on session: PreviewSession) {
         session.archive.resetToolbar()
     }
@@ -35,6 +39,7 @@ enum PreviewSessionStateReset {
         resetTextToolbar(on: session)
         resetMediaToolbar(on: session)
         resetOfficeToolbar(on: session)
+        resetEpubToolbar(on: session)
         resetArchiveToolbar(on: session)
     }
 
@@ -44,6 +49,7 @@ enum PreviewSessionStateReset {
         resetTextToolbar(on: session)
         resetMediaToolbar(on: session)
         resetOfficeToolbar(on: session)
+        session.epub.prepareForLoad()
         session.archive.prepareForLoad()
         resetPDFToolbar(on: session)
     }

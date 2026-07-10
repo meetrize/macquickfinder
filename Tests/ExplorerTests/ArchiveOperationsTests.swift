@@ -6,6 +6,8 @@ final class ArchiveOperationsTests: XCTestCase {
         XCTAssertTrue(ArchiveOperations.isArchiveFileName("backup.ZIP"))
         XCTAssertTrue(ArchiveOperations.isArchiveFileName("data.tar.gz"))
         XCTAssertTrue(ArchiveOperations.isArchiveFileName("bundle.tgz"))
+        XCTAssertTrue(ArchiveOperations.isArchiveFileName("win.rar"))
+        XCTAssertTrue(ArchiveOperations.isArchiveFileName("pack.7z"))
         XCTAssertFalse(ArchiveOperations.isArchiveFileName("notes.txt"))
     }
 

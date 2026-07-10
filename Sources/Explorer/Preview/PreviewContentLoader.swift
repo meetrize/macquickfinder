@@ -26,6 +26,30 @@ enum PreviewContentLoader {
         }
     }
 
+    static func loadRTFRichText(from url: URL) async -> NSAttributedString? {
+        await loadOfficeRichText {
+            try Data(contentsOf: url, options: [.mappedIfSafe])
+        }
+    }
+
+    static func loadEpub(from url: URL) async -> Result<EpubPreviewPackage, Error> {
+        await Task.detached(priority: .userInitiated) {
+            Result { try EpubPreviewLoader.load(from: url) }
+        }.value
+    }
+
+    static func loadEml(from url: URL) async -> Result<EmlPreviewContent, Error> {
+        await Task.detached(priority: .userInitiated) {
+            Result { try EmlPreviewLoader.load(from: url) }
+        }.value
+    }
+
+    static func loadFont(from url: URL) async -> Result<FontPreviewContent, Error> {
+        await Task.detached(priority: .userInitiated) {
+            Result { try FontPreviewLoader.load(from: url) }
+        }.value
+    }
+
     static func loadSpreadsheetText(from url: URL) async -> String? {
         try? await Task.detached(priority: .userInitiated) {
             try SpreadsheetPreviewLoader.loadText(from: url)

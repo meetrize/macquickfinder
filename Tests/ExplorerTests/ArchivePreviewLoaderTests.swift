@@ -53,4 +53,52 @@ final class ArchivePreviewLoaderTests: XCTestCase {
         XCTAssertEqual(ArchivePreviewLoader.summaryMaxEntries, 200)
         XCTAssertEqual(ArchivePreviewLoader.verboseMaxEntries, 1_000)
     }
+
+    func testArchiveKindDetection() {
+        XCTAssertEqual(ArchivePreviewLoader.ArchiveKind.from(fileName: "bundle.zip"), .zip)
+        XCTAssertEqual(ArchivePreviewLoader.ArchiveKind.from(fileName: "backup.tar.gz"), .tar)
+        XCTAssertEqual(ArchivePreviewLoader.ArchiveKind.from(fileName: "game.7z"), .sevenZip)
+        XCTAssertEqual(ArchivePreviewLoader.ArchiveKind.from(fileName: "win.rar"), .rar)
+        XCTAssertNil(ArchivePreviewLoader.ArchiveKind.from(fileName: "notes.txt"))
+    }
+
+    func testIsArchiveFileNameIncludesRarAndSevenZip() {
+        XCTAssertTrue(ArchivePreviewLoader.isArchiveFileName("archive.rar"))
+        XCTAssertTrue(ArchivePreviewLoader.isArchiveFileName("archive.7z"))
+        XCTAssertTrue(ArchivePreviewLoader.isArchiveFileName("bundle.zip"))
+    }
+
+    func testParseSevenZipSLTOutput() {
+        let output = """
+        Path = folder/
+        Attributes = D....
+        Size =
+        
+        Path = folder/readme.txt
+        Attributes = ....A
+        Size = 13
+        """
+        let entries = ArchiveAlternateListing.parseSevenZipSLT(output)
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(entries[0].path, "folder/")
+        XCTAssertTrue(entries[0].isDirectory)
+        XCTAssertEqual(entries[1].path, "folder/readme.txt")
+        XCTAssertEqual(entries[1].size, 13)
+    }
+
+    func testParseLSARJSONOutput() {
+        let json = """
+        {
+          "lsarContents": [
+            { "XADFileName": "docs/", "XADIsDirectory": true },
+            { "XADFileName": "docs/readme.txt", "XADIsDirectory": false, "XADFileSize": 42 }
+          ]
+        }
+        """
+        let entries = try? ArchiveAlternateListing.parseLSARJSON(json)
+        XCTAssertEqual(entries?.count, 2)
+        XCTAssertEqual(entries?.first?.path, "docs/")
+        XCTAssertEqual(entries?.last?.path, "docs/readme.txt")
+        XCTAssertEqual(entries?.last?.size, 42)
+    }
 }

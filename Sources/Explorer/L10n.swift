@@ -1051,6 +1051,56 @@ enum L10n {
             }
         }
 
+        enum Epub {
+            static var noChapters: String { ModuleLocalization.localized("preview.epub.no_chapters", bundle: .module) }
+
+            static func chapterProgress(_ current: Int, _ total: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable(
+                        "preview.epub.chapter_progress %lld %lld",
+                        bundle: .module
+                    ),
+                    Int64(current),
+                    Int64(total)
+                )
+            }
+        }
+
+        enum Eml {
+            static var from: String { ModuleLocalization.localized("preview.eml.from", bundle: .module) }
+            static var to: String { ModuleLocalization.localized("preview.eml.to", bundle: .module) }
+            static var cc: String { ModuleLocalization.localized("preview.eml.cc", bundle: .module) }
+            static var subject: String { ModuleLocalization.localized("preview.eml.subject", bundle: .module) }
+            static var date: String { ModuleLocalization.localized("preview.eml.date", bundle: .module) }
+            static var attachments: String { ModuleLocalization.localized("preview.eml.attachments", bundle: .module) }
+            static var emptyBody: String { ModuleLocalization.localized("preview.eml.empty_body", bundle: .module) }
+
+            static func attachmentSize(_ bytes: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.eml.attachment_size %lld", bundle: .module),
+                    Int64(bytes)
+                )
+            }
+        }
+
+        enum Font {
+            static var family: String { ModuleLocalization.localized("preview.font.family", bundle: .module) }
+            static var style: String { ModuleLocalization.localized("preview.font.style", bundle: .module) }
+            static var postScriptName: String { ModuleLocalization.localized("preview.font.post_script_name", bundle: .module) }
+            static var version: String { ModuleLocalization.localized("preview.font.version", bundle: .module) }
+            static var glyphs: String { ModuleLocalization.localized("preview.font.glyphs", bundle: .module) }
+            static var copyright: String { ModuleLocalization.localized("preview.font.copyright", bundle: .module) }
+            static var samples: String { ModuleLocalization.localized("preview.font.samples", bundle: .module) }
+            static var registrationFailed: String { ModuleLocalization.localized("preview.font.registration_failed", bundle: .module) }
+
+            static func pointSize(_ value: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.font.point_size %lld", bundle: .module),
+                    Int64(value)
+                )
+            }
+        }
+
         static func previewingInDetachedWindow(_ fileName: String) -> String {
             ModuleLocalization.localized("preview.detached_placeholder \(fileName)", bundle: .module)
         }
@@ -1120,6 +1170,9 @@ enum L10n {
             static var wordDocumentToText: String { ModuleLocalization.localized("preview.toolbar.word_document_to_text", bundle: .module) }
             static var zoom: String { ModuleLocalization.localized("preview.toolbar.zoom", bundle: .module) }
             static var eyedropper: String { ModuleLocalization.localized("preview.toolbar.eyedropper", bundle: .module) }
+            static var epubChapters: String { ModuleLocalization.localized("preview.toolbar.epub_chapters", bundle: .module) }
+            static var epubPreviousChapter: String { ModuleLocalization.localized("preview.toolbar.epub_previous_chapter", bundle: .module) }
+            static var epubNextChapter: String { ModuleLocalization.localized("preview.toolbar.epub_next_chapter", bundle: .module) }
 
             static func colorHex(_ hex: String) -> String {
                 ModuleLocalization.localized("preview.toolbar.color_hex \(hex)", bundle: .module)
@@ -1404,6 +1457,25 @@ enum L10n {
         enum Archive {
             static var emptyListing: String { ModuleLocalization.localized("error.archive.empty_listing", bundle: .module) }
             static var timedOut: String { ModuleLocalization.localized("error.archive.timed_out", bundle: .module) }
+        }
+
+        enum Epub {
+            static var unzipFailed: String { ModuleLocalization.localized("error.epub.unzip_failed", bundle: .module) }
+            static var containerNotFound: String { ModuleLocalization.localized("error.epub.container_not_found", bundle: .module) }
+            static var opfNotFound: String { ModuleLocalization.localized("error.epub.opf_not_found", bundle: .module) }
+            static var invalidOPF: String { ModuleLocalization.localized("error.epub.invalid_opf", bundle: .module) }
+            static var emptySpine: String { ModuleLocalization.localized("error.epub.empty_spine", bundle: .module) }
+        }
+
+        enum Eml {
+            static var emptyMessage: String { ModuleLocalization.localized("error.eml.empty_message", bundle: .module) }
+            static var unreadableEncoding: String { ModuleLocalization.localized("error.eml.unreadable_encoding", bundle: .module) }
+            static var invalidFormat: String { ModuleLocalization.localized("error.eml.invalid_format", bundle: .module) }
+            static var emptyBody: String { ModuleLocalization.localized("error.eml.empty_body", bundle: .module) }
+        }
+
+        enum Font {
+            static var unableToLoad: String { ModuleLocalization.localized("error.font.unable_to_load", bundle: .module) }
         }
 
         enum Image {

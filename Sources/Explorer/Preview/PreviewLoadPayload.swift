@@ -15,6 +15,9 @@ struct PreviewLoadPayload {
     var archiveEntries: [ArchiveEntryPreview]?
     var archiveTruncated = false
     var textContent: String?
+    var epubPackage: EpubPreviewPackage?
+    var emlContent: EmlPreviewContent?
+    var fontContent: FontPreviewContent?
     var error: String?
 
     static let unavailable = PreviewLoadPayload()
@@ -45,6 +48,18 @@ struct PreviewLoadPayload {
 
     static func wordDocument(text content: String, richText: NSAttributedString) -> PreviewLoadPayload {
         PreviewLoadPayload(officeRichText: richText, textContent: content)
+    }
+
+    static func epub(_ package: EpubPreviewPackage) -> PreviewLoadPayload {
+        PreviewLoadPayload(epubPackage: package)
+    }
+
+    static func eml(_ content: EmlPreviewContent) -> PreviewLoadPayload {
+        PreviewLoadPayload(emlContent: content)
+    }
+
+    static func font(_ content: FontPreviewContent) -> PreviewLoadPayload {
+        PreviewLoadPayload(fontContent: content)
     }
 
     static func failure(_ message: String) -> PreviewLoadPayload {

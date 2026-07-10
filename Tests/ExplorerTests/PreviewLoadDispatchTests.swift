@@ -46,6 +46,14 @@ final class PreviewLoadDispatchTests: XCTestCase {
             PreviewLoadDispatch.resolve(input(ext: "tgz", fileName: "backup.tar.gz")),
             .archive
         )
+        XCTAssertEqual(
+            PreviewLoadDispatch.resolve(input(ext: "rar", fileName: "backup.rar")),
+            .archive
+        )
+        XCTAssertEqual(
+            PreviewLoadDispatch.resolve(input(ext: "7z", fileName: "backup.7z")),
+            .archive
+        )
     }
 
     func testResolveTextAndHtmlDeferredLoad() {
@@ -65,6 +73,33 @@ final class PreviewLoadDispatchTests: XCTestCase {
             PreviewLoadDispatch.resolve(input(ext: "html", isHtmlFile: true, htmlPreviewMode: .source)),
             .builtInText(deferSourceLoad: false)
         )
+    }
+
+    func testResolveTier1TextExtensions() {
+        for ext in ["toml", "srt", "vtt", "gpx"] {
+            XCTAssertEqual(
+                PreviewLoadDispatch.resolve(input(ext: ext)),
+                .builtInText(deferSourceLoad: false),
+                "Expected built-in text route for .\(ext)"
+            )
+        }
+    }
+
+    func testResolveRTFUsesDedicatedRoute() {
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "rtf")), .rtf)
+    }
+
+    func testResolveEpubUsesDedicatedRoute() {
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "epub")), .epub)
+    }
+
+    func testResolveEmlUsesDedicatedRoute() {
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "eml")), .eml)
+    }
+
+    func testResolveFontUsesDedicatedRoute() {
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "ttf")), .font)
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "otf")), .font)
     }
 
     func testOverrideRuleTakesPrecedenceOverBuiltIn() {
