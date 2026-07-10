@@ -248,6 +248,12 @@ private enum LucideSVG {
     static let arrowUpDown = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>
 """)
+    static let chevronRight = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+""")
+    static let chevronDown = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+""")
     static let circle = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
 """)
@@ -274,6 +280,14 @@ struct LucideIcon: View {
     static let eyeOff = LucideIcon(svgData: LucideSVG.eyeOff)
     static let arrowUpDown = LucideIcon(svgData: LucideSVG.arrowUpDown)
     static let settings = LucideIcon(svgData: LucideSVG.settings)
+
+    static func chevronRight(size: CGFloat = ExplorerToolbarMetrics.iconSize, isActive: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.chevronRight, size: size, isActive: isActive)
+    }
+
+    static func chevronDown(size: CGFloat = ExplorerToolbarMetrics.iconSize, isActive: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.chevronDown, size: size, isActive: isActive)
+    }
 
     static func fileImage(isActive: Bool = false) -> LucideIcon {
         LucideIcon(svgData: LucideSVG.fileImage, isActive: isActive)

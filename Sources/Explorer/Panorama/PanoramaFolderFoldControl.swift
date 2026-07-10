@@ -11,13 +11,6 @@ struct PanoramaFolderFoldControl: View {
     let cellSize: CGFloat
     let onTap: () -> Void
 
-    private var iconName: String {
-        switch action {
-        case .expand: return "chevron.right"
-        case .collapse: return "chevron.down"
-        }
-    }
-
     private var accessibilityLabel: String {
         switch action {
         case .expand: return L10n.Panorama.expandFolder
@@ -25,29 +18,33 @@ struct PanoramaFolderFoldControl: View {
         }
     }
 
-    private var controlSide: CGFloat {
-        max(22, cellSize * 0.22)
+    private var hitSide: CGFloat {
+        max(20, cellSize * 0.20)
+    }
+
+    private var iconSize: CGFloat {
+        max(13, cellSize * 0.135)
+    }
+
+    private var foldIcon: LucideIcon {
+        switch action {
+        case .expand:
+            LucideIcon.chevronRight(size: iconSize)
+        case .collapse:
+            LucideIcon.chevronDown(size: iconSize)
+        }
     }
 
     var body: some View {
         Button(action: onTap) {
-            Image(systemName: iconName)
-                .font(.system(size: controlSide * 0.46, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: controlSide, height: controlSide)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.92))
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.28), lineWidth: 0.5)
-                }
-                .shadow(color: Color.black.opacity(0.14), radius: 1.5, y: 1)
+            foldIcon
+                .frame(width: hitSide, height: hitSide, alignment: .topLeading)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
-        .padding(6)
+        .padding(.top, 3)
+        .padding(.leading, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
