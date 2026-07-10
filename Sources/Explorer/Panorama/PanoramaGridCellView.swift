@@ -45,7 +45,7 @@ struct PanoramaGridCellView: View {
                 .fill(cellBackground)
 
                 thumbnailContent
-                    .padding(cellSize * FileListThumbnailMetrics.iconContentInsetRatio)
+                    .padding(thumbnailContentInset)
 
                 if isSelected {
                     RoundedRectangle(
@@ -95,6 +95,16 @@ struct PanoramaGridCellView: View {
         .simultaneousGesture(TapGesture(count: 2).onEnded { onDoubleTap() })
         .instantHoverTooltip(row.name)
         .accessibilityLabel(row.name)
+    }
+
+    /// 与标准缩略图网格一致：目录图标留白，文件缩略图（含 Markdown 预览）贴边铺满。
+    private var thumbnailContentInset: CGFloat {
+        let ratio = FileListThumbnailMetrics.iconContentInsetRatio
+        if image == nil {
+            return cellSize * ratio
+        }
+        guard row.isDirectory else { return 0 }
+        return cellSize * ratio
     }
 
     @ViewBuilder

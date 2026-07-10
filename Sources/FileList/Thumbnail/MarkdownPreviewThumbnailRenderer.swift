@@ -11,7 +11,7 @@ enum MarkdownThumbnailLayoutMetrics {
 
     /// 顶部留白，避免标题 ascender 被裁切。
     static func contentTopInset(for cellSize: CGFloat) -> CGFloat {
-        max(4, cellSize * 0.04)
+        max(3, cellSize * 0.03)
     }
 
     /// 标题与正文之间的间距。
@@ -21,7 +21,7 @@ enum MarkdownThumbnailLayoutMetrics {
 
     /// 水平内边距。
     static func horizontalPadding(for cellSize: CGFloat) -> CGFloat {
-        max(4, cellSize * 0.06)
+        max(3, cellSize * 0.035)
     }
 
     /// 标题基础字号：H1 基准，每深一级减小。
