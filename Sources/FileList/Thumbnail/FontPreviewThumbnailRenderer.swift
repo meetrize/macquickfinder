@@ -5,9 +5,6 @@ import Foundation
 /// 为 `.ttf` / `.otf` 生成简易字形样张缩略图（Quick Look 效果一般）。
 enum FontPreviewThumbnailRenderer {
     static func renderSampleImage(for url: URL, cellSize: CGFloat) -> NSImage? {
-        let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor]
-        guard let descriptor = descriptors?.first else { return nil }
-
         var error: Unmanaged<CFError>?
         let registered = CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error)
         defer {
@@ -15,12 +12,9 @@ enum FontPreviewThumbnailRenderer {
                 CTFontManagerUnregisterFontsForURL(url as CFURL, .process, nil)
             }
         }
-        guard registered else { return nil }
 
         let pointSize = max(11, cellSize * 0.34)
-        let ctFont = CTFontCreateWithFontDescriptor(descriptor, pointSize, nil)
-        guard let postScriptName = CTFontCopyPostScriptName(ctFont) as String?,
-              let font = NSFont(name: postScriptName, size: pointSize) else {
+        guard let font = makePreviewFont(from: url, size: pointSize) else {
             return nil
         }
 
@@ -43,5 +37,12 @@ enum FontPreviewThumbnailRenderer {
         attributed.draw(at: NSPoint(x: 4, y: 3))
         image.unlockFocus()
         return image
+    }
+
+    private static func makePreviewFont(from url: URL, size: CGFloat) -> NSFont? {
+        let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor]
+        guard let descriptor = descriptors?.first else { return nil }
+        let ctFont = CTFontCreateWithFontDescriptor(descriptor, size, nil)
+        return ctFont as NSFont
     }
 }

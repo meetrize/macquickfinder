@@ -24,6 +24,17 @@ final class FontPreviewLoaderTests: XCTestCase {
         XCTAssertFalse(content.metadata.fullName.isEmpty)
     }
 
+    func testMakePreviewFontAfterRegistration() throws {
+        let url = try resolveSampleFontURL()
+        try XCTSkipIf(url == nil, "No sample TTF/OTF found on this system")
+
+        XCTAssertTrue(FontPreviewLoader.ensureFontRegistered(at: url!))
+        let font = FontPreviewLoader.makePreviewFont(from: url!, size: 24)
+        XCTAssertNotNil(font)
+        XCTAssertEqual(font?.pointSize, 24, accuracy: 0.1)
+        FontPreviewLoader.unregisterFontForPreview(at: url!)
+    }
+
     private func resolveSampleFontURL() throws -> URL? {
         let candidates = [
             "/System/Library/Fonts/Supplemental/Arial.ttf",

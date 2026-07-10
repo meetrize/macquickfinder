@@ -266,6 +266,7 @@ struct FileContentView: View {
                     content: fontContent,
                     textContentInset: effectiveTextContentInsets
                 )
+                .id(fontContent.sourcePath)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if isHtmlPreviewMode {
                 HTMLFilePreview(fileURL: item.url, textContentInset: effectiveTextContentInsets)

@@ -1126,6 +1126,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Select a file to preview</string>
 	<key>preview.epub.chapter_progress %lld %lld</key>
 	<string>Chapter %lld of %lld</string>
+	<key>preview.epub.no_chapters</key>
+	<string>No chapters</string>
 	<key>preview.error_loading</key>
 	<string>Error Loading Preview</string>
 	<key>preview.expand</key>
@@ -1244,6 +1246,12 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Copy Image</string>
 	<key>preview.toolbar.copy_manifest</key>
 	<string>Copy Manifest</string>
+	<key>preview.toolbar.epub_chapters</key>
+	<string>Chapters</string>
+	<key>preview.toolbar.epub_next_chapter</key>
+	<string>Next Chapter</string>
+	<key>preview.toolbar.epub_previous_chapter</key>
+	<string>Previous Chapter</string>
 	<key>preview.toolbar.extract</key>
 	<string>Extract</string>
 	<key>preview.toolbar.extract_selected</key>

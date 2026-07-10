@@ -1126,6 +1126,8 @@
 	<string>选择文件以预览</string>
 	<key>preview.epub.chapter_progress %lld %lld</key>
 	<string>第 %lld / %lld 章</string>
+	<key>preview.epub.no_chapters</key>
+	<string>无章节</string>
 	<key>preview.error_loading</key>
 	<string>预览加载失败</string>
 	<key>preview.expand</key>
@@ -1244,6 +1246,12 @@
 	<string>复制图片</string>
 	<key>preview.toolbar.copy_manifest</key>
 	<string>复制清单</string>
+	<key>preview.toolbar.epub_chapters</key>
+	<string>章节</string>
+	<key>preview.toolbar.epub_next_chapter</key>
+	<string>下一章</string>
+	<key>preview.toolbar.epub_previous_chapter</key>
+	<string>上一章</string>
 	<key>preview.toolbar.extract</key>
 	<string>解压</string>
 	<key>preview.toolbar.extract_selected</key>

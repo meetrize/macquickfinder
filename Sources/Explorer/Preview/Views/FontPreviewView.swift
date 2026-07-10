@@ -5,24 +5,27 @@ struct FontPreviewView: View {
     let content: FontPreviewContent
     let textContentInset: CGFloat
 
-    @State private var registrationFailed = false
+    @State private var canRenderSamples = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 metadataSection
-                if registrationFailed {
+                if canRenderSamples {
+                    samplesSection
+                } else {
                     Text(L10n.Preview.Font.registrationFailed)
                         .foregroundStyle(.secondary)
-                } else {
-                    samplesSection
                 }
             }
             .padding(textContentInset)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .onAppear {
-            registrationFailed = !registerFontIfNeeded()
+            refreshSampleAvailability()
+        }
+        .onChange(of: content.sourcePath) { _ in
+            refreshSampleAvailability()
         }
         .onDisappear {
             FontPreviewLoader.unregisterFontForPreview(at: content.sourceURL)
@@ -62,7 +65,7 @@ struct FontPreviewView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            if let font = NSFont(name: content.postScriptName, size: size) {
+            if let font = FontPreviewLoader.makePreviewFont(from: content.sourceURL, size: size) {
                 Text(FontPreviewLoader.englishSample)
                     .font(Font(font))
                     .textSelection(.enabled)
@@ -92,12 +95,7 @@ struct FontPreviewView: View {
         }
     }
 
-    private func registerFontIfNeeded() -> Bool {
-        do {
-            try FontPreviewLoader.registerFontForPreview(at: content.sourceURL)
-            return NSFont(name: content.postScriptName, size: 12) != nil
-        } catch {
-            return false
-        }
+    private func refreshSampleAvailability() {
+        canRenderSamples = FontPreviewLoader.ensureFontRegistered(at: content.sourceURL)
     }
 }
