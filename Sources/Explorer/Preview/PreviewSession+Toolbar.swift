@@ -35,6 +35,9 @@ extension PreviewSession {
         if PreviewTypeClassifier.isEpubFile(ext), content.epubPackage != nil {
             return prependRunnableScriptRunButton(to: previewEpubToolbarItems(), for: item)
         }
+        if PreviewTypeClassifier.isModel3DFile(ext), content.model3DContent != nil {
+            return prependRunnableScriptRunButton(to: previewModel3DToolbarItems(for: item), for: item)
+        }
         return prependRunnableScriptRunButton(to: [], for: item)
     }
 

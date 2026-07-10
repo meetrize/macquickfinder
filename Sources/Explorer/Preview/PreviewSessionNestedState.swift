@@ -350,6 +350,54 @@ final class PreviewSessionArchiveState: ObservableObject {
     }
 }
 
+// MARK: - 3D model toolbar
+
+@MainActor
+final class PreviewSessionModel3DState: ObservableObject {
+    enum DisplayMode: Equatable {
+        case solid
+        case wireframe
+    }
+
+    enum CameraAction: Equatable {
+        case zoomIn
+        case zoomOut
+        case rotateLeft
+        case rotateRight
+        case rotateUp
+        case rotateDown
+    }
+
+    @Published var displayMode: DisplayMode = .solid
+    @Published private(set) var fitFrameToken: UInt = 0
+    @Published private(set) var cameraActionToken: UInt = 0
+    private(set) var pendingCameraAction: CameraAction?
+
+    func requestFitFrame() {
+        fitFrameToken &+= 1
+    }
+
+    func sendCameraAction(_ action: CameraAction) {
+        pendingCameraAction = action
+        cameraActionToken &+= 1
+    }
+
+    func toggleWireframe() {
+        displayMode = displayMode == .solid ? .wireframe : .solid
+    }
+
+    func resetToolbar() {
+        displayMode = .solid
+        fitFrameToken = 0
+        cameraActionToken = 0
+        pendingCameraAction = nil
+    }
+
+    func prepareForLoad() {
+        resetToolbar()
+    }
+}
+
 // MARK: - Loaded content
 
 @MainActor
@@ -366,6 +414,7 @@ final class PreviewSessionContentState: ObservableObject {
     @Published var epubPackage: EpubPreviewPackage?
     @Published var emlContent: EmlPreviewContent?
     @Published var fontContent: FontPreviewContent?
+    @Published var model3DContent: Model3DPreviewContent?
     @Published var imageSaveErrorMessage: String?
     @Published var textSaveErrorMessage: String?
 
@@ -397,6 +446,7 @@ final class PreviewSessionContentState: ObservableObject {
         epubPackage = nil
         emlContent = nil
         clearFontPreviewRegistration()
+        model3DContent = nil
     }
 
     private func clearFontPreviewRegistration() {

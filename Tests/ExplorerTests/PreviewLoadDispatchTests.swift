@@ -112,6 +112,10 @@ final class PreviewLoadDispatchTests: XCTestCase {
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "otf")), .font)
     }
 
+    func testResolveModel3DUsesDedicatedRoute() {
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "stl")), .model3D)
+    }
+
     func testOverrideRuleTakesPrecedenceOverBuiltIn() {
         XCTAssertEqual(
             PreviewLoadDispatch.resolve(input(ext: "png", overridingMode: .text)),

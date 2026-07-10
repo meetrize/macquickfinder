@@ -190,6 +190,14 @@
 	<string>Name cannot be empty</string>
 	<key>error.font.unable_to_load</key>
 	<string>Unable to load font file</string>
+	<key>error.model3d.empty_model</key>
+	<string>The 3D model file contains no geometry</string>
+	<key>error.model3d.file_too_large</key>
+	<string>The 3D model is too large to preview</string>
+	<key>error.model3d.too_many_triangles %lld</key>
+	<string>The model has too many triangles (%lld) to preview</string>
+	<key>error.model3d.unable_to_load</key>
+	<string>Unable to load 3D model file</string>
 	<key>error.image.unable_to_encode</key>
 	<string>Unable to encode image</string>
 	<key>error.image.unable_to_write</key>
@@ -1160,6 +1168,12 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Failed to render diagram</string>
 	<key>preview.markdown.mermaid_rendering</key>
 	<string>Rendering diagram…</string>
+	<key>preview.model3d.dimensions %.1f %.1f %.1f</key>
+	<string>Size: %.1f × %.1f × %.1f</string>
+	<key>preview.model3d.triangles %lld</key>
+	<string>Triangles: %lld</string>
+	<key>preview.model3d.unit_hint</key>
+	<string>STL has no unit metadata; values are relative.</string>
 	<key>preview.image.confirm</key>
 	<string>OK</string>
 	<key>preview.image.height</key>
@@ -1246,6 +1260,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Copy Image</string>
 	<key>preview.toolbar.copy_manifest</key>
 	<string>Copy Manifest</string>
+	<key>preview.toolbar.copy_model_info</key>
+	<string>Copy Model Info</string>
 	<key>preview.toolbar.epub_chapters</key>
 	<string>Chapters</string>
 	<key>preview.toolbar.epub_next_chapter</key>
@@ -1288,6 +1304,14 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Switch to Source Mode</string>
 	<key>preview.toolbar.more_actions</key>
 	<string>More Actions</string>
+	<key>preview.toolbar.model3d_rotate_down</key>
+	<string>Rotate Down</string>
+	<key>preview.toolbar.model3d_rotate_up</key>
+	<string>Rotate Up</string>
+	<key>preview.toolbar.model3d_solid</key>
+	<string>Solid</string>
+	<key>preview.toolbar.model3d_wireframe</key>
+	<string>Wireframe</string>
 	<key>preview.toolbar.mute</key>
 	<string>Mute</string>
 	<key>preview.toolbar.next_match</key>

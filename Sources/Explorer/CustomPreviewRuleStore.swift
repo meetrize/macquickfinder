@@ -129,6 +129,7 @@ enum BuiltinPreviewExtensions {
     static let ebook: Set<String> = ["epub"]
     static let email: Set<String> = ["eml"]
     static let font: Set<String> = ["ttf", "otf"]
+    static let model3D: Set<String> = ["stl"]
     static let text: Set<String> = [
         "txt", "md", "swift", "java", "py", "js", "ts", "go", "rs", "kt", "php", "rb",
         "html", "css", "json", "xml", "c", "cpp", "h", "sh", "bash", "zsh", "yaml", "yml", "vue",
@@ -151,6 +152,7 @@ enum BuiltinPreviewExtensions {
         if ebook.contains(lower) { return true }
         if email.contains(lower) { return true }
         if font.contains(lower) { return true }
+        if model3D.contains(lower) { return true }
         if text.contains(lower) { return true }
         return false
     }
@@ -173,6 +175,7 @@ enum BuiltinPreviewExtensions {
             ("电子书", ebook.sorted()),
             ("邮件", email.sorted()),
             ("字体", font.sorted()),
+            ("3D 模型", model3D.sorted()),
             ("媒体", media.sorted()),
             ("Office (QuickLook)", office.sorted()),
             ("文本 / 代码", text.sorted()),
@@ -240,6 +243,10 @@ enum PreviewTypeClassifier {
 
     static func isFontFile(_ ext: String) -> Bool {
         BuiltinPreviewExtensions.font.contains(ext.lowercased())
+    }
+
+    static func isModel3DFile(_ ext: String) -> Bool {
+        BuiltinPreviewExtensions.model3D.contains(ext.lowercased())
     }
 
     static func isArchivePreviewFile(_ file: FileItem) -> Bool {

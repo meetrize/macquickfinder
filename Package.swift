@@ -25,6 +25,10 @@ let package = Package(
             resources: [.process("Resources")],
             swiftSettings: [
                 .unsafeFlags(["-O"], .when(configuration: .release))
+            ],
+            linkerSettings: [
+                .linkedFramework("SceneKit"),
+                .linkedFramework("ModelIO"),
             ]
         ),
         .executableTarget(

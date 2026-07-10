@@ -47,6 +47,8 @@ extension PreviewSession {
             await loadEmlPreview(url: url, itemID: itemID)
         case .font:
             await loadFontPreview(url: url, itemID: itemID)
+        case .model3D:
+            await loadModel3DPreview(url: url, itemID: itemID)
         case .builtInOffice:
             guard !Task.isCancelled else { return }
             applyLoadPayload(.office(url: url), expectedItemID: itemID)
@@ -188,6 +190,18 @@ extension PreviewSession {
         switch result {
         case .success(let content):
             applyLoadPayload(.font(content), expectedItemID: itemID)
+        case .failure(let error):
+            applyLoadPayload(.failure(error.localizedDescription), expectedItemID: itemID)
+        }
+    }
+
+    private func loadModel3DPreview(url: URL, itemID: String) async {
+        guard !Task.isCancelled else { return }
+        let result = await PreviewContentLoader.loadModel3D(from: url)
+        guard !Task.isCancelled else { return }
+        switch result {
+        case .success(let content):
+            applyLoadPayload(.model3D(content), expectedItemID: itemID)
         case .failure(let error):
             applyLoadPayload(.failure(error.localizedDescription), expectedItemID: itemID)
         }

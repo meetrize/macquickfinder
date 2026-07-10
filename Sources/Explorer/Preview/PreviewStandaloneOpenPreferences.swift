@@ -45,6 +45,12 @@ enum PreviewStandaloneOpenPreferences {
                 fitImageToScreen: false,
                 initialWindowSize: CGSize(width: 720, height: 900)
             )
+        case .model3D:
+            return PreviewStandaloneOpenOptions(
+                allowsDockBack: allowsDockBack,
+                fitImageToScreen: false,
+                initialWindowSize: CGSize(width: 960, height: 720)
+            )
         case .builtInMedia, .customOverride(.media), .customSupplement(.media):
             return PreviewStandaloneOpenOptions(
                 allowsDockBack: allowsDockBack,

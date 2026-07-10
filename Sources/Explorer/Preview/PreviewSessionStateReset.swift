@@ -32,6 +32,10 @@ enum PreviewSessionStateReset {
         session.archive.resetToolbar()
     }
 
+    static func resetModel3DToolbar(on session: PreviewSession) {
+        session.model3D.resetToolbar()
+    }
+
     /// 切换预览文件或文件夹内联子项时重置全部工具栏控件。
     static func resetAllToolbarControls(on session: PreviewSession) {
         resetImageToolbar(on: session)
@@ -41,6 +45,7 @@ enum PreviewSessionStateReset {
         resetOfficeToolbar(on: session)
         resetEpubToolbar(on: session)
         resetArchiveToolbar(on: session)
+        resetModel3DToolbar(on: session)
     }
 
     /// 开始加载新内容前重置工具栏（保留 markdown/html 显示模式与 archive 展开状态）。
@@ -51,6 +56,7 @@ enum PreviewSessionStateReset {
         resetOfficeToolbar(on: session)
         session.epub.prepareForLoad()
         session.archive.prepareForLoad()
+        session.model3D.prepareForLoad()
         resetPDFToolbar(on: session)
     }
 }

@@ -85,6 +85,7 @@ struct FileContentView: View {
         if session.content.epubPackage != nil { return true }
         if session.content.emlContent != nil { return true }
         if session.content.fontContent != nil { return true }
+        if session.content.model3DContent != nil { return false }
         if isHtmlPreviewMode { return true }
         if PreviewTextEditEligibility.showsTextPreviewContent(file: session.browseTarget, session: session) {
             return true
@@ -268,6 +269,10 @@ struct FileContentView: View {
                 )
                 .id(fontContent.sourcePath)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let model3DContent = session.content.model3DContent {
+                Model3DPreviewView(session: session, content: model3DContent)
+                    .id(model3DContent.sourcePath)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if isHtmlPreviewMode {
                 HTMLFilePreview(fileURL: item.url, textContentInset: effectiveTextContentInsets)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

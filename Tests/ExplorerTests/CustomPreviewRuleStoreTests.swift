@@ -140,6 +140,10 @@ final class CustomPreviewRuleStoreTests: XCTestCase {
         XCTAssertTrue(PreviewTypeClassifier.isFontFile("otf"))
         XCTAssertFalse(PreviewTypeClassifier.isTextFile("ttf"))
 
+        XCTAssertTrue(BuiltinPreviewExtensions.matchesBuiltIn("stl"))
+        XCTAssertTrue(PreviewTypeClassifier.isModel3DFile("stl"))
+        XCTAssertFalse(PreviewTypeClassifier.isTextFile("stl"))
+
         for ext in ["aac", "flac", "m4a"] {
             XCTAssertTrue(BuiltinPreviewExtensions.matchesBuiltIn(ext), "Expected built-in match for .\(ext)")
             XCTAssertTrue(PreviewTypeClassifier.isMediaFile(ext), "Expected media classifier for .\(ext)")

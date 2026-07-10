@@ -15,6 +15,7 @@ enum PreviewLoadRoute: Equatable {
     case epub
     case eml
     case font
+    case model3D
     case builtInOffice
     case builtInPDF
     case archive
@@ -74,6 +75,9 @@ enum PreviewLoadDispatch {
         }
         if BuiltinPreviewExtensions.font.contains(ext) {
             return .font
+        }
+        if BuiltinPreviewExtensions.model3D.contains(ext) {
+            return .model3D
         }
         if BuiltinPreviewExtensions.office.contains(ext) {
             return .builtInOffice

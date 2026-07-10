@@ -50,6 +50,12 @@ enum PreviewContentLoader {
         }.value
     }
 
+    static func loadModel3D(from url: URL) async -> Result<Model3DPreviewContent, Error> {
+        await Task.detached(priority: .userInitiated) {
+            Result { try Model3DPreviewLoader.load(from: url) }
+        }.value
+    }
+
     static func loadSpreadsheetText(from url: URL) async -> String? {
         try? await Task.detached(priority: .userInitiated) {
             try SpreadsheetPreviewLoader.loadText(from: url)

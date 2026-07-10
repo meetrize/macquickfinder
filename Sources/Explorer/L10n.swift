@@ -1101,6 +1101,24 @@ enum L10n {
             }
         }
 
+        enum Model3D {
+            static var unitHint: String { ModuleLocalization.localized("preview.model3d.unit_hint", bundle: .module) }
+
+            static func triangles(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.model3d.triangles %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+
+            static func dimensions(_ width: Float, _ height: Float, _ depth: Float) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.model3d.dimensions %.1f %.1f %.1f", bundle: .module),
+                    width, height, depth
+                )
+            }
+        }
+
         static func previewingInDetachedWindow(_ fileName: String) -> String {
             ModuleLocalization.localized("preview.detached_placeholder \(fileName)", bundle: .module)
         }
@@ -1145,6 +1163,11 @@ enum L10n {
             static var resetView: String { ModuleLocalization.localized("preview.toolbar.reset_view", bundle: .module) }
             static var resize: String { ModuleLocalization.localized("preview.toolbar.resize", bundle: .module) }
             static var saveEdits: String { ModuleLocalization.localized("preview.toolbar.save_edits", bundle: .module) }
+            static var copyModelInfo: String { ModuleLocalization.localized("preview.toolbar.copy_model_info", bundle: .module) }
+            static var model3dWireframe: String { ModuleLocalization.localized("preview.toolbar.model3d_wireframe", bundle: .module) }
+            static var model3dSolid: String { ModuleLocalization.localized("preview.toolbar.model3d_solid", bundle: .module) }
+            static var model3dRotateUp: String { ModuleLocalization.localized("preview.toolbar.model3d_rotate_up", bundle: .module) }
+            static var model3dRotateDown: String { ModuleLocalization.localized("preview.toolbar.model3d_rotate_down", bundle: .module) }
             static var copyImage: String { ModuleLocalization.localized("preview.toolbar.copy_image", bundle: .module) }
             static var openDefaultApp: String { ModuleLocalization.localized("preview.toolbar.open_default_app", bundle: .module) }
             static var play: String { ModuleLocalization.localized("preview.toolbar.play", bundle: .module) }
@@ -1476,6 +1499,19 @@ enum L10n {
 
         enum Font {
             static var unableToLoad: String { ModuleLocalization.localized("error.font.unable_to_load", bundle: .module) }
+        }
+
+        enum Model3D {
+            static var unableToLoad: String { ModuleLocalization.localized("error.model3d.unable_to_load", bundle: .module) }
+            static var emptyModel: String { ModuleLocalization.localized("error.model3d.empty_model", bundle: .module) }
+            static var fileTooLarge: String { ModuleLocalization.localized("error.model3d.file_too_large", bundle: .module) }
+
+            static func tooManyTriangles(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("error.model3d.too_many_triangles %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
         }
 
         enum Image {

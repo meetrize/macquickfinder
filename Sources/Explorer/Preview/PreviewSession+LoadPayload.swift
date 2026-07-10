@@ -79,6 +79,12 @@ extension PreviewSession {
             content.fontContent = nil
         }
 
+        if let model3DContent = payload.model3DContent {
+            content.model3DContent = model3DContent
+        } else {
+            content.model3DContent = nil
+        }
+
         if let textContent = payload.textContent {
             content.textContent = textContent
             syncTextEditStateAfterLoad()

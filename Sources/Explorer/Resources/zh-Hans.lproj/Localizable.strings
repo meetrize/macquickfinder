@@ -190,6 +190,14 @@
 	<string>名称不能为空</string>
 	<key>error.font.unable_to_load</key>
 	<string>无法加载字体文件</string>
+	<key>error.model3d.empty_model</key>
+	<string>3D 模型文件不包含几何数据</string>
+	<key>error.model3d.file_too_large</key>
+	<string>3D 模型文件过大，无法预览</string>
+	<key>error.model3d.too_many_triangles %lld</key>
+	<string>模型三角面数量过多（%lld），无法预览</string>
+	<key>error.model3d.unable_to_load</key>
+	<string>无法加载 3D 模型</string>
 	<key>error.image.unable_to_encode</key>
 	<string>无法编码图片</string>
 	<key>error.image.unable_to_write</key>
@@ -1160,6 +1168,12 @@
 	<string>流程图渲染失败</string>
 	<key>preview.markdown.mermaid_rendering</key>
 	<string>正在渲染流程图…</string>
+	<key>preview.model3d.dimensions %.1f %.1f %.1f</key>
+	<string>尺寸：%.1f × %.1f × %.1f</string>
+	<key>preview.model3d.triangles %lld</key>
+	<string>三角面：%lld</string>
+	<key>preview.model3d.unit_hint</key>
+	<string>STL 文件不含单位信息，所示尺寸为相对值。</string>
 	<key>preview.image.confirm</key>
 	<string>确定</string>
 	<key>preview.image.height</key>
@@ -1246,6 +1260,8 @@
 	<string>复制图片</string>
 	<key>preview.toolbar.copy_manifest</key>
 	<string>复制清单</string>
+	<key>preview.toolbar.copy_model_info</key>
+	<string>复制模型信息</string>
 	<key>preview.toolbar.epub_chapters</key>
 	<string>章节</string>
 	<key>preview.toolbar.epub_next_chapter</key>
@@ -1288,6 +1304,14 @@
 	<string>切换为源码模式</string>
 	<key>preview.toolbar.more_actions</key>
 	<string>更多操作</string>
+	<key>preview.toolbar.model3d_rotate_down</key>
+	<string>向下旋转</string>
+	<key>preview.toolbar.model3d_rotate_up</key>
+	<string>向上旋转</string>
+	<key>preview.toolbar.model3d_solid</key>
+	<string>实体模式</string>
+	<key>preview.toolbar.model3d_wireframe</key>
+	<string>线框模式</string>
 	<key>preview.toolbar.mute</key>
 	<string>静音</string>
 	<key>preview.toolbar.next_match</key>

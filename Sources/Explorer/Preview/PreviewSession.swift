@@ -22,6 +22,7 @@ final class PreviewSession: ObservableObject, Identifiable {
     var office = PreviewSessionOfficeState()
     var epub = PreviewSessionEpubState()
     var archive = PreviewSessionArchiveState()
+    var model3D = PreviewSessionModel3DState()
     var content = PreviewSessionContentState()
 
     /// 独立窗口内目录浏览上下文；弹出时附加，收回时清除。
@@ -66,6 +67,7 @@ final class PreviewSession: ObservableObject, Identifiable {
         observeNestedState(office, storage: &nestedStateCancellables)
         observeNestedState(epub, storage: &nestedStateCancellables)
         observeNestedState(archive, storage: &nestedStateCancellables)
+        observeNestedState(model3D, storage: &nestedStateCancellables)
         observeNestedState(content, storage: &nestedStateCancellables)
     }
 

@@ -37,6 +37,7 @@ extension PreviewSession {
             FontPreviewLoader.unregisterFontForPreview(at: font.sourceURL)
         }
         content.fontContent = nil
+        content.model3DContent = nil
         content.loadPhase = .idle
         contentLoadedItemID = nil
     }

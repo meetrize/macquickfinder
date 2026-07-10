@@ -21,6 +21,8 @@ enum PreviewDetachedWindowContentKind: String, Codable {
              .epub, .eml, .font,
              .customSupplement(.text), .customSupplement(.markdown), .customSupplement(.html):
             return .text
+        case .model3D:
+            return .media
         case .builtInMedia, .customOverride(.media), .customSupplement(.media):
             return .media
         case .builtInOffice, .docx, .doc, .xlsx, .xls, .csv, .rtf,

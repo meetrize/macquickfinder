@@ -18,6 +18,7 @@ struct PreviewLoadPayload {
     var epubPackage: EpubPreviewPackage?
     var emlContent: EmlPreviewContent?
     var fontContent: FontPreviewContent?
+    var model3DContent: Model3DPreviewContent?
     var error: String?
 
     static let unavailable = PreviewLoadPayload()
@@ -60,6 +61,10 @@ struct PreviewLoadPayload {
 
     static func font(_ content: FontPreviewContent) -> PreviewLoadPayload {
         PreviewLoadPayload(fontContent: content)
+    }
+
+    static func model3D(_ content: Model3DPreviewContent) -> PreviewLoadPayload {
+        PreviewLoadPayload(model3DContent: content)
     }
 
     static func failure(_ message: String) -> PreviewLoadPayload {
