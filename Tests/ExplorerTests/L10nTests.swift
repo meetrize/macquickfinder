@@ -40,6 +40,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Toolbar.panoramaCollapseAll, "toolbar.panorama.collapse_all")
         XCTAssertNotEqual(L10n.Toolbar.panoramaExpandDepth, "toolbar.panorama.expand_depth")
         XCTAssertNotEqual(L10n.Panorama.expandDepthAutomatic, "panorama.expand_depth.automatic")
+        XCTAssertNotEqual(L10n.Panorama.expandFolder, "panorama.expand_folder")
         XCTAssertNotEqual(L10n.Panorama.expandDepth2, "panorama.expand_depth.depth2")
         XCTAssertNotEqual(L10n.Toolbar.recordOperationsActive, "toolbar.record_operations_active")
         XCTAssertNotEqual(L10n.OperationRecording.noSteps, "operation_recording.no_steps")

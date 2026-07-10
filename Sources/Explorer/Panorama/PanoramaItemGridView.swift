@@ -96,6 +96,7 @@ struct PanoramaItemGridView: View {
                     onDoubleTap(row)
                 }
             },
+            onExpandFolder: isCollapsedFolder ? { onExpandCollapsedFolder(row) } : nil,
             onCollapseFolder: nil
         )
         .panoramaCellVisibility(

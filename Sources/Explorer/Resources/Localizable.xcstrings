@@ -11036,6 +11036,23 @@
         }
       }
     },
+    "panorama.expand_folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand folder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展开文件夹"
+          }
+        }
+      }
+    },
     "panorama.expand_depth.automatic": {
       "extractionState": "manual",
       "localizations": {

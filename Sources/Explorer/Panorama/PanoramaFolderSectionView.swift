@@ -40,6 +40,7 @@ struct PanoramaFolderSectionView: View {
                         onTap: { onTap(row) },
                         onCommandTap: { onCommandTap(row) },
                         onDoubleTap: { onEnterDirectory(row.id) },
+                        onExpandFolder: nil,
                         onCollapseFolder: { onCollapse(row.id) }
                     )
                     .panoramaCellVisibility(rowID: row.id, directoryID: row.id)

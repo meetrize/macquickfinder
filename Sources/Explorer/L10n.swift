@@ -861,6 +861,7 @@ enum L10n {
 
     enum Panorama {
         static var collapseFolder: String { ModuleLocalization.localized("panorama.collapse_folder", bundle: .module) }
+        static var expandFolder: String { ModuleLocalization.localized("panorama.expand_folder", bundle: .module) }
         static var folderKind: String { ModuleLocalization.localized("panorama.folder_kind", bundle: .module) }
         static var loading: String { ModuleLocalization.localized("panorama.loading", bundle: .module) }
 

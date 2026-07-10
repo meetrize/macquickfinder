@@ -1102,6 +1102,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Full Disk Access Required</string>
 	<key>panorama.collapse_folder</key>
 	<string>Collapse folder</string>
+	<key>panorama.expand_folder</key>
+	<string>Expand folder</string>
 	<key>panorama.expand_depth.automatic</key>
 	<string>Automatic</string>
 	<key>panorama.expand_depth.depth2</key>

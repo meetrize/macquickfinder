@@ -1102,6 +1102,8 @@
 	<string>需要完全磁盘访问权限</string>
 	<key>panorama.collapse_folder</key>
 	<string>收起文件夹</string>
+	<key>panorama.expand_folder</key>
+	<string>展开文件夹</string>
 	<key>panorama.expand_depth.automatic</key>
 	<string>自动</string>
 	<key>panorama.expand_depth.depth2</key>

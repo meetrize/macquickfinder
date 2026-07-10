@@ -13,6 +13,7 @@ struct PanoramaGridCellView: View {
     let onTap: () -> Void
     let onCommandTap: () -> Void
     let onDoubleTap: () -> Void
+    let onExpandFolder: (() -> Void)?
     let onCollapseFolder: (() -> Void)?
 
     @Environment(\.colorScheme) private var colorScheme
@@ -57,9 +58,17 @@ struct PanoramaGridCellView: View {
                 bottomLabelOverlay
 
                 if isExpandedFolder {
-                    collapseBadge
+                    PanoramaFolderFoldControl(
+                        action: .collapse,
+                        cellSize: cellSize,
+                        onTap: { onCollapseFolder?() }
+                    )
                 } else if isCollapsedFolder {
-                    expandBadge
+                    PanoramaFolderFoldControl(
+                        action: .expand,
+                        cellSize: cellSize,
+                        onTap: { onExpandFolder?() }
+                    )
                 }
             }
             .frame(width: cellSize, height: cellSize)
@@ -127,30 +136,6 @@ struct PanoramaGridCellView: View {
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
         }
-    }
-
-    private var expandBadge: some View {
-        Image(systemName: "chevron.right.circle.fill")
-            .symbolRenderingMode(.palette)
-            .foregroundStyle(.white, Color.accentColor)
-            .font(.system(size: max(16, cellSize * 0.18)))
-            .padding(6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var collapseBadge: some View {
-        Button {
-            onCollapseFolder?()
-        } label: {
-            Image(systemName: "chevron.down.circle.fill")
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(.white, Color.accentColor)
-                .font(.system(size: max(16, cellSize * 0.18)))
-                .padding(6)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(L10n.Panorama.collapseFolder)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var badgeText: String? {
