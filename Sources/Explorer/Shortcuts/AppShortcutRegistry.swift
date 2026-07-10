@@ -85,6 +85,13 @@ enum AppShortcutRegistry {
         AppShortcutEntry(id: "delete", category: .files, helpEntryID: "delete"),
         AppShortcutEntry(id: "open", category: .files, helpEntryID: "open"),
         AppShortcutEntry(id: "rename", category: .files, helpEntryID: "rename"),
+        AppShortcutEntry(
+            id: "copy_path",
+            category: .files,
+            name: L10n.Action.copyPaths,
+            shortcut: ShortcutBinding.defaultCopyPath.displayString,
+            isConfigurable: true
+        ),
 
         AppShortcutEntry(id: "detach_preview", category: .preview, helpEntryID: "detach_preview"),
         AppShortcutEntry(id: "preview_browser", category: .preview, helpEntryID: "preview_browser"),

@@ -15,6 +15,11 @@ struct ShortcutBinding: Codable, Equatable, Hashable {
         modifiers: NSEvent.ModifierFlags.command.rawValue
     )
 
+    static let defaultCopyPath = ShortcutBinding(
+        keyCode: 8,
+        modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue
+    )
+
     init(keyCode: UInt16, modifiers: UInt) {
         self.keyCode = keyCode
         self.modifiers = modifiers

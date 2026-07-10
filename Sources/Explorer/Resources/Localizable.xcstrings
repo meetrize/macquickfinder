@@ -8347,6 +8347,23 @@
         }
       }
     },
+    "settings.shortcut.copy_path": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Full Path"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制完整路径"
+          }
+        }
+      }
+    },
     "settings.shortcut.global_toggle": {
       "extractionState": "manual",
       "localizations": {
@@ -13788,13 +13805,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Right-click"
+            "value": "⌘⇧C"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "右键"
+            "value": "⌘⇧C"
           }
         }
       }

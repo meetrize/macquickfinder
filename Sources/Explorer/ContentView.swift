@@ -804,6 +804,17 @@ struct ContentView: View {
             }
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
+
+            LocalShortcutMonitor(
+                binding: shortcutSettings.copyPathBinding,
+                isEnabled: !isAnyTextFieldEditing
+            ) {
+                let selected = selectedItems
+                guard !selected.isEmpty else { return }
+                FileOperations.copyPaths(selected)
+            }
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
         }
     }
 

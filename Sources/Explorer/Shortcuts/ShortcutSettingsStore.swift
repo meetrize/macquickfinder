@@ -23,6 +23,10 @@ final class ShortcutSettingsStore: ObservableObject {
         didSet { persistNewTabBinding() }
     }
 
+    @Published var copyPathBinding: ShortcutBinding {
+        didSet { persistCopyPathBinding() }
+    }
+
     private init() {
         globalToggleEnabled = UserDefaultsStorage.bool(
             forKey: AppPreferences.Shortcuts.globalToggleEnabled,
@@ -30,6 +34,7 @@ final class ShortcutSettingsStore: ObservableObject {
         )
         globalToggleBinding = Self.loadGlobalToggleBinding()
         newTabBinding = Self.loadNewTabBinding()
+        copyPathBinding = Self.loadCopyPathBinding()
     }
 
     func resetGlobalToggleBinding() {
@@ -38,6 +43,10 @@ final class ShortcutSettingsStore: ObservableObject {
 
     func resetNewTabBinding() {
         newTabBinding = .defaultNewTab
+    }
+
+    func resetCopyPathBinding() {
+        copyPathBinding = .defaultCopyPath
     }
 
     private func persistGlobalToggleBinding() {
@@ -76,6 +85,26 @@ final class ShortcutSettingsStore: ObservableObject {
         let modifiers = UInt(UserDefaultsStorage.int(
             forKey: AppPreferences.Shortcuts.newTabModifiers,
             default: Int(ShortcutBinding.defaultNewTab.modifiers)
+        ))
+        return ShortcutBinding(keyCode: keyCode, modifiers: modifiers)
+    }
+
+    private func persistCopyPathBinding() {
+        UserDefaultsStorage.set(Int(copyPathBinding.keyCode), forKey: AppPreferences.Shortcuts.copyPathKeyCode)
+        UserDefaultsStorage.set(Int(copyPathBinding.modifiers), forKey: AppPreferences.Shortcuts.copyPathModifiers)
+    }
+
+    private static func loadCopyPathBinding() -> ShortcutBinding {
+        guard UserDefaults.standard.object(forKey: AppPreferences.Shortcuts.copyPathKeyCode) != nil else {
+            return .defaultCopyPath
+        }
+        let keyCode = UInt16(UserDefaultsStorage.int(
+            forKey: AppPreferences.Shortcuts.copyPathKeyCode,
+            default: Int(ShortcutBinding.defaultCopyPath.keyCode)
+        ))
+        let modifiers = UInt(UserDefaultsStorage.int(
+            forKey: AppPreferences.Shortcuts.copyPathModifiers,
+            default: Int(ShortcutBinding.defaultCopyPath.modifiers)
         ))
         return ShortcutBinding(keyCode: keyCode, modifiers: modifiers)
     }

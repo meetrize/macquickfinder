@@ -121,6 +121,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Settings.Shortcuts.globalToggle, "settings.shortcut.global_toggle")
         XCTAssertNotEqual(L10n.Settings.Shortcuts.globalToggleEnabled, "settings.shortcut.global_toggle_enabled")
         XCTAssertNotEqual(L10n.Settings.Shortcuts.cheatSheet, "settings.shortcut.cheat_sheet")
+        XCTAssertNotEqual(L10n.Settings.Shortcuts.copyPath, "settings.shortcut.copy_path")
         XCTAssertNotEqual(L10n.Settings.Shortcuts.category("global"), "settings.shortcuts.category.global")
         XCTAssertNotEqual(L10n.Settings.Shortcuts.category("navigation"), "settings.shortcuts.category.navigation")
         XCTAssertNotEqual(L10n.Settings.General.fileListRowHover, "settings.file_list.row_hover_highlight")

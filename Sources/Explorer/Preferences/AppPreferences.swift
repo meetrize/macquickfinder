@@ -88,6 +88,8 @@ enum AppPreferences {
         static let globalToggleModifiers = "shortcuts.globalToggleModifiers"
         static let newTabKeyCode = "shortcuts.newTabKeyCode"
         static let newTabModifiers = "shortcuts.newTabModifiers"
+        static let copyPathKeyCode = "shortcuts.copyPathKeyCode"
+        static let copyPathModifiers = "shortcuts.copyPathModifiers"
     }
 
     /// 远程服务器连接。

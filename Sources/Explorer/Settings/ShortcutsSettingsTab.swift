@@ -8,8 +8,9 @@ struct ShortcutsSettingsTab: View {
             Form {
                 globalSection
                 navigationSection
+                filesSection
 
-                ForEach(AppShortcutCategory.allCases.filter { $0 != .global && $0 != .navigation }) { category in
+                ForEach(AppShortcutCategory.allCases.filter { $0 != .global && $0 != .navigation && $0 != .files }) { category in
                     let items = AppShortcutRegistry.entries(for: category)
                     if !items.isEmpty {
                         Section {
@@ -69,6 +70,26 @@ struct ShortcutsSettingsTab: View {
             }
         } header: {
             Text(AppShortcutCategory.navigation.title)
+        }
+    }
+
+    private var filesSection: some View {
+        Section {
+            LabeledContent(L10n.Settings.Shortcuts.copyPath) {
+                HStack(spacing: 8) {
+                    ShortcutRecorderView(binding: $settings.copyPathBinding)
+
+                    Button(L10n.Settings.Shortcuts.reset) {
+                        settings.resetCopyPathBinding()
+                    }
+                }
+            }
+
+            ForEach(AppShortcutRegistry.entries(for: .files).filter { $0.id != "copy_path" }) { entry in
+                shortcutRow(name: entry.name, shortcut: entry.shortcut)
+            }
+        } header: {
+            Text(AppShortcutCategory.files.title)
         }
     }
 
