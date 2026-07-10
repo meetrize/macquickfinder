@@ -650,6 +650,12 @@ struct ExplorerApp: App {
         let _ = languageSettings.revision
         let keyLayout = activeWindowLayout.keyWindowLayout
         FileCommands()
+        CommandGroup(replacing: .newItem) {
+            Button(L10n.Toolbar.newWindow) {
+                ExplorerWindowTabCenter.shared.openNewWindowFromActiveExplorer()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.newWindow)
+        }
         CommandMenu(L10n.Menu.go) {
             Button(L10n.RemoteServer.connectServerMenu) {
                 ConnectServerCenter.shared.requestPresentSheet()
@@ -927,10 +933,17 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func newWindowForTab(_ sender: Any?) {
         Task { @MainActor in
-            let sourceWindow = (sender as? NSWindow) ?? NSApp.keyWindow
-            let path = ExplorerWindowTabCenter.shared.path(for: sourceWindow)
+            // 系统为「新建标签」预创建的壳窗口；关闭后改走独立新窗口逻辑（与 ⌘N 一致）。
+            var anchorWindow = NSApp.keyWindow
+            if let tabShell = sender as? NSWindow {
+                if let tabGroup = tabShell.tabGroup {
+                    anchorWindow = tabGroup.windows.first { $0 !== tabShell && $0.isVisible } ?? anchorWindow
+                }
+                tabShell.close()
+            }
+            let path = ExplorerWindowTabCenter.shared.path(for: anchorWindow)
                 ?? FileManager.default.homeDirectoryForCurrentUser.path
-            ExplorerWindowTabCenter.shared.openNewTab(path: path, from: sourceWindow)
+            ExplorerWindowTabCenter.shared.openNewWindow(path: path, from: anchorWindow)
         }
     }
 

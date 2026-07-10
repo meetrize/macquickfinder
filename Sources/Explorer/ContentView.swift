@@ -778,6 +778,24 @@ struct ContentView: View {
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
 
+            Button(L10n.Toolbar.newWindow) {
+                openNewExplorerWindow()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.newWindow)
+            .labelsHidden()
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+
+            LocalShortcutMonitor(
+                binding: ShortcutBinding(keyCode: 45, modifiers: .command),
+                isEnabled: !isAnyTextFieldEditing
+            ) {
+                openNewExplorerWindow()
+            }
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+
             LocalShortcutMonitor(
                 binding: shortcutSettings.newTabBinding,
                 isEnabled: !isAnyTextFieldEditing
@@ -790,11 +808,7 @@ struct ContentView: View {
     }
 
     private func openNewExplorerWindow() {
-        ExplorerWindowTabCenter.shared.requestNewWindow(
-            path: path,
-            from: hostWindow,
-            openWindow: { openWindow(id: ExplorerWindowScene.folder, value: $0) }
-        )
+        ExplorerWindowTabCenter.shared.openNewWindow(path: path, from: hostWindow)
     }
 
     private func openNewExplorerTab() {

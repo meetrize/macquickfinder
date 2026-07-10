@@ -154,6 +154,21 @@ final class ExplorerWindowTabCenter: ObservableObject {
         bumpTabBarRevision()
     }
 
+    /// 从当前 key 窗口打开新的独立 Explorer 窗口（⌘N / 菜单 / 工具栏）。
+    func openNewWindowFromActiveExplorer() {
+        let sourceWindow = NSApp.keyWindow
+        let path = path(for: sourceWindow)
+            ?? FileManager.default.homeDirectoryForCurrentUser.path
+        openNewWindow(path: path, from: sourceWindow)
+    }
+
+    /// 新建独立窗口（⌘N / 工具栏「新建窗口」），不合并为标签页。
+    func openNewWindow(path: String, from sourceWindow: NSWindow?) {
+        pendingOpen = PendingOpen(sourceWindow: sourceWindow, mode: .newWindow)
+        guard let openFolderWindow = ExplorerWindowOpenBridge.shared.openFolderWindow else { return }
+        openFolderWindow(ExplorerFolderWindowValue(path: path))
+    }
+
     func requestNewWindow(path: String, from sourceWindow: NSWindow?, openWindow: (ExplorerFolderWindowValue) -> Void) {
         pendingOpen = PendingOpen(sourceWindow: sourceWindow, mode: .newWindow)
         openWindow(ExplorerFolderWindowValue(path: path))
