@@ -8,20 +8,41 @@ final class ThumbnailCache {
         let modificationTimestamp: TimeInterval
         let fileSize: Int64
         let sizeBucket: Int
-        
+        /// 自定义缩略图渲染版本；变更后使旧 QL 磁盘缓存失效。
+        let rendererRevision: Int
+
         init(row: FileListRow, sizeBucket: Int) {
             path = row.iconPath
             modificationTimestamp = row.modificationDate.timeIntervalSinceReferenceDate
             fileSize = row.size
             self.sizeBucket = sizeBucket
+            rendererRevision = Self.rendererRevision(for: path)
         }
 
-        init(path: String, modificationTimestamp: TimeInterval, fileSize: Int64, sizeBucket: Int) {
+        init(
+            path: String,
+            modificationTimestamp: TimeInterval,
+            fileSize: Int64,
+            sizeBucket: Int,
+            rendererRevision: Int = 0
+        ) {
             self.path = path
             self.modificationTimestamp = modificationTimestamp
             self.fileSize = fileSize
             self.sizeBucket = sizeBucket
+            self.rendererRevision = rendererRevision
         }
+
+        private static func rendererRevision(for path: String) -> Int {
+            let lower = path.lowercased()
+            if lower.hasSuffix(".md") || lower.hasSuffix(".markdown") {
+                return markdownThumbnailRendererRevision
+            }
+            return 0
+        }
+
+        /// Markdown 自定义缩略图版本；调整渲染逻辑时递增以使旧缓存失效。
+        static let markdownThumbnailRendererRevision = 2
     }
     
     struct Entry {

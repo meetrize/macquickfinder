@@ -205,6 +205,18 @@ public final class ThumbnailGenerator {
                         )
                         return
                     }
+
+                    if Self.prefersMarkdownPreviewThumbnail(for: row.iconPath) {
+                        self.loadMarkdownPreviewThumbnail(
+                            for: row,
+                            key: key,
+                            cellSize: cellSize,
+                            screenScale: screenScale,
+                            generation: generation,
+                            completion: completion
+                        )
+                        return
+                    }
                     
                     self.loadQLThumbnail(
                         for: row,
@@ -333,6 +345,44 @@ public final class ThumbnailGenerator {
     private static func prefersFontSampleThumbnail(for path: String) -> Bool {
         let lower = path.lowercased()
         return lower.hasSuffix(".ttf") || lower.hasSuffix(".otf")
+    }
+
+    private static func prefersMarkdownPreviewThumbnail(for path: String) -> Bool {
+        let lower = path.lowercased()
+        return lower.hasSuffix(".md") || lower.hasSuffix(".markdown")
+    }
+
+    private func loadMarkdownPreviewThumbnail(
+        for row: FileListRow,
+        key: ThumbnailCache.Key,
+        cellSize: CGFloat,
+        screenScale: CGFloat,
+        generation: UInt,
+        completion: @escaping (Delivery) -> Void
+    ) {
+        let url = URL(fileURLWithPath: row.iconPath)
+        queue.async { [weak self] in
+            guard let self, generation == self.activeGeneration else { return }
+            if let image = MarkdownPreviewThumbnailRenderer.render(
+                for: url,
+                cellSize: cellSize,
+                screenScale: screenScale
+            ) {
+                self.cache.store(image, isThumbnail: true, for: key)
+                DispatchQueue.main.async {
+                    guard generation == self.activeGeneration else { return }
+                    completion(.thumbnail(image))
+                }
+                return
+            }
+            self.loadWorkspaceIcon(
+                for: row,
+                key: key,
+                cellSize: cellSize,
+                generation: generation,
+                completion: completion
+            )
+        }
     }
 
     private func loadFontSampleThumbnail(

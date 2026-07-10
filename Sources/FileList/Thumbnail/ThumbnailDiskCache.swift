@@ -157,6 +157,7 @@ final class ThumbnailDiskCache {
         withUnsafeBytes(of: key.modificationTimestamp.bitPattern) { data.append(contentsOf: $0) }
         withUnsafeBytes(of: UInt64(bitPattern: key.fileSize)) { data.append(contentsOf: $0) }
         withUnsafeBytes(of: key.sizeBucket) { data.append(contentsOf: $0) }
+        withUnsafeBytes(of: key.rendererRevision) { data.append(contentsOf: $0) }
         return data
     }
 }

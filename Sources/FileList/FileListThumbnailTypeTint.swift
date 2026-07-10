@@ -15,6 +15,7 @@ public enum FileListThumbnailTypeTint {
         case video
         case audio
         case document
+        case markdown
         case archive
         case code
         
@@ -24,6 +25,7 @@ public enum FileListThumbnailTypeTint {
             case .video: return NSColor(red: 0.35, green: 0.58, blue: 0.95, alpha: 1)
             case .audio: return NSColor(red: 0.62, green: 0.42, blue: 0.92, alpha: 1)
             case .document: return NSColor(red: 0.92, green: 0.38, blue: 0.38, alpha: 1)
+            case .markdown: return NSColor(red: 0.52, green: 0.78, blue: 0.98, alpha: 1)
             case .archive: return NSColor(red: 0.55, green: 0.55, blue: 0.58, alpha: 1)
             case .code: return NSColor(red: 0.42, green: 0.72, blue: 0.55, alpha: 1)
             }
@@ -38,7 +40,9 @@ public enum FileListThumbnailTypeTint {
             return .video
         case "mp3", "wav", "flac", "m4a", "aac", "ogg", "aiff", "wma":
             return .audio
-        case "pdf", "doc", "docx", "pages", "rtf", "txt", "md", "xls", "xlsx", "numbers", "ppt", "pptx", "key":
+        case "md", "markdown":
+            return .markdown
+        case "pdf", "doc", "docx", "pages", "rtf", "txt", "xls", "xlsx", "numbers", "ppt", "pptx", "key":
             return .document
         case "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "dmg", "iso":
             return .archive
