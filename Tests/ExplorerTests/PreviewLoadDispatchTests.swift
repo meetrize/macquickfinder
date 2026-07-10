@@ -22,6 +22,8 @@ final class PreviewLoadDispatchTests: XCTestCase {
 
     func testResolveBuiltInImagePDFAndMedia() {
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "png")), .builtInImage)
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "svg")), .builtInImage)
+        XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "eps")), .builtInImage)
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "pdf")), .builtInPDF)
         XCTAssertEqual(PreviewLoadDispatch.resolve(input(ext: "mp4")), .builtInMedia)
     }

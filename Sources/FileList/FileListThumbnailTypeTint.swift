@@ -32,7 +32,7 @@ public enum FileListThumbnailTypeTint {
     
     private static func category(for ext: String) -> Category? {
         switch ext {
-        case "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "tiff", "tif", "bmp", "svg", "raw", "cr2", "nef":
+        case "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "tiff", "tif", "bmp", "svg", "eps", "epsf", "epsi", "raw", "cr2", "nef":
             return .image
         case "mov", "mp4", "m4v", "mkv", "avi", "wmv", "webm", "mpg", "mpeg":
             return .video

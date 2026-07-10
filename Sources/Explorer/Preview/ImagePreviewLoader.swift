@@ -31,6 +31,9 @@ enum ImagePreviewLoader {
             if SVGPreviewSupport.isSVGData(data) {
                 return SVGPreviewSupport.decode(data: data, maxPixelSize: maxPixelSize)
             }
+            if EPSPreviewSupport.isEPSData(data) {
+                return EPSPreviewSupport.decode(data: data, maxPixelSize: maxPixelSize)
+            }
             guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             return decodeFromSource(source, maxPixelSize: maxPixelSize)
         }
@@ -49,6 +52,9 @@ enum ImagePreviewLoader {
         autoreleasepool {
             if SVGPreviewSupport.isSVGURL(url) {
                 return SVGPreviewSupport.decode(from: url, maxPixelSize: maxPixelSize)
+            }
+            if EPSPreviewSupport.isEPSURL(url) {
+                return EPSPreviewSupport.decode(from: url, maxPixelSize: maxPixelSize)
             }
             guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
             return decodeFromSource(source, maxPixelSize: maxPixelSize)

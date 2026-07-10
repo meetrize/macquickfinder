@@ -12,6 +12,12 @@ enum ImageFileDimensionsReader {
             return logicalSize
         }
 
+        if EPSPreviewSupport.isEPSURL(url),
+           let data = try? Data(contentsOf: url),
+           let epsSize = EPSPreviewSupport.logicalSize(fromEPSData: data) {
+            return epsSize
+        }
+
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? CGFloat,
