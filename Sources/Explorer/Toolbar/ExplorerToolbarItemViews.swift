@@ -90,6 +90,19 @@ struct ExplorerToolbarItemView: View {
                     menuActions: browseSettingsMenuActions
                 )
                 .disabled(environment.isCustomizing)
+            case .recordOperations:
+                let recordButton = Button {
+                    ToolbarBuiltinDispatcher.perform(.recordOperations, environment: environment)
+                } label: {
+                    RecordOperationsToolbarIcon(isRecording: environment.isOperationRecording)
+                }
+                .buttonStyle(ExplorerToolbarPlainButtonStyle())
+                .disabled(isBuiltinDisabled(.recordOperations))
+                if let tooltip = tooltipForBuiltin(.recordOperations) {
+                    recordButton.instantHoverTooltip(tooltip)
+                } else {
+                    recordButton
+                }
             default:
                 ExplorerToolbarIconButton(
                     icon: iconForBuiltin(builtin),
@@ -330,6 +343,8 @@ extension ToolbarBuiltinID {
         case .thumbnailSizeSlider:
             Image(systemName: "slider.horizontal.3")
                 .font(.system(size: 12, weight: .medium))
+        case .recordOperations:
+            RecordOperationsToolbarIcon(isRecording: environment.isOperationRecording)
         case .sortMenu:
             LucideIcon.arrowUpDown
         case .browseSettingsMenu:
@@ -337,5 +352,16 @@ extension ToolbarBuiltinID {
         default:
             lucideIcon(environment: environment)
         }
+    }
+}
+
+private struct RecordOperationsToolbarIcon: View {
+    let isRecording: Bool
+
+    var body: some View {
+        Image(systemName: isRecording ? "stop.circle" : "smallcircle.fill.circle")
+            .font(.system(size: ExplorerToolbarMetrics.iconSize, weight: .medium))
+            .foregroundStyle(isRecording ? Color.red : Color.primary)
+            .frame(width: ExplorerToolbarMetrics.iconSize, height: ExplorerToolbarMetrics.iconSize)
     }
 }
