@@ -50,7 +50,7 @@ extension PreviewSession {
             previewToolbarIconItem(
                 id: "quicklook-image-open",
                 title: L10n.Preview.Toolbar.openDefaultApp,
-                systemImage: "arrow.up.forward.app",
+                systemImage: "arrowshape.turn.up.right.circle",
                 action: { NSWorkspace.shared.open(item.url) }
             ),
         ]
@@ -123,7 +123,7 @@ extension PreviewSession {
             previewToolbarIconItem(
                 id: "image-resize",
                 title: L10n.Preview.Toolbar.resize,
-                systemImage: "aspectratio",
+                systemImage: "rectangle.and.arrow.up.right.and.arrow.down.left",
                 isDisabled: image.sourcePixelSize.width <= 0 || image.sourcePixelSize.height <= 0,
                 action: { [self] in image.showResizeSheet = true }
             ),
@@ -152,7 +152,7 @@ extension PreviewSession {
             previewToolbarIconItem(
                 id: "image-open",
                 title: L10n.Preview.Toolbar.openDefaultApp,
-                systemImage: "arrow.up.forward.app",
+                systemImage: "arrowshape.turn.up.right.circle",
                 action: { NSWorkspace.shared.open(item.url) }
             ),
         ]

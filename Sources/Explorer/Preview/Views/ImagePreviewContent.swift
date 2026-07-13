@@ -150,7 +150,7 @@ struct ImagePreviewContent: View {
         Button {
             ImagePreviewContextActions.openWithDefaultApp(fileURL)
         } label: {
-            Label("用默认应用打开", systemImage: "arrow.up.forward.app")
+            Label("用默认应用打开", systemImage: "arrowshape.turn.up.right.circle")
         }
 
         Divider()

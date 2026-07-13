@@ -67,7 +67,7 @@ extension PreviewSession {
             previewToolbarIconItem(
                 id: "model3d-open",
                 title: L10n.Preview.Toolbar.openDefaultApp,
-                systemImage: "arrow.up.forward.app",
+                systemImage: "arrowshape.turn.up.right.circle",
                 action: { NSWorkspace.shared.open(item.url) }
             ),
         ]
