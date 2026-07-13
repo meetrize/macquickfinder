@@ -1635,4 +1635,16 @@ enum L10n {
             ModuleLocalization.localizedFromTable(key, bundle: .module)
         }
     }
+
+    enum CommandPalette {
+        static var placeholder: String { localizedFromTable("command_palette.placeholder") }
+        static var noResults: String { localizedFromTable("command_palette.no_results") }
+        static var recentsSection: String { localizedFromTable("command_palette.recents_section") }
+        static var commonSection: String { localizedFromTable("command_palette.common_section") }
+        static var menuTitle: String { localizedFromTable("command_palette.menu_title") }
+
+        private static func localizedFromTable(_ key: String) -> String {
+            ModuleLocalization.localizedFromTable(key, bundle: .module)
+        }
+    }
 }

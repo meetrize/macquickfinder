@@ -210,6 +210,8 @@ struct ContentView: View {
     @State private var operationRecordingReview: OperationRecordingReviewContext?
     @State private var showDiscardRecordingConfirm = false
     @State private var lastHandledOpenRequestGeneration: UInt = 0
+    @State private var isCommandPalettePresented = false
+    @State private var commandPaletteSession: CommandPaletteSession?
     
     init(
         initialPath: String? = nil,
@@ -412,6 +414,9 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(width: outer.size.width, height: outer.size.height)
+            .background(
+                CommandPalettePreviewCommandCapture(hostWindowID: previewHostWindowID)
+            )
             .overlay(alignment: .top) {
                 PanelToolbarBottomSeparatorOverlay()
                     .frame(height: PanelSeparatorStyle.toolbarSeparatorMaskHeight)
@@ -561,6 +566,10 @@ struct ContentView: View {
             guard hostWindow == NSApp.keyWindow else { return }
             showConnectServerSheet = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .commandPaletteToggleRequested)) { _ in
+            guard hostWindow == NSApp.keyWindow else { return }
+            toggleCommandPalette()
+        }
         .sheet(isPresented: $showConnectServerSheet) {
             ConnectServerSheet(
                 initialAddress: RecentServersStore.shared.bookmarks.first?.urlString ?? ""
@@ -662,6 +671,19 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: transientNoticeMessage)
         .animation(.easeInOut(duration: 0.2), value: pasteOperationCenter.activeProgress)
+        .overlay {
+            if isCommandPalettePresented, let commandPaletteSession {
+                CommandPaletteOverlay(
+                    session: commandPaletteSession,
+                    isPresented: $isCommandPalettePresented
+                )
+            }
+        }
+        .onChange(of: isCommandPalettePresented) { presented in
+            if !presented {
+                commandPaletteSession = nil
+            }
+        }
     }
     
     private var filteredItems: [FileItem] {
@@ -860,7 +882,91 @@ struct ContentView: View {
             }
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
+
+            Button(L10n.CommandPalette.menuTitle) {
+                toggleCommandPalette()
+            }
+            .keyboardShortcut(ExplorerKeyboardShortcuts.commandPalette)
+            .labelsHidden()
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
         }
+    }
+
+    private func toggleCommandPalette() {
+        if isCommandPalettePresented {
+            withAnimation(.easeOut(duration: 0.15)) {
+                isCommandPalettePresented = false
+            }
+            commandPaletteSession = nil
+            return
+        }
+
+        isQuickSearchVisible = false
+        quickSearchText = ""
+        let previewCommands = CommandPalettePreviewCommandBridge.shared.commands(for: previewHostWindowID)
+        let context = makeCommandPaletteContext(
+            previewDetach: previewCommands.detach,
+            previewBrowse: previewCommands.browse
+        )
+        commandPaletteSession = CommandPaletteSession(context: context)
+        withAnimation(.easeOut(duration: 0.15)) {
+            isCommandPalettePresented = true
+        }
+    }
+
+    private func makeCommandPaletteContext(
+        previewDetach: PreviewDetachCommands?,
+        previewBrowse: PreviewBrowseCommands?
+    ) -> CommandPaletteContext {
+        CommandPaletteContext(
+            currentPath: path,
+            selectedItems: selectedItems,
+            deletableSelectedItems: deletableSelectedItems,
+            layout: layout,
+            toolbarEnvironment: toolbarEnvironment,
+            fileHandlers: fileCommandHandlers,
+            fileActions: fileContextActions,
+            blankMenuActions: blankMenuActions,
+            previewDetach: previewDetach,
+            previewBrowse: previewBrowse,
+            tabBarState: explorerTabBarState,
+            showHiddenFiles: showHiddenFiles,
+            canNavigateBack: canNavigateBack,
+            canNavigateForward: canNavigateForward,
+            canNavigateUp: FileItem.canNavigateUp(from: path),
+            focusSearch: { activeBarField = .search },
+            navigateBack: navigateBack,
+            navigateForward: navigateForward,
+            navigateUp: navigateUp,
+            presentConnectServer: { showConnectServerSheet = true },
+            openSettings: { SettingsWindowPresenter.shared.show() },
+            openHelp: { HelpWindowPresenter.shared.show() },
+            customizeToolbar: {
+                ToolbarCustomizationWindowController.present(
+                    store: toolbarStore,
+                    environment: toolbarEnvironment,
+                    parentWindow: hostWindow
+                )
+            },
+            toggleCommandPalette: toggleCommandPalette,
+            importSnippets: {
+                NotificationCenter.default.post(name: .snippetsImportRequested, object: nil)
+            },
+            exportSnippets: {
+                NotificationCenter.default.post(name: .snippetsExportAllRequested, object: nil)
+            },
+            focusOutputCommand: {
+                if !layout.isOutputPanelVisible {
+                    layout.toggleOutputPanel()
+                }
+                if layout.isOutputPanelContentCollapsed {
+                    layout.isOutputPanelContentCollapsed = false
+                }
+                NotificationCenter.default.post(name: .outputCommandFocusRequested, object: nil)
+            }
+        )
     }
 
     private func openNewExplorerWindow() {

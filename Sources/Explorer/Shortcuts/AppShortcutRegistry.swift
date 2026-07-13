@@ -74,6 +74,12 @@ enum AppShortcutRegistry {
             name: L10n.Settings.Shortcuts.cheatSheet,
             shortcut: "⌘?"
         ),
+        AppShortcutEntry(
+            id: "command_palette",
+            category: .navigation,
+            name: L10n.CommandPalette.menuTitle,
+            shortcut: "⌘⇧P"
+        ),
         AppShortcutEntry(id: "quick_search", category: .navigation, helpEntryID: "quick_search"),
 
         AppShortcutEntry(id: "toggle_left_panel", category: .panels, helpEntryID: "toggle_left_panel"),

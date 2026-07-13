@@ -100,6 +100,11 @@ enum AppPreferences {
         static let previewTextEditModifiers = "shortcuts.previewTextEditModifiers"
     }
 
+    /// 快捷命令面板。
+    enum CommandPalette {
+        static let recents = "commandPalette.recents"
+    }
+
     /// 远程服务器连接。
     enum RemoteServer {
         static let recentBookmarks = "remoteServer.recentBookmarks"

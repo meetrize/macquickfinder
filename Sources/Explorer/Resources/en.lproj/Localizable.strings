@@ -2006,6 +2006,16 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Size (Largest First)</string>
 	<key>sort.size_smallest</key>
 	<string>Size (Smallest First)</string>
+	<key>command_palette.common_section</key>
+	<string>Common commands</string>
+	<key>command_palette.menu_title</key>
+	<string>Command Palette…</string>
+	<key>command_palette.no_results</key>
+	<string>No matching commands</string>
+	<key>command_palette.placeholder</key>
+	<string>Type a command name…</string>
+	<key>command_palette.recents_section</key>
+	<string>Recently used</string>
 	<key>toolbar.auto_folder_size</key>
 	<string>Calculate All Folder Sizes</string>
 	<key>toolbar.browse_settings</key>

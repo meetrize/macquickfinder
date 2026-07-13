@@ -763,6 +763,11 @@ struct ExplorerApp: App {
             }
             .keyboardShortcut("?", modifiers: .command)
         }
+        CommandGroup(after: .toolbar) {
+            Button(L10n.CommandPalette.menuTitle) {
+                NotificationCenter.default.post(name: .commandPaletteToggleRequested, object: nil)
+            }
+        }
         CommandGroup(after: .sidebar) {
             Button(L10n.Menu.toggleLeftPanel) {
                 performWindowLayoutAction(
@@ -857,6 +862,8 @@ struct ExplorerApp: App {
 extension Notification.Name {
     static let snippetsImportRequested = Notification.Name("snippetsImportRequested")
     static let snippetsExportAllRequested = Notification.Name("snippetsExportAllRequested")
+    static let outputCommandFocusRequested = Notification.Name("outputCommandFocusRequested")
+    static let commandPaletteToggleRequested = Notification.Name("commandPaletteToggleRequested")
 }
 
 @MainActor

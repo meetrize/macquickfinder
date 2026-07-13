@@ -98,6 +98,11 @@ struct OutputPanelView: View {
                     OutputPanelTextEditingCenter.shared.setActive(false)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .outputCommandFocusRequested)) { _ in
+                prefersCommandFieldFocus = true
+                focusedField = .command
+                scheduleCommandFieldRefocus()
+            }
         }
     }
 

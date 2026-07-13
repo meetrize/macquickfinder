@@ -12,5 +12,6 @@ enum ExplorerKeyboardShortcuts {
     static let connectServer = KeyboardShortcut("k", modifiers: .command)
     static let showAllTabs = KeyboardShortcut("\\", modifiers: [.command, .shift])
     static let newWindow = KeyboardShortcut("n", modifiers: .command)
+    static let commandPalette = KeyboardShortcut("p", modifiers: [.command, .shift])
 }
 
