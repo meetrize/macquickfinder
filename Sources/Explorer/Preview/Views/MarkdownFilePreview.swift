@@ -734,15 +734,14 @@ struct MarkdownFilePreview: NSViewRepresentable {
                     )
 
                     let naturalSize = result.naturalSize
-                    let resolvedImage: NSImage? = await Task.detached(priority: .userInitiated) {
-                        if let image = result.image {
-                            return image
-                        }
-                        if let svg = result.svg {
-                            return MarkdownPreviewMermaidRenderer.makeImage(fromSVG: svg, size: naturalSize)
-                        }
-                        return nil
-                    }.value
+                    let resolvedImage: NSImage?
+                    if let image = result.image {
+                        resolvedImage = image
+                    } else if let svg = result.svg {
+                        resolvedImage = MarkdownPreviewMermaidRenderer.makeImage(fromSVG: svg, size: naturalSize)
+                    } else {
+                        resolvedImage = nil
+                    }
 
                     if let resolvedImage, naturalSize.width > 0, naturalSize.height > 0 {
                         MermaidPreviewCache.shared[cacheKey] = MarkdownPreviewMermaidBlock.CachedRender(
@@ -852,8 +851,10 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 object: scrollView.contentView,
                 queue: .main
             ) { [weak self] _ in
-                self?.handleTableLayoutWidthChange()
-                self?.handleMermaidVisibilityChange()
+                MainActor.assumeIsolated {
+                    self?.handleTableLayoutWidthChange()
+                    self?.handleMermaidVisibilityChange()
+                }
             }
         }
 
@@ -975,7 +976,9 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                self?.updatePreviewTextSelectionActive()
+                MainActor.assumeIsolated {
+                    self?.updatePreviewTextSelectionActive()
+                }
             }
             updatePreviewTextSelectionActive()
         }

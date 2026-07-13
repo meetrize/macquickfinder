@@ -158,7 +158,7 @@ extension PreviewSession {
                 previewToolbarIconItem(
                     id: "text-save",
                     title: L10n.Preview.TextEdit.save,
-                    systemImage: "square.and.arrow.down",
+                    systemImage: "tray.and.arrow.down",
                     isDisabled: !text.hasUnsavedChanges,
                     action: { [self] in text.previewAction = .save }
                 )
@@ -187,7 +187,7 @@ extension PreviewSession {
             previewToolbarIconItem(
                 id: "text-edit",
                 title: editTitle,
-                systemImage: "pencil",
+                systemImage: "square.and.pencil",
                 isDisabled: !canEdit,
                 action: { [self] in text.previewAction = .beginEdit }
             )

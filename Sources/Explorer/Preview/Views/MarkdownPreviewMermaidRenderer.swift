@@ -205,15 +205,14 @@ final class MarkdownPreviewMermaidRenderer: NSObject, WKNavigationDelegate {
                 contentSize: naturalSize
             )
             let svg = parsed.svg
-            let image: NSImage? = await Task.detached(priority: .userInitiated) {
-                if let snapshot {
-                    return snapshot
-                }
-                if let svg {
-                    return Self.makeImage(fromSVG: svg, size: naturalSize)
-                }
-                return nil
-            }.value
+            let image: NSImage?
+            if let snapshot {
+                image = snapshot
+            } else if let svg {
+                image = Self.makeImage(fromSVG: svg, size: naturalSize)
+            } else {
+                image = nil
+            }
 
             if image == nil {
                 Self.logger.error(
