@@ -9,7 +9,7 @@ extension PreviewSession {
             previewToolbarIconItem(
                 id: "text-wrap",
                 title: text.wrapEnabled ? L10n.Preview.Toolbar.wrapDisable : L10n.Preview.Toolbar.wrapEnable,
-                systemImage: text.wrapEnabled ? "text.justify.left" : "arrow.left.and.right.text.vertical",
+                systemImage: text.wrapEnabled ? "arrow.left.and.right.square" : "arrow.uturn.left.square",
                 action: { [self] in text.wrapEnabled.toggle() }
             ),
         ]

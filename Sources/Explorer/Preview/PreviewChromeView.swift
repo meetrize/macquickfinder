@@ -100,7 +100,7 @@ struct PreviewChromeView: View {
 
             if placement == .inlinePanel, let onDetach = actions.onDetach {
                 PreviewFocuslessIconButton(
-                    systemImageName: "macwindow.badge.plus",
+                    systemImageName: "arrow.up.right.square",
                     accessibilityLabel: L10n.Preview.Chrome.detach,
                     action: onDetach
                 )
