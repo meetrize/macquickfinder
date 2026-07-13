@@ -72,8 +72,9 @@ struct ExplorerToolbarItemView: View {
                     .disabled(environment.isCustomizing)
                 }
             case .sortMenu:
-                ExplorerToolbarLucideMenu(
-                    icon: LucideIcon.arrowUpDown,
+                ExplorerToolbarSFSymbolMenu(
+                    systemSymbolName: "line.horizontal.3.decrease.circle",
+                    tooltip: L10n.Toolbar.sort,
                     menuActions: SortOrder.allCases.map { order in
                         ExplorerToolbarMenuAction(
                             title: order.displayName,
@@ -90,11 +91,37 @@ struct ExplorerToolbarItemView: View {
                     menuActions: browseSettingsMenuActions
                 )
                 .disabled(environment.isCustomizing)
+            case .newWindow:
+                let newWindowButton = Button {
+                    ToolbarBuiltinDispatcher.perform(.newWindow, environment: environment)
+                } label: {
+                    SFSymbolToolbarIcon(systemName: "rectangle.on.rectangle")
+                }
+                .buttonStyle(ExplorerToolbarPlainButtonStyle())
+                .disabled(isBuiltinDisabled(.newWindow))
+                if let tooltip = tooltipForBuiltin(.newWindow) {
+                    newWindowButton.instantHoverTooltip(tooltip)
+                } else {
+                    newWindowButton
+                }
+            case .newTab:
+                let newTabButton = Button {
+                    ToolbarBuiltinDispatcher.perform(.newTab, environment: environment)
+                } label: {
+                    SFSymbolToolbarIcon(systemName: "square.on.square")
+                }
+                .buttonStyle(ExplorerToolbarPlainButtonStyle())
+                .disabled(isBuiltinDisabled(.newTab))
+                if let tooltip = tooltipForBuiltin(.newTab) {
+                    newTabButton.instantHoverTooltip(tooltip)
+                } else {
+                    newTabButton
+                }
             case .showAllTabs:
                 let showAllTabsButton = Button {
                     ToolbarBuiltinDispatcher.perform(.showAllTabs, environment: environment)
                 } label: {
-                    ShowAllTabsToolbarIcon()
+                    SFSymbolToolbarIcon(systemName: "square.stack.3d.down.right")
                 }
                 .buttonStyle(ExplorerToolbarPlainButtonStyle())
                 .disabled(isBuiltinDisabled(.showAllTabs))
@@ -102,6 +129,19 @@ struct ExplorerToolbarItemView: View {
                     showAllTabsButton.instantHoverTooltip(tooltip)
                 } else {
                     showAllTabsButton
+                }
+            case .preview:
+                let previewButton = Button {
+                    ToolbarBuiltinDispatcher.perform(.preview, environment: environment)
+                } label: {
+                    PreviewToolbarIcon(isActive: environment.layout.showPreview)
+                }
+                .buttonStyle(ExplorerToolbarPlainButtonStyle())
+                .disabled(isBuiltinDisabled(.preview))
+                if let tooltip = tooltipForBuiltin(.preview) {
+                    previewButton.instantHoverTooltip(tooltip)
+                } else {
+                    previewButton
                 }
             case .recordOperations:
                 let recordButton = Button {
@@ -356,12 +396,18 @@ extension ToolbarBuiltinID {
         case .thumbnailSizeSlider:
             Image(systemName: "slider.horizontal.3")
                 .font(.system(size: 12, weight: .medium))
+        case .newWindow:
+            SFSymbolToolbarIcon(systemName: "rectangle.on.rectangle")
+        case .newTab:
+            SFSymbolToolbarIcon(systemName: "square.on.square")
         case .showAllTabs:
-            ShowAllTabsToolbarIcon()
+            SFSymbolToolbarIcon(systemName: "square.stack.3d.down.right")
+        case .preview:
+            PreviewToolbarIcon(isActive: environment.layout.showPreview)
         case .recordOperations:
             RecordOperationsToolbarIcon(isRecording: environment.isOperationRecording)
         case .sortMenu:
-            LucideIcon.arrowUpDown
+            SFSymbolToolbarIcon(systemName: "line.horizontal.3.decrease.circle")
         case .browseSettingsMenu:
             LucideIcon.settings
         default:
@@ -370,11 +416,23 @@ extension ToolbarBuiltinID {
     }
 }
 
-private struct ShowAllTabsToolbarIcon: View {
+private struct SFSymbolToolbarIcon: View {
+    let systemName: String
+    var isActive: Bool = false
+
     var body: some View {
-        Image(systemName: "square.stack.3d.down.right")
+        Image(systemName: systemName)
             .font(.system(size: ExplorerToolbarMetrics.iconSize, weight: .medium))
+            .foregroundStyle(isActive ? Color.accentColor : Color.primary)
             .frame(width: ExplorerToolbarMetrics.iconSize, height: ExplorerToolbarMetrics.iconSize)
+    }
+}
+
+private struct PreviewToolbarIcon: View {
+    let isActive: Bool
+
+    var body: some View {
+        SFSymbolToolbarIcon(systemName: "photo", isActive: isActive)
     }
 }
 

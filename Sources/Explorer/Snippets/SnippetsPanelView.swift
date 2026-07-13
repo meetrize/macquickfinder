@@ -136,7 +136,23 @@ struct SnippetsPanelView: View {
     }
 
     private var snippetGrid: some View {
-        ScrollView {
+        GeometryReader { geometry in
+            ScrollView {
+                snippetGridContent(minHeight: geometry.size.height)
+            }
+        }
+        .frame(maxHeight: .infinity)
+        .onChange(of: visibleSnippets.map(\.id)) { _ in
+            guard settings.displayMode == .standard else { return }
+            if selectedSnippetID == nil || !visibleSnippets.contains(where: { $0.id == selectedSnippetID }) {
+                selectedSnippetID = visibleSnippets.first?.id
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func snippetGridContent(minHeight: CGFloat) -> some View {
+        Group {
             if visibleSnippets.isEmpty {
                 Text(searchText.isEmpty ? L10n.Snippets.Panel.noMatch : L10n.Snippets.Panel.noResults)
                     .foregroundStyle(.secondary)
@@ -171,13 +187,16 @@ struct SnippetsPanelView: View {
                 .padding(8)
             }
         }
-        .frame(maxHeight: .infinity)
-        .onChange(of: visibleSnippets.map(\.id)) { _ in
-            guard settings.displayMode == .standard else { return }
-            if selectedSnippetID == nil || !visibleSnippets.contains(where: { $0.id == selectedSnippetID }) {
-                selectedSnippetID = visibleSnippets.first?.id
-            }
-        }
+        .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
+        .contentShape(Rectangle())
+        .contextMenu { panelBlankContextMenu() }
+    }
+
+    @ViewBuilder
+    private func panelBlankContextMenu() -> some View {
+        Button(L10n.Snippets.Panel.new) { presentNewSnippetEditor() }
+        Button(L10n.Snippets.Panel.importAction) { importSnippets() }
+        Button(L10n.Snippets.Panel.exportAll) { exportAll() }
     }
 
     @ViewBuilder

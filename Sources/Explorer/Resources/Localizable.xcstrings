@@ -11206,6 +11206,23 @@
         }
       }
     },
+    "toolbar.sort": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sort"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排序"
+          }
+        }
+      }
+    },
     "toolbar.hide_left_panel": {
       "extractionState": "manual",
       "localizations": {

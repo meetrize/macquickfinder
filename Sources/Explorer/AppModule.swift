@@ -433,6 +433,49 @@ struct ExplorerToolbarLucideMenuButton: NSViewRepresentable {
     }
 }
 
+struct ExplorerToolbarSFSymbolMenuButton: NSViewRepresentable {
+    let systemSymbolName: String
+    let menuActions: [ExplorerToolbarMenuAction]
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> ExplorerToolbarLucideMenuNSView {
+        let view = ExplorerToolbarLucideMenuNSView()
+        view.onMenuAction = { index in
+            guard menuActions.indices.contains(index) else { return }
+            menuActions[index].handler()
+        }
+        updateMenuView(view, context: context)
+        return view
+    }
+
+    func updateNSView(_ nsView: ExplorerToolbarLucideMenuNSView, context: Context) {
+        context.coordinator.menuActions = menuActions
+        nsView.onMenuAction = { index in
+            guard menuActions.indices.contains(index) else { return }
+            menuActions[index].handler()
+        }
+        updateMenuView(nsView, context: context)
+    }
+
+    private func updateMenuView(_ view: ExplorerToolbarLucideMenuNSView, context: Context) {
+        view.update(
+            systemSymbolName: systemSymbolName,
+            menuActions: menuActions,
+            isActive: false,
+            isSecondary: false,
+            isEnabled: isEnabled
+        )
+    }
+
+    final class Coordinator {
+        var menuActions: [ExplorerToolbarMenuAction] = []
+    }
+}
+
 final class ExplorerToolbarLucideMenuNSView: NSView {
     private let imageView = NSImageView()
     private var menuActions: [ExplorerToolbarMenuAction] = []
@@ -465,7 +508,8 @@ final class ExplorerToolbarLucideMenuNSView: NSView {
     }
 
     func update(
-        svgData: Data,
+        svgData: Data? = nil,
+        systemSymbolName: String? = nil,
         menuActions: [ExplorerToolbarMenuAction],
         isActive: Bool,
         isSecondary: Bool,
@@ -473,7 +517,17 @@ final class ExplorerToolbarLucideMenuNSView: NSView {
     ) {
         self.menuActions = menuActions
 
-        if let image = NSImage(data: svgData) {
+        if let systemSymbolName {
+            let config = NSImage.SymbolConfiguration(
+                pointSize: ExplorerToolbarMetrics.iconSize,
+                weight: .medium
+            )
+            if let image = NSImage(systemSymbolName: systemSymbolName, accessibilityDescription: nil)?
+                .withSymbolConfiguration(config) {
+                image.isTemplate = true
+                imageView.image = image
+            }
+        } else if let svgData, let image = NSImage(data: svgData) {
             image.isTemplate = true
             imageView.image = image
         }
@@ -516,6 +570,24 @@ final class ExplorerToolbarLucideMenuNSView: NSView {
 
     override var acceptsFirstResponder: Bool { false }
     override var canBecomeKeyView: Bool { false }
+}
+
+struct ExplorerToolbarSFSymbolMenu: View {
+    let systemSymbolName: String
+    var tooltip: String? = nil
+    let menuActions: [ExplorerToolbarMenuAction]
+
+    var body: some View {
+        let button = ExplorerToolbarSFSymbolMenuButton(
+            systemSymbolName: systemSymbolName,
+            menuActions: menuActions
+        )
+        if let tooltip {
+            button.instantHoverTooltip(tooltip)
+        } else {
+            button
+        }
+    }
 }
 
 struct ExplorerToolbarLucideMenu: View {

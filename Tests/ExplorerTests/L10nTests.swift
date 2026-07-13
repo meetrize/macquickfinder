@@ -33,6 +33,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.File.pasteProgress(2, 5), "file.paste_progress")
         XCTAssertNotEqual(L10n.File.pasteProgressWithName(2, 5, "demo.txt"), "file.paste_progress_with_name")
         XCTAssertNotEqual(L10n.Toolbar.autoFolderSize, "toolbar.auto_folder_size")
+        XCTAssertNotEqual(L10n.Toolbar.sort, "toolbar.sort")
         XCTAssertNotEqual(L10n.Toolbar.panoramaLayoutGrid, "toolbar.panorama.layout_grid")
         XCTAssertNotEqual(L10n.Toolbar.panoramaLayoutPanorama, "toolbar.panorama.layout_panorama")
         XCTAssertNotEqual(L10n.Toolbar.panoramaMode, "toolbar.panorama_mode")
