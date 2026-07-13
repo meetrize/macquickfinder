@@ -78,6 +78,7 @@ struct SnippetEditorSheet: View {
         }
         .frame(minWidth: 520, maxWidth: .infinity, minHeight: 560, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
+        .background(FieldEditorTextEditingKeyMonitor())
     }
 
     private var header: some View {

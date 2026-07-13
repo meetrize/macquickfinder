@@ -99,6 +99,11 @@ struct SnippetScriptTextEditor: NSViewRepresentable {
 
 private final class SnippetScriptTextView: NSTextView {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // 仅在脚本文本框本身为第一响应者时拦截 ⌘A/C/X/V，避免抢走弹窗内其他输入框的粘贴等快捷键。
+        guard window?.firstResponder === self else {
+            return super.performKeyEquivalent(with: event)
+        }
+
         guard event.modifierFlags.contains(.command) else {
             return super.performKeyEquivalent(with: event)
         }

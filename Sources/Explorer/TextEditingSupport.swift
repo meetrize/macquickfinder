@@ -39,6 +39,29 @@ enum TextEditingCommands {
         NSApp.sendAction(selector, to: nil, from: nil)
     }
 
+    static func isFieldEditorFirstResponder(in window: NSWindow? = NSApp.keyWindow) -> Bool {
+        guard let textView = window?.firstResponder as? NSTextView else { return false }
+        return textView.isFieldEditor
+    }
+
+    static func editSelector(for event: NSEvent) -> Selector? {
+        guard event.modifierFlags.contains(.command) else { return nil }
+        guard let key = event.charactersIgnoringModifiers?.lowercased() else { return nil }
+        switch key {
+        case "a": return #selector(NSText.selectAll(_:))
+        case "c": return #selector(NSText.copy(_:))
+        case "v": return #selector(NSText.paste(_:))
+        case "x": return #selector(NSText.cut(_:))
+        default: return nil
+        }
+    }
+
+    static func performEditAction(for event: NSEvent) -> Bool {
+        guard let selector = editSelector(for: event) else { return false }
+        send(selector)
+        return true
+    }
+
     @ViewBuilder
     static func previewSelectionButtons() -> some View {
         Button("全选") {
@@ -108,20 +131,47 @@ struct TextEditingKeyMonitor: NSViewRepresentable {
 
         private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
             guard isActive else { return event }
-            guard event.modifierFlags.contains(.command) else { return event }
-            guard let key = event.charactersIgnoringModifiers?.lowercased() else { return event }
+            guard TextEditingCommands.performEditAction(for: event) else { return event }
+            return nil
+        }
 
-            let selector: Selector?
-            switch key {
-            case "a": selector = #selector(NSText.selectAll(_:))
-            case "c": selector = #selector(NSText.copy(_:))
-            case "v": selector = #selector(NSText.paste(_:))
-            case "x": selector = #selector(NSText.cut(_:))
-            default: selector = nil
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
             }
+        }
+    }
+}
 
-            guard let selector else { return event }
-            TextEditingCommands.send(selector)
+/// 当 field editor（SwiftUI TextField）为第一响应者时，拦截 Cmd+A/C/V/X 并转发。
+/// 适用于独立窗口等无法依赖 FocusState + `TextEditingKeyMonitor` 的场景。
+struct FieldEditorTextEditingKeyMonitor: NSViewRepresentable {
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> PassThroughKeyMonitorNSView {
+        let view = PassThroughKeyMonitorNSView()
+        context.coordinator.install(on: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: PassThroughKeyMonitorNSView, context: Context) {}
+
+    final class Coordinator {
+        private var monitor: Any?
+
+        func install(on view: NSView) {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self else { return event }
+                return self.handleKeyDown(event)
+            }
+        }
+
+        private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+            guard TextEditingCommands.isFieldEditorFirstResponder() else { return event }
+            guard TextEditingCommands.performEditAction(for: event) else { return event }
             return nil
         }
 
