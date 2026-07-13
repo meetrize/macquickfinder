@@ -5,6 +5,18 @@
 
 ---
 
+## 当前进度（自动维护）
+
+| 状态 | Issue |
+|------|-------|
+| ✅ 已完成 | CS-01 ~ CS-22（P1~P5 首版完整交付） |
+| ⏳ 下一步 | **CS-23** 正则搜索（P6 可选） |
+| ⬜ 可选 | CS-24 ~ CS-25（P6） |
+
+> Cursor 规则：`.cursor/rules/directory-content-search-plan.mdc` — Agent 应按顺序自动推进，完成每步后更新本表。
+
+---
+
 ## 总览
 
 | Phase | 主题 | Issue 数 | 预估 | 用户可见 |

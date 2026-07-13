@@ -105,6 +105,36 @@ struct FilePreviewSessionHost: View {
             guard !session.location.isDetached else { return }
             PreviewSessionStore.shared.remove(session.id)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .contentSearchRevealMatch)) { notification in
+            guard let request = ContentSearchRevealNotification.request(from: notification),
+                  request.hostWindowID == hostWindowID else {
+                return
+            }
+            applyContentSearchReveal(request: request)
+        }
+        .onAppear {
+            applyContentSearchReveal()
+        }
+        .onChange(of: selectedItem.id) { _ in
+            applyContentSearchReveal()
+        }
+        .onChange(of: session.contentLoadedItemID) { loadedID in
+            guard loadedID == selectedItem.id else { return }
+            applyContentSearchReveal()
+            ContentSearchRevealNotification.clearPending(for: hostWindowID)
+        }
+    }
+
+    private func applyContentSearchReveal(request: ContentSearchRevealRequest? = nil) {
+        let revealRequest: ContentSearchRevealRequest?
+        if let request {
+            revealRequest = request
+        } else {
+            revealRequest = ContentSearchRevealNotification.pending(for: hostWindowID, fileID: selectedItem.id)
+        }
+
+        guard let revealRequest, revealRequest.fileID == selectedItem.id else { return }
+        session.revealContentSearchMatch(lineNumber: revealRequest.lineNumber, query: revealRequest.query)
     }
 
     @ViewBuilder

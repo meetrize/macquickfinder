@@ -398,6 +398,12 @@
 	<string>连接服务器</string>
 	<key>help.entry.connect_server.shortcut</key>
 	<string>⌘K</string>
+	<key>help.entry.content_search.desc</key>
+	<string>在当前文件夹内搜索文件内容</string>
+	<key>help.entry.content_search.name</key>
+	<string>在文件夹中查找</string>
+	<key>help.entry.content_search.shortcut</key>
+	<string>⌘⇧F</string>
 	<key>help.entry.copy_clear.desc</key>
 	<string>复制全部输出或清空当前标签</string>
 	<key>help.entry.copy_clear.name</key>
@@ -1442,6 +1448,50 @@
 	<string>搜索文件</string>
 	<key>search.quick_search</key>
 	<string>快速搜索</string>
+	<key>search.mode.filename</key>
+	<string>文件名</string>
+	<key>search.mode.content</key>
+	<string>内容</string>
+	<key>search.content_prompt</key>
+	<string>在当前文件夹中搜索…</string>
+	<key>search.content_no_results</key>
+	<string>未找到匹配内容</string>
+	<key>search.content_truncated</key>
+	<string>已截断</string>
+	<key>search.content_cancelled</key>
+	<string>已取消</string>
+	<key>search.content_next_match</key>
+	<string>下一个匹配</string>
+	<key>search.content_find_in_folder</key>
+	<string>在文件夹中查找</string>
+	<key>search.content_searching</key>
+	<string>搜索中… %lld 处匹配</string>
+	<key>search.content_progress</key>
+	<string>已扫描 %lld/%lld 个文件 · %lld 处匹配</string>
+	<key>search.content_summary.files</key>
+	<string>%lld 个文件</string>
+	<key>search.content_summary.matches</key>
+	<string>%lld 处匹配</string>
+	<key>search.content_summary.elapsed</key>
+	<string>%.1fs</string>
+	<key>search.content_summary.position</key>
+	<string>%lld/%lld</string>
+	<key>search.filter.title</key>
+	<string>过滤</string>
+	<key>search.filter.include</key>
+	<string>包含</string>
+	<key>search.filter.exclude</key>
+	<string>排除</string>
+	<key>search.filter.subdirectories</key>
+	<string>包含子文件夹</string>
+	<key>search.filter.case_sensitive</key>
+	<string>区分大小写</string>
+	<key>search.filter.reset</key>
+	<string>重置</string>
+	<key>search.filter.include_placeholder</key>
+	<string>*.swift *.md</string>
+	<key>search.filter.exclude_placeholder</key>
+	<string>node_modules/**</string>
 	<key>settings.auto_show_output</key>
 	<string>Shell 执行时自动展开输出面板</string>
 	<key>settings.blank_action.parent</key>

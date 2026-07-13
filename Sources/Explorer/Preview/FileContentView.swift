@@ -314,7 +314,9 @@ struct FileContentView: View {
                         searchNextToken: $session.text.searchNextToken,
                         searchPrevToken: $session.text.searchPrevToken,
                         searchMatchCount: $session.text.searchMatchCount,
-                        searchCurrentIndex: $session.text.searchCurrentIndex
+                        searchCurrentIndex: $session.text.searchCurrentIndex,
+                        contentSearchJumpLine: $session.text.contentSearchJumpLine,
+                        contentSearchJumpToken: $session.text.contentSearchJumpToken
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }

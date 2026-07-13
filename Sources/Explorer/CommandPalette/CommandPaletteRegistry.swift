@@ -27,6 +27,16 @@ enum CommandPaletteRegistry {
             perform: { $0.focusSearch() }
         ),
         CommandPaletteDefinition(
+            id: "find_in_folder",
+            title: { _ in L10n.Search.findInFolder },
+            category: L10n.Help.sectionTitle("navigation"),
+            keywords: ["search", "grep", "find", "folder", "content", "搜索", "查找", "全文", "文件夹"],
+            shortcutDisplay: "⌘⇧F",
+            priority: 99,
+            isEnabled: { _ in true },
+            perform: { $0.focusFindInFolder() }
+        ),
+        CommandPaletteDefinition(
             id: "back",
             title: { _ in L10n.Pathbar.back },
             category: L10n.Help.sectionTitle("navigation"),

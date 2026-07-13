@@ -398,6 +398,12 @@
 	<string>Connect to Server</string>
 	<key>help.entry.connect_server.shortcut</key>
 	<string>⌘K</string>
+	<key>help.entry.content_search.desc</key>
+	<string>Search file contents in the current folder</string>
+	<key>help.entry.content_search.name</key>
+	<string>Find in Folder</string>
+	<key>help.entry.content_search.shortcut</key>
+	<string>⌘⇧F</string>
 	<key>help.entry.copy_clear.desc</key>
 	<string>Copy all output or clear the current tab</string>
 	<key>help.entry.copy_clear.name</key>
@@ -1442,6 +1448,50 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Search files</string>
 	<key>search.quick_search</key>
 	<string>Quick Search</string>
+	<key>search.mode.filename</key>
+	<string>Filename</string>
+	<key>search.mode.content</key>
+	<string>Content</string>
+	<key>search.content_prompt</key>
+	<string>Search in folder…</string>
+	<key>search.content_no_results</key>
+	<string>No matches found</string>
+	<key>search.content_truncated</key>
+	<string>Truncated</string>
+	<key>search.content_cancelled</key>
+	<string>Cancelled</string>
+	<key>search.content_next_match</key>
+	<string>Next Match</string>
+	<key>search.content_find_in_folder</key>
+	<string>Find in Folder</string>
+	<key>search.content_searching</key>
+	<string>Searching… %lld matches</string>
+	<key>search.content_progress</key>
+	<string>Scanned %lld/%lld files · %lld matches</string>
+	<key>search.content_summary.files</key>
+	<string>%lld files</string>
+	<key>search.content_summary.matches</key>
+	<string>%lld matches</string>
+	<key>search.content_summary.elapsed</key>
+	<string>%.1fs</string>
+	<key>search.content_summary.position</key>
+	<string>%lld/%lld</string>
+	<key>search.filter.title</key>
+	<string>Filter</string>
+	<key>search.filter.include</key>
+	<string>Include</string>
+	<key>search.filter.exclude</key>
+	<string>Exclude</string>
+	<key>search.filter.subdirectories</key>
+	<string>Include subfolders</string>
+	<key>search.filter.case_sensitive</key>
+	<string>Case sensitive</string>
+	<key>search.filter.reset</key>
+	<string>Reset</string>
+	<key>search.filter.include_placeholder</key>
+	<string>*.swift *.md</string>
+	<key>search.filter.exclude_placeholder</key>
+	<string>node_modules/**</string>
 	<key>settings.auto_show_output</key>
 	<string>Auto-show Output Panel on Shell Run</string>
 	<key>settings.blank_action.parent</key>

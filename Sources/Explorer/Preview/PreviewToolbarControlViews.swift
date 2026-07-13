@@ -209,6 +209,15 @@ struct PreviewTextSearchToolbarControls: View {
         .background {
             TextEditingKeyMonitor(isActive: isSearchFieldFocused)
         }
+        .onChange(of: isSearchFieldFocused) { focused in
+            DirectoryContentSearchKeyboardPriority.setPreviewSearchFieldFocused(focused)
+        }
+        .onAppear {
+            DirectoryContentSearchKeyboardPriority.setPreviewSearchFieldFocused(isSearchFieldFocused)
+        }
+        .onDisappear {
+            DirectoryContentSearchKeyboardPriority.setPreviewSearchFieldFocused(false)
+        }
     }
 }
 

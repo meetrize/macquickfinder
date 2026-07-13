@@ -21,6 +21,7 @@ struct CommandPaletteContext {
     var canNavigateUp: Bool
 
     var focusSearch: () -> Void
+    var focusFindInFolder: () -> Void
     var navigateBack: () -> Void
     var navigateForward: () -> Void
     var navigateUp: () -> Void

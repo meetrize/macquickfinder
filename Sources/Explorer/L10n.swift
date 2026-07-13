@@ -801,6 +801,46 @@ enum L10n {
         static var focus: String { ModuleLocalization.localized("search.focus", bundle: .module) }
         static var quickSearch: String { ModuleLocalization.localized("search.quick_search", bundle: .module) }
         static var closeQuickSearch: String { ModuleLocalization.localized("search.close_quick_search", bundle: .module) }
+        static var modeFilename: String { ModuleLocalization.localized("search.mode.filename", bundle: .module) }
+        static var modeContent: String { ModuleLocalization.localized("search.mode.content", bundle: .module) }
+        static var contentPrompt: String { ModuleLocalization.localized("search.content_prompt", bundle: .module) }
+        static var contentNoResults: String { ModuleLocalization.localized("search.content_no_results", bundle: .module) }
+        static var contentTruncated: String { ModuleLocalization.localized("search.content_truncated", bundle: .module) }
+        static var contentCancelled: String { ModuleLocalization.localized("search.content_cancelled", bundle: .module) }
+        static var contentNextMatch: String { ModuleLocalization.localized("search.content_next_match", bundle: .module) }
+        static var findInFolder: String { ModuleLocalization.localized("search.content_find_in_folder", bundle: .module) }
+        static var filterTitle: String { ModuleLocalization.localized("search.filter.title", bundle: .module) }
+        static var filterInclude: String { ModuleLocalization.localized("search.filter.include", bundle: .module) }
+        static var filterExclude: String { ModuleLocalization.localized("search.filter.exclude", bundle: .module) }
+        static var filterSubdirectories: String { ModuleLocalization.localized("search.filter.subdirectories", bundle: .module) }
+        static var filterCaseSensitive: String { ModuleLocalization.localized("search.filter.case_sensitive", bundle: .module) }
+        static var filterReset: String { ModuleLocalization.localized("search.filter.reset", bundle: .module) }
+        static var filterIncludePlaceholder: String { ModuleLocalization.localized("search.filter.include_placeholder", bundle: .module) }
+        static var filterExcludePlaceholder: String { ModuleLocalization.localized("search.filter.exclude_placeholder", bundle: .module) }
+
+        static func contentSummaryFiles(_ count: Int) -> String {
+            String(format: ModuleLocalization.localized("search.content_summary.files", bundle: .module), count)
+        }
+
+        static func contentSummaryMatches(_ count: Int) -> String {
+            String(format: ModuleLocalization.localized("search.content_summary.matches", bundle: .module), count)
+        }
+
+        static func contentSummaryElapsed(_ seconds: TimeInterval) -> String {
+            String(format: ModuleLocalization.localized("search.content_summary.elapsed", bundle: .module), seconds)
+        }
+
+        static func contentSummaryPosition(_ current: Int, _ total: Int) -> String {
+            String(format: ModuleLocalization.localized("search.content_summary.position", bundle: .module), current, total)
+        }
+
+        static func contentProgress(scanned: Int, total: Int, matches: Int) -> String {
+            String(format: ModuleLocalization.localized("search.content_progress", bundle: .module), scanned, total, matches)
+        }
+
+        static func contentSearchingMatches(_ matches: Int) -> String {
+            String(format: ModuleLocalization.localized("search.content_searching", bundle: .module), matches)
+        }
     }
 
     enum Pathbar {

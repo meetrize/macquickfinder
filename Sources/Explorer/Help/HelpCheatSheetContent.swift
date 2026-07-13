@@ -9,7 +9,7 @@ enum HelpCheatSheetContent {
     static let sections: [HelpCheatSheetSection] = [
         HelpCheatSheetSection(id: "navigation", entries: [
             "file_list", "list_view", "thumbnail_view", "path_breadcrumb", "path_edit",
-            "back_forward", "path_history", "quick_search", "global_search",
+            "back_forward", "path_history", "quick_search", "global_search", "content_search",
             "double_click_open", "blank_double_click", "drag_drop_open", "external_open",
         ]),
         HelpCheatSheetSection(id: "sidebar", entries: [

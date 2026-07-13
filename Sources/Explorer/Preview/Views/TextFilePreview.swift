@@ -17,6 +17,8 @@ struct TextFilePreview: NSViewRepresentable {
     @Binding var searchPrevToken: UInt
     @Binding var searchMatchCount: Int
     @Binding var searchCurrentIndex: Int
+    @Binding var contentSearchJumpLine: Int?
+    @Binding var contentSearchJumpToken: UInt
 
     private var isEditing: Bool {
         displayMode == .editing
@@ -260,6 +262,17 @@ struct TextFilePreview: NSViewRepresentable {
                 scrollToCurrent: true
             )
         }
+
+        if coordinator.lastContentSearchJumpToken != contentSearchJumpToken,
+           let jumpLine = contentSearchJumpLine {
+            let didApply = coordinator.applyContentSearchJump(
+                lineNumber: jumpLine,
+                textView: textView
+            )
+            if didApply {
+                coordinator.lastContentSearchJumpToken = contentSearchJumpToken
+            }
+        }
     }
     
     final class Coordinator {
@@ -276,6 +289,7 @@ struct TextFilePreview: NSViewRepresentable {
         var lastSearchQuery: String = ""
         var lastSearchNextToken: UInt = 0
         var lastSearchPrevToken: UInt = 0
+        var lastContentSearchJumpToken: UInt = 0
         var searchCurrentIndex: Int = 0
         var searchMatchRanges: [NSRange] = []
         var lastHighlightedSearchRanges: [NSRange] = []
@@ -422,6 +436,25 @@ struct TextFilePreview: NSViewRepresentable {
                 return
             }
             previewTextSelectionActive?.wrappedValue = textView.window?.firstResponder === textView
+        }
+
+        func applyContentSearchJump(lineNumber: Int, textView: NSTextView) -> Bool {
+            guard PreviewTextSearchHighlighter.canRevealLine(lineNumber, in: textView.string) else {
+                return false
+            }
+
+            applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+            if let matchIndex = PreviewTextSearchHighlighter.firstMatchIndexOnLine(
+                lineNumber: lineNumber,
+                in: textView.string,
+                matchRanges: searchMatchRanges
+            ) {
+                searchCurrentIndex = matchIndex
+                applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
+            } else {
+                PreviewTextSearchHighlighter.scrollToLine(lineNumber, in: textView)
+            }
+            return true
         }
 
         func applySearchHighlightsInPlace(textView: NSTextView, scrollToCurrent: Bool) {

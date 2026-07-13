@@ -46,6 +46,10 @@ enum FileListInteractionCoordinator {
         interaction: FileListTableInteraction,
         effectiveSelectionIDs: () -> Set<String>
     ) -> Bool {
+        guard !interaction.isContentSearchActive else {
+            return false
+        }
+
         let flags = event.modifierFlags
         guard !flags.contains(.command), !flags.contains(.control), !flags.contains(.option) else {
             return false

@@ -769,6 +769,11 @@ struct ExplorerApp: App {
             }
         }
         CommandGroup(after: .sidebar) {
+            Button(L10n.Search.findInFolder) {
+                NotificationCenter.default.post(name: .findInFolderRequested, object: nil)
+            }
+            .keyboardShortcut("f", modifiers: [.command, .shift])
+
             Button(L10n.Menu.toggleLeftPanel) {
                 performWindowLayoutAction(
                     onKeyLayout: { $0.toggleLeftPanelVisibility() },

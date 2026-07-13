@@ -212,6 +212,10 @@ struct ContentView: View {
     @State private var lastHandledOpenRequestGeneration: UInt = 0
     @State private var isCommandPalettePresented = false
     @State private var commandPaletteSession: CommandPaletteSession?
+    @StateObject private var contentSearchSession = DirectoryContentSearchSession()
+    @AppStorage(AppPreferences.Search.mode) private var searchModeRaw = DirectorySearchMode.filename.rawValue
+    @State private var contentQuery = ""
+    @State private var isContentSearchFilterExpanded = false
     
     init(
         initialPath: String? = nil,
@@ -611,7 +615,27 @@ struct ContentView: View {
                 isApplyingHistoryNavigation = false
             }
             layout.recordLastOpenedPath(newPath)
+            resetContentSearchForPathChange()
             loadItems()
+        }
+        .onChange(of: contentQuery) { newValue in
+            contentSearchSession.query = newValue
+        }
+        .onChange(of: searchModeRaw) { _ in
+            handleDirectorySearchModeChange()
+        }
+        .onChange(of: showHiddenFiles) { _ in
+            syncContentSearchContext()
+        }
+        .onAppear {
+            loadPersistedContentSearchFilter()
+            syncContentSearchContext()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .findInFolderRequested)) { _ in
+            focusFindInFolder()
+        }
+        .onChange(of: contentSearchSession.filter) { filter in
+            persistContentSearchFilter(filter)
         }
         .onChange(of: autoCalculateDirectorySizes) { enabled in
             handleAutoCalculateDirectorySizesChanged(enabled)
@@ -692,6 +716,86 @@ struct ContentView: View {
         }
         return items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
+
+    private var directorySearchMode: DirectorySearchMode {
+        DirectorySearchMode(rawValue: searchModeRaw) ?? .filename
+    }
+
+    private var searchModeBinding: Binding<DirectorySearchMode> {
+        Binding(
+            get: { directorySearchMode },
+            set: { searchModeRaw = $0.rawValue }
+        )
+    }
+
+    private var shouldShowContentSearchResults: Bool {
+        directorySearchMode == .content
+            && !contentQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func syncContentSearchContext() {
+        contentSearchSession.updateSearchContext(
+            root: URL(fileURLWithPath: path),
+            showHiddenFiles: showHiddenFiles
+        )
+    }
+
+    private func resetContentSearchForPathChange() {
+        contentSearchSession.cancel()
+        contentQuery = ""
+        syncContentSearchContext()
+    }
+
+    private func handleDirectorySearchModeChange() {
+        if directorySearchMode == .filename {
+            contentQuery = ""
+            contentSearchSession.cancel()
+            isContentSearchFilterExpanded = false
+        } else {
+            searchText = ""
+            syncContentSearchContext()
+        }
+    }
+
+    private var isContentSearchActive: Bool {
+        shouldShowContentSearchResults
+    }
+
+    private func dismissContentSearch() {
+        contentSearchSession.cancelInFlightSearch()
+        contentQuery = ""
+    }
+
+    private func focusFindInFolder() {
+        searchModeRaw = DirectorySearchMode.content.rawValue
+        activeBarField = .search
+    }
+
+    private func handleContentSearchMatchSelected(_ match: ContentSearchMatch) {
+        selection = [match.fileURL.path]
+        layout.showPreview = true
+        ContentSearchRevealNotification.prepareReveal(
+            ContentSearchRevealRequest(
+                hostWindowID: previewHostWindowID,
+                fileID: match.fileURL.path,
+                lineNumber: match.lineNumber,
+                query: contentQuery
+            )
+        )
+    }
+
+    private func loadPersistedContentSearchFilter() {
+        guard let data = UserDefaults.standard.data(forKey: AppPreferences.Search.contentFilterJSON),
+              let filter = try? JSONDecoder().decode(ContentSearchFilter.self, from: data) else {
+            return
+        }
+        contentSearchSession.filter = filter
+    }
+
+    private func persistContentSearchFilter(_ filter: ContentSearchFilter) {
+        guard let data = try? JSONEncoder().encode(filter) else { return }
+        UserDefaults.standard.set(data, forKey: AppPreferences.Search.contentFilterJSON)
+    }
     
     @ViewBuilder
     private var explorerBrowserColumn: some View {
@@ -733,8 +837,32 @@ struct ContentView: View {
                 onStopAndGenerate: stopOperationRecordingAndReview,
                 onDiscard: { showDiscardRecordingConfirm = true }
             )
-            
-            explorerFileListSection
+
+            if directorySearchMode == .content, isContentSearchFilterExpanded {
+                DirectoryContentSearchFilterBar(
+                    session: contentSearchSession,
+                    isExpanded: $isContentSearchFilterExpanded
+                )
+                Divider()
+            }
+
+            Group {
+                if shouldShowContentSearchResults {
+                    DirectoryContentSearchResultsView(
+                        session: contentSearchSession,
+                        onSelectMatch: { match in
+                            handleContentSearchMatchSelected(match)
+                        },
+                        onShowPreview: {
+                            layout.showPreview = true
+                        },
+                        onDismiss: dismissContentSearch
+                    )
+                } else {
+                    explorerFileListSection
+                }
+            }
+            .animation(.easeOut(duration: 0.15), value: shouldShowContentSearchResults)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
@@ -762,17 +890,13 @@ struct ContentView: View {
                 store: toolbarStore,
                 environment: toolbarEnvironment,
                 searchContent: {
-                    BarTextField(
-                        fieldID: .search,
-                        prompt: L10n.Search.prompt,
-                        text: $searchText,
-                        activeField: $activeBarField,
-                        icon: "magnifyingglass",
-                        shape: .capsule,
-                        showsClearButton: true,
-                        clearTextOnEscape: true
+                    DirectoryContentSearchToolbarSearch(
+                        searchMode: searchModeBinding,
+                        searchText: $searchText,
+                        contentQuery: $contentQuery,
+                        activeBarField: $activeBarField,
+                        isFilterExpanded: $isContentSearchFilterExpanded
                     )
-                    .frame(width: 220)
                 }
             )
         }
@@ -811,6 +935,15 @@ struct ContentView: View {
                 activeBarField = .search
             }
             .keyboardShortcut("f", modifiers: .command)
+            .labelsHidden()
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+
+            Button(L10n.Search.findInFolder) {
+                focusFindInFolder()
+            }
+            .keyboardShortcut("f", modifiers: [.command, .shift])
             .labelsHidden()
             .opacity(0)
             .frame(width: 0, height: 0)
@@ -937,6 +1070,7 @@ struct ContentView: View {
             canNavigateForward: canNavigateForward,
             canNavigateUp: FileItem.canNavigateUp(from: path),
             focusSearch: { activeBarField = .search },
+            focusFindInFolder: focusFindInFolder,
             navigateBack: navigateBack,
             navigateForward: navigateForward,
             navigateUp: navigateUp,
@@ -1125,6 +1259,7 @@ struct ContentView: View {
             selection: $selection,
             showPreview: $layout.showPreview,
             searchText: searchText,
+            isContentSearchActive: isContentSearchActive,
             quickSearchText: $quickSearchText,
             isQuickSearchVisible: $isQuickSearchVisible,
             isFileListRenaming: $isFileListRenaming,

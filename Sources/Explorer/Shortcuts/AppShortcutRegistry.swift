@@ -54,6 +54,7 @@ struct AppShortcutEntry: Identifiable {
 enum AppShortcutRegistry {
     static let entries: [AppShortcutEntry] = [
         AppShortcutEntry(id: "focus_search", category: .navigation, helpEntryID: "global_search"),
+        AppShortcutEntry(id: "find_in_folder", category: .navigation, helpEntryID: "content_search"),
         AppShortcutEntry(id: "back_forward", category: .navigation, helpEntryID: "back_forward"),
         AppShortcutEntry(
             id: "new_tab",

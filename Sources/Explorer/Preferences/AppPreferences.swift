@@ -76,6 +76,12 @@ enum AppPreferences {
         static let interfaceLanguage = ModuleLocalization.preferenceKey
     }
 
+    /// 顶栏搜索与内容搜索。
+    enum Search {
+        static let mode = "explorer.search.mode"
+        static let contentFilterJSON = "explorer.search.contentFilterJSON"
+    }
+
     /// JSON / Data 持久化 blob。
     enum Data {
         static let favorites = "favoriteLocations"

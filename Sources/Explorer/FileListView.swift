@@ -7,6 +7,7 @@ struct FileListView: View {
     @Binding var selection: Set<FileItem.ID>
     @Binding var showPreview: Bool
     let searchText: String
+    let isContentSearchActive: Bool
     @Binding var quickSearchText: String
     @Binding var isQuickSearchVisible: Bool
     @Binding var isFileListRenaming: Bool
@@ -311,6 +312,7 @@ struct FileListView: View {
         FileListTableInteraction(
             searchText: searchText,
             quickSearchText: quickSearchText,
+            isContentSearchActive: isContentSearchActive,
             blankMenuActions: blankMenuActions,
             onBlankSingleClick: {
                 if !selection.isEmpty {

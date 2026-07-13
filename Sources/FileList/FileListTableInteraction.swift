@@ -5,6 +5,7 @@ import Foundation
 public struct FileListTableInteraction {
     public var searchText: String
     public var quickSearchText: String
+    public var isContentSearchActive: Bool
     public var blankMenuActions: FileListBlankMenuActions
     public var onBlankSingleClick: () -> Void
     public var onBlankDoubleClick: () -> Void
@@ -39,6 +40,7 @@ public struct FileListTableInteraction {
     public init(
         searchText: String = "",
         quickSearchText: String = "",
+        isContentSearchActive: Bool = false,
         blankMenuActions: FileListBlankMenuActions = FileListBlankMenuActions(),
         onBlankSingleClick: @escaping () -> Void = {},
         onBlankDoubleClick: @escaping () -> Void = {},
@@ -73,6 +75,7 @@ public struct FileListTableInteraction {
     ) {
         self.searchText = searchText
         self.quickSearchText = quickSearchText
+        self.isContentSearchActive = isContentSearchActive
         self.blankMenuActions = blankMenuActions
         self.onBlankSingleClick = onBlankSingleClick
         self.onBlankDoubleClick = onBlankDoubleClick

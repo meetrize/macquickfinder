@@ -6218,6 +6218,160 @@
         }
       }
     },
+    "search.mode.filename": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Filename" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "文件名" } }
+      }
+    },
+    "search.mode.content": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Content" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "内容" } }
+      }
+    },
+    "search.content_prompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Search in folder…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在当前文件夹中搜索…" } }
+      }
+    },
+    "search.content_no_results": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No matches found" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未找到匹配内容" } }
+      }
+    },
+    "search.content_truncated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Truncated" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已截断" } }
+      }
+    },
+    "search.content_cancelled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cancelled" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已取消" } }
+      }
+    },
+    "search.content_next_match": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Next Match" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "下一个匹配" } }
+      }
+    },
+    "search.content_find_in_folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Find in Folder" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在文件夹中查找" } }
+      }
+    },
+    "search.content_searching": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Searching… %lld matches" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "搜索中… %lld 处匹配" } }
+      }
+    },
+    "search.content_progress": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Scanned %lld/%lld files · %lld matches" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已扫描 %lld/%lld 个文件 · %lld 处匹配" } }
+      }
+    },
+    "search.content_summary.files": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld files" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld 个文件" } }
+      }
+    },
+    "search.content_summary.matches": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld matches" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld 处匹配" } }
+      }
+    },
+    "search.content_summary.elapsed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%.1fs" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%.1fs" } }
+      }
+    },
+    "search.content_summary.position": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld/%lld" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld/%lld" } }
+      }
+    },
+    "search.filter.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Filter" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "过滤" } }
+      }
+    },
+    "search.filter.include": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Include" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含" } }
+      }
+    },
+    "search.filter.exclude": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Exclude" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "排除" } }
+      }
+    },
+    "search.filter.subdirectories": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Include subfolders" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含子文件夹" } }
+      }
+    },
+    "search.filter.case_sensitive": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Case sensitive" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "区分大小写" } }
+      }
+    },
+    "search.filter.reset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reset" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "重置" } }
+      }
+    },
+    "search.filter.include_placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "*.swift *.md" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "*.swift *.md" } }
+      }
+    },
+    "search.filter.exclude_placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "node_modules/**" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "node_modules/**" } }
+      }
+    },
     "remote_server.address_placeholder": {
       "extractionState": "manual",
       "localizations": {
@@ -13117,6 +13271,27 @@
             "value": "⌘F"
           }
         }
+      }
+    },
+    "help.entry.content_search.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Find in Folder" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在文件夹中查找" } }
+      }
+    },
+    "help.entry.content_search.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Search file contents in the current folder" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在当前文件夹内搜索文件内容" } }
+      }
+    },
+    "help.entry.content_search.shortcut": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "⌘⇧F" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "⌘⇧F" } }
       }
     },
     "help.entry.double_click_open.name": {
