@@ -27,6 +27,10 @@ final class ShortcutSettingsStore: ObservableObject {
         didSet { persistCopyPathBinding() }
     }
 
+    @Published var previewTextEditBinding: ShortcutBinding {
+        didSet { persistPreviewTextEditBinding() }
+    }
+
     private init() {
         globalToggleEnabled = UserDefaultsStorage.bool(
             forKey: AppPreferences.Shortcuts.globalToggleEnabled,
@@ -35,6 +39,7 @@ final class ShortcutSettingsStore: ObservableObject {
         globalToggleBinding = Self.loadGlobalToggleBinding()
         newTabBinding = Self.loadNewTabBinding()
         copyPathBinding = Self.loadCopyPathBinding()
+        previewTextEditBinding = Self.loadPreviewTextEditBinding()
     }
 
     func resetGlobalToggleBinding() {
@@ -47,6 +52,10 @@ final class ShortcutSettingsStore: ObservableObject {
 
     func resetCopyPathBinding() {
         copyPathBinding = .defaultCopyPath
+    }
+
+    func resetPreviewTextEditBinding() {
+        previewTextEditBinding = .defaultPreviewTextEdit
     }
 
     private func persistGlobalToggleBinding() {
@@ -105,6 +114,26 @@ final class ShortcutSettingsStore: ObservableObject {
         let modifiers = UInt(UserDefaultsStorage.int(
             forKey: AppPreferences.Shortcuts.copyPathModifiers,
             default: Int(ShortcutBinding.defaultCopyPath.modifiers)
+        ))
+        return ShortcutBinding(keyCode: keyCode, modifiers: modifiers)
+    }
+
+    private func persistPreviewTextEditBinding() {
+        UserDefaultsStorage.set(Int(previewTextEditBinding.keyCode), forKey: AppPreferences.Shortcuts.previewTextEditKeyCode)
+        UserDefaultsStorage.set(Int(previewTextEditBinding.modifiers), forKey: AppPreferences.Shortcuts.previewTextEditModifiers)
+    }
+
+    private static func loadPreviewTextEditBinding() -> ShortcutBinding {
+        guard UserDefaults.standard.object(forKey: AppPreferences.Shortcuts.previewTextEditKeyCode) != nil else {
+            return .defaultPreviewTextEdit
+        }
+        let keyCode = UInt16(UserDefaultsStorage.int(
+            forKey: AppPreferences.Shortcuts.previewTextEditKeyCode,
+            default: Int(ShortcutBinding.defaultPreviewTextEdit.keyCode)
+        ))
+        let modifiers = UInt(UserDefaultsStorage.int(
+            forKey: AppPreferences.Shortcuts.previewTextEditModifiers,
+            default: Int(ShortcutBinding.defaultPreviewTextEdit.modifiers)
         ))
         return ShortcutBinding(keyCode: keyCode, modifiers: modifiers)
     }

@@ -5,6 +5,7 @@ import FileList
 struct FileContentView: View {
     @ObservedObject var session: PreviewSession
     @ObservedObject private var customPreviewStore = CustomPreviewRuleStore.shared
+    @ObservedObject private var shortcutSettings = ShortcutSettingsStore.shared
     @AppStorage(AppPreferences.Preview.codeShowLineNumbers)
     private var codePreviewShowLineNumbers = false
     @State private var lastAppliedLoadTaskID: String?
@@ -55,6 +56,12 @@ struct FileContentView: View {
 
     private var showsCodeLineNumbers: Bool {
         codePreviewShowLineNumbers && PreviewTypeClassifier.isCodeFile(fileExtension)
+    }
+
+    private var canEnterPreviewTextEdit: Bool {
+        guard !session.text.isEditing else { return false }
+        guard session.content.loadPhase == .loaded else { return false }
+        return PreviewTextEditEligibility.canOfferEdit(file: session.browseTarget, session: session)
     }
 
     private var imageResizePreviewIdentity: String {
@@ -336,6 +343,16 @@ struct FileContentView: View {
             Task { await session.saveEditedText() }
         } : nil)
         .background(TextEditingKeyMonitor(isActive: previewTextSelectionActive))
+        .background {
+            LocalShortcutMonitor(
+                binding: shortcutSettings.previewTextEditBinding,
+                isEnabled: canEnterPreviewTextEdit
+            ) {
+                session.enterTextEditMode()
+            }
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+        }
         .task(id: contentLoadTaskID) {
             await applyLoadTaskIfNeeded()
         }

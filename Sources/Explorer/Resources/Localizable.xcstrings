@@ -8364,6 +8364,23 @@
         }
       }
     },
+    "settings.shortcut.preview_text_edit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Preview Text"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑预览文本"
+          }
+        }
+      }
+    },
     "settings.shortcut.global_toggle": {
       "extractionState": "manual",
       "localizations": {
@@ -14832,6 +14849,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "⌘⌥P"
+          }
+        }
+      }
+    },
+    "help.entry.preview_text_edit.name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Preview Text"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑预览文本"
+          }
+        }
+      }
+    },
+    "help.entry.preview_text_edit.desc": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter edit mode for the current text or code preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在预览面板中将当前文本或代码文件进入编辑模式"
+          }
+        }
+      }
+    },
+    "help.entry.preview_text_edit.shortcut": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘E"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⌘E"
           }
         }
       }

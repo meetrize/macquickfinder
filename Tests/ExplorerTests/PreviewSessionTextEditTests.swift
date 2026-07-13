@@ -170,4 +170,27 @@ final class PreviewSessionTextEditTests: XCTestCase {
         XCTAssertEqual(session.text.originalContent, "loaded")
         XCTAssertFalse(session.text.hasUnsavedChanges)
     }
+
+    func testSaveEditedTextUpdatesPreviewInPlaceWithoutReload() async throws {
+        let url = try makeWritableFile(named: "sample.txt", content: "hello")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let session = PreviewSession(hostWindowID: UUID(), file: makeFileItem(url: url))
+        session.content.textContent = "hello"
+        session.content.loadPhase = .loaded
+        session.contentLoadedItemID = url.path
+        session.enterTextEditMode()
+        session.updateTextEditDirtyState(with: "hello world")
+
+        let saved = await session.saveEditedText()
+
+        XCTAssertTrue(saved)
+        XCTAssertEqual(session.content.loadPhase, .loaded)
+        XCTAssertEqual(session.contentLoadedItemID, url.path)
+        XCTAssertEqual(session.content.textContent, "hello world")
+        XCTAssertEqual(session.text.displayMode, .viewing)
+        XCTAssertFalse(session.text.hasUnsavedChanges)
+        let diskContent = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertEqual(diskContent, "hello world")
+    }
 }

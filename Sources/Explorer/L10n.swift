@@ -295,6 +295,7 @@ enum L10n {
             static var closeDetachedPreview: String { ModuleLocalization.localized("settings.shortcut.close_detached_preview", bundle: .module) }
             static var newTab: String { ModuleLocalization.localized("settings.shortcut.new_tab", bundle: .module) }
             static var copyPath: String { ModuleLocalization.localized("settings.shortcut.copy_path", bundle: .module) }
+            static var previewTextEdit: String { ModuleLocalization.localized("settings.shortcut.preview_text_edit", bundle: .module) }
 
             static func category(_ id: String) -> String {
                 ModuleLocalization.localizedFromTable("settings.shortcuts.category.\(id)", bundle: .module)

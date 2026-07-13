@@ -20,6 +20,11 @@ struct ShortcutBinding: Codable, Equatable, Hashable {
         modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue
     )
 
+    static let defaultPreviewTextEdit = ShortcutBinding(
+        keyCode: 14,
+        modifiers: NSEvent.ModifierFlags.command.rawValue
+    )
+
     init(keyCode: UInt16, modifiers: UInt) {
         self.keyCode = keyCode
         self.modifiers = modifiers

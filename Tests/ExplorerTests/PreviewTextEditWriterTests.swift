@@ -25,8 +25,8 @@ final class PreviewTextEditWriterTests: XCTestCase {
         XCTAssertEqual(saved, "hello\nworld")
     }
 
-    func testWriteUsesAtomicReplacement() throws {
-        let url = tempDirectory.appendingPathComponent("atomic.txt")
+    func testWriteReplacesExistingContentInPlace() throws {
+        let url = tempDirectory.appendingPathComponent("inplace.txt")
         try Data("before".utf8).write(to: url)
 
         try PreviewTextEditWriter.write("after", to: url)

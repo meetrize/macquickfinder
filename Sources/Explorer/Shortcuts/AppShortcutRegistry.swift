@@ -94,6 +94,13 @@ enum AppShortcutRegistry {
         ),
 
         AppShortcutEntry(id: "detach_preview", category: .preview, helpEntryID: "detach_preview"),
+        AppShortcutEntry(
+            id: "preview_text_edit",
+            category: .preview,
+            name: L10n.Settings.Shortcuts.previewTextEdit,
+            shortcut: ShortcutBinding.defaultPreviewTextEdit.displayString,
+            isConfigurable: true
+        ),
         AppShortcutEntry(id: "preview_browser", category: .preview, helpEntryID: "preview_browser"),
         AppShortcutEntry(
             id: "previous_preview",

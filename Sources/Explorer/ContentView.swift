@@ -68,6 +68,45 @@ extension ContentView {
         fileListFocusToken &+= 1
     }
 
+    func refreshListingItem(at filePath: String) {
+        let standardizedPath = ExternalSelectionPathMatcher.standardizedPath(filePath)
+        let parentDirectory = ExternalSelectionPathMatcher.standardizedPath(
+            (standardizedPath as NSString).deletingLastPathComponent
+        )
+        guard ExternalSelectionPathMatcher.standardizedPath(path) == parentDirectory else { return }
+
+        let listingOptions = DirectoryListingOptions.forPath(path)
+        guard let refreshed = try? DirectoryListingIncrementalUpdate.loadFileItems(
+            at: [URL(fileURLWithPath: standardizedPath)],
+            showHiddenFiles: showHiddenFiles,
+            options: listingOptions
+        ).first else {
+            return
+        }
+
+        guard items.contains(where: { $0.id == refreshed.id }) else { return }
+        items = DirectoryListingIncrementalUpdate.merge(
+            adding: [refreshed],
+            removing: [],
+            into: items,
+            sort: FileListPreferencesStore.shared.sort
+        )
+    }
+
+    func restoreSelectionAfterListingLoad(
+        _ preservedSelection: Set<FileItem.ID>,
+        loadedItems: [FileItem],
+        shouldPreserve: Bool
+    ) {
+        guard shouldPreserve, !preservedSelection.isEmpty else { return }
+        let restored = preservedSelection.filter { id in
+            loadedItems.contains(where: { $0.id == id })
+        }
+        if !restored.isEmpty {
+            selection = restored
+        }
+    }
+
     func applyPendingInlineRenameIfNeeded(loadedItems: [FileItem], for directoryPath: String) {
         guard directoryPath == path else { return }
         guard let renamePath = pendingInlineRenamePath else { return }
@@ -434,6 +473,12 @@ struct ContentView: View {
                   let changedRoot = GitRepositoryDetector.findRepoRoot(from: changedPath),
                   GitRepositoryDetector.rootsEqual(currentRoot, changedRoot) else { return }
             gitStatusStore.scheduleRefresh(cwd: path)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .directoryListingItemDidChange)) { notification in
+            guard let changedPath = notification.userInfo?[DirectoryListingItemRefreshCenter.pathUserInfoKey] as? String else {
+                return
+            }
+            refreshListingItem(at: changedPath)
         }
         .onChange(of: windowTabCenter.tabBarRevision) { _ in
             syncExplorerTabBarState()
@@ -1015,6 +1060,8 @@ struct ContentView: View {
         loadGeneration += 1
         let currentGeneration = loadGeneration
         let currentPath = path
+        let shouldPreserveSelection = !items.isEmpty
+        let preservedSelection = shouldPreserveSelection ? selection : []
         let shouldShowHiddenFiles = showHiddenFiles
         let listingOptions = DirectoryListingOptions.forPath(currentPath)
         let isNetworkListing = listingOptions.lightweightMetadata
@@ -1071,6 +1118,13 @@ struct ContentView: View {
                         loadedItems: loadedItems,
                         for: currentPath
                     )
+                    if pendingExternalSelectionPath == nil, pendingInlineRenamePath == nil {
+                        restoreSelectionAfterListingLoad(
+                            preservedSelection,
+                            loadedItems: loadedItems,
+                            shouldPreserve: shouldPreserveSelection
+                        )
+                    }
                 }
 
                 await MainActor.run {
@@ -1147,6 +1201,13 @@ struct ContentView: View {
                     loadedItems: loadedItems,
                     for: currentPath
                 )
+                if pendingExternalSelectionPath == nil, pendingInlineRenamePath == nil {
+                    restoreSelectionAfterListingLoad(
+                        preservedSelection,
+                        loadedItems: loadedItems,
+                        shouldPreserve: shouldPreserveSelection
+                    )
+                }
             }
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }

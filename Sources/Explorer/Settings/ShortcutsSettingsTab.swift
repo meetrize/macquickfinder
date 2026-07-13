@@ -9,8 +9,11 @@ struct ShortcutsSettingsTab: View {
                 globalSection
                 navigationSection
                 filesSection
+                previewSection
 
-                ForEach(AppShortcutCategory.allCases.filter { $0 != .global && $0 != .navigation && $0 != .files }) { category in
+                ForEach(AppShortcutCategory.allCases.filter {
+                    $0 != .global && $0 != .navigation && $0 != .files && $0 != .preview
+                }) { category in
                     let items = AppShortcutRegistry.entries(for: category)
                     if !items.isEmpty {
                         Section {
@@ -90,6 +93,26 @@ struct ShortcutsSettingsTab: View {
             }
         } header: {
             Text(AppShortcutCategory.files.title)
+        }
+    }
+
+    private var previewSection: some View {
+        Section {
+            LabeledContent(L10n.Settings.Shortcuts.previewTextEdit) {
+                HStack(spacing: 8) {
+                    ShortcutRecorderView(binding: $settings.previewTextEditBinding)
+
+                    Button(L10n.Settings.Shortcuts.reset) {
+                        settings.resetPreviewTextEditBinding()
+                    }
+                }
+            }
+
+            ForEach(AppShortcutRegistry.entries(for: .preview).filter { $0.id != "preview_text_edit" }) { entry in
+                shortcutRow(name: entry.name, shortcut: entry.shortcut)
+            }
+        } header: {
+            Text(AppShortcutCategory.preview.title)
         }
     }
 

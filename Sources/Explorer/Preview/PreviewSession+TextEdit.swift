@@ -137,7 +137,7 @@ extension PreviewSession {
         return true
     }
 
-    func saveEditedText(skipConfirm: Bool = false) async -> Bool {
+    func saveEditedText() async -> Bool {
         guard text.isEditing else { return true }
         guard text.hasUnsavedChanges else {
             text.displayMode = .viewing
@@ -147,19 +147,6 @@ extension PreviewSession {
         let item = browseTarget
         let textToSave = text.liveEditContent
         let itemID = item.id
-
-        if !skipConfirm {
-            let confirmed = await MainActor.run { () -> Bool in
-                let alert = NSAlert()
-                alert.messageText = L10n.Preview.TextEdit.saveConfirmTitle
-                alert.informativeText = L10n.Preview.TextEdit.saveConfirmMessage(item.name)
-                alert.alertStyle = .warning
-                alert.addButton(withTitle: L10n.Preview.TextEdit.saveButton)
-                alert.addButton(withTitle: L10n.Preview.TextEdit.cancelButton)
-                return alert.runModal() == .alertFirstButtonReturn
-            }
-            guard confirmed else { return false }
-        }
 
         let saveResult: Result<Void, Error> = await Task.detached(priority: .userInitiated) {
             do {
@@ -174,11 +161,7 @@ extension PreviewSession {
 
         switch saveResult {
         case .success:
-            content.textSaveErrorMessage = nil
-            text.displayMode = .viewing
-            text.hasUnsavedChanges = false
-            beginLoadTask(customPreviewRevision: Int(CustomPreviewRuleStore.shared.revision))
-            GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: item.url.path)
+            applyTextEditSaveSuccess(savedContent: textToSave, fileURL: item.url)
             return true
         case .failure(let error):
             content.textSaveErrorMessage = error.localizedDescription
@@ -206,7 +189,7 @@ extension PreviewSession {
             return false
         case .proceed:
             if PreviewTextEditNavigationPrompt.shouldSaveBeforeProceeding(response: response) {
-                return await saveEditedText(skipConfirm: true)
+                return await saveEditedText()
             }
             if PreviewTextEditNavigationPrompt.shouldDiscardBeforeProceeding(response: response) {
                 applyTextEditRevert()
@@ -221,5 +204,17 @@ extension PreviewSession {
         text.liveEditContent = text.originalContent
         text.hasUnsavedChanges = false
         text.displayMode = .viewing
+    }
+
+    private func applyTextEditSaveSuccess(savedContent: String, fileURL: URL) {
+        content.textSaveErrorMessage = nil
+        content.textContent = savedContent
+        text.originalContent = savedContent
+        text.liveEditContent = savedContent
+        text.hasUnsavedChanges = false
+        text.displayMode = .viewing
+        browseContentPrefetcher.cancel()
+        DirectoryListingItemRefreshCenter.notifyItemDidChange(at: fileURL)
+        GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: fileURL.path)
     }
 }

@@ -26,7 +26,7 @@ enum HelpCheatSheetContent {
         HelpCheatSheetSection(id: "preview", entries: [
             "file_preview", "text_code", "markdown_html", "image", "pdf", "media",
             "archive", "spreadsheet", "quick_look", "in_preview_search",
-            "detach_preview", "preview_browser", "custom_preview_rules",
+            "detach_preview", "preview_text_edit", "preview_browser", "custom_preview_rules",
         ]),
         HelpCheatSheetSection(id: "snippets", entries: [
             "snippets_panel", "operation_recording", "run_snippet", "scope", "variables",

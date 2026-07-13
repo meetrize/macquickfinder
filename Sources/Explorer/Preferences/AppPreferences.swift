@@ -96,6 +96,8 @@ enum AppPreferences {
         static let newTabModifiers = "shortcuts.newTabModifiers"
         static let copyPathKeyCode = "shortcuts.copyPathKeyCode"
         static let copyPathModifiers = "shortcuts.copyPathModifiers"
+        static let previewTextEditKeyCode = "shortcuts.previewTextEditKeyCode"
+        static let previewTextEditModifiers = "shortcuts.previewTextEditModifiers"
     }
 
     /// 远程服务器连接。
