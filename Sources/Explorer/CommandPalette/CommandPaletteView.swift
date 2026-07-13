@@ -38,6 +38,7 @@ struct CommandPaletteView: View {
 
     @State private var query = ""
     @State private var displayedItems: [CommandPaletteResolvedItem] = []
+    @State private var staticItemCount = 0
     @State private var selectedIndex = 0
     @FocusState private var isSearchFocused: Bool
 
@@ -117,6 +118,10 @@ struct CommandPaletteView: View {
                         }
 
                         ForEach(Array(displayedItems.enumerated()), id: \.element.id) { index, item in
+                            if shouldShowSnippetsSectionHeader(at: index) {
+                                sectionHeader(session.snippetsSectionTitle)
+                            }
+
                             CommandPaletteRow(
                                 item: item,
                                 isSelected: index == selectedIndex
@@ -151,6 +156,18 @@ struct CommandPaletteView: View {
 
     private func refreshDisplayedItems() {
         displayedItems = session.filteredItems(query: query)
+        staticItemCount = session.staticItemCount(in: displayedItems, query: query)
+    }
+
+    private func shouldShowSnippetsSectionHeader(at index: Int) -> Bool {
+        guard index < displayedItems.count else { return false }
+        let item = displayedItems[index]
+        guard item.sectionTitle == session.snippetsSectionTitle else { return false }
+        if !hasQuery {
+            return index == staticItemCount
+        }
+        if index == 0 { return true }
+        return displayedItems[index - 1].sectionTitle != session.snippetsSectionTitle
     }
 
     private func resetSelection() {

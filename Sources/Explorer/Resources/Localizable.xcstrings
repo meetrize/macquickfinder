@@ -10662,6 +10662,23 @@
         }
       }
     },
+    "command_palette.snippets_section": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Snippets"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Snippets"
+          }
+        }
+      }
+    },
     "toolbar.customize": {
       "extractionState": "manual",
       "localizations": {

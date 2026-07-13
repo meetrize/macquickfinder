@@ -79,6 +79,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.CommandPalette.placeholder, "command_palette.placeholder")
         XCTAssertNotEqual(L10n.CommandPalette.menuTitle, "command_palette.menu_title")
         XCTAssertNotEqual(L10n.CommandPalette.noResults, "command_palette.no_results")
+        XCTAssertNotEqual(L10n.CommandPalette.snippetsSection, "command_palette.snippets_section")
         XCTAssertNotEqual(L10n.Settings.windowTitle, "settings.window_title")
         XCTAssertNotEqual(L10n.Settings.Preview.ArchiveDoubleClick.extract, "settings.preview.archive_double_click.extract")
         XCTAssertNotEqual(L10n.Settings.Preview.ExternalMultiImage.singleWindowWithStrip, "settings.preview.external_multi_image.single_window_with_strip")

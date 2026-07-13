@@ -1642,6 +1642,7 @@ enum L10n {
         static var recentsSection: String { localizedFromTable("command_palette.recents_section") }
         static var commonSection: String { localizedFromTable("command_palette.common_section") }
         static var menuTitle: String { localizedFromTable("command_palette.menu_title") }
+        static var snippetsSection: String { localizedFromTable("command_palette.snippets_section") }
 
         private static func localizedFromTable(_ key: String) -> String {
             ModuleLocalization.localizedFromTable(key, bundle: .module)

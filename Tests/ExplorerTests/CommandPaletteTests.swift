@@ -94,4 +94,16 @@ final class CommandPaletteTests: XCTestCase {
 
         XCTAssertEqual(CommandPaletteRecentsStore.cachedLoad().prefix(2).map(\.rawValue), ["focus_search", "toggle_snippets"])
     }
+
+    func testSnippetCommandIdentification() {
+        let snippet = Snippet(
+            name: "Demo",
+            scriptType: .shell,
+            scope: .anytime,
+            content: "echo hi"
+        )
+        let id = CommandPaletteSnippetResolver.commandID(for: snippet)
+        XCTAssertTrue(CommandPaletteSnippetResolver.isSnippetCommand(id))
+        XCTAssertEqual(id.rawValue, "snippet:\(snippet.id.uuidString)")
+    }
 }

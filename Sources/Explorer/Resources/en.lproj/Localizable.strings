@@ -2016,6 +2016,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Type a command name…</string>
 	<key>command_palette.recents_section</key>
 	<string>Recently used</string>
+	<key>command_palette.snippets_section</key>
+	<string>Snippets</string>
 	<key>toolbar.auto_folder_size</key>
 	<string>Calculate All Folder Sizes</string>
 	<key>toolbar.browse_settings</key>

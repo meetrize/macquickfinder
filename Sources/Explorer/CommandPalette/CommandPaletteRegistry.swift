@@ -532,6 +532,8 @@ enum CommandPaletteRegistry {
         Dictionary(uniqueKeysWithValues: definitions.map { ($0.id, $0.keywords) })
     }()
 
+    static var fuzzyKeywordsByID: [CommandPaletteID: [String]] { keywordsByID }
+
     static func resolveBaseItems(in context: CommandPaletteContext) -> [CommandPaletteResolvedItem] {
         sortedDefinitions.map { $0.resolve(in: context) }
     }
@@ -601,6 +603,10 @@ enum CommandPaletteRegistry {
     }
 
     static func perform(id: CommandPaletteID, in context: CommandPaletteContext) {
+        if CommandPaletteSnippetResolver.isSnippetCommand(id) {
+            CommandPaletteSnippetResolver.perform(id: id, in: context)
+            return
+        }
         guard let definition = definitionByID[id], definition.isEnabled(context) else { return }
         definition.perform(context)
         if id != "command_palette" {
