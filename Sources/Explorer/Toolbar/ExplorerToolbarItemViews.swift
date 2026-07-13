@@ -90,6 +90,19 @@ struct ExplorerToolbarItemView: View {
                     menuActions: browseSettingsMenuActions
                 )
                 .disabled(environment.isCustomizing)
+            case .showAllTabs:
+                let showAllTabsButton = Button {
+                    ToolbarBuiltinDispatcher.perform(.showAllTabs, environment: environment)
+                } label: {
+                    ShowAllTabsToolbarIcon()
+                }
+                .buttonStyle(ExplorerToolbarPlainButtonStyle())
+                .disabled(isBuiltinDisabled(.showAllTabs))
+                if let tooltip = tooltipForBuiltin(.showAllTabs) {
+                    showAllTabsButton.instantHoverTooltip(tooltip)
+                } else {
+                    showAllTabsButton
+                }
             case .recordOperations:
                 let recordButton = Button {
                     ToolbarBuiltinDispatcher.perform(.recordOperations, environment: environment)
@@ -343,6 +356,8 @@ extension ToolbarBuiltinID {
         case .thumbnailSizeSlider:
             Image(systemName: "slider.horizontal.3")
                 .font(.system(size: 12, weight: .medium))
+        case .showAllTabs:
+            ShowAllTabsToolbarIcon()
         case .recordOperations:
             RecordOperationsToolbarIcon(isRecording: environment.isOperationRecording)
         case .sortMenu:
@@ -352,6 +367,14 @@ extension ToolbarBuiltinID {
         default:
             lucideIcon(environment: environment)
         }
+    }
+}
+
+private struct ShowAllTabsToolbarIcon: View {
+    var body: some View {
+        Image(systemName: "square.stack.3d.down.right")
+            .font(.system(size: ExplorerToolbarMetrics.iconSize, weight: .medium))
+            .frame(width: ExplorerToolbarMetrics.iconSize, height: ExplorerToolbarMetrics.iconSize)
     }
 }
 
