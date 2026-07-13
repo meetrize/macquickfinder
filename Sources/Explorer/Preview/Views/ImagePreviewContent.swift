@@ -147,11 +147,7 @@ struct ImagePreviewContent: View {
             Label("在 Finder 中显示", systemImage: "folder")
         }
 
-        Button {
-            ImagePreviewContextActions.openWithDefaultApp(fileURL)
-        } label: {
-            Label("用默认应用打开", systemImage: "arrowshape.turn.up.right.circle")
-        }
+        PreviewOpenWithMenuSection(fileURL: fileURL)
 
         Divider()
 

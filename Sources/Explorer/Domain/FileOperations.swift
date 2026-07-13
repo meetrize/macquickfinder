@@ -496,19 +496,27 @@ enum FileOperations {
     }
     
     static func openWith(_ item: FileItem) {
+        openWith(url: item.url, fileName: item.name)
+    }
+
+    static func openWith(url: URL) {
+        openWith(url: url, fileName: url.lastPathComponent)
+    }
+
+    private static func openWith(url: URL, fileName: String) {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.application, .applicationBundle]
         panel.allowsOtherFileTypes = true
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.message = L10n.Alert.openWithChooseApp(item.name)
+        panel.message = L10n.Alert.openWithChooseApp(fileName)
         panel.prompt = L10n.Alert.openWithPrompt
-        
+
         guard panel.runModal() == .OK, let appURL = panel.url else { return }
-        
+
         let configuration = NSWorkspace.OpenConfiguration()
-        NSWorkspace.shared.open([item.url], withApplicationAt: appURL, configuration: configuration)
+        NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: configuration)
     }
 
     static func openWithApplication(_ items: [FileItem], appURL: URL) {

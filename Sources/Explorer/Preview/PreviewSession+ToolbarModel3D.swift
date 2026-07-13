@@ -64,12 +64,7 @@ extension PreviewSession {
                 systemImage: "doc.on.doc",
                 action: { [self] in copyModel3DInfoToPasteboard() }
             ),
-            previewToolbarIconItem(
-                id: "model3d-open",
-                title: L10n.Preview.Toolbar.openDefaultApp,
-                systemImage: "arrowshape.turn.up.right.circle",
-                action: { NSWorkspace.shared.open(item.url) }
-            ),
+            previewOpenWithToolbarItem(id: "model3d-open", for: item),
         ]
     }
 

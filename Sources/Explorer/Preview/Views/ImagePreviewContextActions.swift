@@ -39,11 +39,6 @@ enum ImagePreviewContextActions {
     }
 
     @MainActor
-    static func openWithDefaultApp(_ url: URL) {
-        NSWorkspace.shared.open(url)
-    }
-
-    @MainActor
     static func setAsDesktopPicture(_ url: URL) {
         guard let screen = NSScreen.main else { return }
         do {

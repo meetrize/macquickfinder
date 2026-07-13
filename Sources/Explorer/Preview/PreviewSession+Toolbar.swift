@@ -67,6 +67,42 @@ extension PreviewSession {
         )
     }
 
+    func previewOpenWithToolbarItem(
+        id: String,
+        for item: FileItem
+    ) -> PreviewToolbarOverflowModel {
+        let presentMenu: @MainActor () -> Void = {
+            OpenWithMenuBuilder.presentMenu(
+                fileURLs: [item.url],
+                primaryFileURL: item.url,
+                positioning: nil,
+                onOpenWithApplication: { appURL in
+                    OpenWithMenuBuilder.open(fileURLs: [item.url], withApplicationAt: appURL)
+                },
+                onChooseOther: {
+                    FileOperations.openWith(url: item.url)
+                }
+            )
+        }
+
+        return PreviewToolbarOverflowModel(
+            id: id,
+            menuTitle: L10n.Preview.Toolbar.openDefaultApp,
+            menuSystemImage: "arrowshape.turn.up.right.circle",
+            isDisabled: false,
+            estimatedWidth: 20,
+            menuAction: presentMenu,
+            content: AnyView(
+                PreviewOpenWithMenuButton(
+                    fileURL: item.url,
+                    systemImageName: "arrowshape.turn.up.right.circle",
+                    accessibilityLabel: L10n.Preview.Toolbar.openDefaultApp
+                )
+                .instantHoverTooltip(L10n.Preview.Toolbar.openDefaultApp)
+            )
+        )
+    }
+
     func copyImageToPasteboard(_ item: FileItem) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()

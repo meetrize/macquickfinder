@@ -47,12 +47,7 @@ extension PreviewSession {
                 systemImage: "doc.on.doc",
                 action: { [self] in copyImageToPasteboard(item) }
             ),
-            previewToolbarIconItem(
-                id: "quicklook-image-open",
-                title: L10n.Preview.Toolbar.openDefaultApp,
-                systemImage: "arrowshape.turn.up.right.circle",
-                action: { NSWorkspace.shared.open(item.url) }
-            ),
+            previewOpenWithToolbarItem(id: "quicklook-image-open", for: item),
         ]
     }
 
@@ -149,12 +144,7 @@ extension PreviewSession {
                 systemImage: "doc.on.doc",
                 action: { [self] in copyImageToPasteboard(item) }
             ),
-            previewToolbarIconItem(
-                id: "image-open",
-                title: L10n.Preview.Toolbar.openDefaultApp,
-                systemImage: "arrowshape.turn.up.right.circle",
-                action: { NSWorkspace.shared.open(item.url) }
-            ),
+            previewOpenWithToolbarItem(id: "image-open", for: item),
         ]
 
         if let hex = image.pickedWebColor {

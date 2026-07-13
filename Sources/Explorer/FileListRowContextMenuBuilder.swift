@@ -184,102 +184,17 @@ enum FileListRowContextMenuBuilder {
         selectedItems: [FileItem],
         actions: FileContextActions
     ) -> NSMenu {
-        let submenu = NSMenu()
-        submenu.showsStateColumn = false
-
         let openableItems = selectedItems.filter { !$0.isDirectory }
-        guard !openableItems.isEmpty else {
-            let disabled = NSMenuItem(title: L10n.Action.openWithNone, action: nil, keyEquivalent: "")
-            disabled.isEnabled = false
-            submenu.addItem(disabled)
-            return submenu
-        }
-
-        let fileURL = primaryItem.url
-        let workspace = NSWorkspace.shared
-        let defaultApp = defaultApplicationURL(for: fileURL)
-        let candidates = applicationURLs(for: fileURL)
-        let uniqueApps: [URL] = {
-            var seen = Set<String>()
-            var result: [URL] = []
-            for url in candidates {
-                let key = url.resolvingSymlinksInPath().path
-                if seen.insert(key).inserted { result.append(url) }
-            }
-            return result
-        }()
-
-        func addAppItem(appURL: URL, isDefault: Bool) {
-            let title = isDefault
-                ? L10n.Action.openWithDefault(appDisplayName(appURL))
-                : appDisplayName(appURL)
-            let item = CallbackMenuItem(title: title, isDestructive: false) {
+        return OpenWithMenuBuilder.makeMenu(
+            fileURLs: openableItems.map(\.url),
+            primaryFileURL: primaryItem.url,
+            onOpenWithApplication: { appURL in
                 actions.openWithApplication(openableItems, appURL)
+            },
+            onChooseOther: {
+                actions.openWith(primaryItem)
             }
-            item.image = workspace.icon(forFile: appURL.path)
-            configureAppMenuItemAppearance(item)
-            submenu.addItem(item)
-        }
-
-        if let defaultApp {
-            addAppItem(appURL: defaultApp, isDefault: true)
-            if !uniqueApps.isEmpty { submenu.addItem(.separator()) }
-        }
-
-        let sortedApps = uniqueApps
-            .filter { $0 != defaultApp }
-            .sorted { appDisplayName($0).localizedStandardCompare(appDisplayName($1)) == .orderedAscending }
-
-        for appURL in sortedApps.prefix(10) {
-            addAppItem(appURL: appURL, isDefault: false)
-        }
-
-        submenu.addItem(.separator())
-        submenu.addItem(menuItem(title: L10n.Action.openWithOther) { actions.openWith(primaryItem) })
-        return submenu
-    }
-
-    private static func configureAppMenuItemAppearance(_ item: NSMenuItem) {
-        item.indentationLevel = 0
-        if let image = item.image {
-            image.size = NSSize(width: 16, height: 16)
-            image.isTemplate = false
-            item.image = image
-        }
-    }
-
-    private static func defaultApplicationURL(for fileURL: URL) -> URL? {
-        if #available(macOS 12.0, *) {
-            return NSWorkspace.shared.urlForApplication(toOpen: fileURL)
-        }
-        return LSCopyDefaultApplicationURLForURL(
-            fileURL as CFURL,
-            .all,
-            nil
-        )?.takeRetainedValue() as URL?
-    }
-
-    private static func applicationURLs(for fileURL: URL) -> [URL] {
-        if #available(macOS 12.0, *) {
-            return NSWorkspace.shared.urlsForApplications(toOpen: fileURL)
-        }
-        guard let urls = LSCopyApplicationURLsForURL(fileURL as CFURL, .all)?
-            .takeRetainedValue() as? [URL] else {
-            return []
-        }
-        return urls
-    }
-
-    private static func appDisplayName(_ appURL: URL) -> String {
-        if let bundle = Bundle(url: appURL) {
-            if let name = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, !name.isEmpty {
-                return name
-            }
-            if let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String, !name.isEmpty {
-                return name
-            }
-        }
-        return appURL.deletingPathExtension().lastPathComponent
+        )
     }
     
     private static func menuItem(
