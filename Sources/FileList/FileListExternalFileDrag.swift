@@ -35,27 +35,13 @@ enum FileListExternalFileDrag {
 
     static func write(to pasteboard: NSPasteboard, urls: [URL]) {
         let standardized = urls.map(\.standardizedFileURL)
-        let paths = standardized.map(\.path)
-        guard !paths.isEmpty else { return }
+        guard !standardized.isEmpty else { return }
         pasteboard.clearContents()
-        pasteboard.declareTypes(pasteboardTypes, owner: nil)
-        pasteboard.setPropertyList(paths, forType: legacyFilenamesType)
+        // 仅写入 file URL 对象；勿再附带 NSFilenamesPboardType，否则浏览器/聊天窗口会各读一份同文件。
         _ = pasteboard.writeObjects(standardized as [NSURL])
     }
 
-    /// 将源剪贴板内容复制到拖放会话剪贴板（供 beginDraggingSession 回退路径使用）。
-    static func copyPasteboard(_ source: NSPasteboard, to destination: NSPasteboard) {
-        destination.clearContents()
-        guard let types = source.types, !types.isEmpty else { return }
-        destination.declareTypes(types, owner: nil)
-        for type in types {
-            if let data = source.data(forType: type) {
-                destination.setData(data, forType: type)
-            }
-        }
-    }
-
-    /// 优先使用 Finder 同款 `dragImage:`（SDL/scrcpy 依赖 NSFilenamesPboardType）。
+    /// 优先使用 Finder 同款 `dragImage:`。
     @discardableResult
     static func start(
         on view: NSView,
@@ -93,8 +79,7 @@ enum FileListExternalFileDrag {
             frame: draggingFrame,
             startEvent: startEvent,
             urls: urls,
-            source: source,
-            pasteboard: pasteboard
+            source: source
         )
     }
 
@@ -122,41 +107,25 @@ enum FileListExternalFileDrag {
         frame: NSRect,
         startEvent: NSEvent,
         urls: [URL],
-        source: NSDraggingSource,
-        pasteboard: NSPasteboard
+        source: NSDraggingSource
     ) -> Bool {
-        let item = NSDraggingItem(pasteboardWriter: MultiFilePasteboardWriter(urls: urls))
-        item.setDraggingFrame(frame, contents: image)
-        let session = view.beginDraggingSession(with: [item], event: startEvent, source: source)
-        session.animatesToStartingPositionsOnCancelOrFail = true
-        copyPasteboard(pasteboard, to: session.draggingPasteboard)
-        return true
-    }
-}
+        let standardized = urls.map(\.standardizedFileURL)
+        guard !standardized.isEmpty else { return false }
 
-// MARK: - Multi-file pasteboard writer
-
-private final class MultiFilePasteboardWriter: NSObject, NSPasteboardWriting {
-    private let urls: [URL]
-
-    init(urls: [URL]) {
-        self.urls = urls.map(\.standardizedFileURL)
-    }
-
-    func writableTypes(for pasteboard: NSPasteboard) -> [NSPasteboard.PasteboardType] {
-        FileListExternalFileDrag.pasteboardTypes
-    }
-
-    func pasteboardPropertyList(forType type: NSPasteboard.PasteboardType) -> Any? {
-        switch type {
-        case .fileURL,
-             NSPasteboard.PasteboardType(UTType.fileURL.identifier),
-             NSPasteboard.PasteboardType("public.file-url"):
-            return urls.first?.absoluteString
-        case FileListExternalFileDrag.legacyFilenamesType:
-            return urls.map(\.path)
-        default:
-            return nil
+        let items = standardized.enumerated().map { index, url in
+            let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+            let stackOffset = CGFloat(index * 6)
+            let itemFrame = NSRect(
+                x: frame.origin.x + stackOffset,
+                y: frame.origin.y - stackOffset,
+                width: frame.width,
+                height: frame.height
+            )
+            item.setDraggingFrame(itemFrame, contents: index == 0 ? image : nil)
+            return item
         }
+        let session = view.beginDraggingSession(with: items, event: startEvent, source: source)
+        session.animatesToStartingPositionsOnCancelOrFail = true
+        return true
     }
 }

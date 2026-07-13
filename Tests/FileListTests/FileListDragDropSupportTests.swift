@@ -113,13 +113,21 @@ final class FileListDragDropSupportTests: XCTestCase {
         )
     }
 
-    func testPreparePasteboardIncludesLegacyFilenamesType() {
+    func testPreparePasteboardWritesSingleFileReference() {
         let url = URL(fileURLWithPath: "/tmp/sample.apk")
         let pasteboard = FileListExternalFileDrag.preparePasteboard(urls: [url])
-        let legacy = FileListExternalFileDrag.legacyFilenamesType
 
-        XCTAssertNotNil(pasteboard.data(forType: legacy))
-        XCTAssertEqual(pasteboard.propertyList(forType: legacy) as? [String], [url.path])
+        let modernCount = (pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL])?.count ?? 0
+        let legacyCount = (pasteboard.propertyList(
+            forType: FileListExternalFileDrag.legacyFilenamesType
+        ) as? [String])?.count ?? 0
+
+        XCTAssertEqual(modernCount, 1)
+        XCTAssertEqual(legacyCount, 0)
+        XCTAssertEqual(modernCount + legacyCount, 1)
     }
 
     func testPerformAcceptedDropUsesExplicitCopyFlag() {
