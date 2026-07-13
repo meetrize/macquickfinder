@@ -134,6 +134,9 @@ struct ToolbarLayoutConfig: Codable, Equatable {
 
     static var `default`: ToolbarLayoutConfig {
         let builtins: [(ToolbarBuiltinID, ToolbarZone)] = [
+            (.newFile, .leading),
+            (.newFolder, .leading),
+            (.delete, .leading),
             (.leftPanel, .leading),
             (.newWindow, .main),
             (.newTab, .main),
@@ -142,18 +145,15 @@ struct ToolbarLayoutConfig: Codable, Equatable {
             (.preview, .main),
             (.snippets, .main),
             (.git, .main),
-            (.recordOperations, .main),
             (.outputPanel, .main),
-            (.newFolder, .main),
-            (.newFile, .main),
-            (.delete, .main),
-            (.toggleHiddenFiles, .main),
             (.listView, .main),
             (.thumbnailView, .main),
             (.panoramaView, .main),
+            (.recordOperations, .main),
+            (.toggleHiddenFiles, .main),
+            (.sortMenu, .main),
+            (.browseSettingsMenu, .main),
             (.thumbnailSizeSlider, .trailing),
-            (.sortMenu, .trailing),
-            (.browseSettingsMenu, .trailing),
         ]
         return ToolbarLayoutConfig(
             visibleItems: builtins.map {

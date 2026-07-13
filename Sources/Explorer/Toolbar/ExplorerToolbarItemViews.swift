@@ -130,6 +130,22 @@ struct ExplorerToolbarItemView: View {
                 } else {
                     showAllTabsButton
                 }
+            case .toggleTabBar:
+                let toggleTabBarButton = Button {
+                    ToolbarBuiltinDispatcher.perform(.toggleTabBar, environment: environment)
+                } label: {
+                    SFSymbolToolbarIcon(
+                        systemName: "squares.below.rectangle",
+                        isActive: environment.tabBarState.isVisible
+                    )
+                }
+                .buttonStyle(ExplorerToolbarPlainButtonStyle())
+                .disabled(isBuiltinDisabled(.toggleTabBar))
+                if let tooltip = tooltipForBuiltin(.toggleTabBar) {
+                    toggleTabBarButton.instantHoverTooltip(tooltip)
+                } else {
+                    toggleTabBarButton
+                }
             case .preview:
                 let previewButton = Button {
                     ToolbarBuiltinDispatcher.perform(.preview, environment: environment)
@@ -334,6 +350,10 @@ struct ExplorerToolbarItemView: View {
             return L10n.Toolbar.newFile
         case .delete:
             return L10n.Toolbar.delete
+        case .toggleHiddenFiles:
+            return environment.showHiddenFiles
+                ? L10n.Toolbar.hideHiddenFiles
+                : L10n.Toolbar.showHiddenFiles
         case .listView:
             return L10n.Toolbar.listView
         case .thumbnailView:
@@ -444,6 +464,11 @@ extension ToolbarBuiltinID {
             SFSymbolToolbarIcon(systemName: "square.on.square")
         case .showAllTabs:
             SFSymbolToolbarIcon(systemName: "square.stack.3d.down.right")
+        case .toggleTabBar:
+            SFSymbolToolbarIcon(
+                systemName: "squares.below.rectangle",
+                isActive: environment.tabBarState.isVisible
+            )
         case .preview:
             PreviewToolbarIcon(isActive: environment.layout.showPreview)
         case .recordOperations:

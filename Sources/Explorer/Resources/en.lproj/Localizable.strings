@@ -2034,6 +2034,8 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<string>Select one or more items first</string>
 	<key>toolbar.hide_left_panel</key>
 	<string>Hide Left Panel</string>
+	<key>toolbar.hide_hidden_files</key>
+	<string>Hide Hidden Files</string>
 	<key>toolbar.hide_tab_bar</key>
 	<string>Hide Tab Bar</string>
 	<key>toolbar.list_view</key>
@@ -2087,17 +2089,21 @@ In System Settings → Privacy &amp; Security → Automation, allow MeoFind to c
 	<key>toolbar.panorama.layout_panorama</key>
 	<string>Subfolder Panorama</string>
 	<key>toolbar.panorama_mode</key>
-	<string>Panorama Mode</string>
+	<string>Panorama View</string>
 	<key>toolbar.record_operations</key>
 	<string>Record operations to create a Snippet</string>
 	<key>toolbar.record_operations_active</key>
 	<string>Recording — click to stop</string>
 	<key>toolbar.show_all_tabs</key>
 	<string>Show All Tabs</string>
+	<key>toolbar.show_hidden_files</key>
+	<string>Show Hidden Files</string>
 	<key>toolbar.show_left_panel</key>
 	<string>Show Left Panel</string>
 	<key>toolbar.show_tab_bar</key>
 	<string>Show Tab Bar</string>
+	<key>toolbar.sort</key>
+	<string>Sort</string>
 	<key>toolbar.tab_bar.cannot_hide_multiple</key>
 	<string>Multiple tabs are open; the tab bar cannot be hidden</string>
 	<key>toolbar.tab_bar.unavailable</key>

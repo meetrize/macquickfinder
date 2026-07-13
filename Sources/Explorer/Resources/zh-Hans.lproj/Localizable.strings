@@ -2034,6 +2034,8 @@
 	<string>需要先选中文件</string>
 	<key>toolbar.hide_left_panel</key>
 	<string>隐藏左侧面板</string>
+	<key>toolbar.hide_hidden_files</key>
+	<string>不显示隐藏文件</string>
 	<key>toolbar.hide_tab_bar</key>
 	<string>隐藏标签栏</string>
 	<key>toolbar.list_view</key>
@@ -2087,17 +2089,21 @@
 	<key>toolbar.panorama.layout_panorama</key>
 	<string>子目录全景</string>
 	<key>toolbar.panorama_mode</key>
-	<string>全景模式</string>
+	<string>全景视图</string>
 	<key>toolbar.record_operations</key>
 	<string>录制操作用于生成 Snippet</string>
 	<key>toolbar.record_operations_active</key>
 	<string>正在录制 — 点击停止</string>
 	<key>toolbar.show_all_tabs</key>
 	<string>显示所有标签页</string>
+	<key>toolbar.show_hidden_files</key>
+	<string>显示隐藏文件</string>
 	<key>toolbar.show_left_panel</key>
 	<string>显示左侧面板</string>
 	<key>toolbar.show_tab_bar</key>
 	<string>显示标签栏</string>
+	<key>toolbar.sort</key>
+	<string>排序</string>
 	<key>toolbar.tab_bar.cannot_hide_multiple</key>
 	<string>已打开多个标签页，无法隐藏标签栏</string>
 	<key>toolbar.tab_bar.unavailable</key>

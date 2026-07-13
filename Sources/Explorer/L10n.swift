@@ -550,6 +550,8 @@ enum L10n {
         static var recordOperations: String { ModuleLocalization.localized("toolbar.record_operations", bundle: .module) }
         static var recordOperationsActive: String { ModuleLocalization.localized("toolbar.record_operations_active", bundle: .module) }
         static var delete: String { ModuleLocalization.localized("toolbar.delete", bundle: .module) }
+        static var showHiddenFiles: String { ModuleLocalization.localized("toolbar.show_hidden_files", bundle: .module) }
+        static var hideHiddenFiles: String { ModuleLocalization.localized("toolbar.hide_hidden_files", bundle: .module) }
         static var listView: String { ModuleLocalization.localized("toolbar.list_view", bundle: .module) }
         static var thumbnailView: String { ModuleLocalization.localized("toolbar.thumbnail_view", bundle: .module) }
         static var panoramaMode: String { ModuleLocalization.localized("toolbar.panorama_mode", bundle: .module) }

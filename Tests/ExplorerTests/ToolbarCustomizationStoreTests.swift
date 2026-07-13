@@ -26,11 +26,19 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
     func testDefaultLayoutMatchesBuiltinOrder() {
         let layout = ToolbarLayoutConfig.default
         XCTAssertEqual(layout.visibleItems.count, ToolbarBuiltinID.allCases.count)
-        XCTAssertEqual(layout.visibleItems.first?.id, ToolbarBuiltinID.leftPanel.rawValue)
-        XCTAssertEqual(layout.visibleItems.last?.id, ToolbarBuiltinID.browseSettingsMenu.rawValue)
+        XCTAssertEqual(layout.visibleItems.first?.id, ToolbarBuiltinID.newFile.rawValue)
+        XCTAssertEqual(layout.visibleItems.last?.id, ToolbarBuiltinID.thumbnailSizeSlider.rawValue)
 
         let leadingIDs = layout.items(in: .leading).map(\.id)
-        XCTAssertEqual(leadingIDs, [ToolbarBuiltinID.leftPanel.rawValue])
+        XCTAssertEqual(
+            leadingIDs,
+            [
+                ToolbarBuiltinID.newFile.rawValue,
+                ToolbarBuiltinID.newFolder.rawValue,
+                ToolbarBuiltinID.delete.rawValue,
+                ToolbarBuiltinID.leftPanel.rawValue,
+            ]
+        )
 
         let mainIDs = layout.items(in: .main).map(\.id)
         XCTAssertEqual(
@@ -42,8 +50,6 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
                 ToolbarBuiltinID.toggleTabBar.rawValue,
             ]
         )
-
-        let mainIDs = layout.items(in: .main).map(\.id)
         XCTAssertEqual(
             mainIDs[mainIDs.firstIndex(of: ToolbarBuiltinID.thumbnailView.rawValue)! + 1],
             ToolbarBuiltinID.panoramaView.rawValue
@@ -54,8 +60,6 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
             trailingIDs,
             [
                 ToolbarBuiltinID.thumbnailSizeSlider.rawValue,
-                ToolbarBuiltinID.sortMenu.rawValue,
-                ToolbarBuiltinID.browseSettingsMenu.rawValue,
             ]
         )
     }
@@ -140,11 +144,8 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
 
         layout.mergeNewBuiltinItemsFromDefault()
 
-        let mainIDs = layout.items(in: .main).map(\.id)
-        XCTAssertEqual(
-            mainIDs[mainIDs.firstIndex(of: ToolbarBuiltinID.newFolder.rawValue)! + 1],
-            ToolbarBuiltinID.newFile.rawValue
-        )
+        let leadingIDs = layout.items(in: .leading).map(\.id)
+        XCTAssertEqual(leadingIDs.first, ToolbarBuiltinID.newFile.rawValue)
     }
 
     func testDeleteCustomOpenAppRemovesActionAndVisibleEntry() {

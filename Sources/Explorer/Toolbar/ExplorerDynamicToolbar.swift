@@ -51,9 +51,53 @@ struct ExplorerDynamicToolbar<SearchContent: View>: ToolbarContent {
             ) { entry, _ in
                 toolbarCell(entry: entry)
             }
+        } else if zone == .main {
+            mainZoneStrip(entries: entries)
+        } else if zone == .leading {
+            leadingZoneStrip(entries: entries)
         } else {
             HStack(spacing: ExplorerToolbarMetrics.iconSpacing) {
                 ForEach(Array(entries.enumerated()), id: \.element.id) { _, entry in
+                    toolbarCell(entry: entry)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func leadingZoneStrip(entries: [ToolbarVisibleEntry]) -> some View {
+        let fileActionIDs = Set([
+            ToolbarBuiltinID.newFile.rawValue,
+            ToolbarBuiltinID.newFolder.rawValue,
+            ToolbarBuiltinID.delete.rawValue,
+        ])
+        let fileActions = ToolbarMainGroup.sortedEntries(
+            entries.filter { fileActionIDs.contains($0.id) }
+        )
+        let rest = entries.filter { !fileActionIDs.contains($0.id) }
+
+        HStack(spacing: ExplorerToolbarMetrics.iconSpacing) {
+            ForEach(fileActions) { entry in
+                toolbarCell(entry: entry)
+            }
+            if !fileActions.isEmpty, !rest.isEmpty {
+                ToolbarGroupDivider()
+            }
+            ForEach(rest) { entry in
+                toolbarCell(entry: entry)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func mainZoneStrip(entries: [ToolbarVisibleEntry]) -> some View {
+        let groups = ToolbarMainGroup.groupedEntries(entries)
+        HStack(spacing: ExplorerToolbarMetrics.iconSpacing) {
+            ForEach(Array(groups.enumerated()), id: \.offset) { index, groupEntries in
+                if index > 0 {
+                    ToolbarGroupDivider()
+                }
+                ForEach(groupEntries) { entry in
                     toolbarCell(entry: entry)
                 }
             }
