@@ -47,7 +47,6 @@ extension PreviewSession {
                 systemImage: "doc.on.doc",
                 action: { [self] in copyImageToPasteboard(item) }
             ),
-            previewOpenWithToolbarItem(id: "quicklook-image-open", for: item),
         ]
     }
 
@@ -144,7 +143,6 @@ extension PreviewSession {
                 systemImage: "doc.on.doc",
                 action: { [self] in copyImageToPasteboard(item) }
             ),
-            previewOpenWithToolbarItem(id: "image-open", for: item),
         ]
 
         if let hex = image.pickedWebColor {
@@ -161,7 +159,7 @@ extension PreviewSession {
                     },
                     content: AnyView(PreviewImageColorSwatch(hex: hex, session: self))
                 ),
-                at: items.count - 2
+                at: items.count - 1
             )
         }
 

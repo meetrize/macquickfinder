@@ -64,7 +64,6 @@ extension PreviewSession {
                 systemImage: "doc.on.doc",
                 action: { [self] in copyModel3DInfoToPasteboard() }
             ),
-            previewOpenWithToolbarItem(id: "model3d-open", for: item),
         ]
     }
 

@@ -4,41 +4,56 @@ import SwiftUI
 
 extension PreviewSession {
     func previewToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
+        let items = basePreviewToolbarItems(for: item)
+        return appendOpenWithToolbarItem(
+            to: prependRunnableScriptRunButton(to: items, for: item),
+            for: item
+        )
+    }
+
+    private func basePreviewToolbarItems(for item: FileItem) -> [PreviewToolbarOverflowModel] {
         let ext = item.url.pathExtension.lowercased()
         if BuiltinPreviewExtensions.quickLookImage.contains(ext) {
-            return prependRunnableScriptRunButton(to: previewQuickLookImageToolbarItems(for: item), for: item)
+            return previewQuickLookImageToolbarItems(for: item)
         }
         if PreviewTypeClassifier.isImageFile(ext) {
-            return prependRunnableScriptRunButton(to: previewImageToolbarItems(for: item), for: item)
+            return previewImageToolbarItems(for: item)
         }
         if PreviewTypeClassifier.isPDFFile(ext) {
-            return prependRunnableScriptRunButton(to: previewPDFToolbarItems(), for: item)
+            return previewPDFToolbarItems()
         }
         if PreviewTypeClassifier.isSpreadsheetFile(ext) {
-            return prependRunnableScriptRunButton(to: previewSpreadsheetToolbarItems(for: item), for: item)
+            return previewSpreadsheetToolbarItems(for: item)
         }
         if PreviewTypeClassifier.isTextFile(ext) {
-            return prependRunnableScriptRunButton(to: previewTextToolbarItems(for: item), for: item)
+            return previewTextToolbarItems(for: item)
         }
         if PreviewTypeClassifier.isMediaFile(ext) {
-            return prependRunnableScriptRunButton(to: previewMediaToolbarItems(), for: item)
+            return previewMediaToolbarItems()
         }
         if PreviewTypeClassifier.isWordDocumentFile(ext) {
-            return prependRunnableScriptRunButton(to: previewWordDocumentToolbarItems(for: item), for: item)
+            return previewWordDocumentToolbarItems(for: item)
         }
         if PreviewTypeClassifier.isOfficeFile(ext) {
-            return prependRunnableScriptRunButton(to: previewOfficeToolbarItems(for: item), for: item)
+            return previewOfficeToolbarItems(for: item)
         }
         if PreviewTypeClassifier.isArchivePreviewFile(item) {
-            return prependRunnableScriptRunButton(to: previewArchiveToolbarItems(), for: item)
+            return previewArchiveToolbarItems()
         }
         if PreviewTypeClassifier.isEpubFile(ext), content.epubPackage != nil {
-            return prependRunnableScriptRunButton(to: previewEpubToolbarItems(), for: item)
+            return previewEpubToolbarItems()
         }
         if PreviewTypeClassifier.isModel3DFile(ext), content.model3DContent != nil {
-            return prependRunnableScriptRunButton(to: previewModel3DToolbarItems(for: item), for: item)
+            return previewModel3DToolbarItems(for: item)
         }
-        return prependRunnableScriptRunButton(to: [], for: item)
+        return []
+    }
+
+    private func appendOpenWithToolbarItem(
+        to items: [PreviewToolbarOverflowModel],
+        for item: FileItem
+    ) -> [PreviewToolbarOverflowModel] {
+        items + [previewOpenWithToolbarItem(id: "preview-open-with", for: item)]
     }
 
     func previewToolbarIconItem(
