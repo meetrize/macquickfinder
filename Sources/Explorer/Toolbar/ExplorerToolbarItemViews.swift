@@ -156,6 +156,48 @@ struct ExplorerToolbarItemView: View {
                 } else {
                     recordButton
                 }
+            case .outputPanel:
+                let outputPanelButton = Button {
+                    ToolbarBuiltinDispatcher.perform(.outputPanel, environment: environment)
+                } label: {
+                    SFSymbolToolbarIcon(
+                        systemName: "greaterthan.square",
+                        isActive: environment.layout.isOutputPanelVisible
+                    )
+                }
+                .buttonStyle(ExplorerToolbarPlainButtonStyle())
+                .disabled(isBuiltinDisabled(.outputPanel))
+                if let tooltip = tooltipForBuiltin(.outputPanel) {
+                    outputPanelButton.instantHoverTooltip(tooltip)
+                } else {
+                    outputPanelButton
+                }
+            case .newFolder:
+                let newFolderButton = Button {
+                    ToolbarBuiltinDispatcher.perform(.newFolder, environment: environment)
+                } label: {
+                    SFSymbolToolbarIcon(systemName: "folder.badge.plus")
+                }
+                .buttonStyle(ExplorerToolbarPlainButtonStyle())
+                .disabled(isBuiltinDisabled(.newFolder))
+                if let tooltip = tooltipForBuiltin(.newFolder) {
+                    newFolderButton.instantHoverTooltip(tooltip)
+                } else {
+                    newFolderButton
+                }
+            case .newFile:
+                let newFileButton = Button {
+                    ToolbarBuiltinDispatcher.perform(.newFile, environment: environment)
+                } label: {
+                    SFSymbolToolbarIcon(systemName: "plus.app")
+                }
+                .buttonStyle(ExplorerToolbarPlainButtonStyle())
+                .disabled(isBuiltinDisabled(.newFile))
+                if let tooltip = tooltipForBuiltin(.newFile) {
+                    newFileButton.instantHoverTooltip(tooltip)
+                } else {
+                    newFileButton
+                }
             default:
                 ExplorerToolbarIconButton(
                     icon: iconForBuiltin(builtin),
@@ -406,6 +448,15 @@ extension ToolbarBuiltinID {
             PreviewToolbarIcon(isActive: environment.layout.showPreview)
         case .recordOperations:
             RecordOperationsToolbarIcon(isRecording: environment.isOperationRecording)
+        case .outputPanel:
+            SFSymbolToolbarIcon(
+                systemName: "greaterthan.square",
+                isActive: environment.layout.isOutputPanelVisible
+            )
+        case .newFolder:
+            SFSymbolToolbarIcon(systemName: "folder.badge.plus")
+        case .newFile:
+            SFSymbolToolbarIcon(systemName: "plus.app")
         case .sortMenu:
             SFSymbolToolbarIcon(systemName: "line.horizontal.3.decrease.circle")
         case .browseSettingsMenu:
