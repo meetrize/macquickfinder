@@ -2156,7 +2156,7 @@ struct ContentView: View {
         alert.messageText = L10n.Dialog.newFolderTitle
         alert.informativeText = L10n.Dialog.newFolderMessage
         
-        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        let textField = KeyEquivalentTextFields.plain(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
         textField.placeholderString = L10n.Dialog.folderNamePlaceholder
         alert.accessoryView = textField
         

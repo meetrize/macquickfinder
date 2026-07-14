@@ -1,0 +1,54 @@
+---
+description: AppKit/SwiftUI 可编辑输入框必须支持 ⌘C/V/X/A/Z 等编辑快捷键
+alwaysApply: true
+---
+
+# 输入框键盘快捷键（强制）
+
+凡用户可编辑的输入控件，**必须**支持系统常见编辑快捷键，禁止出现「能打字但不能 ⌘V」：
+
+| 快捷键 | 行为 |
+|--------|------|
+| ⌘V | 粘贴 |
+| ⌘C | 复制 |
+| ⌘X | 剪切 |
+| ⌘A | 全选 |
+| ⌘Z / ⇧⌘Z | 撤销 / 重做（有 UndoManager 时） |
+
+## AppKit（`NSTextField` / `NSSecureTextField` / `NSTextView`）
+
+**禁止**在 `NSAlert` accessory、模态面板、自定义窗口里直接使用裸 `NSTextField(frame:)` / `NSSecureTextField(frame:)` 作为可编辑框——模态环境下编辑菜单快捷键常不送达。
+
+**必须**使用：
+
+```swift
+KeyEquivalentTextFields.plain(frame:)
+KeyEquivalentTextFields.secure(frame:)
+```
+
+实现见 `Sources/Explorer/TextEditingSupport.swift`（`KeyEquivalentTextField` / `KeyEquivalentSecureTextField`，内部走 `TextEditingCommands.performEditKeyEquivalent`）。
+
+若必须自定义子类（如搜索框、输出命令栏），须在 `performKeyEquivalent(with:)`（或等价本地事件监听）中处理上述快捷键，可复用 `TextEditingCommands.editSelector(for:)`。
+
+## SwiftUI `TextField` / `SecureField` / `TextEditor`
+
+- 独立窗口、Sheet、Alert 式输入：挂载 `TextEditingKeyMonitor` 或 `FieldEditorTextEditingKeyMonitor`（同文件）。
+- 或确保菜单/Commands 里有会转发到 field editor 的剪贴板命令（`TextEditingCommands.pasteboardButtons()`）。
+
+## 自检
+
+- [ ] 新输入框在 Alert / 独立窗 / Sheet 中可 ⌘V 粘贴
+- [ ] 可 ⌘A / ⌘C / ⌘X
+- [ ] 未新增「裸 NSTextField 可编辑」路径绕过工厂
+
+## 反例
+
+```swift
+// ❌ NSAlert 里裸字段 → 经常无法 ⌘V
+let field = NSTextField(frame: ...)
+alert.accessoryView = field
+
+// ✅
+let field = KeyEquivalentTextFields.plain(frame: ...)
+alert.accessoryView = field
+```

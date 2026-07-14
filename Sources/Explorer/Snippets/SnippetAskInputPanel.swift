@@ -113,8 +113,8 @@ enum SnippetAskInputPanel {
     private static func makeField(for parameter: SnippetAskParameter, width: CGFloat) -> NSTextField {
         let frame = NSRect(x: 0, y: 0, width: width, height: fieldHeight)
         let field: NSTextField = parameter.isSecret
-            ? NSSecureTextField(frame: frame)
-            : NSTextField(frame: frame)
+            ? KeyEquivalentTextFields.secure(frame: frame)
+            : KeyEquivalentTextFields.plain(frame: frame)
         field.isEditable = true
         field.isBordered = true
         field.bezelStyle = .squareBezel

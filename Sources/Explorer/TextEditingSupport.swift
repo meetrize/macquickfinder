@@ -45,7 +45,10 @@ enum TextEditingCommands {
     }
 
     static func editSelector(for event: NSEvent) -> Selector? {
-        guard event.modifierFlags.contains(.command) else { return nil }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags.contains(.command), !flags.contains(.control), !flags.contains(.option) else {
+            return nil
+        }
         guard let key = event.charactersIgnoringModifiers?.lowercased() else { return nil }
         switch key {
         case "a": return #selector(NSText.selectAll(_:))
@@ -54,9 +57,9 @@ enum TextEditingCommands {
         case "x": return #selector(NSText.cut(_:))
         case "z":
             if flags.contains(.shift) {
-                return #selector(NSText.redo(_:))
+                return NSSelectorFromString("redo:")
             }
-            return #selector(NSText.undo(_:))
+            return NSSelectorFromString("undo:")
         default: return nil
         }
     }
@@ -72,26 +75,6 @@ enum TextEditingCommands {
             return true
         }
         return NSApp.sendAction(selector, to: nil, from: field)
-    }
-
-    static func editSelector(for event: NSEvent) -> Selector? {
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard flags.contains(.command), !flags.contains(.control), !flags.contains(.option) else {
-            return nil
-        }
-        guard let key = event.charactersIgnoringModifiers?.lowercased() else { return nil }
-        switch key {
-        case "a": return #selector(NSText.selectAll(_:))
-        case "c": return #selector(NSText.copy(_:))
-        case "v": return #selector(NSText.paste(_:))
-        case "x": return #selector(NSText.cut(_:))
-        case "z":
-            if flags.contains(.shift) {
-                return #selector(NSText.redo(_:))
-            }
-            return #selector(NSText.undo(_:))
-        default: return nil
-        }
     }
 
     static func performEditAction(for event: NSEvent) -> Bool {
@@ -224,4 +207,36 @@ struct FieldEditorTextEditingKeyMonitor: NSViewRepresentable {
 /// 仅用于挂载键盘监听，不参与鼠标命中测试。
 final class PassThroughKeyMonitorNSView: NSView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+// MARK: - AppKit 可编辑文本框（⌘C/V/X/A/Z）
+
+/// `NSAlert` accessory / 模态对话框里的标准 `NSTextField` 往往收不到编辑菜单快捷键。
+/// 新建可编辑 AppKit 输入框时用本工厂，勿直接用裸 `NSTextField` / `NSSecureTextField`。
+enum KeyEquivalentTextFields {
+    static func plain(frame: NSRect) -> NSTextField {
+        KeyEquivalentTextField(frame: frame)
+    }
+
+    static func secure(frame: NSRect) -> NSSecureTextField {
+        KeyEquivalentSecureTextField(frame: frame)
+    }
+}
+
+final class KeyEquivalentTextField: NSTextField {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if TextEditingCommands.performEditKeyEquivalent(with: event, on: self) {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
+final class KeyEquivalentSecureTextField: NSSecureTextField {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if TextEditingCommands.performEditKeyEquivalent(with: event, on: self) {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 }
