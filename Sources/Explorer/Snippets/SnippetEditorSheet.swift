@@ -14,7 +14,7 @@ struct SnippetEditorSheet: View {
     @State private var interpreter: String
     @State private var useCustomInterpreter: Bool
     @State private var useSystemTerminal: Bool
-    @State private var pendingVariableInsert: String?
+    @StateObject private var scriptInsertBridge = SnippetScriptInsertBridge()
 
     let snippet: Snippet?
     let onSave: (Snippet) -> Void
@@ -240,7 +240,7 @@ struct SnippetEditorSheet: View {
     }
 
     private var scriptEditor: some View {
-        SnippetScriptTextEditor(text: $content, pendingInsert: $pendingVariableInsert)
+        SnippetScriptTextEditor(text: $content, insertBridge: scriptInsertBridge)
             .frame(minHeight: 180)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             .overlay(
@@ -250,24 +250,39 @@ struct SnippetEditorSheet: View {
     }
 
     private var variableChips: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(L10n.Snippets.Editor.insertVariable)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 52, maximum: 80), spacing: 6)],
-                alignment: .leading,
-                spacing: 6
-            ) {
+            SnippetFlowLayout(horizontalSpacing: 4, verticalSpacing: 4) {
                 ForEach(SnippetVariableCatalog.all) { variable in
-                    Button(variable.token) {
-                        pendingVariableInsert = variable.token
+                    Button {
+                        scriptInsertBridge.insert(variable.token)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(variable.token)
+                                .font(.system(.caption2, design: .monospaced).weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(variable.description)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .fill(Color.secondary.opacity(0.1))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .strokeBorder(Color.secondary.opacity(0.18), lineWidth: 1)
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .font(.system(.caption, design: .monospaced))
-                    .instantHoverTooltip(variable.description)
+                    .buttonStyle(.plain)
+                    .help(variable.description)
                 }
             }
         }
