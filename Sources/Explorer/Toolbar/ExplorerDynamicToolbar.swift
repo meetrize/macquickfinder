@@ -106,6 +106,9 @@ struct ExplorerDynamicToolbar<SearchContent: View>: ToolbarContent {
 
     @ViewBuilder
     private func toolbarCell(entry: ToolbarVisibleEntry) -> some View {
+        // ContentView 不再观察 store：此处以 store 为准覆盖 isCustomizing。
+        let resolvedEnvironment = environment.withCustomizing(store.isCustomizing)
+
         if store.isCustomizing {
             ToolbarDraggableChip(
                 itemID: entry.id,
@@ -115,7 +118,7 @@ struct ExplorerDynamicToolbar<SearchContent: View>: ToolbarContent {
                 ToolbarItemChipLabel(
                     entry: entry,
                     layout: activeLayout,
-                    environment: environment
+                    environment: resolvedEnvironment
                 )
             }
             .overlay {
@@ -130,7 +133,7 @@ struct ExplorerDynamicToolbar<SearchContent: View>: ToolbarContent {
             ExplorerToolbarItemView(
                 entry: entry,
                 layout: activeLayout,
-                environment: environment
+                environment: resolvedEnvironment
             )
         }
     }

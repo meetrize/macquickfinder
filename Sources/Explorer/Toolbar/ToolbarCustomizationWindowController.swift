@@ -5,6 +5,14 @@ import SwiftUI
 enum ToolbarCustomizationWindowController {
     private static var customizationWindow: NSWindow?
     private static var delegateHolder: WindowDelegate?
+    private static var pendingFinishAction: FinishAction = .cancel
+    /// 关闭后延迟执行的 commit/cancel；再次 present 前必须先冲刷，避免与 begin 竞态。
+    private static var deferredFinishWork: (() -> Void)?
+
+    private enum FinishAction {
+        case commit
+        case cancel
+    }
 
     static var activeWindow: NSWindow? { customizationWindow }
 
@@ -13,19 +21,23 @@ enum ToolbarCustomizationWindowController {
         environment: ExplorerToolbarEnvironment,
         parentWindow: NSWindow?
     ) {
+        flushDeferredFinishWork()
+
         if let customizationWindow, customizationWindow.isVisible {
             ToolbarWindowPlacement.attachAsChild(customizationWindow, to: parentWindow)
             customizationWindow.makeKeyAndOrderFront(nil)
             customizationWindow.makeFirstResponder(nil)
+            if !store.isCustomizing {
+                store.beginCustomization()
+            }
             return
         }
 
-        store.beginCustomization()
+        pendingFinishAction = .cancel
 
         let rootView = ToolbarCustomizationPanelView(
             store: store,
-            environment: environment,
-            onFinish: { dismiss() }
+            environment: environment
         )
 
         let hostingView = NSHostingView(rootView: rootView)
@@ -55,26 +67,66 @@ enum ToolbarCustomizationWindowController {
         ToolbarWindowPlacement.attachAsChild(window, to: parentWindow)
 
         customizationWindow = window
+        // 先亮出自定义窗，再在下一帧切换工具栏编辑态，避免菜单点击被主窗口整栏重建卡住。
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(nil)
-        NSApp.activate(ignoringOtherApps: true)
+
+        DispatchQueue.main.async {
+            guard customizationWindow === window, window.isVisible else { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                store.beginCustomization()
+            }
+        }
+    }
+
+    static func finish(committing: Bool) {
+        pendingFinishAction = committing ? .commit : .cancel
+        dismiss()
     }
 
     static func dismiss() {
         ToolbarOpenAppEditorWindowController.dismiss()
-        guard let window = customizationWindow else { return }
+        guard let window = customizationWindow else {
+            flushDeferredFinishWork()
+            return
+        }
         if let parent = window.parent {
             parent.removeChildWindow(window)
         }
         window.close()
-        customizationWindow = nil
-        delegateHolder = nil
+    }
+
+    private static func flushDeferredFinishWork() {
+        let work = deferredFinishWork
+        deferredFinishWork = nil
+        work?()
+    }
+
+    private static func scheduleDeferredFinish(store: ToolbarCustomizationStore, action: FinishAction) {
+        deferredFinishWork = {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                switch action {
+                case .commit:
+                    store.commitCustomization()
+                case .cancel:
+                    store.cancelCustomization()
+                }
+            }
+        }
+        DispatchQueue.main.async {
+            flushDeferredFinishWork()
+        }
     }
 
     private final class WindowDelegate: NSObject, NSWindowDelegate {
         private let store: ToolbarCustomizationStore
         private let onClosed: () -> Void
         private var parentCloseObserver: NSObjectProtocol?
+        private var didHandleClose = false
 
         init(
             store: ToolbarCustomizationStore,
@@ -98,11 +150,16 @@ enum ToolbarCustomizationWindowController {
         }
 
         func windowWillClose(_ notification: Notification) {
+            guard !didHandleClose else { return }
+            didHandleClose = true
+
             ToolbarOpenAppEditorWindowController.dismiss()
-            if store.isCustomizing {
-                store.cancelCustomization()
-            }
+            let action = ToolbarCustomizationWindowController.pendingFinishAction
+            ToolbarCustomizationWindowController.pendingFinishAction = .cancel
             onClosed()
+
+            // 先让关闭返回，再改工具栏模式，取消按钮手感会更轻。
+            ToolbarCustomizationWindowController.scheduleDeferredFinish(store: store, action: action)
         }
 
         deinit {

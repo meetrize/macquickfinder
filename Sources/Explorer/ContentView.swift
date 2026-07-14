@@ -193,7 +193,9 @@ struct ContentView: View {
     @State private var liveLeftPanelDragWidth: CGFloat?
     @StateObject private var externalFolderOpenCenter = ExternalFolderOpenCenter.shared
     @ObservedObject private var outputPanelTextEditing = OutputPanelTextEditingCenter.shared
-    @ObservedObject private var toolbarStore = ToolbarCustomizationStore.shared
+    /// 不使用 `@ObservedObject`：工具栏草稿拖拽不应重绘整个 ContentView。
+    /// 工具栏/自定义面板/右键菜单各自观察 store。
+    private let toolbarStore = ToolbarCustomizationStore.shared
     @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
     @ObservedObject private var shortcutSettings = ShortcutSettingsStore.shared
     @ObservedObject private var windowTabCenter = ExplorerWindowTabCenter.shared
@@ -885,8 +887,8 @@ struct ContentView: View {
         .navigationTitle(currentDirectoryTitle)
         .modifier(InlineToolbarTitleModifier())
         .modifier(HiddenToolbarChromeSeparatorModifier())
-        .toolbar {
-            ExplorerDynamicToolbar(
+        .modifier(
+            ExplorerToolbarCustomizationChrome(
                 store: toolbarStore,
                 environment: toolbarEnvironment,
                 searchContent: {
@@ -899,12 +901,11 @@ struct ContentView: View {
                     )
                 }
             )
-        }
+        )
         .background {
             ToolbarContextMenuInstaller(
                 hostWindow: $hostWindow,
-                isCustomizing: toolbarStore.isCustomizing,
-                workingLayout: toolbarStore.workingLayout,
+                store: toolbarStore,
                 onCustomize: {
                     ToolbarCustomizationWindowController.present(
                         store: toolbarStore,

@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 struct ToolbarCustomizationPanelView: View {
     @ObservedObject var store: ToolbarCustomizationStore
     let environment: ExplorerToolbarEnvironment
-    var onFinish: () -> Void = {}
 
     private var paletteRefs: [ToolbarItemRef] {
         store.workingLayout.paletteItemRefs()
@@ -40,13 +39,11 @@ struct ToolbarCustomizationPanelView: View {
                 Spacer()
 
                 Button(L10n.Toolbar.customizeCancel) {
-                    store.cancelCustomization()
-                    onFinish()
+                    ToolbarCustomizationWindowController.finish(committing: false)
                 }
 
                 Button(L10n.Toolbar.customizeDone) {
-                    store.commitCustomization()
-                    onFinish()
+                    ToolbarCustomizationWindowController.finish(committing: true)
                 }
                 .keyboardShortcut(.defaultAction)
             }

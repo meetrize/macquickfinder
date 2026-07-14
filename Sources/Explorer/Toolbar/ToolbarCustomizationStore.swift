@@ -5,9 +5,9 @@ import Foundation
 final class ToolbarCustomizationStore: ObservableObject {
     static let shared = ToolbarCustomizationStore()
 
-    @Published private(set) var layout: ToolbarLayoutConfig
-    @Published private(set) var isCustomizing = false
-    @Published var draftLayout: ToolbarLayoutConfig?
+    private(set) var layout: ToolbarLayoutConfig
+    private(set) var isCustomizing = false
+    private var draftLayoutStorage: ToolbarLayoutConfig?
 
     private var didLoad = false
 
@@ -15,14 +15,24 @@ final class ToolbarCustomizationStore: ObservableObject {
         layout = .default
     }
 
+    var draftLayout: ToolbarLayoutConfig? {
+        get { draftLayoutStorage }
+        set {
+            draftLayoutStorage = newValue
+            notifyChange()
+        }
+    }
+
     var workingLayout: ToolbarLayoutConfig {
-        get { isCustomizing ? (draftLayout ?? layout) : layout }
+        get { isCustomizing ? (draftLayoutStorage ?? layout) : layout }
         set {
             if isCustomizing {
-                draftLayout = newValue
+                draftLayoutStorage = newValue
+                notifyChange()
             } else {
                 layout = newValue
                 persist()
+                notifyChange()
             }
         }
     }
@@ -36,30 +46,35 @@ final class ToolbarCustomizationStore: ObservableObject {
     func beginCustomization() {
         loadIfNeeded()
         ToolbarItemFrameRegistry.shared.clear()
-        draftLayout = layout
+        draftLayoutStorage = layout
         isCustomizing = true
+        notifyChange()
     }
 
     func commitCustomization() {
-        guard isCustomizing, let draftLayout else { return }
-        var sanitized = draftLayout
+        guard isCustomizing, let draft = draftLayoutStorage else { return }
+        var sanitized = draft
         sanitized.sanitize()
+        draftLayoutStorage = nil
         layout = sanitized
-        persist()
-        self.draftLayout = nil
         isCustomizing = false
+        persist()
         ToolbarItemFrameRegistry.shared.clear()
+        notifyChange()
     }
 
     func cancelCustomization() {
-        draftLayout = nil
+        guard isCustomizing || draftLayoutStorage != nil else { return }
+        draftLayoutStorage = nil
         isCustomizing = false
         ToolbarItemFrameRegistry.shared.clear()
+        notifyChange()
     }
 
     func resetDraftToDefaults() {
         guard isCustomizing else { return }
-        draftLayout = .default
+        draftLayoutStorage = .default
+        notifyChange()
     }
 
     func addCustomOpenApp(_ action: CustomOpenAppAction) {
@@ -167,22 +182,30 @@ final class ToolbarCustomizationStore: ObservableObject {
         layout = .default
         persist()
         if isCustomizing {
-            draftLayout = .default
+            draftLayoutStorage = .default
         }
+        notifyChange()
+    }
+
+    private func notifyChange() {
+        objectWillChange.send()
     }
 
     private func load() {
         guard let data = UserDefaultsStorage.data(forKey: AppPreferences.Toolbar.layoutConfig) else {
             layout = .default
+            notifyChange()
             return
         }
         guard var decoded = try? JSONDecoder().decode(ToolbarLayoutConfig.self, from: data) else {
             layout = .default
+            notifyChange()
             return
         }
         decoded.sanitize()
         decoded.mergeNewBuiltinItemsFromDefault()
         layout = decoded
+        notifyChange()
     }
 
     private func persist() {

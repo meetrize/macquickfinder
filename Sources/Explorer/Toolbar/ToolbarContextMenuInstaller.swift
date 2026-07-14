@@ -6,8 +6,7 @@ import SwiftUI
 /// - 自定义模式：在自定义打开应用 / 快捷方式图标上弹出编辑或删除
 struct ToolbarContextMenuInstaller: NSViewRepresentable {
     @Binding var hostWindow: NSWindow?
-    var isCustomizing: Bool
-    var workingLayout: ToolbarLayoutConfig
+    @ObservedObject var store: ToolbarCustomizationStore
     let onCustomize: () -> Void
     let onEditOpenApp: (CustomOpenAppAction) -> Void
     let onDeleteOpenApp: (CustomOpenAppAction) -> Void
@@ -15,8 +14,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
-            isCustomizing: isCustomizing,
-            workingLayout: workingLayout,
+            store: store,
             onCustomize: onCustomize,
             onEditOpenApp: onEditOpenApp,
             onDeleteOpenApp: onDeleteOpenApp,
@@ -35,8 +33,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
 
     func updateNSView(_ nsView: AnchorView, context: Context) {
         context.coordinator.anchorView = nsView
-        context.coordinator.isCustomizing = isCustomizing
-        context.coordinator.workingLayout = workingLayout
+        context.coordinator.store = store
         context.coordinator.onCustomize = onCustomize
         context.coordinator.onEditOpenApp = onEditOpenApp
         context.coordinator.onDeleteOpenApp = onDeleteOpenApp
@@ -48,10 +45,10 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         coordinator.stopMonitor()
     }
 
+    @MainActor
     final class Coordinator: NSObject {
         weak var anchorView: NSView?
-        var isCustomizing: Bool
-        var workingLayout: ToolbarLayoutConfig
+        var store: ToolbarCustomizationStore
         var onCustomize: () -> Void
         var onEditOpenApp: (CustomOpenAppAction) -> Void
         var onDeleteOpenApp: (CustomOpenAppAction) -> Void
@@ -60,15 +57,13 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         private weak var monitoredWindow: NSWindow?
 
         init(
-            isCustomizing: Bool,
-            workingLayout: ToolbarLayoutConfig,
+            store: ToolbarCustomizationStore,
             onCustomize: @escaping () -> Void,
             onEditOpenApp: @escaping (CustomOpenAppAction) -> Void,
             onDeleteOpenApp: @escaping (CustomOpenAppAction) -> Void,
             onDeleteOpenShortcut: @escaping (CustomOpenShortcutAction) -> Void
         ) {
-            self.isCustomizing = isCustomizing
-            self.workingLayout = workingLayout
+            self.store = store
             self.onCustomize = onCustomize
             self.onEditOpenApp = onEditOpenApp
             self.onDeleteOpenApp = onDeleteOpenApp
@@ -103,7 +98,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             guard window === monitoredWindow || window === anchorView?.window else { return event }
             guard ToolbarContextMenuHitTesting.isToolbarClick(event, in: window) else { return event }
 
-            if isCustomizing {
+            if store.isCustomizing {
                 return handleCustomizingRightClick(event, in: window)
             }
 
@@ -121,6 +116,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         }
 
         private func handleCustomizingRightClick(_ event: NSEvent, in window: NSWindow) -> NSEvent? {
+            let workingLayout = store.workingLayout
             guard let itemID = ToolbarContextMenuHitTesting.toolbarItemID(
                 at: event.locationInWindow,
                 in: window
@@ -185,7 +181,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         @objc private func handleEditOpenAppItem(_ sender: NSMenuItem) {
             guard let rawID = sender.representedObject as? String,
                   let actionID = UUID(uuidString: rawID),
-                  let action = workingLayout.customOpenApps.first(where: { $0.id == actionID }) else {
+                  let action = store.workingLayout.customOpenApps.first(where: { $0.id == actionID }) else {
                 return
             }
             onEditOpenApp(action)
@@ -194,7 +190,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         @objc private func handleDeleteOpenAppItem(_ sender: NSMenuItem) {
             guard let rawID = sender.representedObject as? String,
                   let actionID = UUID(uuidString: rawID),
-                  let action = workingLayout.customOpenApps.first(where: { $0.id == actionID }) else {
+                  let action = store.workingLayout.customOpenApps.first(where: { $0.id == actionID }) else {
                 return
             }
             onDeleteOpenApp(action)
@@ -203,14 +199,16 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         @objc private func handleDeleteOpenShortcutItem(_ sender: NSMenuItem) {
             guard let rawID = sender.representedObject as? String,
                   let actionID = UUID(uuidString: rawID),
-                  let action = workingLayout.customOpenShortcuts.first(where: { $0.id == actionID }) else {
+                  let action = store.workingLayout.customOpenShortcuts.first(where: { $0.id == actionID }) else {
                 return
             }
             onDeleteOpenShortcut(action)
         }
 
         deinit {
-            stopMonitor()
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
         }
     }
 }

@@ -31,6 +31,12 @@ struct ExplorerToolbarEnvironment {
     var editOpenApp: (CustomOpenAppAction) -> Void
     var performOpenShortcut: (CustomOpenShortcutAction) -> Void
     var toggleOperationRecording: () -> Void
+
+    func withCustomizing(_ value: Bool) -> ExplorerToolbarEnvironment {
+        var copy = self
+        copy.isCustomizing = value
+        return copy
+    }
 }
 
 enum ToolbarBuiltinDispatcher {
