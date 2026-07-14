@@ -52,6 +52,44 @@ enum TextEditingCommands {
         case "c": return #selector(NSText.copy(_:))
         case "v": return #selector(NSText.paste(_:))
         case "x": return #selector(NSText.cut(_:))
+        case "z":
+            if flags.contains(.shift) {
+                return #selector(NSText.redo(_:))
+            }
+            return #selector(NSText.undo(_:))
+        default: return nil
+        }
+    }
+
+    /// 供 `NSTextField` / `NSSecureTextField` 子类在 `performKeyEquivalent` 中调用。
+    @discardableResult
+    static func performEditKeyEquivalent(with event: NSEvent, on field: NSTextField) -> Bool {
+        guard let selector = editSelector(for: event) else { return false }
+        if let editor = field.currentEditor(), editor.tryToPerform(selector, with: field) {
+            return true
+        }
+        if field.tryToPerform(selector, with: field) {
+            return true
+        }
+        return NSApp.sendAction(selector, to: nil, from: field)
+    }
+
+    static func editSelector(for event: NSEvent) -> Selector? {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags.contains(.command), !flags.contains(.control), !flags.contains(.option) else {
+            return nil
+        }
+        guard let key = event.charactersIgnoringModifiers?.lowercased() else { return nil }
+        switch key {
+        case "a": return #selector(NSText.selectAll(_:))
+        case "c": return #selector(NSText.copy(_:))
+        case "v": return #selector(NSText.paste(_:))
+        case "x": return #selector(NSText.cut(_:))
+        case "z":
+            if flags.contains(.shift) {
+                return #selector(NSText.redo(_:))
+            }
+            return #selector(NSText.undo(_:))
         default: return nil
         }
     }

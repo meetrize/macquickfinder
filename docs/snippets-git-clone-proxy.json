@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": 806000000.0,
+  "app": "MeoFind",
+  "kind": "snippet-single",
+  "snippets": [
+    {
+      "id": "C1000001-7890-4001-8001-000000000001",
+      "name": "代理 Clone GitHub",
+      "scriptType": "shell",
+      "scope": {
+        "kind": "anytime"
+      },
+      "content": "#!/bin/zsh\nset -euo pipefail\n\nPROXY=\"http://127.0.0.1:7890\"\nexport http_proxy=\"$PROXY\"\nexport https_proxy=\"$PROXY\"\nexport HTTP_PROXY=\"$PROXY\"\nexport HTTPS_PROXY=\"$PROXY\"\nexport ALL_PROXY=\"$PROXY\"\n\ncd %d || exit 1\n\necho \"工作目录: $(pwd)\"\necho \"代理: $PROXY\"\n\nif ! curl -fsS --max-time 3 -x \"$PROXY\" https://github.com >/dev/null 2>&1; then\n  echo \"警告: 无法通过 $PROXY 访问 GitHub，请确认本地代理（端口 7890）已开启。\" >&2\nfi\n\necho \">>> git clone …\"\ngit -c http.proxy=\"$PROXY\" -c https.proxy=\"$PROXY\" clone -- %ask{请输入 GitHub 仓库 URL}\n\necho \"完成。\"\n",
+      "variableHints": [],
+      "sortOrder": 0,
+      "executionCount": 0,
+      "createdAt": 806000000.0,
+      "updatedAt": 806000000.0,
+      "isBuiltin": false,
+      "useSystemTerminal": false
+    }
+  ]
+}
