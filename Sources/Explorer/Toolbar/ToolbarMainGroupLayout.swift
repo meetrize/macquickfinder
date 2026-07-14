@@ -10,7 +10,7 @@ enum ToolbarMainGroup: Int, CaseIterable {
 
     static func index(for entry: ToolbarVisibleEntry) -> Int? {
         switch entry.kind {
-        case .openApp:
+        case .openApp, .openShortcut:
             return ToolbarMainGroup.customApps.rawValue
         case .builtin:
             guard let builtin = ToolbarBuiltinID(rawValue: entry.id) else { return nil }
@@ -89,7 +89,7 @@ enum ToolbarMainGroup: Int, CaseIterable {
 
     private static func sortRank(for entry: ToolbarVisibleEntry) -> Int {
         switch entry.kind {
-        case .openApp:
+        case .openApp, .openShortcut:
             return canonicalBuiltinOrder.count
         case .builtin:
             guard let builtin = ToolbarBuiltinID(rawValue: entry.id),

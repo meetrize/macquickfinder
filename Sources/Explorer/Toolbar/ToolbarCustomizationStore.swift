@@ -80,6 +80,61 @@ final class ToolbarCustomizationStore: ObservableObject {
         workingLayout = config
     }
 
+    func deleteCustomOpenShortcut(id: UUID) {
+        var config = workingLayout
+        let itemID = ToolbarItemIdentity.shortcutItemID(id)
+        config.customOpenShortcuts.removeAll { $0.id == id }
+        config.removeVisible(itemID: itemID)
+        workingLayout = config
+    }
+
+    /// 将 Finder / 文件列表拖入的路径转为工具栏快捷方式并插入指定位置。
+    /// - Returns: 实际新增或从上栏外调入的项数。
+    @discardableResult
+    func addOpenShortcuts(urls: [URL], zone: ToolbarZone, at index: Int) -> Int {
+        var config = workingLayout
+        var insertAt = index
+        var added = 0
+
+        for url in urls {
+            let resolved = url.resolvingSymlinksInPath().standardizedFileURL
+            guard FileManager.default.fileExists(atPath: resolved.path) else { continue }
+
+            if let existing = config.shortcut(matchingPath: resolved.path) {
+                let itemID = ToolbarItemIdentity.shortcutItemID(existing.id)
+                guard !config.visibleIDSet.contains(itemID) else { continue }
+                config.insertVisible(
+                    itemID: itemID,
+                    kind: .openShortcut,
+                    zone: zone,
+                    at: insertAt
+                )
+                insertAt += 1
+                added += 1
+                continue
+            }
+
+            guard config.visibleShortcutCount < ToolbarLayoutConfig.maxVisibleShortcuts else {
+                break
+            }
+
+            let action = CustomOpenShortcutAction.make(from: resolved)
+            config.customOpenShortcuts.append(action)
+            let itemID = ToolbarItemIdentity.shortcutItemID(action.id)
+            config.insertVisible(
+                itemID: itemID,
+                kind: .openShortcut,
+                zone: zone,
+                at: insertAt
+            )
+            insertAt += 1
+            added += 1
+        }
+
+        workingLayout = config
+        return added
+    }
+
     func applyDrop(
         payload: ToolbarDragPayload,
         targetZone: ToolbarZone,

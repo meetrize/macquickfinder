@@ -1075,13 +1075,15 @@
 "toolbar.customize.add_open_app" = "Add Toolbar Item…";
 "toolbar.customize.cancel" = "Cancel";
 "toolbar.customize.done" = "Done";
-"toolbar.customize.hint" = "Drag items into the toolbar to add them. Drag items out to remove them.";
+"toolbar.customize.hint" = "Drag items into the toolbar to add them. Drag items out to remove them. You can also drag files, folders, or apps from Finder.";
 "toolbar.customize.reset" = "Restore Defaults";
 "toolbar.customize.title" = "Customize Toolbar";
 "toolbar.delete" = "Delete";
 "toolbar.error.app_missing" = "Application “%@” could not be found. Reconfigure it in Customize Toolbar.";
 "toolbar.error.app_missing_title" = "Application Not Found";
 "toolbar.error.no_selection" = "Select one or more items first";
+"toolbar.error.shortcut_missing" = "“%@” no longer exists or has been moved.";
+"toolbar.error.shortcut_missing_title" = "Item Missing";
 "toolbar.hide_hidden_files" = "Hide Hidden Files";
 "toolbar.hide_left_panel" = "Hide Left Panel";
 "toolbar.hide_tab_bar" = "Hide Tab Bar";
@@ -1113,6 +1115,7 @@
 "toolbar.panorama_mode" = "Panorama View";
 "toolbar.record_operations" = "Record operations to create a Snippet";
 "toolbar.record_operations_active" = "Recording — click to stop";
+"toolbar.shortcut.remove" = "Remove Button";
 "toolbar.show_all_tabs" = "Show All Tabs";
 "toolbar.show_hidden_files" = "Show Hidden Files";
 "toolbar.show_left_panel" = "Show Left Panel";

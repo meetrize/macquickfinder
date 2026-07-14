@@ -573,6 +573,7 @@ enum L10n {
         static var customizeCancel: String { ModuleLocalization.localized("toolbar.customize.cancel", bundle: .module) }
         static var customizeReset: String { ModuleLocalization.localized("toolbar.customize.reset", bundle: .module) }
         static var addOpenApp: String { ModuleLocalization.localized("toolbar.customize.add_open_app", bundle: .module) }
+        static var shortcutRemove: String { ModuleLocalization.localized("toolbar.shortcut.remove", bundle: .module) }
         static var openAppTitle: String { ModuleLocalization.localized("toolbar.open_app.title", bundle: .module) }
         static var openAppName: String { ModuleLocalization.localized("toolbar.open_app.name", bundle: .module) }
         static var openAppChoose: String { ModuleLocalization.localized("toolbar.open_app.choose", bundle: .module) }
@@ -598,10 +599,20 @@ enum L10n {
         enum Error {
             static var noSelection: String { ModuleLocalization.localized("toolbar.error.no_selection", bundle: .module) }
             static var appMissingTitle: String { ModuleLocalization.localized("toolbar.error.app_missing_title", bundle: .module) }
+            static var shortcutMissingTitle: String {
+                ModuleLocalization.localized("toolbar.error.shortcut_missing_title", bundle: .module)
+            }
 
             static func appMissing(_ name: String) -> String {
                 String(
                     format: ModuleLocalization.localizedFromTable("toolbar.error.app_missing", bundle: .module),
+                    name
+                )
+            }
+
+            static func shortcutMissing(_ name: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("toolbar.error.shortcut_missing", bundle: .module),
                     name
                 )
             }

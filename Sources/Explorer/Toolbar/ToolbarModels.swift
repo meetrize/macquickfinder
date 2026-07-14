@@ -1,3 +1,4 @@
+import FileList
 import Foundation
 
 enum ToolbarZone: String, Codable, Hashable {
@@ -9,6 +10,69 @@ enum ToolbarZone: String, Codable, Hashable {
 enum ToolbarItemKind: String, Codable, Hashable {
     case builtin
     case openApp
+    /// 钉在工具栏上的文件 / 文件夹 / 应用快捷方式（点击即打开该路径）。
+    case openShortcut
+}
+
+enum ShortcutTargetKind: String, Codable, Hashable {
+    case file
+    case folder
+    case application
+}
+
+struct CustomOpenShortcutAction: Codable, Identifiable, Equatable {
+    var id: UUID
+    var displayName: String
+    var path: String
+    var targetKind: ShortcutTargetKind
+    var useFileIcon: Bool
+    var enabled: Bool
+
+    init(
+        id: UUID = UUID(),
+        displayName: String,
+        path: String,
+        targetKind: ShortcutTargetKind,
+        useFileIcon: Bool = true,
+        enabled: Bool = true
+    ) {
+        self.id = id
+        self.displayName = displayName
+        self.path = path
+        self.targetKind = targetKind
+        self.useFileIcon = useFileIcon
+        self.enabled = enabled
+    }
+
+    static func make(from url: URL) -> CustomOpenShortcutAction {
+        let resolved = url.resolvingSymlinksInPath().standardizedFileURL
+        let kind = classify(resolved)
+        var name = resolved.lastPathComponent
+        if kind == .application, name.lowercased().hasSuffix(".app") {
+            name = String(name.dropLast(4))
+        }
+        return CustomOpenShortcutAction(
+            displayName: name,
+            path: resolved.path,
+            targetKind: kind
+        )
+    }
+
+    static func classify(_ url: URL) -> ShortcutTargetKind {
+        let path = url.standardizedFileURL.path
+        if FileListApplicationBundle.isBundle(path: path) {
+            return .application
+        }
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue {
+            return .folder
+        }
+        return .file
+    }
+
+    var standardizedPath: String {
+        (path as NSString).standardizingPath
+    }
 }
 
 enum ToolbarDragSource: String, Codable {
@@ -118,18 +182,50 @@ enum OpenAppDeliveryMode: String, Codable {
 }
 
 struct ToolbarLayoutConfig: Codable, Equatable {
+    static let currentSchemaVersion = 2
+    static let maxVisibleShortcuts = 12
+
     var schemaVersion: Int
     var visibleItems: [ToolbarVisibleEntry]
     var customOpenApps: [CustomOpenAppAction]
+    var customOpenShortcuts: [CustomOpenShortcutAction]
 
     init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = Self.currentSchemaVersion,
         visibleItems: [ToolbarVisibleEntry],
-        customOpenApps: [CustomOpenAppAction] = []
+        customOpenApps: [CustomOpenAppAction] = [],
+        customOpenShortcuts: [CustomOpenShortcutAction] = []
     ) {
         self.schemaVersion = schemaVersion
         self.visibleItems = visibleItems
         self.customOpenApps = customOpenApps
+        self.customOpenShortcuts = customOpenShortcuts
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case visibleItems
+        case customOpenApps
+        case customOpenShortcuts
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        visibleItems = try container.decode([ToolbarVisibleEntry].self, forKey: .visibleItems)
+        customOpenApps = try container.decodeIfPresent([CustomOpenAppAction].self, forKey: .customOpenApps) ?? []
+        customOpenShortcuts = try container.decodeIfPresent(
+            [CustomOpenShortcutAction].self,
+            forKey: .customOpenShortcuts
+        ) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(visibleItems, forKey: .visibleItems)
+        try container.encode(customOpenApps, forKey: .customOpenApps)
+        try container.encode(customOpenShortcuts, forKey: .customOpenShortcuts)
     }
 
     static var `default`: ToolbarLayoutConfig {
@@ -166,6 +262,10 @@ struct ToolbarLayoutConfig: Codable, Equatable {
         Set(visibleItems.map(\.id))
     }
 
+    var visibleShortcutCount: Int {
+        visibleItems.filter { $0.kind == .openShortcut }.count
+    }
+
     func items(in zone: ToolbarZone) -> [ToolbarVisibleEntry] {
         visibleItems.filter { $0.zone == zone }
     }
@@ -173,6 +273,16 @@ struct ToolbarLayoutConfig: Codable, Equatable {
     func customAction(for itemID: String) -> CustomOpenAppAction? {
         guard let uuid = ToolbarItemIdentity.customUUID(from: itemID) else { return nil }
         return customOpenApps.first { $0.id == uuid }
+    }
+
+    func customShortcut(for itemID: String) -> CustomOpenShortcutAction? {
+        guard let uuid = ToolbarItemIdentity.shortcutUUID(from: itemID) else { return nil }
+        return customOpenShortcuts.first { $0.id == uuid }
+    }
+
+    func shortcut(matchingPath path: String) -> CustomOpenShortcutAction? {
+        let standardized = (path as NSString).standardizingPath
+        return customOpenShortcuts.first { $0.standardizedPath == standardized }
     }
 
     func paletteItemRefs() -> [ToolbarItemRef] {
@@ -194,6 +304,18 @@ struct ToolbarLayoutConfig: Codable, Equatable {
                 ToolbarItemRef(
                     id: itemID,
                     kind: .openApp,
+                    builtinID: nil,
+                    customActionID: action.id
+                )
+            )
+        }
+        for action in customOpenShortcuts where action.enabled {
+            let itemID = ToolbarItemIdentity.shortcutItemID(action.id)
+            guard !visibleIDSet.contains(itemID) else { continue }
+            refs.append(
+                ToolbarItemRef(
+                    id: itemID,
+                    kind: .openShortcut,
                     builtinID: nil,
                     customActionID: action.id
                 )
@@ -236,14 +358,17 @@ struct ToolbarLayoutConfig: Codable, Equatable {
                 guard knownBuiltin.contains(entry.id) else { continue }
             case .openApp:
                 guard customAction(for: entry.id) != nil else { continue }
+            case .openShortcut:
+                guard customShortcut(for: entry.id) != nil else { continue }
             }
             cleaned.append(entry)
             seen.insert(entry.id)
         }
 
         customOpenApps = customOpenApps.filter(\.enabled)
+        customOpenShortcuts = customOpenShortcuts.filter(\.enabled)
         visibleItems = cleaned
-        schemaVersion = 1
+        schemaVersion = Self.currentSchemaVersion
     }
 
     /// 从磁盘加载后，将新版本新增的内置项补进布局（不恢复用户已隐藏项）。
@@ -299,6 +424,7 @@ struct ToolbarItemRef: Identifiable, Equatable, Hashable {
 
 enum ToolbarItemIdentity {
     static let customPrefix = "custom:"
+    static let shortcutPrefix = "shortcut:"
     static let accessibilityPrefix = "toolbar.item."
 
     static func customItemID(_ uuid: UUID) -> String {
@@ -308,6 +434,15 @@ enum ToolbarItemIdentity {
     static func customUUID(from itemID: String) -> UUID? {
         guard itemID.hasPrefix(customPrefix) else { return nil }
         return UUID(uuidString: String(itemID.dropFirst(customPrefix.count)))
+    }
+
+    static func shortcutItemID(_ uuid: UUID) -> String {
+        shortcutPrefix + uuid.uuidString
+    }
+
+    static func shortcutUUID(from itemID: String) -> UUID? {
+        guard itemID.hasPrefix(shortcutPrefix) else { return nil }
+        return UUID(uuidString: String(itemID.dropFirst(shortcutPrefix.count)))
     }
 
     static func accessibilityIdentifier(for itemID: String) -> String {
@@ -324,6 +459,7 @@ enum ToolbarItemIdentity {
 enum ToolbarActionError: Error, Equatable {
     case requiresSelection
     case applicationMissing(String)
+    case shortcutMissing(String)
     case unsupportedDeliveryMode
 }
 

@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 在窗口 unified toolbar 区域拦截右键：
 /// - 正常模式：弹出「自定义工具栏…」
-/// - 自定义模式：在自定义打开应用图标上弹出「编辑工具栏项…」
+/// - 自定义模式：在自定义打开应用 / 快捷方式图标上弹出编辑或删除
 struct ToolbarContextMenuInstaller: NSViewRepresentable {
     @Binding var hostWindow: NSWindow?
     var isCustomizing: Bool
@@ -11,6 +11,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
     let onCustomize: () -> Void
     let onEditOpenApp: (CustomOpenAppAction) -> Void
     let onDeleteOpenApp: (CustomOpenAppAction) -> Void
+    let onDeleteOpenShortcut: (CustomOpenShortcutAction) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -18,7 +19,8 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             workingLayout: workingLayout,
             onCustomize: onCustomize,
             onEditOpenApp: onEditOpenApp,
-            onDeleteOpenApp: onDeleteOpenApp
+            onDeleteOpenApp: onDeleteOpenApp,
+            onDeleteOpenShortcut: onDeleteOpenShortcut
         )
     }
 
@@ -38,6 +40,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         context.coordinator.onCustomize = onCustomize
         context.coordinator.onEditOpenApp = onEditOpenApp
         context.coordinator.onDeleteOpenApp = onDeleteOpenApp
+        context.coordinator.onDeleteOpenShortcut = onDeleteOpenShortcut
         context.coordinator.syncMonitor(targetWindow: hostWindow ?? nsView.window)
     }
 
@@ -52,6 +55,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         var onCustomize: () -> Void
         var onEditOpenApp: (CustomOpenAppAction) -> Void
         var onDeleteOpenApp: (CustomOpenAppAction) -> Void
+        var onDeleteOpenShortcut: (CustomOpenShortcutAction) -> Void
         private var monitor: Any?
         private weak var monitoredWindow: NSWindow?
 
@@ -60,13 +64,15 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             workingLayout: ToolbarLayoutConfig,
             onCustomize: @escaping () -> Void,
             onEditOpenApp: @escaping (CustomOpenAppAction) -> Void,
-            onDeleteOpenApp: @escaping (CustomOpenAppAction) -> Void
+            onDeleteOpenApp: @escaping (CustomOpenAppAction) -> Void,
+            onDeleteOpenShortcut: @escaping (CustomOpenShortcutAction) -> Void
         ) {
             self.isCustomizing = isCustomizing
             self.workingLayout = workingLayout
             self.onCustomize = onCustomize
             self.onEditOpenApp = onEditOpenApp
             self.onDeleteOpenApp = onDeleteOpenApp
+            self.onDeleteOpenShortcut = onDeleteOpenShortcut
         }
 
         func syncMonitor(targetWindow: NSWindow?) {
@@ -118,32 +124,50 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             guard let itemID = ToolbarContextMenuHitTesting.toolbarItemID(
                 at: event.locationInWindow,
                 in: window
-            ),
-            let action = workingLayout.customAction(for: itemID) else {
+            ) else {
                 return event
             }
 
-            let menu = NSMenu()
-            let editItem = NSMenuItem(
-                title: L10n.Toolbar.openAppEdit,
-                action: #selector(handleEditOpenAppItem(_:)),
-                keyEquivalent: ""
-            )
-            editItem.target = self
-            editItem.representedObject = action.id.uuidString
-            menu.addItem(editItem)
+            if let action = workingLayout.customAction(for: itemID) {
+                let menu = NSMenu()
+                let editItem = NSMenuItem(
+                    title: L10n.Toolbar.openAppEdit,
+                    action: #selector(handleEditOpenAppItem(_:)),
+                    keyEquivalent: ""
+                )
+                editItem.target = self
+                editItem.representedObject = action.id.uuidString
+                menu.addItem(editItem)
 
-            let deleteItem = NSMenuItem(
-                title: L10n.Action.delete,
-                action: #selector(handleDeleteOpenAppItem(_:)),
-                keyEquivalent: ""
-            )
-            deleteItem.target = self
-            deleteItem.representedObject = action.id.uuidString
-            menu.addItem(deleteItem)
+                let deleteItem = NSMenuItem(
+                    title: L10n.Action.delete,
+                    action: #selector(handleDeleteOpenAppItem(_:)),
+                    keyEquivalent: ""
+                )
+                deleteItem.target = self
+                deleteItem.representedObject = action.id.uuidString
+                menu.addItem(deleteItem)
 
-            popUp(menu, for: event, in: window)
-            return nil
+                popUp(menu, for: event, in: window)
+                return nil
+            }
+
+            if let shortcut = workingLayout.customShortcut(for: itemID) {
+                let menu = NSMenu()
+                let deleteItem = NSMenuItem(
+                    title: L10n.Action.delete,
+                    action: #selector(handleDeleteOpenShortcutItem(_:)),
+                    keyEquivalent: ""
+                )
+                deleteItem.target = self
+                deleteItem.representedObject = shortcut.id.uuidString
+                menu.addItem(deleteItem)
+
+                popUp(menu, for: event, in: window)
+                return nil
+            }
+
+            return event
         }
 
         private func popUp(_ menu: NSMenu, for event: NSEvent, in window: NSWindow) {
@@ -174,6 +198,15 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
                 return
             }
             onDeleteOpenApp(action)
+        }
+
+        @objc private func handleDeleteOpenShortcutItem(_ sender: NSMenuItem) {
+            guard let rawID = sender.representedObject as? String,
+                  let actionID = UUID(uuidString: rawID),
+                  let action = workingLayout.customOpenShortcuts.first(where: { $0.id == actionID }) else {
+                return
+            }
+            onDeleteOpenShortcut(action)
         }
 
         deinit {

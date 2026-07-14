@@ -103,12 +103,22 @@ struct ToolbarCustomizationPanelView: View {
                     store.deleteCustomOpenApp(id: action.id)
                 }
             }
+            if let shortcut = customOpenShortcutAction(for: ref) {
+                Button(L10n.Action.delete, role: .destructive) {
+                    store.deleteCustomOpenShortcut(id: shortcut.id)
+                }
+            }
         }
     }
 
     private func customOpenAppAction(for ref: ToolbarItemRef) -> CustomOpenAppAction? {
-        guard let actionID = ref.customActionID else { return nil }
+        guard ref.kind == .openApp, let actionID = ref.customActionID else { return nil }
         return store.workingLayout.customOpenApps.first { $0.id == actionID }
+    }
+
+    private func customOpenShortcutAction(for ref: ToolbarItemRef) -> CustomOpenShortcutAction? {
+        guard ref.kind == .openShortcut, let actionID = ref.customActionID else { return nil }
+        return store.workingLayout.customOpenShortcuts.first { $0.id == actionID }
     }
 
     private func presentOpenAppEditor(_ action: CustomOpenAppAction) {
@@ -120,8 +130,14 @@ struct ToolbarCustomizationPanelView: View {
     }
 
     private func paletteHelp(_ ref: ToolbarItemRef) -> String {
-        if let actionID = ref.customActionID,
+        if ref.kind == .openApp,
+           let actionID = ref.customActionID,
            let action = store.workingLayout.customOpenApps.first(where: { $0.id == actionID }) {
+            return action.displayName
+        }
+        if ref.kind == .openShortcut,
+           let actionID = ref.customActionID,
+           let action = store.workingLayout.customOpenShortcuts.first(where: { $0.id == actionID }) {
             return action.displayName
         }
         if let builtin = ref.builtinID {

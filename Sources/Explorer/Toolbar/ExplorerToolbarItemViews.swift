@@ -35,6 +35,14 @@ struct ToolbarItemChipLabel: View {
                         LucideIcon.appWindow
                     }
                 }
+            case .openShortcut:
+                if let action = layout.customShortcut(for: entry.id) {
+                    if action.useFileIcon {
+                        ToolbarAppIconView(applicationPath: action.path)
+                    } else {
+                        LucideIcon.filePlus
+                    }
+                }
             }
         }
         .frame(width: ExplorerToolbarMetrics.iconHitSize, height: ExplorerToolbarMetrics.iconHitSize)
@@ -53,6 +61,8 @@ struct ExplorerToolbarItemView: View {
             builtinView
         case .openApp:
             openAppView
+        case .openShortcut:
+            openShortcutView
         }
     }
 
@@ -245,6 +255,24 @@ struct ExplorerToolbarItemView: View {
                     environment.editOpenApp(action)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var openShortcutView: some View {
+        if let action = layout.customShortcut(for: entry.id) {
+            Button {
+                environment.performOpenShortcut(action)
+            } label: {
+                if action.useFileIcon {
+                    ToolbarAppIconView(applicationPath: action.path)
+                } else {
+                    LucideIcon.filePlus
+                }
+            }
+            .buttonStyle(ExplorerToolbarPlainButtonStyle())
+            .disabled(environment.isCustomizing)
+            .instantHoverTooltip(action.displayName)
         }
     }
 

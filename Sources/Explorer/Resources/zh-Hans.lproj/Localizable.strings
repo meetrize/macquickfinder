@@ -1075,13 +1075,15 @@
 "toolbar.customize.add_open_app" = "添加工具栏项…";
 "toolbar.customize.cancel" = "取消";
 "toolbar.customize.done" = "完成";
-"toolbar.customize.hint" = "将项目拖到工具栏以添加；将项目拖出工具栏以移除。";
+"toolbar.customize.hint" = "将项目拖到工具栏以添加；将项目拖出工具栏以移除。也可从 Finder 或文件列表拖入文件、文件夹或应用。";
 "toolbar.customize.reset" = "恢复默认";
 "toolbar.customize.title" = "自定义工具栏";
 "toolbar.delete" = "删除";
 "toolbar.error.app_missing" = "找不到应用「%@」，请在自定义工具栏中重新配置。";
 "toolbar.error.app_missing_title" = "找不到应用";
 "toolbar.error.no_selection" = "需要先选中文件";
+"toolbar.error.shortcut_missing" = "「%@」已不存在或已移动。";
+"toolbar.error.shortcut_missing_title" = "项目不存在";
 "toolbar.hide_hidden_files" = "不显示隐藏文件";
 "toolbar.hide_left_panel" = "隐藏左侧面板";
 "toolbar.hide_tab_bar" = "隐藏标签栏";
@@ -1113,6 +1115,7 @@
 "toolbar.panorama_mode" = "全景视图";
 "toolbar.record_operations" = "录制操作用于生成 Snippet";
 "toolbar.record_operations_active" = "正在录制 — 点击停止";
+"toolbar.shortcut.remove" = "移除按钮";
 "toolbar.show_all_tabs" = "显示所有标签页";
 "toolbar.show_hidden_files" = "显示隐藏文件";
 "toolbar.show_left_panel" = "显示左侧面板";

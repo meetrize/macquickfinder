@@ -54,7 +54,7 @@ struct ToolbarCustomizationZoneStrip<Cell: View>: View {
                 populatedStrip
             }
         }
-        .onDrop(of: [.plainText], delegate: ToolbarZoneDropDelegate(
+        .onDrop(of: [.plainText, .fileURL], delegate: ToolbarZoneDropDelegate(
             hoverInsertIndex: $hoverInsertIndex,
             isZoneTargeted: $isZoneTargeted,
             itemCount: entries.count,
@@ -64,7 +64,7 @@ struct ToolbarCustomizationZoneStrip<Cell: View>: View {
         ))
     }
 
-  private var emptyDropSurface: some View {
+    private var emptyDropSurface: some View {
         ZStack {
             ToolbarInsertPlaceholder(isActive: isZoneTargeted)
         }
@@ -121,7 +121,9 @@ private struct ToolbarZoneDropDelegate: DropDelegate {
     let store: ToolbarCustomizationStore
 
     func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [.plainText])
+        if info.hasItemsConforming(to: [.plainText]) { return true }
+        if info.hasItemsConforming(to: [.fileURL]) { return true }
+        return !FileDragDrop.fileURLs(from: NSPasteboard(name: .drag)).isEmpty
     }
 
     func dropEntered(info: DropInfo) {
@@ -132,7 +134,10 @@ private struct ToolbarZoneDropDelegate: DropDelegate {
     func dropUpdated(info: DropInfo) -> DropProposal? {
         isZoneTargeted = true
         updateHoverIndex(at: info.location)
-        return DropProposal(operation: .move)
+        if info.hasItemsConforming(to: [.plainText]) {
+            return DropProposal(operation: .move)
+        }
+        return DropProposal(operation: .copy)
     }
 
     func dropExited(info: DropInfo) {
@@ -142,19 +147,43 @@ private struct ToolbarZoneDropDelegate: DropDelegate {
 
     func performDrop(info: DropInfo) -> Bool {
         let insertIndex = hoverInsertIndex ?? itemCount
-        guard let provider = info.itemProviders(for: [.plainText]).first else {
-            resetHover()
-            return false
+
+        // 内部 chip 拖拽优先（plainText payload）；外部 Finder 拖入走 fileURL。
+        if info.hasItemsConforming(to: [.plainText]),
+           let provider = info.itemProviders(for: [.plainText]).first {
+            provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { item, _ in
+                DispatchQueue.main.async {
+                    defer { resetHover() }
+                    guard let payload = ToolbarDragPayload.fromPasteboardItem(item) else {
+                        // plainText 不是工具栏 payload 时，尝试按文件路径落盘
+                        applyFileDrop(info: info, insertIndex: insertIndex)
+                        return
+                    }
+                    store.applyDrop(payload: payload, targetZone: zone, insertIndex: insertIndex)
+                }
+            }
+            return true
         }
 
-        provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { item, _ in
-            DispatchQueue.main.async {
-                defer { resetHover() }
-                guard let payload = ToolbarDragPayload.fromPasteboardItem(item) else { return }
-                store.applyDrop(payload: payload, targetZone: zone, insertIndex: insertIndex)
-            }
-        }
+        applyFileDrop(info: info, insertIndex: insertIndex)
         return true
+    }
+
+    private func applyFileDrop(info: DropInfo, insertIndex: Int) {
+        let dragURLs = FileDragDrop.fileURLs(from: NSPasteboard(name: .drag))
+        if !dragURLs.isEmpty {
+            store.addOpenShortcuts(urls: dragURLs, zone: zone, at: insertIndex)
+            resetHover()
+            return
+        }
+
+        let providers = info.itemProviders(for: [.fileURL])
+        Task { @MainActor in
+            defer { resetHover() }
+            let urls = await FileDragDrop.loadFileURLs(from: providers)
+            guard !urls.isEmpty else { return }
+            store.addOpenShortcuts(urls: urls, zone: zone, at: insertIndex)
+        }
     }
 
     private func updateHoverIndex(at location: CGPoint) {

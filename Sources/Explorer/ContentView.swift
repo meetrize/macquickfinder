@@ -921,6 +921,9 @@ struct ContentView: View {
                 },
                 onDeleteOpenApp: { action in
                     toolbarStore.deleteCustomOpenApp(id: action.id)
+                },
+                onDeleteOpenShortcut: { action in
+                    toolbarStore.deleteCustomOpenShortcut(id: action.id)
                 }
             )
             .frame(width: 0, height: 0)
@@ -1155,6 +1158,7 @@ struct ContentView: View {
             toggleUseIconPreview: { useIconPreview.toggle() },
             performOpenApp: performToolbarOpenApp,
             editOpenApp: editToolbarOpenApp,
+            performOpenShortcut: performToolbarOpenShortcut,
             toggleOperationRecording: toggleOperationRecording
         )
     }
@@ -1212,6 +1216,18 @@ struct ContentView: View {
             try OpenAppExecutor.run(action, context: context)
         } catch ToolbarActionError.applicationMissing(let name) {
             OpenAppExecutor.presentApplicationMissingAlert(name: name)
+        } catch {
+            return
+        }
+    }
+
+    private func performToolbarOpenShortcut(_ action: CustomOpenShortcutAction) {
+        do {
+            try OpenShortcutExecutor.run(action, navigate: { path = $0 })
+        } catch ToolbarActionError.shortcutMissing(let name) {
+            OpenShortcutExecutor.presentMissingAlert(name: name) {
+                toolbarStore.deleteCustomOpenShortcut(id: action.id)
+            }
         } catch {
             return
         }

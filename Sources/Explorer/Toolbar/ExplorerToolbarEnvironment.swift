@@ -29,6 +29,7 @@ struct ExplorerToolbarEnvironment {
     var toggleUseIconPreview: () -> Void
     var performOpenApp: (CustomOpenAppAction) -> Void
     var editOpenApp: (CustomOpenAppAction) -> Void
+    var performOpenShortcut: (CustomOpenShortcutAction) -> Void
     var toggleOperationRecording: () -> Void
 }
 

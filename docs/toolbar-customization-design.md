@@ -186,13 +186,33 @@ trailing: thumbnailSizeSlider → sortMenu → browseSettingsMenu
 
 ### 3.2 自定义项（`ToolbarCustomAction`）
 
-首版仅支持一种：
-
 | 类型 | 说明 |
 |------|------|
 | `openApp` | 用指定 `.app` 打开选中文件 |
+| `openShortcut` | 钉在工具栏上的文件 / 文件夹 / 应用快捷方式；点击即打开该路径（与 `openApp` 语义不同） |
 
 Phase 2+：`runSnippet`、`separator`、`flexibleSpace`。
+
+### 3.3 从 Finder 拖入路径快捷方式（MVP）
+
+**仅自定义模式**下，工具栏区（leading / main / trailing）除内部 chip 拖拽外，还接受 `fileURL` 拖入：
+
+| 拖入对象 | 判定 | 点击动作 |
+|---------|------|----------|
+| `.app` | `FileListApplicationBundle.isBundle` | `NSWorkspace.open` 启动应用 |
+| 文件夹 | 目录且非 `.app` | 当前窗口导航到该路径 |
+| 普通文件 | 其余 | 用系统默认应用打开 |
+
+交互要点：
+
+1. 悬停显示与内部拖拽共用的插入指示线；松手后创建 `CustomOpenShortcutAction` 并插入落点。
+2. 同一绝对路径已在工具栏上 → 忽略；仅在调色板 → 挪到落点。
+3. 工具栏上 shortcut 上限 `ToolbarLayoutConfig.maxVisibleShortcuts`（12）。
+4. 可拖回调色板移除；右键「删除」从配置中彻底移除。
+5. 路径不存在时 Alert，并提供「移除按钮」。
+6. 与 `openApp` 并存：拖入的 `.app` 表示「启动该应用」，不是「用该应用打开选中项」。
+
+数据：`ToolbarLayoutConfig.customOpenShortcuts`，可见项 id 为 `shortcut:<UUID>`，`schemaVersion = 2`（旧配置缺字段时解码为 `[]`）。
 
 ---
 
@@ -478,13 +498,20 @@ final class ToolbarContextMenuInstallerView: NSView {
 - [ ] ＋ 添加 VS Code，选中文件点击后在 VS Code 打开
 - [ ] 重启后布局保留
 
-### Phase 2 — 增强
+### Phase 2 — 路径快捷方式 MVP（已实现）
+
+- 自定义模式接受 Finder / 文件列表 `fileURL` drop → `openShortcut`
+- `OpenShortcutExecutor`：文件打开 / 文件夹导航 / 应用启动
+- 重复路径、上限、缺失路径移除、调色板互斥
+
+### Phase 2 后续 — 增强
 
 - `launchWithArguments` + `argumentsTemplate`（复用 `SnippetExpander`）
-- 自定义项编辑 / 删除
+- 自定义项编辑显示名 / `NSOpenPanel`「＋」添加文件
 - 工具栏宽度不足时的溢出「…」菜单
 - JSON 导入/导出
 - Option+点击快捷进入自定义
+- security-scoped bookmark；正常模式直接拖钉
 
 ### Phase 3 — 扩展
 
@@ -532,7 +559,7 @@ final class ToolbarContextMenuInstallerView: NSView {
 |------|------|
 | 交互模型 | **Finder 式**：工具栏 + 底部面板互斥；拖拽增删排序；完成/取消 |
 | 入口 | 工具栏右键「自定义工具栏…」 |
-| 自定义能力 | 内置项显隐/排序 + **打开第三方应用**（默认传选中文件） |
+| 自定义能力 | 内置项显隐/排序 + **打开第三方应用**（传选中）+ **路径快捷方式**（钉文件/夹/应用） |
 | 数据 | `ToolbarLayoutConfig` JSON → `UserDefaults` |
 | 实现 | 新建 `Explorer/Toolbar/*`；`ContentView` 动态渲染 + 编辑态 AppKit 拖拽 |
 | 分期 | Phase 1 对齐需求 1–5 → Phase 2 参数/溢出 → Phase 3 Snippet/Scope |

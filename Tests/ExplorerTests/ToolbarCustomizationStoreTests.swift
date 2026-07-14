@@ -168,6 +168,132 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
         XCTAssertFalse(store.workingLayout.customOpenApps.contains { $0.id == action.id })
         XCTAssertFalse(store.workingLayout.visibleIDSet.contains(itemID))
     }
+
+    func testAddOpenShortcutsCreatesVisibleShortcut() throws {
+        let store = ToolbarCustomizationStore.shared
+        store.loadIfNeeded()
+        store.beginCustomization()
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("toolbar-shortcut-\(UUID().uuidString).txt")
+        try "hello".write(to: tempURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
+        let added = store.addOpenShortcuts(urls: [tempURL], zone: .main, at: 0)
+        XCTAssertEqual(added, 1)
+
+        let shortcut = try XCTUnwrap(store.workingLayout.customOpenShortcuts.first)
+        let itemID = ToolbarItemIdentity.shortcutItemID(shortcut.id)
+        XCTAssertEqual(shortcut.targetKind, .file)
+        XCTAssertTrue(store.workingLayout.visibleIDSet.contains(itemID))
+        XCTAssertEqual(store.workingLayout.items(in: .main).first?.id, itemID)
+    }
+
+    func testAddOpenShortcutsSkipsDuplicateVisiblePath() throws {
+        let store = ToolbarCustomizationStore.shared
+        store.loadIfNeeded()
+        store.beginCustomization()
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("toolbar-shortcut-dup-\(UUID().uuidString).txt")
+        try "hello".write(to: tempURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
+        XCTAssertEqual(store.addOpenShortcuts(urls: [tempURL], zone: .main, at: 0), 1)
+        XCTAssertEqual(store.addOpenShortcuts(urls: [tempURL], zone: .main, at: 0), 0)
+        XCTAssertEqual(store.workingLayout.customOpenShortcuts.count, 1)
+    }
+
+    func testAddOpenShortcutsRelocatesFromPalette() throws {
+        let store = ToolbarCustomizationStore.shared
+        store.loadIfNeeded()
+        store.beginCustomization()
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("toolbar-shortcut-palette-\(UUID().uuidString).txt")
+        try "hello".write(to: tempURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
+        XCTAssertEqual(store.addOpenShortcuts(urls: [tempURL], zone: .main, at: 0), 1)
+        let shortcut = try XCTUnwrap(store.workingLayout.customOpenShortcuts.first)
+        let itemID = ToolbarItemIdentity.shortcutItemID(shortcut.id)
+        store.moveToPalette(itemID: itemID)
+        XCTAssertFalse(store.workingLayout.visibleIDSet.contains(itemID))
+
+        XCTAssertEqual(store.addOpenShortcuts(urls: [tempURL], zone: .trailing, at: 0), 1)
+        XCTAssertEqual(store.workingLayout.customOpenShortcuts.count, 1)
+        XCTAssertEqual(store.workingLayout.items(in: .trailing).first?.id, itemID)
+    }
+
+    func testLayoutConfigDecodesMissingShortcutsAsEmpty() throws {
+        let json = """
+        {
+          "schemaVersion": 1,
+          "visibleItems": [],
+          "customOpenApps": []
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(ToolbarLayoutConfig.self, from: json)
+        XCTAssertTrue(decoded.customOpenShortcuts.isEmpty)
+    }
+
+    func testClassifyShortcutKinds() {
+        XCTAssertEqual(
+            CustomOpenShortcutAction.classify(URL(fileURLWithPath: "/Applications/Safari.app")),
+            .application
+        )
+        XCTAssertEqual(
+            CustomOpenShortcutAction.classify(URL(fileURLWithPath: "/tmp", isDirectory: true)),
+            .folder
+        )
+    }
+
+    func testDeleteCustomOpenShortcutRemovesActionAndVisibleEntry() throws {
+        let store = ToolbarCustomizationStore.shared
+        store.loadIfNeeded()
+        store.beginCustomization()
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("toolbar-shortcut-delete-\(UUID().uuidString).txt")
+        try "hello".write(to: tempURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
+        XCTAssertEqual(store.addOpenShortcuts(urls: [tempURL], zone: .main, at: 0), 1)
+        let shortcut = try XCTUnwrap(store.workingLayout.customOpenShortcuts.first)
+        let itemID = ToolbarItemIdentity.shortcutItemID(shortcut.id)
+
+        store.deleteCustomOpenShortcut(id: shortcut.id)
+        XCTAssertFalse(store.workingLayout.customOpenShortcuts.contains { $0.id == shortcut.id })
+        XCTAssertFalse(store.workingLayout.visibleIDSet.contains(itemID))
+    }
+}
+
+@MainActor
+final class OpenShortcutExecutorTests: XCTestCase {
+    func testMissingPathThrows() {
+        let action = CustomOpenShortcutAction(
+            displayName: "Gone",
+            path: "/tmp/definitely-missing-toolbar-shortcut-\(UUID().uuidString).txt",
+            targetKind: .file
+        )
+        XCTAssertThrowsError(try OpenShortcutExecutor.run(action, navigate: { _ in })) { error in
+            XCTAssertEqual(error as? ToolbarActionError, .shortcutMissing("Gone"))
+        }
+    }
+
+    func testFolderNavigates() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("toolbar-shortcut-nav-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let action = CustomOpenShortcutAction.make(from: dir)
+        XCTAssertEqual(action.targetKind, .folder)
+
+        var navigated: String?
+        try OpenShortcutExecutor.run(action, navigate: { navigated = $0 })
+        XCTAssertEqual(navigated, dir.path)
+    }
 }
 
 @MainActor
