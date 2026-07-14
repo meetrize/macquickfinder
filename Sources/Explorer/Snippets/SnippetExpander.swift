@@ -19,14 +19,52 @@ enum SnippetExpansionError: LocalizedError, Equatable {
 }
 
 enum SnippetExpander {
+    /// 哨兵前缀，避免与用户输入 / 上下文路径碰撞。
+    private static let askSentinelPrefix = "\u{FFF0}MEOFIND_ASK_"
+    private static let askSentinelSuffix = "\u{FFF1}"
+
     static func expand(
         _ template: String,
         context: SnippetExecutionContext,
-        scriptType: SnippetScriptType = .shell
+        scriptType: SnippetScriptType = .shell,
+        askValues: [String: String] = [:]
+    ) throws -> String {
+        let askMatches = try SnippetAskParser.matches(in: template)
+        var working = template
+        var sentinelToValue: [String: String] = [:]
+
+        // 从后往前替换，保持 Range 有效；用户值稍后回填，避免二次展开 `%p`。
+        for (index, match) in askMatches.enumerated().reversed() {
+            let raw = askValues[match.parameter.key] ?? ""
+            let prepared = prepareAskValue(raw, scriptType: scriptType)
+            let sentinel = "\(askSentinelPrefix)\(index)\(askSentinelSuffix)"
+            sentinelToValue[sentinel] = prepared
+            working.replaceSubrange(match.range, with: sentinel)
+        }
+
+        working = try expandContextVariables(working, context: context, scriptType: scriptType)
+
+        for (sentinel, value) in sentinelToValue {
+            working = working.replacingOccurrences(of: sentinel, with: value)
+        }
+        return working
+    }
+
+    private static func prepareAskValue(_ value: String, scriptType: SnippetScriptType) -> String {
+        if scriptType == .shell {
+            return ShellQuoting.singleQuote(value)
+        }
+        return value
+    }
+
+    private static func expandContextVariables(
+        _ template: String,
+        context: SnippetExecutionContext,
+        scriptType: SnippetScriptType
     ) throws -> String {
         let files = context.selectedItems.filter { !$0.isParentDirectoryEntry && !$0.isDirectory }
         let allSelected = context.selectedItems.filter { !$0.isParentDirectoryEntry }
-        
+
         func pathForScript(_ path: String) -> String {
             let standardized = standardize(path)
             if scriptType == .shell {
@@ -99,7 +137,9 @@ enum SnippetExpander {
             ("%uuid", { UUID().uuidString }),
         ]
 
-        for (placeholder, value) in replacements {
+        // 长 token 优先，避免短前缀误伤（如将来 `%ask` 残留）。
+        let ordered = replacements.sorted { $0.0.count > $1.0.count }
+        for (placeholder, value) in ordered {
             while result.contains(placeholder) {
                 let expanded = try value()
                 if let range = result.range(of: placeholder) {
@@ -113,5 +153,4 @@ enum SnippetExpander {
     static func standardize(_ path: String) -> String {
         (path as NSString).standardizingPath
     }
-
 }

@@ -50,5 +50,8 @@ for f in Sources/Explorer/L10n.swift Sources/FileList/L10n.swift; do
     echo "OK: $f"
 done
 
+echo "==> 二次编译校验（catalog ⊆ en.lproj）"
+bash Scripts/compile_localizations.sh >/dev/null
+
 echo ""
 echo "Phase 0 i18n 基础设施验证通过。"

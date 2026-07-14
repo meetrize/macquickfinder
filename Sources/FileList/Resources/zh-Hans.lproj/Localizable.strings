@@ -1,46 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>action.empty_trash</key>
-	<string>清倒废纸篓</string>
-	<key>action.go_back</key>
-	<string>返回</string>
-	<key>action.go_up</key>
-	<string>向上</string>
-	<key>action.new_file</key>
-	<string>新建文件</string>
-	<key>action.new_folder</key>
-	<string>新建文件夹</string>
-	<key>action.open_terminal_here</key>
-	<string>在此处打开终端</string>
-	<key>action.paste</key>
-	<string>粘贴</string>
-	<key>action.refresh</key>
-	<string>刷新</string>
-	<key>column.comment</key>
-	<string>注释</string>
-	<key>column.date_created</key>
-	<string>创建日期</string>
-	<key>column.date_modified</key>
-	<string>修改日期</string>
-	<key>column.move_left</key>
-	<string>左移</string>
-	<key>column.move_right</key>
-	<string>右移</string>
-	<key>column.name</key>
-	<string>名称</string>
-	<key>column.size</key>
-	<string>大小</string>
-	<key>column.tags</key>
-	<string>标签</string>
-	<key>column.type</key>
-	<string>类型</string>
-	<key>settings.language.system</key>
-	<string>跟随系统</string>
-	<key>view_mode.list</key>
-	<string>列表</string>
-	<key>view_mode.thumbnail</key>
-	<string>缩略图</string>
-</dict>
-</plist>
+/* Generated from Localizable.xcstrings — do not edit by hand; run Scripts/compile_localizations.sh */
+
+"action.empty_trash" = "清倒废纸篓";
+"action.go_back" = "返回";
+"action.go_up" = "向上";
+"action.new_file" = "新建文件";
+"action.new_folder" = "新建文件夹";
+"action.open_terminal_here" = "在此处打开终端";
+"action.paste" = "粘贴";
+"action.refresh" = "刷新";
+"column.comment" = "注释";
+"column.date_created" = "创建日期";
+"column.date_modified" = "修改日期";
+"column.move_left" = "左移";
+"column.move_right" = "右移";
+"column.name" = "名称";
+"column.size" = "大小";
+"column.tags" = "标签";
+"column.type" = "类型";
+"settings.language.system" = "跟随系统";
+"view_mode.list" = "列表";
+"view_mode.thumbnail" = "缩略图";

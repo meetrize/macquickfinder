@@ -634,18 +634,41 @@ Button(L10n.Menu.toggleLeftPanel) { ... }
 
 ---
 
+## 四点五、SPM 与 .lproj 同步（防「界面显示键名」）
+
+> **历史重复事故**：只改 `Localizable.xcstrings` + `L10n.swift`，未把文案同步进 `*.lproj/Localizable.strings`，运行时对话框/菜单原样显示 `snippets.ask.form_title` 之类键名。
+
+| 事实 | 说明 |
+|------|------|
+| 编辑权威 | `Sources/*/Resources/Localizable.xcstrings` |
+| 运行时读取 | `ModuleLocalization` → 对应语言的 `.lproj/Localizable.strings` |
+| SPM 默认行为 | **`swift build` 不会**把 String Catalog 编成可加载 `.strings` |
+| 必做命令 | `bash Scripts/compile_localizations.sh`（`build_and_run.sh` 开头也会调用） |
+
+`compile_localizations.sh`：
+
+1. 优先 `xcstringstool`（完整 Xcode）
+2. 否则用 `Scripts/xcstrings_to_strings.py` 兜底（仅有 Command Line Tools 也可）
+3. 校验 **catalog 键 ⊆ `en.lproj`**，漏编则 **失败退出**（禁止静默跳过）
+
+Agent / 人工新增 UI 文案后的完成定义：上述脚本成功，且 `grep '新键' …/zh-Hans.lproj/Localizable.strings` 有结果。规则见 `.cursor/rules/i18n-ui-strings.mdc`。
+
+---
+
 ## 五、构建与打包
 
-当前 `build_and_run.sh` 仅复制可执行文件与 `Info.plist`，**未处理本地化 bundle**。
+`build_and_run.sh` **已**在构建前调用 `Scripts/compile_localizations.sh`，并把 SPM resource bundle 复制进 App。日常仍须在**改完 xcstrings 的当次会话**跑一次编译脚本（或走完整 `./build_and_run.sh`），不要假设「用户稍后打包」会替你补上已安装 App 里的旧 bundle。
 
 SPM 编译后，本地化资源通常位于：
 
 ```
 .build/release/Explorer_Explorer.bundle/
-  Localizable.xcstrings → 编译为 zh-Hans.lproj/Localizable.strings 等
+  en.lproj/Localizable.strings
+  zh-Hans.lproj/Localizable.strings
+  Localizable.xcstrings
 ```
 
-**需在 `build_and_run.sh` 中增加：**
+**打包脚本需确保（现已实现）：**
 
 ```bash
 # 复制 SPM 资源 bundle 到 App Resources

@@ -1366,6 +1366,17 @@ enum L10n {
             static var w: String { ModuleLocalization.localized("snippets.variable.w", bundle: .module) }
             static var date: String { ModuleLocalization.localized("snippets.variable.date", bundle: .module) }
             static var uuid: String { ModuleLocalization.localized("snippets.variable.uuid", bundle: .module) }
+            static var ask: String { ModuleLocalization.localized("snippets.variable.ask", bundle: .module) }
+            static var askNamed: String { ModuleLocalization.localized("snippets.variable.ask_named", bundle: .module) }
+        }
+
+        enum Ask {
+            static var formTitle: String { ModuleLocalization.localized("snippets.ask.form_title", bundle: .module) }
+            static var continueButton: String { ModuleLocalization.localized("snippets.ask.continue", bundle: .module) }
+
+            static func forSnippet(_ name: String) -> String {
+                ModuleLocalization.localized("snippets.ask.for_snippet \(name)", bundle: .module)
+            }
         }
 
         enum VariableHelp {
@@ -1541,6 +1552,15 @@ enum L10n {
             static var fileSelection: String { ModuleLocalization.localized("error.snippet_expansion.file_selection", bundle: .module) }
             static var filesInSelection: String { ModuleLocalization.localized("error.snippet_expansion.files_in_selection", bundle: .module) }
             static var noFiles: String { ModuleLocalization.localized("error.snippet_expansion.no_files", bundle: .module) }
+        }
+
+        enum SnippetAsk {
+            static var emptyPrompt: String { ModuleLocalization.localized("error.snippet_ask.empty_prompt", bundle: .module) }
+            static var unclosedBrace: String { ModuleLocalization.localized("error.snippet_ask.unclosed_brace", bundle: .module) }
+
+            static func invalidId(_ id: String) -> String {
+                ModuleLocalization.localized("error.snippet_ask.invalid_id \(id)", bundle: .module)
+            }
         }
 
         enum Shell {

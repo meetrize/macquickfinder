@@ -1,2182 +1,1126 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>action.add_favorite</key>
-	<string>收藏</string>
-	<key>action.cancel</key>
-	<string>取消</string>
-	<key>action.compress_many %lld</key>
-	<string>压缩 %lld 个项目</string>
-	<key>action.compress_one %@</key>
-	<string>压缩「%@」</string>
-	<key>action.copy</key>
-	<string>复制</string>
-	<key>action.copy_filename</key>
-	<string>复制文件名</string>
-	<key>action.copy_paths</key>
-	<string>复制完整路径</string>
-	<key>action.cut</key>
-	<string>剪切</string>
-	<key>action.delete</key>
-	<string>删除</string>
-	<key>action.delete_immediately</key>
-	<string>立刻删除</string>
-	<key>action.edit</key>
-	<string>编辑</string>
-	<key>action.empty_trash</key>
-	<string>清倒废纸篓</string>
-	<key>action.extract</key>
-	<string>解压</string>
-	<key>action.extract_downloads</key>
-	<string>解压到「下载」</string>
-	<key>action.extract_here</key>
-	<string>解压到此处</string>
-	<key>action.extract_to</key>
-	<string>解压到…</string>
-	<key>action.ok</key>
-	<string>好</string>
-	<key>action.open</key>
-	<string>打开</string>
-	<key>action.open_in_detached_preview</key>
-	<string>在独立预览窗口中打开</string>
-	<key>action.open_in_new_window</key>
-	<string>在新窗口中打开</string>
-	<key>action.open_terminal_here</key>
-	<string>在此处打开终端</string>
-	<key>action.open_with</key>
-	<string>打开方式</string>
-	<key>action.open_with_default %@</key>
-	<string>%@（默认）</string>
-	<key>action.open_with_none</key>
-	<string>（无可用应用）</string>
-	<key>action.open_with_other</key>
-	<string>其他…</string>
-	<key>action.paste</key>
-	<string>粘贴</string>
-	<key>action.put_back</key>
-	<string>放回原处</string>
-	<key>action.refresh</key>
-	<string>刷新</string>
-	<key>action.remove_favorite</key>
-	<string>取消收藏</string>
-	<key>action.rename</key>
-	<string>重命名</string>
-	<key>action.save</key>
-	<string>保存</string>
-	<key>action.services</key>
-	<string>服务</string>
-	<key>action.show_info</key>
-	<string>属性</string>
-	<key>alert.confirm_delete.multiple %lld</key>
-	<string>确认删除 %lld 个项目？</string>
-	<key>alert.confirm_delete.single %@</key>
-	<string>确认删除「%@」？</string>
-	<key>alert.delete_immediately.message</key>
-	<string>这些项目将被永久删除，无法恢复。</string>
-	<key>alert.delete_immediately.multiple %lld</key>
-	<string>立刻删除 %lld 个项目？</string>
-	<key>alert.delete_immediately.single %@</key>
-	<string>立刻删除「%@」？</string>
-	<key>alert.delete_to_trash.message</key>
-	<string>项目将移至废纸篓。</string>
-	<key>alert.empty_trash.message</key>
-	<string>废纸篓中的所有项目将被永久删除，此操作无法撤销。</string>
-	<key>alert.empty_trash.title</key>
-	<string>清倒废纸篓？</string>
-	<key>alert.move_blocked.already_in_destination</key>
-	<string>该项目已在此文件夹中。</string>
-	<key>alert.move_blocked.destination_inside_source</key>
-	<string>不能将文件夹移动到其自身的子文件夹中。</string>
-	<key>alert.move_blocked.destination_not_directory</key>
-	<string>目标位置不是文件夹。</string>
-	<key>alert.move_blocked.destination_unavailable</key>
-	<string>目标文件夹不可用。</string>
-	<key>alert.move_blocked.same_location</key>
-	<string>不能将文件夹移动到其自身。</string>
-	<key>alert.move_blocked.source_missing</key>
-	<string>找不到要移动的文件或文件夹。</string>
-	<key>alert.move_blocked.title</key>
-	<string>无法移动</string>
-	<key>alert.open_with.choose_app %@</key>
-	<string>选择用于打开「%@」的应用</string>
-	<key>alert.open_with.prompt</key>
-	<string>打开</string>
-	<key>alert.operation_failed</key>
-	<string>操作失败</string>
-	<key>alert.put_back_failed.multiple %lld</key>
-	<string>%lld 个项目无法放回原处。</string>
-	<key>alert.put_back_failed.single %@</key>
-	<string>「%@」没有可用的原始位置记录，且 Finder 无法恢复此项目。</string>
-	<key>alert.put_back_failed.title</key>
-	<string>无法放回原处</string>
-	<key>alert.selected_items %lld</key>
-	<string>已选择 %lld 个项目</string>
-	<key>archive.error.encrypted</key>
-	<string>不支持加密压缩包</string>
-	<key>archive.error.unsupported</key>
-	<string>无法识别或不支持的归档格式</string>
-	<key>archive.hint.network_slow</key>
-	<string>网络卷上的归档操作可能较慢</string>
-	<key>archive.job.compress</key>
-	<string>压缩</string>
-	<key>archive.job.extract</key>
-	<string>解压</string>
-	<key>archive.password.message %@</key>
-	<string>请输入解压「%@」所需的密码。</string>
-	<key>archive.password.placeholder</key>
-	<string>密码</string>
-	<key>archive.password.title</key>
-	<string>需要密码</string>
-	<key>archive.status.compressing_count %lld</key>
-	<string>正在压缩 %lld 个项目…</string>
-	<key>archive.status.compressing_item %@</key>
-	<string>正在压缩 %@…</string>
-	<key>archive.status.extracting_count %lld</key>
-	<string>正在解压 %lld 个压缩包…</string>
-	<key>archive.status.extracting_item %@ %@</key>
-	<string>正在解压 %@ → %@</string>
-	<key>archive.status.extracting_partial %lld %@ %@</key>
-	<string>正在解压 %lld 项（%@）→ %@</string>
-	<key>dialog.cannot_create_file</key>
-	<string>无法创建文件</string>
-	<key>dialog.cannot_create_file_message</key>
-	<string>请检查名称是否合法，或目标位置是否可写。</string>
-	<key>dialog.create</key>
-	<string>创建</string>
-	<key>dialog.file_name_placeholder</key>
-	<string>文件名称</string>
-	<key>dialog.folder_name_placeholder</key>
-	<string>文件夹名称</string>
-	<key>dialog.new_file_message</key>
-	<string>输入新文件名称：</string>
-	<key>dialog.new_file_title</key>
-	<string>新建文件</string>
-	<key>dialog.new_folder_message</key>
-	<string>输入新文件夹名称：</string>
-	<key>dialog.new_folder_title</key>
-	<string>新建文件夹</string>
-	<key>error.archive.empty_listing</key>
-	<string>无法读取 ZIP 目录</string>
-	<key>error.archive.timed_out</key>
-	<string>目录读取超时</string>
-	<key>error.default_image_viewer.defaults_command %lld</key>
-	<string>defaults 命令失败（退出码 %lld）。</string>
-	<key>error.default_image_viewer.launch_services %lld</key>
-	<string>Launch Services 注册失败（错误 %lld）。</string>
-	<key>error.default_image_viewer.preferences_sync</key>
-	<string>无法写入系统偏好设置。</string>
-	<key>error.default_image_viewer.preview_not_found</key>
-	<string>未找到 Preview 应用。</string>
-	<key>error.default_preview_handler.defaults_command %lld</key>
-	<string>defaults 命令失败（代码 %lld）。</string>
-	<key>error.default_preview_handler.fallback_not_found %@</key>
-	<string>未找到系统默认应用：%@</string>
-	<key>error.default_preview_handler.launch_services %lld</key>
-	<string>Launch Services 失败（代码 %lld）。</string>
-	<key>error.default_preview_handler.preferences_sync</key>
-	<string>无法写入系统偏好设置。</string>
-	<key>error.default_viewer.defaults_command %lld</key>
-	<string>系统命令执行失败（退出码 %lld）。</string>
-	<key>error.default_viewer.finder_not_found</key>
-	<string>未找到 Finder 应用。</string>
-	<key>error.default_viewer.launch_services %lld</key>
-	<string>Launch Services 注册失败（错误码 %lld）。</string>
-	<key>error.default_viewer.preferences_sync</key>
-	<string>无法写入系统偏好设置。</string>
-	<key>error.directory_not_found</key>
-	<string>目录不存在</string>
-	<key>error.empty_name</key>
-	<string>名称不能为空</string>
-	<key>error.font.unable_to_load</key>
-	<string>无法加载字体文件</string>
-	<key>error.model3d.empty_model</key>
-	<string>3D 模型文件不包含几何数据</string>
-	<key>error.model3d.file_too_large</key>
-	<string>3D 模型文件过大，无法预览</string>
-	<key>error.model3d.too_many_triangles %lld</key>
-	<string>模型三角面数量过多（%lld），无法预览</string>
-	<key>error.model3d.unable_to_load</key>
-	<string>无法加载 3D 模型</string>
-	<key>error.image.unable_to_encode</key>
-	<string>无法编码图片</string>
-	<key>error.image.unable_to_write</key>
-	<string>无法写入文件</string>
-	<key>error.no_permission</key>
-	<string>无权限</string>
-	<key>error.shell.timed_out</key>
-	<string>命令执行超时</string>
-	<key>error.snippet_expansion.file_selection</key>
-	<string>需要选中一个文件（非目录）</string>
-	<key>error.snippet_expansion.files_in_selection</key>
-	<string>需要选中至少一个文件</string>
-	<key>error.snippet_expansion.no_files</key>
-	<string>选中项中没有文件</string>
-	<key>error.snippet_expansion.requires_selection</key>
-	<string>需要至少选中一项</string>
-	<key>error.snippet_expansion.single_selection</key>
-	<string>需要恰好选中一项</string>
-	<key>error.snippet_import.empty_content</key>
-	<string>内容为空</string>
-	<key>error.snippet_import.empty_name</key>
-	<string>名称为空</string>
-	<key>error.snippet_import.invalid %@</key>
-	<string>无效 Snippet：%@</string>
-	<key>error.snippet_import.invalid_format</key>
-	<string>无法识别的 Snippets 文件格式</string>
-	<key>error.snippet_import.too_many</key>
-	<string>导入条目过多</string>
-	<key>error.snippet_import.unsupported_schema</key>
-	<string>不支持的文件版本</string>
-	<key>error.symlink_loop</key>
-	<string>检测到循环链接</string>
-	<key>file.default_new_name</key>
-	<string>未命名.txt</string>
-	<key>folder.desktop</key>
-	<string>桌面</string>
-	<key>folder.documents</key>
-	<string>文稿</string>
-	<key>folder.downloads</key>
-	<string>下载</string>
-	<key>folder.home</key>
-	<string>个人</string>
-	<key>git.action.commit_and_sync</key>
-	<string>提交并同步</string>
-	<key>git.action.commit_only</key>
-	<string>仅提交</string>
-	<key>git.action.pull</key>
-	<string>拉取更新</string>
-	<key>git.action.push</key>
-	<string>推送到远程</string>
-	<key>git.action.resolve_conflict</key>
-	<string>需解决冲突</string>
-	<key>git.action.sync</key>
-	<string>同步</string>
-	<key>git.action.working</key>
-	<string>处理中…</string>
-	<key>git.chip.ahead %lld</key>
-	<string>↑%lld</string>
-	<key>git.chip.behind %lld</key>
-	<string>↓%lld</string>
-	<key>git.commit.ai_tooltip</key>
-	<string>AI 生成提交说明（即将推出）</string>
-	<key>git.commit.generated_directory %@ %lld</key>
-	<string>更新 %@ 下 %lld 个文件</string>
-	<key>git.commit.generated_files %lld</key>
-	<string>更新 %lld 个文件</string>
-	<key>git.commit.large_message</key>
-	<string>将暂存并提交大量文件，请确认后继续。</string>
-	<key>git.commit.large_title %lld</key>
-	<string>提交 %lld 个文件？</string>
-	<key>git.commit.placeholder</key>
-	<string>提交说明</string>
-	<key>git.commit.scope_all</key>
-	<string>将提交全部变更</string>
-	<key>git.empty.init_repo</key>
-	<string>初始化仓库</string>
-	<key>git.empty.not_repo</key>
-	<string>当前目录不在 Git 仓库中</string>
-	<key>git.error.cancelled</key>
-	<string>Git 操作已取消</string>
-	<key>git.error.executable_not_found</key>
-	<string>未安装 Git 或找不到 Git 可执行文件</string>
-	<key>git.error.conflict</key>
-	<string>请先解决合并冲突</string>
-	<key>git.error.empty_commit_message</key>
-	<string>请输入提交说明</string>
-	<key>git.error.no_upstream</key>
-	<string>未配置远程跟踪分支</string>
-	<key>git.error.pull_with_dirty</key>
-	<string>请先提交或暂存变更后再拉取</string>
-	<key>git.history.empty</key>
-	<string>尚无提交记录</string>
-	<key>git.history.title</key>
-	<string>最近提交</string>
-	<key>git.job.commit</key>
-	<string>Git：提交</string>
-	<key>git.job.init</key>
-	<string>Git：初始化仓库</string>
-	<key>git.job.pull</key>
-	<string>Git：拉取</string>
-	<key>git.job.push</key>
-	<string>Git：推送</string>
-	<key>git.job.stage</key>
-	<string>Git：暂存变更</string>
-	<key>git.job.sync</key>
-	<string>Git：同步</string>
-	<key>git.panel.close</key>
-	<string>关闭 Git 面板</string>
-	<key>git.panel.collapse</key>
-	<string>折叠</string>
-	<key>git.panel.expand</key>
-	<string>展开</string>
-	<key>git.panel.placeholder</key>
-	<string>Git 状态与同步将显示在此处。</string>
-	<key>git.panel.refresh</key>
-	<string>刷新状态</string>
-	<key>git.panel.configure_git</key>
-	<string>配置 Git</string>
-	<key>git.panel.configure_git_hint</key>
-	<string>请通过 Xcode Command Line Tools 或 Homebrew 安装 Git，然后在设置中指定 git 可执行文件路径。</string>
-	<key>git.panel.title</key>
-	<string>Git</string>
-	<key>git.status.ahead %lld</key>
-	<string>本地领先远程 %lld 个提交</string>
-	<key>git.status.behind %lld</key>
-	<string>远程领先本地 %lld 个提交</string>
-	<key>git.status.changes %lld</key>
-	<string>%lld 个变更</string>
-	<key>git.status.clean</key>
-	<string>工作区干净，已与远程同步</string>
-	<key>git.status.conflict</key>
-	<string>存在合并冲突</string>
-	<key>git.status.dirty %lld</key>
-	<string>%lld 个文件待提交</string>
-	<key>git.status.more_changes %lld</key>
-	<string>还有 %lld 个…</string>
-	<key>git.status.pending_commit</key>
-	<string>待提交</string>
-	<key>help.cheat_sheet_menu</key>
-	<string>功能速查表</string>
-	<key>help.column.description</key>
-	<string>说明</string>
-	<key>help.column.feature</key>
-	<string>功能</string>
-	<key>help.column.shortcut</key>
-	<string>快捷键</string>
-	<key>help.entry.add_favorite.desc</key>
-	<string>将文件夹加入侧边栏收藏夹</string>
-	<key>help.entry.add_favorite.name</key>
-	<string>收藏</string>
-	<key>help.entry.add_favorite.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.archive.desc</key>
-	<string>浏览 ZIP、TAR 等归档内文件列表</string>
-	<key>help.entry.archive.name</key>
-	<string>压缩包</string>
-	<key>help.entry.archive.shortcut</key>
-	<string></string>
-	<key>help.entry.automation.desc</key>
-	<string>读取废纸篓、控制终端需要自动化权限</string>
-	<key>help.entry.automation.name</key>
-	<string>自动化</string>
-	<key>help.entry.automation.shortcut</key>
-	<string></string>
-	<key>help.entry.back_forward.desc</key>
-	<string>在浏览历史中前进或后退</string>
-	<key>help.entry.back_forward.name</key>
-	<string>前进 / 后退</string>
-	<key>help.entry.back_forward.shortcut</key>
-	<string>⌘[ / ⌘]</string>
-	<key>help.entry.blank_double_click.desc</key>
-	<string>可设为返回上级目录或在当前目录打开终端</string>
-	<key>help.entry.blank_double_click.name</key>
-	<string>空白处双击</string>
-	<key>help.entry.blank_double_click.shortcut</key>
-	<string>设置</string>
-	<key>help.entry.builtin_snippets.desc</key>
-	<string>列目录、复制路径、打开终端等开箱即用</string>
-	<key>help.entry.builtin_snippets.name</key>
-	<string>内置片段</string>
-	<key>help.entry.builtin_snippets.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.command_box.desc</key>
-	<string>在当前目录执行 zsh 命令，目录随地址栏同步</string>
-	<key>help.entry.command_box.name</key>
-	<string>命令框</string>
-	<key>help.entry.command_box.shortcut</key>
-	<string>回车</string>
-	<key>help.entry.command_history.desc</key>
-	<string>上方向键调出历史命令</string>
-	<key>help.entry.command_history.name</key>
-	<string>命令历史</string>
-	<key>help.entry.command_history.shortcut</key>
-	<string>↑</string>
-	<key>help.entry.connect_server.desc</key>
-	<string>连接 SMB、AFP 或 FTP 共享，挂载后卷出现在设备中</string>
-	<key>help.entry.connect_server.name</key>
-	<string>连接服务器</string>
-	<key>help.entry.connect_server.shortcut</key>
-	<string>⌘K</string>
-	<key>help.entry.content_search.desc</key>
-	<string>在当前文件夹内搜索文件内容</string>
-	<key>help.entry.content_search.name</key>
-	<string>在文件夹中查找</string>
-	<key>help.entry.content_search.shortcut</key>
-	<string>⌘⇧F</string>
-	<key>help.entry.copy_clear.desc</key>
-	<string>复制全部输出或清空当前标签</string>
-	<key>help.entry.copy_clear.name</key>
-	<string>复制 / 清空</string>
-	<key>help.entry.copy_clear.shortcut</key>
-	<string></string>
-	<key>help.entry.copy_name_path.desc</key>
-	<string>将选中项名称或完整路径复制到剪贴板</string>
-	<key>help.entry.copy_name_path.name</key>
-	<string>复制文件名 / 路径</string>
-	<key>help.entry.copy_name_path.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.create_edit.desc</key>
-	<string>支持 Shell、Python、AppleScript 等类型</string>
-	<key>help.entry.create_edit.name</key>
-	<string>新建 / 编辑</string>
-	<key>help.entry.create_edit.shortcut</key>
-	<string></string>
-	<key>help.entry.custom_preview_rules.desc</key>
-	<string>按扩展名指定预览方式，可导入导出规则</string>
-	<key>help.entry.custom_preview_rules.name</key>
-	<string>自定义预览规则</string>
-	<key>help.entry.custom_preview_rules.shortcut</key>
-	<string>设置</string>
-	<key>help.entry.cut_copy_paste.desc</key>
-	<string>标准文件剪贴板操作</string>
-	<key>help.entry.cut_copy_paste.name</key>
-	<string>剪切 / 复制 / 粘贴</string>
-	<key>help.entry.cut_copy_paste.shortcut</key>
-	<string>⌘X / ⌘C / ⌘V</string>
-	<key>help.entry.default_file_manager.desc</key>
-	<string>将 MeoFind 设为系统默认文件夹打开方式</string>
-	<key>help.entry.default_file_manager.name</key>
-	<string>默认文件管理器</string>
-	<key>help.entry.default_file_manager.shortcut</key>
-	<string>设置</string>
-	<key>help.entry.delete.desc</key>
-	<string>将选中项移入废纸篓</string>
-	<key>help.entry.delete.name</key>
-	<string>删除</string>
-	<key>help.entry.delete.shortcut</key>
-	<string>Delete</string>
-	<key>help.entry.delete_immediately.desc</key>
-	<string>废纸篓内永久删除，跳过废纸篓</string>
-	<key>help.entry.delete_immediately.name</key>
-	<string>立即删除</string>
-	<key>help.entry.delete_immediately.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.detach_preview.desc</key>
-	<string>将预览拖出为独立窗口，主窗口仍保留列表</string>
-	<key>help.entry.detach_preview.name</key>
-	<string>独立预览窗口</string>
-	<key>help.entry.detach_preview.shortcut</key>
-	<string>⌘⌥P</string>
-	<key>help.entry.devices.desc</key>
-	<string>动态显示已挂载的磁盘、移动硬盘与网络卷，可推出</string>
-	<key>help.entry.devices.name</key>
-	<string>设备</string>
-	<key>help.entry.devices.shortcut</key>
-	<string></string>
-	<key>help.entry.double_click_open.desc</key>
-	<string>文件夹进入、文件用默认应用打开</string>
-	<key>help.entry.double_click_open.name</key>
-	<string>双击打开</string>
-	<key>help.entry.double_click_open.shortcut</key>
-	<string>双击</string>
-	<key>help.entry.drag_drop_open.desc</key>
-	<string>将文件或文件夹拖入窗口可导航到对应位置</string>
-	<key>help.entry.drag_drop_open.name</key>
-	<string>拖放打开</string>
-	<key>help.entry.drag_drop_open.shortcut</key>
-	<string></string>
-	<key>help.entry.empty_trash.desc</key>
-	<string>永久清空废纸篓全部内容</string>
-	<key>help.entry.empty_trash.name</key>
-	<string>清空废纸篓</string>
-	<key>help.entry.empty_trash.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.external_open.desc</key>
-	<string>从 Finder 拖入或作为默认文件管理器打开文件夹</string>
-	<key>help.entry.external_open.name</key>
-	<string>外部打开</string>
-	<key>help.entry.external_open.shortcut</key>
-	<string></string>
-	<key>help.entry.favorites.desc</key>
-	<string>固定常用目录，右键可添加或移除收藏</string>
-	<key>help.entry.favorites.name</key>
-	<string>收藏夹</string>
-	<key>help.entry.favorites.shortcut</key>
-	<string></string>
-	<key>help.entry.file_list.desc</key>
-	<string>当前目录下的文件与文件夹，支持列表与缩略图两种视图</string>
-	<key>help.entry.file_list.name</key>
-	<string>文件列表</string>
-	<key>help.entry.file_list.shortcut</key>
-	<string></string>
-	<key>help.entry.file_preview.desc</key>
-	<string>右侧面板实时预览选中文件，无需离开浏览器</string>
-	<key>help.entry.file_preview.name</key>
-	<string>文件预览</string>
-	<key>help.entry.file_preview.shortcut</key>
-	<string></string>
-	<key>help.entry.full_disk_access.desc</key>
-	<string>浏览受保护目录需在系统设置中授权</string>
-	<key>help.entry.full_disk_access.name</key>
-	<string>完全磁盘访问</string>
-	<key>help.entry.full_disk_access.shortcut</key>
-	<string></string>
-	<key>help.entry.global_search.desc</key>
-	<string>工具栏搜索框聚焦，按文件名筛选</string>
-	<key>help.entry.global_search.name</key>
-	<string>全局搜索框</string>
-	<key>help.entry.global_search.shortcut</key>
-	<string>⌘F</string>
-	<key>help.entry.image.desc</key>
-	<string>缩放、旋转、翻转、取色、简单编辑与保存</string>
-	<key>help.entry.image.name</key>
-	<string>图片</string>
-	<key>help.entry.image.shortcut</key>
-	<string>预览工具栏</string>
-	<key>help.entry.import_export.desc</key>
-	<string>单条或全部 JSON 备份与恢复</string>
-	<key>help.entry.import_export.name</key>
-	<string>导入 / 导出</string>
-	<key>help.entry.import_export.shortcut</key>
-	<string>菜单</string>
-	<key>help.entry.in_preview_search.desc</key>
-	<string>在预览内容中查找并高亮，跳转下一处匹配</string>
-	<key>help.entry.in_preview_search.name</key>
-	<string>文内搜索</string>
-	<key>help.entry.in_preview_search.shortcut</key>
-	<string>预览工具栏</string>
-	<key>help.entry.job_tabs.desc</key>
-	<string>每次执行一个标签，可并行多个任务</string>
-	<key>help.entry.job_tabs.name</key>
-	<string>Job 标签页</string>
-	<key>help.entry.job_tabs.shortcut</key>
-	<string></string>
-	<key>help.entry.list_view.desc</key>
-	<string>表格显示名称、类型、大小、日期等列，可点击表头排序</string>
-	<key>help.entry.list_view.name</key>
-	<string>列表视图</string>
-	<key>help.entry.list_view.shortcut</key>
-	<string>工具栏</string>
-	<key>help.entry.locations.desc</key>
-	<string>快速访问主目录、桌面、文稿、下载等系统位置</string>
-	<key>help.entry.locations.name</key>
-	<string>位置</string>
-	<key>help.entry.locations.shortcut</key>
-	<string></string>
-	<key>help.entry.markdown_html.desc</key>
-	<string>源码与渲染模式切换</string>
-	<key>help.entry.markdown_html.name</key>
-	<string>Markdown / HTML</string>
-	<key>help.entry.markdown_html.shortcut</key>
-	<string>预览工具栏</string>
-	<key>help.entry.media.desc</key>
-	<string>播放、暂停、静音</string>
-	<key>help.entry.media.name</key>
-	<string>音视频</string>
-	<key>help.entry.media.shortcut</key>
-	<string>预览工具栏</string>
-	<key>help.entry.multi_window.desc</key>
-	<string>文件夹可在新窗口独立打开</string>
-	<key>help.entry.multi_window.name</key>
-	<string>多窗口</string>
-	<key>help.entry.multi_window.shortcut</key>
-	<string></string>
-	<key>help.entry.new_folder_file.desc</key>
-	<string>在当前目录创建新文件夹或文件</string>
-	<key>help.entry.new_folder_file.name</key>
-	<string>新建文件夹 / 文件</string>
-	<key>help.entry.new_folder_file.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.open.desc</key>
-	<string>用默认方式打开文件或进入文件夹</string>
-	<key>help.entry.open.name</key>
-	<string>打开</string>
-	<key>help.entry.open.shortcut</key>
-	<string>回车</string>
-	<key>help.entry.open_new_window.desc</key>
-	<string>在独立窗口中打开文件夹</string>
-	<key>help.entry.open_new_window.name</key>
-	<string>新窗口打开</string>
-	<key>help.entry.open_new_window.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.open_terminal.desc</key>
-	<string>在选中目录启动系统终端</string>
-	<key>help.entry.open_terminal.name</key>
-	<string>在此处打开终端</string>
-	<key>help.entry.open_terminal.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.open_with.desc</key>
-	<string>选择其他应用打开文件</string>
-	<key>help.entry.open_with.name</key>
-	<string>打开方式</string>
-	<key>help.entry.open_with.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.operation_recording.desc</key>
-	<string>在工具栏录制文件操作，停止后审阅并保存为 Snippet</string>
-	<key>help.entry.operation_recording.name</key>
-	<string>操作录制</string>
-	<key>help.entry.operation_recording.shortcut</key>
-	<string>工具栏</string>
-	<key>help.entry.output_find.desc</key>
-	<string>在输出文本中搜索并高亮匹配</string>
-	<key>help.entry.output_find.name</key>
-	<string>输出查找</string>
-	<key>help.entry.output_find.shortcut</key>
-	<string></string>
-	<key>help.entry.output_panel.desc</key>
-	<string>底部显示脚本执行结果与交互式命令行</string>
-	<key>help.entry.output_panel.name</key>
-	<string>输出面板</string>
-	<key>help.entry.output_panel.shortcut</key>
-	<string>⌘J</string>
-	<key>help.entry.panel_height.desc</key>
-	<string>拖拽预览与 Snippets 之间的分隔条调整比例</string>
-	<key>help.entry.panel_height.name</key>
-	<string>面板高度</string>
-	<key>help.entry.panel_height.shortcut</key>
-	<string>拖拽</string>
-	<key>help.entry.panel_width.desc</key>
-	<string>拖拽主列表与右侧面板之间的分隔条</string>
-	<key>help.entry.panel_width.name</key>
-	<string>面板宽度</string>
-	<key>help.entry.panel_width.shortcut</key>
-	<string>拖拽</string>
-	<key>help.entry.path_breadcrumb.desc</key>
-	<string>点击路径段快速跳转，空间不足时自动折叠中间段</string>
-	<key>help.entry.path_breadcrumb.name</key>
-	<string>路径面包屑</string>
-	<key>help.entry.path_breadcrumb.shortcut</key>
-	<string></string>
-	<key>help.entry.path_edit.desc</key>
-	<string>点击路径栏可手动输入或粘贴完整路径</string>
-	<key>help.entry.path_edit.name</key>
-	<string>路径编辑</string>
-	<key>help.entry.path_edit.shortcut</key>
-	<string></string>
-	<key>help.entry.path_history.desc</key>
-	<string>下拉查看最近访问过的目录</string>
-	<key>help.entry.path_history.name</key>
-	<string>路径历史</string>
-	<key>help.entry.path_history.shortcut</key>
-	<string></string>
-	<key>help.entry.pdf.desc</key>
-	<string>翻页、缩放、适应宽度或页面</string>
-	<key>help.entry.pdf.name</key>
-	<string>PDF</string>
-	<key>help.entry.pdf.shortcut</key>
-	<string>预览工具栏</string>
-	<key>help.entry.preview_browser.desc</key>
-	<string>底部胶片条浏览当前目录文件，上一项 / 下一项</string>
-	<key>help.entry.preview_browser.name</key>
-	<string>预览浏览器</string>
-	<key>help.entry.preview_browser.shortcut</key>
-	<string>⌘⌥B</string>
-	<key>help.entry.put_back.desc</key>
-	<string>从废纸篓恢复文件到原位置</string>
-	<key>help.entry.put_back.name</key>
-	<string>放回原处</string>
-	<key>help.entry.put_back.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.quick_look.desc</key>
-	<string>对不支持的类型回退到系统 Quick Look</string>
-	<key>help.entry.quick_look.name</key>
-	<string>Quick Look</string>
-	<key>help.entry.quick_look.shortcut</key>
-	<string></string>
-	<key>help.entry.quick_search.desc</key>
-	<string>输入即过滤当前列表，Tab 循环匹配项并同步预览</string>
-	<key>help.entry.quick_search.name</key>
-	<string>快速搜索</string>
-	<key>help.entry.quick_search.shortcut</key>
-	<string>直接打字</string>
-	<key>help.entry.recent_servers.desc</key>
-	<string>在连接对话框中从最近列表快速重连</string>
-	<key>help.entry.recent_servers.name</key>
-	<string>最近服务器</string>
-	<key>help.entry.recent_servers.shortcut</key>
-	<string></string>
-	<key>help.entry.rename.desc</key>
-	<string>再次点击文件名或右键重命名</string>
-	<key>help.entry.rename.name</key>
-	<string>重命名</string>
-	<key>help.entry.rename.shortcut</key>
-	<string></string>
-	<key>help.entry.run_snippet.desc</key>
-	<string>搜索、方向键选择、回车或双击运行</string>
-	<key>help.entry.run_snippet.name</key>
-	<string>执行片段</string>
-	<key>help.entry.run_snippet.shortcut</key>
-	<string></string>
-	<key>help.entry.scope.desc</key>
-	<string>按全局、文件类型、路径等限制片段出现时机</string>
-	<key>help.entry.scope.name</key>
-	<string>作用域</string>
-	<key>help.entry.scope.shortcut</key>
-	<string></string>
-	<key>help.entry.services.desc</key>
-	<string>调用 macOS 系统服务菜单</string>
-	<key>help.entry.services.name</key>
-	<string>服务</string>
-	<key>help.entry.services.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.settings_general.desc</key>
-	<string>空白双击行为、窗口贴靠、界面语言</string>
-	<key>help.entry.settings_general.name</key>
-	<string>通用</string>
-	<key>help.entry.settings_general.shortcut</key>
-	<string>⌘,</string>
-	<key>help.entry.settings_preview.desc</key>
-	<string>行号、独立窗口浏览、自定义文件类型规则</string>
-	<key>help.entry.settings_preview.name</key>
-	<string>预览</string>
-	<key>help.entry.settings_preview.shortcut</key>
-	<string>设置</string>
-	<key>help.entry.settings_snippets.desc</key>
-	<string>显示模式、最近置顶、自动显示输出、并发上限</string>
-	<key>help.entry.settings_snippets.name</key>
-	<string>Snippets</string>
-	<key>help.entry.settings_snippets.shortcut</key>
-	<string>设置</string>
-	<key>help.entry.show_info.desc</key>
-	<string>独立窗口查看大小、权限、标签、注释等详情</string>
-	<key>help.entry.show_info.name</key>
-	<string>属性</string>
-	<key>help.entry.show_info.shortcut</key>
-	<string>右键</string>
-	<key>help.entry.snippets_panel.desc</key>
-	<string>右侧面板管理可复用脚本，按上下文过滤显示</string>
-	<key>help.entry.snippets_panel.name</key>
-	<string>Snippets 面板</string>
-	<key>help.entry.snippets_panel.shortcut</key>
-	<string>⌘⇧S</string>
-	<key>help.entry.spreadsheet.desc</key>
-	<string>文本模式与 Quick Look 预览切换</string>
-	<key>help.entry.spreadsheet.name</key>
-	<string>电子表格</string>
-	<key>help.entry.spreadsheet.shortcut</key>
-	<string>预览工具栏</string>
-	<key>help.entry.stop_task.desc</key>
-	<string>运行中按 Ctrl+C 或点停止按钮</string>
-	<key>help.entry.stop_task.name</key>
-	<string>终止任务</string>
-	<key>help.entry.stop_task.shortcut</key>
-	<string>⌃C</string>
-	<key>help.entry.text_code.desc</key>
-	<string>语法高亮、行号、换行、字体缩放、文内搜索</string>
-	<key>help.entry.text_code.name</key>
-	<string>文本 / 代码</string>
-	<key>help.entry.text_code.shortcut</key>
-	<string>预览工具栏</string>
-	<key>help.entry.thumbnail_view.desc</key>
-	<string>图标网格浏览，可拖动滑块调整缩略图大小</string>
-	<key>help.entry.thumbnail_view.name</key>
-	<string>缩略图视图</string>
-	<key>help.entry.thumbnail_view.shortcut</key>
-	<string>工具栏</string>
-	<key>help.entry.toggle_left_panel.desc</key>
-	<string>显示或隐藏侧边栏</string>
-	<key>help.entry.toggle_left_panel.name</key>
-	<string>左侧面板</string>
-	<key>help.entry.toggle_left_panel.shortcut</key>
-	<string>⌘B</string>
-	<key>help.entry.toggle_right_panel.desc</key>
-	<string>切换预览与 Snippets 整列显示</string>
-	<key>help.entry.toggle_right_panel.name</key>
-	<string>右侧面板</string>
-	<key>help.entry.toggle_right_panel.shortcut</key>
-	<string>⌘⇧B</string>
-	<key>help.entry.toolbar_customize.desc</key>
-	<string>右键工具栏进入自定义模式，拖拽增减与排序按钮，点击完成保存</string>
-	<key>help.entry.toolbar_customize.name</key>
-	<string>自定义工具栏</string>
-	<key>help.entry.toolbar_customize.shortcut</key>
-	<string>右键工具栏</string>
-	<key>help.entry.toolbar_delete.desc</key>
-	<string>选中文件后点击工具栏删除按钮移入废纸篓</string>
-	<key>help.entry.toolbar_delete.name</key>
-	<string>工具栏删除</string>
-	<key>help.entry.toolbar_delete.shortcut</key>
-	<string></string>
-	<key>help.entry.toolbar_open_app.desc</key>
-	<string>在自定义面板点击 ＋ 添加按钮，用指定应用打开选中项或当前文件夹</string>
-	<key>help.entry.toolbar_open_app.name</key>
-	<string>打开应用按钮</string>
-	<key>help.entry.toolbar_open_app.shortcut</key>
-	<string>自定义面板 ＋</string>
-	<key>help.entry.trash.desc</key>
-	<string>浏览已删除文件，支持放回原处与清空</string>
-	<key>help.entry.trash.name</key>
-	<string>废纸篓</string>
-	<key>help.entry.trash.shortcut</key>
-	<string></string>
-	<key>help.entry.variables.desc</key>
-	<string>脚本中 %p（路径）、%d（目录）等自动替换</string>
-	<key>help.entry.variables.name</key>
-	<string>变量展开</string>
-	<key>help.entry.variables.shortcut</key>
-	<string></string>
-	<key>help.entry.window_snap.desc</key>
-	<string>拖拽窗口靠边自动半屏或全屏贴靠</string>
-	<key>help.entry.window_snap.name</key>
-	<string>窗口贴靠</string>
-	<key>help.entry.window_snap.shortcut</key>
-	<string>设置</string>
-	<key>help.no_shortcut</key>
-	<string>—</string>
-	<key>help.section.files</key>
-	<string>文件操作</string>
-	<key>help.section.layout</key>
-	<string>窗口与布局</string>
-	<key>help.section.navigation</key>
-	<string>浏览与导航</string>
-	<key>help.section.output</key>
-	<string>输出面板</string>
-	<key>help.section.permissions</key>
-	<string>权限</string>
-	<key>help.section.preview</key>
-	<string>预览</string>
-	<key>help.section.remote_server</key>
-	<string>远程服务器</string>
-	<key>help.section.settings</key>
-	<string>设置</string>
-	<key>help.section.sidebar</key>
-	<string>侧边栏</string>
-	<key>help.section.snippets</key>
-	<string>Snippets</string>
-	<key>help.section.toolbar</key>
-	<string>工具栏</string>
-	<key>help.subtitle</key>
-	<string>一句话了解 MeoFind 能做什么</string>
-	<key>help.window_title</key>
-	<string>MeoFind 功能速查表</string>
-	<key>info.access.executable</key>
-	<string>可执行</string>
-	<key>info.access.label</key>
-	<string>访问：</string>
-	<key>info.access.readable</key>
-	<string>可读</string>
-	<key>info.access.writable</key>
-	<string>可写</string>
-	<key>info.bullet_item %@ %@ %@</key>
-	<string>• %@（%@，%@）</string>
-	<key>info.created %@</key>
-	<string>创建时间：%@</string>
-	<key>info.ellipsis</key>
-	<string>…</string>
-	<key>info.hidden %@</key>
-	<string>隐藏：%@</string>
-	<key>info.hidden.label</key>
-	<string>隐藏：</string>
-	<key>info.kind.extension_file %@</key>
-	<string>种类：%@ 文件</string>
-	<key>info.kind.file</key>
-	<string>种类：文件</string>
-	<key>info.kind.file_short</key>
-	<string>文件</string>
-	<key>info.kind.folder</key>
-	<string>种类：文件夹</string>
-	<key>info.kind.folder_short</key>
-	<string>文件夹</string>
-	<key>info.location %@</key>
-	<string>位置：%@</string>
-	<key>info.modified %@</key>
-	<string>修改时间：%@</string>
-	<key>info.no</key>
-	<string>否</string>
-	<key>info.path %@</key>
-	<string>路径：%@</string>
-	<key>info.path.label</key>
-	<string>路径：</string>
-	<key>info.permissions %@ %@</key>
-	<string>权限：%@（%@）</string>
-	<key>info.size %@</key>
-	<string>大小：%@</string>
-	<key>info.type_identifier %@</key>
-	<string>类型标识：%@</string>
-	<key>info.yes</key>
-	<string>是</string>
-	<key>menu.collapse_strip</key>
-	<string>收起胶片条</string>
-	<key>menu.expand_strip</key>
-	<string>展开胶片条</string>
-	<key>menu.export_snippets</key>
-	<string>导出全部 Snippets…</string>
-	<key>menu.go</key>
-	<string>前往</string>
-	<key>menu.hide_git</key>
-	<string>关闭 Git 面板</string>
-	<key>menu.hide_output</key>
-	<string>关闭输出面板</string>
-	<key>menu.hide_preview</key>
-	<string>关闭预览</string>
-	<key>menu.hide_snippets</key>
-	<string>关闭 Snippets</string>
-	<key>menu.import_snippets</key>
-	<string>导入 Snippets…</string>
-	<key>menu.next_preview</key>
-	<string>下一个预览</string>
-	<key>menu.open_preview_detached</key>
-	<string>在独立窗口中打开预览</string>
-	<key>menu.previous_preview</key>
-	<string>上一个预览</string>
-	<key>menu.reattach_preview</key>
-	<string>收回预览到侧栏</string>
-	<key>menu.show_git</key>
-	<string>显示 Git 面板</string>
-	<key>menu.show_output</key>
-	<string>显示输出面板</string>
-	<key>menu.show_preview</key>
-	<string>显示预览</string>
-	<key>menu.show_snippets</key>
-	<string>显示 Snippets</string>
-	<key>menu.toggle_left_panel</key>
-	<string>切换左侧面板</string>
-	<key>menu.toggle_right_panel</key>
-	<string>切换右侧面板</string>
-	<key>operation_recording.banner.discard</key>
-	<string>放弃</string>
-	<key>operation_recording.banner.message</key>
-	<string>正在录制操作 · 已 %lld 步</string>
-	<key>operation_recording.banner.stop</key>
-	<string>停止并审阅</string>
-	<key>operation_recording.close_while_recording.discard</key>
-	<string>放弃录制</string>
-	<key>operation_recording.close_while_recording.message</key>
-	<string>窗口关闭时仍在录制操作。</string>
-	<key>operation_recording.close_while_recording.stop</key>
-	<string>停止并审阅</string>
-	<key>operation_recording.close_while_recording.title</key>
-	<string>停止录制？</string>
-	<key>operation_recording.copy_script</key>
-	<string>复制脚本</string>
-	<key>operation_recording.create_snippet</key>
-	<string>创建 Snippet…</string>
-	<key>operation_recording.default_snippet_name</key>
-	<string>录制的 Snippet</string>
-	<key>operation_recording.discard_confirm.message</key>
-	<string>已录制的步骤将被丢弃，且无法恢复。</string>
-	<key>operation_recording.discard_confirm.title</key>
-	<string>放弃录制？</string>
-	<key>operation_recording.discarded</key>
-	<string>已放弃录制</string>
-	<key>operation_recording.generalize_paths</key>
-	<string>将路径泛化为 Snippet 变量</string>
-	<key>operation_recording.no_steps</key>
-	<string>未记录到文件操作</string>
-	<key>operation_recording.preview_label</key>
-	<string>脚本预览</string>
-	<key>operation_recording.recording_name</key>
-	<string>录制 · %@</string>
-	<key>operation_recording.review_subtitle</key>
-	<string>已记录 %lld 步 · 录制于 %@</string>
-	<key>operation_recording.review_title</key>
-	<string>从录制生成 Snippet</string>
-	<key>operation_recording.scope_suggestion</key>
-	<string>建议作用域：%@</string>
-	<key>operation_recording.script_copied</key>
-	<string>Shell 脚本已复制（%lld 步）</string>
-	<key>operation_recording.security.chmod_777</key>
-	<string>包含过于宽松的权限设置（chmod 777）。</string>
-	<key>operation_recording.security.chmod_777_recursive</key>
-	<string>包含递归宽松权限设置（chmod -R 777）。</string>
-	<key>operation_recording.security.curl_pipe</key>
-	<string>将 curl 输出管道到其它命令，可能执行远程代码。</string>
-	<key>operation_recording.security.dd</key>
-	<string>包含底层磁盘写入命令（dd）。</string>
-	<key>operation_recording.security.eval</key>
-	<string>包含动态执行（eval）。</string>
-	<key>operation_recording.security.mkfs</key>
-	<string>包含格式化文件系统命令（mkfs）。</string>
-	<key>operation_recording.security.mv</key>
-	<string>包含移动/重命名命令（mv），可能覆盖已有文件。</string>
-	<key>operation_recording.security.rm</key>
-	<string>包含删除命令（rm）。</string>
-	<key>operation_recording.security.rm_r</key>
-	<string>包含递归删除（rm -r）。</string>
-	<key>operation_recording.security.rm_rf</key>
-	<string>包含递归删除（rm -rf），可能永久删除文件。</string>
-	<key>operation_recording.security.sudo</key>
-	<string>包含提权命令（sudo）。</string>
-	<key>operation_recording.security.wget_pipe</key>
-	<string>将 wget 输出管道到其它命令，可能执行远程代码。</string>
-	<key>operation_recording.security.write_dev</key>
-	<string>直接向 /dev/ 设备节点写入。</string>
-	<key>operation_recording.short.clipboard</key>
-	<string>剪贴板</string>
-	<key>operation_recording.short.compress</key>
-	<string>压缩</string>
-	<key>operation_recording.short.copy</key>
-	<string>复制</string>
-	<key>operation_recording.short.delete</key>
-	<string>删除</string>
-	<key>operation_recording.short.extract</key>
-	<string>解压</string>
-	<key>operation_recording.short.move</key>
-	<string>移动</string>
-	<key>operation_recording.short.new_file</key>
-	<string>新建文件</string>
-	<key>operation_recording.short.new_folder</key>
-	<string>新建文件夹</string>
-	<key>operation_recording.short.rename</key>
-	<string>重命名</string>
-	<key>operation_recording.snippet_saved</key>
-	<string>Snippet 已保存：%@</string>
-	<key>operation_recording.step.compress</key>
-	<string>压缩 %lld 个项目为 %@</string>
-	<key>operation_recording.step.copy</key>
-	<string>复制 %lld 个项目</string>
-	<key>operation_recording.step.create_directory</key>
-	<string>新建文件夹 %@</string>
-	<key>operation_recording.step.create_file</key>
-	<string>新建文件 %@</string>
-	<key>operation_recording.step.cut</key>
-	<string>剪切 %lld 个项目</string>
-	<key>operation_recording.step.delete_immediately</key>
-	<string>立即删除 %lld 个项目</string>
-	<key>operation_recording.step.drag_copy</key>
-	<string>拖放复制 %lld 个项目到 %@</string>
-	<key>operation_recording.step.drag_move</key>
-	<string>拖放移动 %lld 个项目到 %@</string>
-	<key>operation_recording.step.extract</key>
-	<string>解压 %@ 到 %@</string>
-	<key>operation_recording.step.paste_copy</key>
-	<string>粘贴 %lld 个项目到 %@</string>
-	<key>operation_recording.step.paste_move</key>
-	<string>移动 %lld 个项目到 %@</string>
-	<key>operation_recording.step.rename</key>
-	<string>重命名为 %@</string>
-	<key>operation_recording.step.trash</key>
-	<string>将 %lld 个项目移到废纸篓</string>
-	<key>operation_recording.test_script</key>
-	<string>测试</string>
-	<key>operation_recording.trash_warning</key>
-	<string>当前在废纸篓内录制：生成的脚本在废纸篓外可能无法正确重放。</string>
-	<key>operation_recording.validation.empty</key>
-	<string>脚本为空。</string>
-	<key>operation_recording.validation.invalid_shell</key>
-	<string>Shell 语法检查失败。</string>
-	<key>operation_recording.validation.passed</key>
-	<string>脚本语法与变量检查通过。</string>
-	<key>operation_recording.validation.shell_syntax</key>
-	<string>Shell 语法错误：%@</string>
-	<key>operation_recording.validation.unsupported_variable</key>
-	<string>不支持的变量：%@</string>
-	<key>operation_recording.validation.variable_expansion</key>
-	<string>变量展开失败：%@</string>
-	<key>operation_recording.variables_footer</key>
-	<string>开启泛化后，路径可能替换为 %p、%d、%n、%b 等变量；保存前可在预览中继续编辑。</string>
-	<key>operation_recording.variables_title</key>
-	<string>Snippet 变量参考</string>
-	<key>pathbar.back</key>
-	<string>后退</string>
-	<key>pathbar.clear</key>
-	<string>清除</string>
-	<key>pathbar.commit</key>
-	<string>进入新路径</string>
-	<key>pathbar.edit</key>
-	<string>点击编辑完整路径</string>
-	<key>pathbar.forward</key>
-	<string>前进</string>
-	<key>pathbar.history</key>
-	<string>最近访问的路径</string>
-	<key>pathbar.no_subdirs</key>
-	<string>无子文件夹</string>
-	<key>pathbar.parent</key>
-	<string>显示上级路径</string>
-	<key>pathbar.select_all</key>
-	<string>点击全选路径</string>
-	<key>pathbar.subdirs</key>
-	<string>显示子目录</string>
-	<key>permission.automation.message</key>
-	<string>MeoFind 需要「控制 Finder」的权限才能显示废纸篓内容。
+/* Generated from Localizable.xcstrings — do not edit by hand; run Scripts/compile_localizations.sh */
 
-请在「系统设置 → 隐私与安全性 → 自动化」中，允许 MeoFind 控制 Finder。</string>
-	<key>permission.automation.open_settings</key>
-	<string>打开系统设置</string>
-	<key>permission.automation.title</key>
-	<string>需要自动化权限</string>
-	<key>permission.fda.detected</key>
-	<string>已检测到完全磁盘访问权限，请重启应用以完成启用。</string>
-	<key>permission.fda.later</key>
-	<string>稍后</string>
-	<key>permission.fda.message</key>
-	<string>MeoFind 需要此权限才能浏览系统中的全部文件与文件夹。</string>
-	<key>permission.fda.not_detected</key>
-	<string>尚未检测到权限。请确认已在系统设置中勾选本应用。</string>
-	<key>permission.fda.open_settings</key>
-	<string>打开系统设置</string>
-	<key>permission.fda.restart_app</key>
-	<string>重启应用</string>
-	<key>permission.fda.step1</key>
-	<string>点击下方「打开系统设置」。</string>
-	<key>permission.fda.step2 %@</key>
-	<string>在「隐私与安全性 → 完全磁盘访问权限」中，打开 %@ 的开关。</string>
-	<key>permission.fda.step3</key>
-	<string>返回本应用后，点击「重启应用」使权限生效。</string>
-	<key>permission.fda.title</key>
-	<string>需要完全磁盘访问权限</string>
-	<key>panorama.collapse_folder</key>
-	<string>收起文件夹</string>
-	<key>panorama.expand_folder</key>
-	<string>展开文件夹</string>
-	<key>panorama.expand_depth.automatic</key>
-	<string>自动</string>
-	<key>panorama.expand_depth.depth2</key>
-	<string>深度 2</string>
-	<key>panorama.expand_depth.depth5</key>
-	<string>深度 5</string>
-	<key>panorama.expand_depth.unlimited</key>
-	<string>全部</string>
-	<key>panorama.folder_kind</key>
-	<string>文件夹</string>
-	<key>panorama.item_count %lld</key>
-	<string>%lld 项</string>
-	<key>panorama.loading</key>
-	<string>正在加载</string>
-	<key>preview.archive.loading_more</key>
-	<string>正在加载更多条目…</string>
-	<key>preview.archive.selection_count %lld</key>
-	<string>已选 %lld 项 · ⌘ 点击可多选</string>
-	<key>preview.archive_truncated</key>
-	<string>[已截断…]</string>
-	<key>preview.chrome.back_to_folder</key>
-	<string>返回文件夹</string>
-	<key>preview.chrome.close_preview</key>
-	<string>关闭预览</string>
-	<key>preview.chrome.close_window</key>
-	<string>关闭窗口</string>
-	<key>preview.chrome.collapse</key>
-	<string>折叠预览</string>
-	<key>preview.chrome.detach</key>
-	<string>在独立窗口中打开</string>
-	<key>preview.chrome.dock_back</key>
-	<string>收回侧栏</string>
-	<key>preview.chrome.expand</key>
-	<string>展开预览</string>
-	<key>preview.chrome.reveal_in_file_list</key>
-	<string>在文件列表中定位</string>
-	<key>preview.close</key>
-	<string>关闭预览</string>
-	<key>preview.collapse</key>
-	<string>折叠预览</string>
-	<key>preview.detached_placeholder %@</key>
-	<string>%@ 已在独立窗口中预览</string>
-	<key>preview.dock_back</key>
-	<string>收回侧栏</string>
-	<key>preview.empty_state</key>
-	<string>选择文件以预览</string>
-	<key>preview.epub.chapter_progress %lld %lld</key>
-	<string>第 %lld / %lld 章</string>
-	<key>preview.epub.no_chapters</key>
-	<string>无章节</string>
-	<key>preview.error_loading</key>
-	<string>预览加载失败</string>
-	<key>preview.expand</key>
-	<string>展开预览</string>
-	<key>preview.focus_window</key>
-	<string>聚焦窗口</string>
-	<key>preview.folder_inline.open_directory</key>
-	<string>双击进入</string>
-	<key>preview.folder_inline.preview_file</key>
-	<string>单击预览 · 双击打开 · ⌥双击独立预览</string>
-	<key>preview.font.copyright</key>
-	<string>版权</string>
-	<key>preview.font.family</key>
-	<string>字体族</string>
-	<key>preview.font.glyphs</key>
-	<string>字形数</string>
-	<key>preview.font.point_size %lld</key>
-	<string>%lld 磅</string>
-	<key>preview.font.post_script_name</key>
-	<string>PostScript 名</string>
-	<key>preview.font.registration_failed</key>
-	<string>无法注册字体用于预览</string>
-	<key>preview.font.samples</key>
-	<string>样张</string>
-	<key>preview.font.style</key>
-	<string>风格</string>
-	<key>preview.font.version</key>
-	<string>版本</string>
-	<key>preview.markdown.mermaid_render_failed</key>
-	<string>流程图渲染失败</string>
-	<key>preview.markdown.mermaid_rendering</key>
-	<string>正在渲染流程图…</string>
-	<key>preview.model3d.dimensions %.1f %.1f %.1f</key>
-	<string>尺寸：%.1f × %.1f × %.1f</string>
-	<key>preview.model3d.triangles %lld</key>
-	<string>三角面：%lld</string>
-	<key>preview.model3d.unit_hint</key>
-	<string>STL 文件不含单位信息，所示尺寸为相对值。</string>
-	<key>preview.image.confirm</key>
-	<string>确定</string>
-	<key>preview.image.height</key>
-	<string>高度</string>
-	<key>preview.image.maintain_aspect</key>
-	<string>保持宽高比</string>
-	<key>preview.image.resize_hint</key>
-	<string>按像素设置输出尺寸。确认后需点击「保存编辑结果」写入文件。</string>
-	<key>preview.image.resize_title</key>
-	<string>调整图片尺寸</string>
-	<key>preview.image.validation.empty</key>
-	<string>请输入宽度和高度</string>
-	<key>preview.image.validation.invalid</key>
-	<string>请输入有效的像素数值</string>
-	<key>preview.image.validation.max</key>
-	<string>单边像素不能超过 65535</string>
-	<key>preview.image.validation.positive</key>
-	<string>宽度和高度必须大于 0</string>
-	<key>preview.image.width</key>
-	<string>宽度</string>
-	<key>preview.loading</key>
-	<string>正在加载预览…</string>
-	<key>preview.next</key>
-	<string>下一个</string>
-	<key>preview.not_available</key>
-	<string>无法预览此文件类型</string>
-	<key>preview.previous</key>
-	<string>上一个</string>
-	<key>preview.reattach.confirm</key>
-	<string>收回</string>
-	<key>preview.reattach.message</key>
-	<string>收回将替换侧栏当前预览。是否继续？</string>
-	<key>preview.reattach.title</key>
-	<string>收回预览</string>
-	<key>preview.save_failed_title</key>
-	<string>保存失败</string>
-	<key>preview.session_closed</key>
-	<string>预览会话已关闭</string>
-	<key>preview.text_edit.cancel</key>
-	<string>取消</string>
-	<key>preview.text_edit.discard</key>
-	<string>放弃修改</string>
-	<key>preview.text_edit.discard_confirm_message %@</key>
-	<string>将丢弃对「%@」的未保存修改。</string>
-	<key>preview.text_edit.discard_confirm_title</key>
-	<string>放弃修改？</string>
-	<key>preview.text_edit.dont_save</key>
-	<string>不保存</string>
-	<key>preview.text_edit.edit</key>
-	<string>编辑</string>
-	<key>preview.text_edit.not_writable</key>
-	<string>文件不可写</string>
-	<key>preview.text_edit.save</key>
-	<string>保存</string>
-	<key>preview.text_edit.save_confirm_message %@</key>
-	<string>将覆盖原文件「%@」。</string>
-	<key>preview.text_edit.save_confirm_title</key>
-	<string>保存修改</string>
-	<key>preview.text_edit.too_large</key>
-	<string>文件过大，无法在预览中编辑</string>
-	<key>preview.text_edit.unsaved_message %@</key>
-	<string>「%@」有未保存的修改。</string>
-	<key>preview.text_edit.unsaved_title</key>
-	<string>未保存的修改</string>
-	<key>preview.title</key>
-	<string>预览</string>
-	<key>preview.toolbar.actual_size</key>
-	<string>原始大小</string>
-	<key>preview.toolbar.archive_collapse</key>
-	<string>折叠到第一层</string>
-	<key>preview.toolbar.archive_expand</key>
-	<string>展开到全部层级</string>
-	<key>preview.toolbar.clear_search</key>
-	<string>清除搜索</string>
-	<key>preview.toolbar.color_hex %@</key>
-	<string>颜色 %@</string>
-	<key>preview.toolbar.color_picker</key>
-	<string>取色棒（点击图像复制 Web 颜色）</string>
-	<key>preview.toolbar.copied_to_clipboard</key>
-	<string>已复制到剪贴板</string>
-	<key>preview.toolbar.copy_all</key>
-	<string>复制全文</string>
-	<key>preview.toolbar.copy_image</key>
-	<string>复制图片</string>
-	<key>preview.toolbar.copy_manifest</key>
-	<string>复制清单</string>
-	<key>preview.toolbar.copy_model_info</key>
-	<string>复制模型信息</string>
-	<key>preview.toolbar.epub_chapters</key>
-	<string>章节</string>
-	<key>preview.toolbar.epub_next_chapter</key>
-	<string>下一章</string>
-	<key>preview.toolbar.epub_previous_chapter</key>
-	<string>上一章</string>
-	<key>preview.toolbar.extract</key>
-	<string>解压</string>
-	<key>preview.toolbar.extract_selected</key>
-	<string>解压选中项</string>
-	<key>preview.toolbar.extract_selected_to</key>
-	<string>解压选中项到…</string>
-	<key>preview.toolbar.extract_to</key>
-	<string>解压到…</string>
-	<key>preview.toolbar.eyedropper</key>
-	<string>取色棒</string>
-	<key>preview.toolbar.fit_page</key>
-	<string>整页适配</string>
-	<key>preview.toolbar.fit_width</key>
-	<string>适配宽度</string>
-	<key>preview.toolbar.fit_window</key>
-	<string>适配窗口</string>
-	<key>preview.toolbar.flip_horizontal</key>
-	<string>水平翻转</string>
-	<key>preview.toolbar.flip_vertical</key>
-	<string>垂直翻转</string>
-	<key>preview.toolbar.font_size</key>
-	<string>字体大小</string>
-	<key>preview.toolbar.html_preview</key>
-	<string>HTML 解析预览</string>
-	<key>preview.toolbar.jump_bottom</key>
-	<string>跳转底部</string>
-	<key>preview.toolbar.jump_to_page</key>
-	<string>跳转到页码</string>
-	<key>preview.toolbar.jump_top</key>
-	<string>跳转顶部</string>
-	<key>preview.toolbar.markdown_to_preview</key>
-	<string>切换为预览模式</string>
-	<key>preview.toolbar.markdown_to_source</key>
-	<string>切换为源码模式</string>
-	<key>preview.toolbar.more_actions</key>
-	<string>更多操作</string>
-	<key>preview.toolbar.model3d_rotate_down</key>
-	<string>向下旋转</string>
-	<key>preview.toolbar.model3d_rotate_up</key>
-	<string>向上旋转</string>
-	<key>preview.toolbar.model3d_solid</key>
-	<string>实体模式</string>
-	<key>preview.toolbar.model3d_wireframe</key>
-	<string>线框模式</string>
-	<key>preview.toolbar.mute</key>
-	<string>静音</string>
-	<key>preview.toolbar.next_match</key>
-	<string>下一个</string>
-	<key>preview.toolbar.next_page</key>
-	<string>下一页</string>
-	<key>preview.toolbar.open_default_app</key>
-	<string>用默认应用打开</string>
-	<key>preview.toolbar.page_number</key>
-	<string>页码</string>
-	<key>preview.toolbar.pause</key>
-	<string>暂停</string>
-	<key>preview.toolbar.play</key>
-	<string>播放</string>
-	<key>preview.toolbar.previous_match</key>
-	<string>上一个</string>
-	<key>preview.toolbar.previous_page</key>
-	<string>上一页</string>
-	<key>preview.toolbar.refresh_listing</key>
-	<string>刷新目录</string>
-	<key>preview.toolbar.reset</key>
-	<string>还原</string>
-	<key>preview.toolbar.reset_view</key>
-	<string>重置视图</string>
-	<key>preview.toolbar.resize</key>
-	<string>调整尺寸</string>
-	<key>preview.toolbar.rotate_ccw</key>
-	<string>逆时针旋转</string>
-	<key>preview.toolbar.rotate_cw</key>
-	<string>顺时针旋转</string>
-	<key>preview.toolbar.run_script</key>
-	<string>运行</string>
-	<key>preview.toolbar.save_edits</key>
-	<string>保存编辑结果</string>
-	<key>preview.toolbar.search_in_preview</key>
-	<string>在预览中搜索</string>
-	<key>preview.toolbar.search_no_results</key>
-	<string>无结果</string>
-	<key>preview.toolbar.search_prompt</key>
-	<string>搜索</string>
-	<key>preview.toolbar.source_mode</key>
-	<string>源码模式</string>
-	<key>preview.toolbar.undo</key>
-	<string>撤销上一步</string>
-	<key>preview.toolbar.unmute</key>
-	<string>取消静音</string>
-	<key>preview.toolbar.word_document_to_formatted</key>
-	<string>切换为格式化预览</string>
-	<key>preview.toolbar.word_document_to_text</key>
-	<string>切换为纯文本预览</string>
-	<key>preview.toolbar.wrap_disable</key>
-	<string>关闭自动换行</string>
-	<key>preview.toolbar.wrap_enable</key>
-	<string>开启自动换行</string>
-	<key>preview.toolbar.zoom</key>
-	<string>缩放</string>
-	<key>preview.toolbar.zoom_in</key>
-	<string>放大</string>
-	<key>preview.toolbar.zoom_in_font</key>
-	<string>放大字体</string>
-	<key>preview.toolbar.zoom_in_overall</key>
-	<string>放大（整体）</string>
-	<key>preview.toolbar.zoom_out</key>
-	<string>缩小</string>
-	<key>preview.toolbar.zoom_out_font</key>
-	<string>缩小字体</string>
-	<key>preview.toolbar.zoom_out_overall</key>
-	<string>缩小（整体）</string>
-	<key>preview.toolbar.zoom_scale</key>
-	<string>缩放比例</string>
-	<key>remote_server.address_placeholder</key>
-	<string>smb://server.example.com/share</string>
-	<key>remote_server.address_prompt</key>
-	<string>服务器地址</string>
-	<key>remote_server.connect</key>
-	<string>连接</string>
-	<key>remote_server.connect_server_menu</key>
-	<string>连接服务器…</string>
-	<key>remote_server.connecting</key>
-	<string>正在连接…</string>
-	<key>remote_server.disconnected_from_server</key>
-	<string>已断开与服务器的连接</string>
-	<key>remote_server.error.ambiguous_new_volumes</key>
-	<string>检测到多个新挂载卷，已打开第一个。</string>
-	<key>remote_server.error.invalid_url</key>
-	<string>无法识别服务器地址，请使用 smb://、ftp://、nfs:// 或 https:// 格式。</string>
-	<key>remote_server.error.mount_failed %@</key>
-	<string>无法连接服务器：%@</string>
-	<key>remote_server.error.sftp_deferred</key>
-	<string>SFTP 将在后续版本支持；当前请使用 SMB，或通过 sshfs 挂载后再浏览。</string>
-	<key>remote_server.error.timeout</key>
-	<string>连接超时，请检查网络或服务器是否可用。</string>
-	<key>remote_server.error.unsupported_protocol %@</key>
-	<string>不支持 %@ 协议。</string>
-	<key>remote_server.ftp_security_notice</key>
-	<string>FTP 为明文传输，敏感数据请改用 SMB。</string>
-	<key>remote_server.recent_title</key>
-	<string>最近连接</string>
-	<key>remote_server.remove_from_recent</key>
-	<string>从最近连接中移除</string>
-	<key>remote_server.sheet.title</key>
-	<string>连接服务器</string>
-	<key>remote_server.supported_protocols</key>
-	<string>支持：SMB · NFS · WebDAV · FTP</string>
-	<key>search.close_quick_search</key>
-	<string>关闭快速搜索</string>
-	<key>search.focus</key>
-	<string>聚焦搜索</string>
-	<key>search.prompt</key>
-	<string>搜索文件</string>
-	<key>search.quick_search</key>
-	<string>快速搜索</string>
-	<key>search.mode.filename</key>
-	<string>文件名</string>
-	<key>search.mode.content</key>
-	<string>内容</string>
-	<key>search.content_prompt</key>
-	<string>在当前文件夹中搜索…</string>
-	<key>search.content_no_results</key>
-	<string>未找到匹配内容</string>
-	<key>search.content_truncated</key>
-	<string>已截断</string>
-	<key>search.content_cancelled</key>
-	<string>已取消</string>
-	<key>search.content_next_match</key>
-	<string>下一个匹配</string>
-	<key>search.content_find_in_folder</key>
-	<string>在文件夹中查找</string>
-	<key>search.content_searching</key>
-	<string>搜索中… %lld 处匹配</string>
-	<key>search.content_progress</key>
-	<string>已扫描 %lld/%lld 个文件 · %lld 处匹配</string>
-	<key>search.content_summary.files</key>
-	<string>%lld 个文件</string>
-	<key>search.content_summary.matches</key>
-	<string>%lld 处匹配</string>
-	<key>search.content_summary.elapsed</key>
-	<string>%.1fs</string>
-	<key>search.content_summary.position</key>
-	<string>%lld/%lld</string>
-	<key>search.filter.title</key>
-	<string>过滤</string>
-	<key>search.filter.include</key>
-	<string>包含</string>
-	<key>search.filter.exclude</key>
-	<string>排除</string>
-	<key>search.filter.subdirectories</key>
-	<string>包含子文件夹</string>
-	<key>search.filter.case_sensitive</key>
-	<string>区分大小写</string>
-	<key>search.filter.reset</key>
-	<string>重置</string>
-	<key>search.filter.include_placeholder</key>
-	<string>*.swift *.md</string>
-	<key>search.filter.exclude_placeholder</key>
-	<string>node_modules/**</string>
-	<key>settings.auto_show_output</key>
-	<string>Shell 执行时自动展开输出面板</string>
-	<key>settings.blank_action.parent</key>
-	<string>返回上级目录</string>
-	<key>settings.blank_action.terminal</key>
-	<string>在本目录打开终端</string>
-	<key>settings.blank_double_click</key>
-	<string>空白处双击</string>
-	<key>settings.confirm_destructive</key>
-	<string>危险命令二次确认</string>
-	<key>settings.default_image_viewer.current</key>
-	<string>当前默认</string>
-	<key>settings.default_image_viewer.footer</key>
-	<string>双击图片时以预览独立窗打开，并自动适应屏幕大小。</string>
-	<key>settings.default_image_viewer.restart_hint</key>
-	<string>更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。</string>
-	<key>settings.default_image_viewer.restore_preview</key>
-	<string>恢复 Preview</string>
-	<key>settings.default_image_viewer.restore_success</key>
-	<string>已恢复 Preview 为默认图片查看器。</string>
-	<key>settings.default_image_viewer.set</key>
-	<string>设为默认图片查看器</string>
-	<key>settings.default_image_viewer.set_success</key>
-	<string>已将 MeoFind 设为默认图片查看器。双击图片将打开预览独立窗。</string>
-	<key>settings.default_image_viewer.title</key>
-	<string>默认图片查看器</string>
-	<key>settings.default_viewer.current</key>
-	<string>当前默认</string>
-	<key>settings.default_viewer.restart_hint</key>
-	<string>更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。</string>
-	<key>settings.default_viewer.restore_finder</key>
-	<string>恢复 Finder</string>
-	<key>settings.default_viewer.restore_success</key>
-	<string>已恢复 Finder 为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。</string>
-	<key>settings.default_viewer.set</key>
-	<string>设为默认文件夹查看器</string>
-	<key>settings.default_viewer.set_success</key>
-	<string>已将 MeoFind 设为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。</string>
-	<key>settings.default_viewer.title</key>
-	<string>默认文件夹查看器</string>
-	<key>settings.git.title</key>
-	<string>Git</string>
-	<key>settings.git.executable</key>
-	<string>Git 可执行文件</string>
-	<key>settings.git.version</key>
-	<string>版本</string>
-	<key>settings.git.choose</key>
-	<string>选择…</string>
-	<key>settings.git.reset</key>
-	<string>自动检测</string>
-	<key>settings.git.footer</key>
-	<string>MeoFind 的 Git 面板依赖 git 命令。若 git 不在标准路径，请手动选择可执行文件。可通过 Xcode Command Line Tools（xcode-select --install）或 Homebrew（brew install git）安装。</string>
-	<key>settings.git.not_found</key>
-	<string>未找到 Git。请安装 Git，或在上方选择可执行文件路径。</string>
-	<key>settings.git.invalid_executable</key>
-	<string>所选文件不是有效的 git 可执行文件。</string>
-	<key>settings.git.choose_panel_title</key>
-	<string>选择 Git 可执行文件</string>
-	<key>settings.file_list.row_hover_highlight</key>
-	<string>鼠标悬停时高亮文件列表行</string>
-	<key>settings.general.interface_language</key>
-	<string>界面语言</string>
-	<key>settings.general.interface_language_footer</key>
-	<string>大部分界面会立即切换。若菜单栏未更新，请重启 MeoFind。</string>
-	<key>settings.job_concurrency_limit %lld</key>
-	<string>Job 并发上限：%lld</string>
-	<key>settings.menu_item</key>
-	<string>设置…</string>
-	<key>settings.pin_recent_snippets</key>
-	<string>最近执行置顶</string>
-	<key>settings.preview.add_rule</key>
-	<string>添加规则…</string>
-	<key>settings.preview.add_rule_title</key>
-	<string>添加预览规则</string>
-	<key>settings.preview.archive_double_click</key>
-	<string>应用内双击压缩包（默认应用模式）</string>
-	<key>settings.preview.archive_double_click.extract</key>
-	<string>解压到当前目录</string>
-	<key>settings.preview.archive_double_click.preview</key>
-	<string>在独立预览窗口中打开</string>
-	<key>settings.preview.builtin_catalog</key>
-	<string>内置预览类型（只读）</string>
-	<key>settings.preview.code_line_numbers</key>
-	<string>代码预览</string>
-	<key>settings.preview.code_line_numbers.footer</key>
-	<string>开启后，在右侧预览面板查看代码文件时，于代码左侧显示行号。</string>
-	<key>settings.preview.code_line_numbers.toggle</key>
-	<string>代码预览显示行号</string>
-	<key>settings.preview.custom_types</key>
-	<string>自定义文件类型</string>
-	<key>settings.preview.customize</key>
-	<string>自定义</string>
-	<key>settings.preview.detached_browse</key>
-	<string>独立窗口浏览</string>
-	<key>settings.preview.detached_browse.footer</key>
-	<string>开启后，弹出预览窗口时胶片条与 ← → 导航仅在同类型文件间切换。</string>
-	<key>settings.preview.detached_browse.toggle</key>
-	<string>独立窗口浏览条仅显示同扩展名</string>
-	<key>settings.preview.disabled</key>
-	<string>已禁用</string>
-	<key>settings.preview.double_click</key>
-	<string>应用内双击可预览文件</string>
-	<key>settings.preview.double_click.default_app</key>
-	<string>用默认应用打开</string>
-	<key>settings.preview.double_click.sidebar_preview</key>
-	<string>在侧栏预览</string>
-	<key>settings.preview.double_click.standalone_preview</key>
-	<string>在独立预览窗口中打开</string>
-	<key>settings.preview.edit_rule_title</key>
-	<string>编辑预览规则</string>
-	<key>settings.preview.enabled_toggle</key>
-	<string>启用</string>
-	<key>settings.preview.export_panel_title</key>
-	<string>导出自定义预览规则</string>
-	<key>settings.preview.export_rules</key>
-	<string>导出规则…</string>
-	<key>settings.preview.export_success %lld</key>
-	<string>已导出 %lld 条规则。</string>
-	<key>settings.preview.extensionless_label</key>
-	<string>（无扩展名）</string>
-	<key>settings.preview.extensions_field</key>
-	<string>扩展名（逗号分隔）</string>
-	<key>settings.preview.external_multi_image</key>
-	<string>外部打开多张图片</string>
-	<key>settings.preview.external_multi_image.one_window_per_file</key>
-	<string>每张图片单独窗口</string>
-	<key>settings.preview.external_multi_image.single_window_with_strip</key>
-	<string>单窗 + 胶片条</string>
-	<key>settings.preview.external_open</key>
-	<string>外部打开可预览文件</string>
-	<key>settings.preview.external_open.browser_and_select</key>
-	<string>打开浏览窗口并选中该文件</string>
-	<key>settings.preview.external_open.standalone_only</key>
-	<string>仅独立预览窗</string>
-	<key>settings.preview.handler_group.current_handler %@</key>
-	<string>当前：%@</string>
-	<key>settings.preview.handler_group.footer</key>
-	<string>开启后，Finder 双击该组文件将由 MeoFind 打开。可能需要重启 MeoFind 或重新登录后系统才会生效。</string>
-	<key>settings.preview.handler_group.image</key>
-	<string>图片</string>
-	<key>settings.preview.handler_group.image.hint</key>
-	<string>双击图片时以预览独立窗打开，并自动适应屏幕大小。</string>
-	<key>settings.preview.handler_group.media</key>
-	<string>音视频</string>
-	<key>settings.preview.handler_group.office</key>
-	<string>Office 文档</string>
-	<key>settings.preview.handler_group.pdf</key>
-	<string>PDF</string>
-	<key>settings.preview.handler_group.restart_hint</key>
-	<string>若 Finder 未立即使用新默认程序，请重启 MeoFind。</string>
-	<key>settings.preview.handler_group.restore_success %@</key>
-	<string>已恢复 %@ 的系统默认程序。</string>
-	<key>settings.preview.handler_group.set_success %@</key>
-	<string>已将 %@ 设为默认打开程序。</string>
-	<key>settings.preview.handler_group.text_and_code</key>
-	<string>文本与代码</string>
-	<key>settings.preview.handler_group.title</key>
-	<string>注册为默认打开程序</string>
-	<key>settings.preview.import.merge</key>
-	<string>合并</string>
-	<key>settings.preview.import.replace</key>
-	<string>替换</string>
-	<key>settings.preview.import_complete</key>
-	<string>导入完成。</string>
-	<key>settings.preview.import_export_title</key>
-	<string>导入 / 导出</string>
-	<key>settings.preview.import_method_message</key>
-	<string>合并会保留现有规则并更新同 ID 条目；替换会清空现有规则。</string>
-	<key>settings.preview.import_method_title</key>
-	<string>导入方式</string>
-	<key>settings.preview.import_panel_title</key>
-	<string>导入自定义预览规则</string>
-	<key>settings.preview.import_rules</key>
-	<string>导入规则…</string>
-	<key>settings.preview.mode.archive</key>
-	<string>压缩包预览</string>
-	<key>settings.preview.mode.archive.detail</key>
-	<string>以目录树列出 ZIP / TAR 内容，支持解压。</string>
-	<key>settings.preview.mode.html</key>
-	<string>HTML 预览</string>
-	<key>settings.preview.mode.html.detail</key>
-	<string>在 WebKit 中渲染 HTML；可切换源码视图。</string>
-	<key>settings.preview.mode.image</key>
-	<string>图片预览</string>
-	<key>settings.preview.mode.image.detail</key>
-	<string>尝试按图片解码并显示。</string>
-	<key>settings.preview.mode.markdown</key>
-	<string>Markdown 预览</string>
-	<key>settings.preview.mode.markdown.detail</key>
-	<string>渲染 Markdown；可在顶栏切换源码视图。</string>
-	<key>settings.preview.mode.media</key>
-	<string>媒体预览</string>
-	<key>settings.preview.mode.media.detail</key>
-	<string>使用 AVPlayer 播放音视频。</string>
-	<key>settings.preview.mode.pdf</key>
-	<string>PDF 预览</string>
-	<key>settings.preview.mode.pdf.detail</key>
-	<string>使用 PDFKit 显示 PDF 文档。</string>
-	<key>settings.preview.mode.quicklook</key>
-	<string>QuickLook 预览</string>
-	<key>settings.preview.mode.quicklook.detail</key>
-	<string>使用 macOS QuickLook，适合系统已支持预览的格式。</string>
-	<key>settings.preview.mode.text</key>
-	<string>文本预览</string>
-	<key>settings.preview.mode.text.detail</key>
-	<string>以纯文本显示，并根据扩展名做语法高亮。</string>
-	<key>settings.preview.no_rules_hint</key>
-	<string>尚未添加自定义规则。选中无法预览的文件时，可直接在预览面板一键添加。</string>
-	<key>settings.preview.open_behavior</key>
-	<string>双击与外部打开</string>
-	<key>settings.preview.open_behavior.footer</key>
-	<string>⌥ 双击与 ⌘↩ 始终打开独立预览窗。外部打开在 MeoFind 被设为某类型默认程序时生效。</string>
-	<key>settings.preview.open_in_settings</key>
-	<string>在设置中自定义…</string>
-	<key>settings.preview.override_builtin</key>
-	<string>覆盖内置</string>
-	<key>settings.preview.override_builtin_toggle</key>
-	<string>覆盖内置预览</string>
-	<key>settings.preview.preview_as_text</key>
-	<string>以文本预览</string>
-	<key>settings.preview.preview_mode</key>
-	<string>预览方式</string>
-	<key>settings.preview.preview_quicklook</key>
-	<string>QuickLook 预览</string>
-	<key>settings.preview.unavailable_hint</key>
-	<string>可将此类型添加到自定义预览规则，或尝试 QuickLook。</string>
-	<key>settings.preview.unavailable_title %@</key>
-	<string>无法预览 %@ 文件</string>
-	<key>settings.preview.validation_extensions</key>
-	<string>请至少填写一个有效扩展名。</string>
-	<key>settings.shortcut.cheat_sheet</key>
-	<string>功能速查表</string>
-	<key>settings.shortcut.click_to_record</key>
-	<string>点击以录制新快捷键</string>
-	<key>settings.shortcut.close_detached_preview</key>
-	<string>关闭独立预览窗口</string>
-	<key>settings.shortcut.global_toggle</key>
-	<string>显示 / 隐藏应用</string>
-	<key>settings.shortcut.global_toggle_enabled</key>
-	<string>启用全局快捷键</string>
-	<key>settings.shortcut.global_toggle_footer</key>
-	<string>可在任意应用中生效：隐藏时唤起 MeoFind，已在前台时则隐藏应用。</string>
-	<key>settings.shortcut.new_tab</key>
-	<string>新建标签页</string>
-	<key>settings.shortcut.recording_hint</key>
-	<string>按下目标组合键，Esc 取消。</string>
-	<key>settings.shortcut.recording_placeholder</key>
-	<string>请按键…</string>
-	<key>settings.shortcut.reset</key>
-	<string>恢复默认</string>
-	<key>settings.shortcuts.category.files</key>
-	<string>文件</string>
-	<key>settings.shortcuts.category.global</key>
-	<string>全局</string>
-	<key>settings.shortcuts.category.navigation</key>
-	<string>导航</string>
-	<key>settings.shortcuts.category.output</key>
-	<string>输出</string>
-	<key>settings.shortcuts.category.panels</key>
-	<string>面板</string>
-	<key>settings.shortcuts.category.preview</key>
-	<string>预览</string>
-	<key>settings.shortcuts.category.system</key>
-	<string>系统</string>
-	<key>settings.snippets.display.minimal</key>
-	<string>极简</string>
-	<key>settings.snippets.display.standard</key>
-	<string>标准</string>
-	<key>settings.snippets.display_mode</key>
-	<string>面板显示模式</string>
-	<key>settings.snippets.output_color.dark</key>
-	<string>深色</string>
-	<key>settings.snippets.output_color.gray</key>
-	<string>灰色</string>
-	<key>settings.snippets.output_color.light</key>
-	<string>浅色</string>
-	<key>settings.snippets.output_color_scheme</key>
-	<string>输出面板配色</string>
-	<key>settings.snippets.recording_generalize_paths</key>
-	<string>默认开启路径泛化</string>
-	<key>settings.snippets.recording_section</key>
-	<string>操作录制</string>
-	<key>settings.snippets.recording_section_footer</key>
-	<string>审阅面板与录制指示条的默认行为。录制期间执行 Snippet 不会被记录。</string>
-	<key>settings.snippets.recording_show_banner</key>
-	<string>显示录制指示条</string>
-	<key>settings.tab.general</key>
-	<string>通用</string>
-	<key>settings.tab.preview</key>
-	<string>预览</string>
-	<key>settings.tab.shortcuts</key>
-	<string>快捷键</string>
-	<key>settings.tab.snippets</key>
-	<string>Snippets</string>
-	<key>settings.window_snap</key>
-	<string>启用窗口吸附与联动移动</string>
-	<key>settings.window_title</key>
-	<string>设置</string>
-	<key>sidebar.devices</key>
-	<string>设备</string>
-	<key>sidebar.disconnect_device %@</key>
-	<string>断开 %@</string>
-	<key>sidebar.eject_device %@</key>
-	<string>推出 %@</string>
-	<key>sidebar.eject_failed %@</key>
-	<string>无法断开 %@，请关闭正在使用该卷的窗口或文件后重试。</string>
-	<key>sidebar.favorites</key>
-	<string>个人收藏</string>
-	<key>sidebar.locations</key>
-	<string>位置</string>
-	<key>sidebar.no_devices</key>
-	<string>无设备</string>
-	<key>sidebar.trash</key>
-	<string>废纸篓</string>
-	<key>snippets.badge.directory</key>
-	<string>目录</string>
-	<key>snippets.badge.file</key>
-	<string>文件</string>
-	<key>snippets.badge.path</key>
-	<string>路径</string>
-	<key>snippets.badge.single</key>
-	<string>1项</string>
-	<key>snippets.builtin.copy_path</key>
-	<string>复制路径</string>
-	<key>snippets.builtin.finder_info</key>
-	<string>显示 Finder 信息</string>
-	<key>snippets.builtin.list_directory</key>
-	<string>列出目录</string>
-	<key>snippets.builtin.open_default</key>
-	<string>用默认应用打开</string>
-	<key>snippets.builtin.open_pdf</key>
-	<string>打开 PDF（预览）</string>
-	<key>snippets.builtin.open_terminal</key>
-	<string>在终端打开</string>
-	<key>snippets.builtin.show_attributes</key>
-	<string>查看属性</string>
-	<key>snippets.confirm.destructive_message</key>
-	<string>此 Snippet 可能删除或移动文件，确定执行？</string>
-	<key>snippets.confirm.destructive_title</key>
-	<string>危险命令确认</string>
-	<key>snippets.confirm.proceed</key>
-	<string>仍要执行</string>
-	<key>snippets.editor.content</key>
-	<string>内容</string>
-	<key>snippets.editor.edit_title</key>
-	<string>编辑 Snippet</string>
-	<key>snippets.editor.extensions_placeholder</key>
-	<string>扩展名（逗号分隔，如 pdf, md）</string>
-	<key>snippets.editor.insert_variable</key>
-	<string>在光标处插入变量</string>
-	<key>snippets.editor.interpreter</key>
-	<string>解释器</string>
-	<key>snippets.editor.name</key>
-	<string>名称</string>
-	<key>snippets.editor.new_title</key>
-	<string>新建 Snippet</string>
-	<key>snippets.editor.paths_placeholder</key>
-	<string>文件路径（每行一个）</string>
-	<key>snippets.editor.scope</key>
-	<string>作用域</string>
-	<key>snippets.editor.script_type</key>
-	<string>脚本类型</string>
-	<key>snippets.editor.section_execution</key>
-	<string>执行方式</string>
-	<key>snippets.editor.section_general</key>
-	<string>基本信息</string>
-	<key>snippets.editor.section_scope</key>
-	<string>可见范围</string>
-	<key>snippets.editor.section_script</key>
-	<string>脚本内容</string>
-	<key>snippets.editor.subtitle</key>
-	<string>配置可见范围、执行方式与脚本内容。</string>
-	<key>snippets.editor.terminal_hint</key>
-	<string>在 Terminal 等应用中运行，输出不显示在应用内面板</string>
-	<key>snippets.editor.use_system_terminal</key>
-	<string>使用系统终端</string>
-	<key>snippets.import.rename_suffix</key>
-	<string>（导入）</string>
-	<key>snippets.import.rename_suffix %lld</key>
-	<string>（导入 %lld）</string>
-	<key>snippets.output.cancelled</key>
-	<string>已取消</string>
-	<key>snippets.output.clear</key>
-	<string>清屏</string>
-	<key>snippets.output.close_all</key>
-	<string>关闭所有</string>
-	<key>snippets.output.close_current</key>
-	<string>关闭当前</string>
-	<key>snippets.output.close_others</key>
-	<string>关闭其他</string>
-	<key>snippets.output.close_panel</key>
-	<string>关闭输出面板</string>
-	<key>snippets.output.collapse</key>
-	<string>折叠输出面板</string>
-	<key>snippets.output.collapse_command</key>
-	<string>收起</string>
-	<key>snippets.output.command_failed %lld</key>
-	<string>命令失败，退出码 %lld</string>
-	<key>snippets.output.command_placeholder</key>
-	<string>展开后的命令，回车重新执行</string>
-	<key>snippets.output.completed_with_exit_code %lld</key>
-	<string>已有输出，但退出码为 %lld（若上方结果正常可忽略）</string>
-	<key>snippets.output.copy</key>
-	<string>复制</string>
-	<key>snippets.output.empty_hint</key>
-	<string>执行 Snippet 后在此查看输出</string>
-	<key>snippets.output.exit_code %lld</key>
-	<string>退出码 %lld</string>
-	<key>snippets.output.expand</key>
-	<string>展开输出面板</string>
-	<key>snippets.output.expand_command</key>
-	<string>查看命令全文</string>
-	<key>snippets.output.find</key>
-	<string>查找</string>
-	<key>snippets.output.full_command_title</key>
-	<string>命令全文</string>
-	<key>snippets.output.no_output</key>
-	<string>（无输出）</string>
-	<key>snippets.output.queued</key>
-	<string>排队中</string>
-	<key>snippets.output.run_command</key>
-	<string>执行</string>
-	<key>snippets.output.run_history_command</key>
-	<string>直接执行此命令</string>
-	<key>snippets.output.running</key>
-	<string>运行中…</string>
-	<key>snippets.output.status_banner.dismiss</key>
-	<string>关闭</string>
-	<key>snippets.output.status_banner.hide_details</key>
-	<string>收起</string>
-	<key>snippets.output.status_banner.show_details</key>
-	<string>详情</string>
-	<key>snippets.output.stop</key>
-	<string>停止</string>
-	<key>snippets.output.truncated</key>
-	<string>[输出已截断：已达单 Tab 输出上限]</string>
-	<key>snippets.panel.close</key>
-	<string>关闭 Snippets</string>
-	<key>snippets.panel.collapse</key>
-	<string>折叠 Snippets</string>
-	<key>snippets.panel.execute</key>
-	<string>执行</string>
-	<key>snippets.panel.execute_in_terminal</key>
-	<string>在终端中执行</string>
-	<key>snippets.panel.expand</key>
-	<string>展开 Snippets</string>
-	<key>snippets.panel.export_all</key>
-	<string>导出全部…</string>
-	<key>snippets.panel.export_single</key>
-	<string>导出此条</string>
-	<key>snippets.panel.import</key>
-	<string>导入…</string>
-	<key>snippets.panel.import_button</key>
-	<string>导入</string>
-	<key>snippets.panel.import_conflict_message %lld</key>
-	<string>有 %lld 条与现有 Snippet 冲突</string>
-	<key>snippets.panel.import_conflict_title</key>
-	<string>导入冲突</string>
-	<key>snippets.panel.import_done_message %lld %lld</key>
-	<string>已导入 %lld 条，跳过 %lld 条</string>
-	<key>snippets.panel.import_done_title</key>
-	<string>导入完成</string>
-	<key>snippets.panel.import_export</key>
-	<string>导入 / 导出</string>
-	<key>snippets.panel.import_failed_title</key>
-	<string>导入失败</string>
-	<key>snippets.panel.import_strategy_label</key>
-	<string>处理方式</string>
-	<key>snippets.panel.new</key>
-	<string>新建</string>
-	<key>snippets.panel.no_match</key>
-	<string>当前上下文无匹配 Snippet</string>
-	<key>snippets.panel.no_results</key>
-	<string>无搜索结果</string>
-	<key>snippets.panel.search_prompt</key>
-	<string>搜索名称或脚本内容…</string>
-	<key>snippets.scope.anytime</key>
-	<string>始终</string>
-	<key>snippets.scope.anytime.desc</key>
-	<string>无论是否选中文件，Snippet 始终显示在列表中。</string>
-	<key>snippets.scope.directories_only</key>
-	<string>仅目录</string>
-	<key>snippets.scope.directories_only.desc</key>
-	<string>仅当所选项目全部为文件夹时显示。</string>
-	<key>snippets.scope.file_extensions</key>
-	<string>指定扩展名</string>
-	<key>snippets.scope.file_extensions.desc</key>
-	<string>当选中文件的扩展名与下方配置匹配时显示（如 pdf、jpg）。</string>
-	<key>snippets.scope.files_only</key>
-	<string>仅文件</string>
-	<key>snippets.scope.files_only.desc</key>
-	<string>仅当所选项目全部为文件（非文件夹）时显示。</string>
-	<key>snippets.scope.global</key>
-	<string>有选中项</string>
-	<key>snippets.scope.global.desc</key>
-	<string>当选中一个或多个文件或文件夹时显示。</string>
-	<key>snippets.scope.single_selection</key>
-	<string>单选</string>
-	<key>snippets.scope.single_selection.desc</key>
-	<string>仅当选中唯一一个项目时显示；使用 %p 等单选变量时通常选此项。</string>
-	<key>snippets.scope.specific_files</key>
-	<string>指定文件</string>
-	<key>snippets.scope.specific_files.desc</key>
-	<string>当选中项的绝对路径与下方配置的路径匹配时显示。</string>
-	<key>snippets.strategy.overwrite</key>
-	<string>覆盖</string>
-	<key>snippets.strategy.rename</key>
-	<string>重命名</string>
-	<key>snippets.strategy.skip</key>
-	<string>跳过</string>
-	<key>snippets.title</key>
-	<string>Snippets</string>
-	<key>snippets.variable.b</key>
-	<string>不含扩展名的文件名</string>
-	<key>snippets.variable.capital_f</key>
-	<string>所有选中的文件路径，空格分隔</string>
-	<key>snippets.variable.capital_n</key>
-	<string>选中项数量</string>
-	<key>snippets.variable.capital_p</key>
-	<string>所有选中项路径，空格分隔</string>
-	<key>snippets.variable.capital_q</key>
-	<string>每个选中路径分别 Shell 转义后空格拼接</string>
-	<key>snippets.variable.d</key>
-	<string>当前浏览目录（工作目录）</string>
-	<key>snippets.variable.date</key>
-	<string>执行时的 ISO8601 时间戳</string>
-	<key>snippets.variable.e</key>
-	<string>扩展名（小写、不含点，如 pdf）</string>
-	<key>snippets.variable.f</key>
-	<string>选中文件的路径（须单选且为文件）</string>
-	<key>snippets.variable.h</key>
-	<string>用户主目录路径</string>
-	<key>snippets.variable.n</key>
-	<string>选中项文件名（含扩展名，如 report.pdf）</string>
-	<key>snippets.variable.p</key>
-	<string>当前选中项的完整路径（须单选）</string>
-	<key>snippets.variable.q</key>
-	<string>%p 的 Shell 单引号转义路径（含空格时安全）</string>
-	<key>snippets.variable.u</key>
-	<string>当前短用户名</string>
-	<key>snippets.variable.uuid</key>
-	<string>每次执行生成的新 UUID</string>
-	<key>snippets.variable.w</key>
-	<string>当前目录名（路径最后一段）</string>
-	<key>snippets.variable_help.column_description</key>
-	<string>说明</string>
-	<key>snippets.variable_help.column_token</key>
-	<string>变量</string>
-	<key>snippets.variable_help.footer</key>
-	<string>点击下方变量按钮可在光标处插入；悬停可查看简要说明。</string>
-	<key>snippets.variable_help.show_reference</key>
-	<string>查看 Snippet 变量说明</string>
-	<key>sort.date_newest</key>
-	<string>日期 (最新优先)</string>
-	<key>sort.date_oldest</key>
-	<string>日期 (最早优先)</string>
-	<key>sort.name_ascending</key>
-	<string>名称 (A 到 Z)</string>
-	<key>sort.name_descending</key>
-	<string>名称 (Z 到 A)</string>
-	<key>sort.size_largest</key>
-	<string>大小 (最大优先)</string>
-	<key>sort.size_smallest</key>
-	<string>大小 (最小优先)</string>
-	<key>command_palette.common_section</key>
-	<string>常用命令</string>
-	<key>command_palette.menu_title</key>
-	<string>命令面板…</string>
-	<key>command_palette.no_results</key>
-	<string>未找到匹配的命令</string>
-	<key>command_palette.placeholder</key>
-	<string>输入命令名称…</string>
-	<key>command_palette.recents_section</key>
-	<string>最近使用</string>
-	<key>command_palette.snippets_section</key>
-	<string>Snippets</string>
-	<key>toolbar.auto_folder_size</key>
-	<string>自动计算文件夹大小</string>
-	<key>toolbar.browse_settings</key>
-	<string>浏览设置</string>
-	<key>toolbar.customize</key>
-	<string>自定义工具栏…</string>
-	<key>toolbar.customize.add_open_app</key>
-	<string>添加工具栏项…</string>
-	<key>toolbar.customize.cancel</key>
-	<string>取消</string>
-	<key>toolbar.customize.done</key>
-	<string>完成</string>
-	<key>toolbar.customize.hint</key>
-	<string>将项目拖到工具栏以添加；将项目拖出工具栏以移除。</string>
-	<key>toolbar.customize.reset</key>
-	<string>恢复默认</string>
-	<key>toolbar.customize.title</key>
-	<string>自定义工具栏</string>
-	<key>toolbar.delete</key>
-	<string>删除</string>
-	<key>toolbar.error.app_missing</key>
-	<string>找不到应用「%@」，请在自定义工具栏中重新配置。</string>
-	<key>toolbar.error.app_missing_title</key>
-	<string>找不到应用</string>
-	<key>toolbar.error.no_selection</key>
-	<string>需要先选中文件</string>
-	<key>toolbar.hide_left_panel</key>
-	<string>隐藏左侧面板</string>
-	<key>toolbar.hide_hidden_files</key>
-	<string>不显示隐藏文件</string>
-	<key>toolbar.hide_tab_bar</key>
-	<string>隐藏标签栏</string>
-	<key>toolbar.list_view</key>
-	<string>列表视图</string>
-	<key>toolbar.new_file</key>
-	<string>新建文件</string>
-	<key>toolbar.new_folder</key>
-	<string>新建文件夹</string>
-	<key>toolbar.new_tab</key>
-	<string>新建标签页</string>
-	<key>toolbar.new_window</key>
-	<string>新建窗口</string>
-	<key>toolbar.open_app.add</key>
-	<string>添加</string>
-	<key>toolbar.open_app.choose</key>
-	<string>选择…</string>
-	<key>toolbar.open_app.choose_prompt</key>
-	<string>选择应用程序</string>
-	<key>toolbar.open_app.edit</key>
-	<string>编辑工具栏项…</string>
-	<key>toolbar.open_app.edit_title</key>
-	<string>编辑工具栏项</string>
-	<key>toolbar.open_app.name</key>
-	<string>名称</string>
-	<key>toolbar.open_app.save</key>
-	<string>存储</string>
-	<key>toolbar.open_app.selection_current_folder</key>
-	<string>将当前文件夹作为参数</string>
-	<key>toolbar.open_app.selection_optional</key>
-	<string>无选中也可运行，选中时传递</string>
-	<key>toolbar.open_app.selection_policy</key>
-	<string>选中项策略</string>
-	<key>toolbar.open_app.selection_policy_help</key>
-	<string>必须选中：需先选中文件或文件夹再运行。无选中也可运行：有选中时传递选中项，否则直接启动应用。当前文件夹：始终将当前浏览的文件夹路径传给应用。</string>
-	<key>toolbar.open_app.selection_require</key>
-	<string>必须选中文件或文件夹</string>
-	<key>toolbar.open_app.title</key>
-	<string>添加工具栏项</string>
-	<key>toolbar.open_app.tooltip</key>
-	<string>用 %@ 打开</string>
-	<key>toolbar.open_app.use_app_icon</key>
-	<string>使用应用图标</string>
-	<key>toolbar.panorama.collapse_all</key>
-	<string>全部收起</string>
-	<key>toolbar.panorama.expand_all</key>
-	<string>全部展开</string>
-	<key>toolbar.panorama.expand_depth</key>
-	<string>展开深度</string>
-	<key>toolbar.panorama.layout_grid</key>
-	<string>标准网格</string>
-	<key>toolbar.panorama.layout_panorama</key>
-	<string>子目录全景</string>
-	<key>toolbar.panorama_mode</key>
-	<string>全景视图</string>
-	<key>toolbar.record_operations</key>
-	<string>录制操作用于生成 Snippet</string>
-	<key>toolbar.record_operations_active</key>
-	<string>正在录制 — 点击停止</string>
-	<key>toolbar.show_all_tabs</key>
-	<string>显示所有标签页</string>
-	<key>toolbar.show_hidden_files</key>
-	<string>显示隐藏文件</string>
-	<key>toolbar.show_left_panel</key>
-	<string>显示左侧面板</string>
-	<key>toolbar.show_tab_bar</key>
-	<string>显示标签栏</string>
-	<key>toolbar.sort</key>
-	<string>排序</string>
-	<key>toolbar.tab_bar.cannot_hide_multiple</key>
-	<string>已打开多个标签页，无法隐藏标签栏</string>
-	<key>toolbar.tab_bar.unavailable</key>
-	<string>此窗口不支持标签栏</string>
-	<key>toolbar.thumbnail_size</key>
-	<string>缩略图大小</string>
-	<key>toolbar.thumbnail_view</key>
-	<string>缩略图视图</string>
-	<key>toolbar.use_icon_preview</key>
-	<string>使用图标预览</string>
-	<key>toolbar.view_picker</key>
-	<string>视图</string>
-</dict>
-</plist>
+"action.add_favorite" = "收藏";
+"action.cancel" = "取消";
+"action.compress_many %lld" = "压缩 %lld 个项目";
+"action.compress_one %@" = "压缩「%@」";
+"action.copy" = "复制";
+"action.copy_filename" = "复制文件名";
+"action.copy_paths" = "复制完整路径";
+"action.cut" = "剪切";
+"action.delete" = "删除";
+"action.delete_immediately" = "立刻删除";
+"action.edit" = "编辑";
+"action.empty_trash" = "清倒废纸篓";
+"action.extract" = "解压";
+"action.extract_downloads" = "解压到「下载」";
+"action.extract_here" = "解压到此处";
+"action.extract_to" = "解压到…";
+"action.ok" = "好";
+"action.open" = "打开";
+"action.open_in_detached_preview" = "在独立预览窗口中打开";
+"action.open_in_new_window" = "在新窗口中打开";
+"action.open_terminal_here" = "在此处打开终端";
+"action.open_with" = "打开方式";
+"action.open_with_default %@" = "%@（默认）";
+"action.open_with_none" = "（无可用应用）";
+"action.open_with_other" = "其他…";
+"action.paste" = "粘贴";
+"action.put_back" = "放回原处";
+"action.refresh" = "刷新";
+"action.remove_favorite" = "取消收藏";
+"action.rename" = "重命名";
+"action.save" = "保存";
+"action.services" = "服务";
+"action.show_info" = "属性";
+"alert.confirm_delete.multiple %lld" = "确认删除 %lld 个项目？";
+"alert.confirm_delete.single %@" = "确认删除「%@」？";
+"alert.delete_immediately.message" = "这些项目将被永久删除，无法恢复。";
+"alert.delete_immediately.multiple %lld" = "立刻删除 %lld 个项目？";
+"alert.delete_immediately.single %@" = "立刻删除「%@」？";
+"alert.delete_to_trash.message" = "项目将移至废纸篓。";
+"alert.empty_trash.message" = "废纸篓中的所有项目将被永久删除，此操作无法撤销。";
+"alert.empty_trash.title" = "清倒废纸篓？";
+"alert.move_blocked.already_in_destination" = "该项目已在此文件夹中。";
+"alert.move_blocked.destination_inside_source" = "不能将文件夹移动到其自身的子文件夹中。";
+"alert.move_blocked.destination_not_directory" = "目标位置不是文件夹。";
+"alert.move_blocked.destination_unavailable" = "目标文件夹不可用。";
+"alert.move_blocked.same_location" = "不能将文件夹移动到其自身。";
+"alert.move_blocked.source_missing" = "找不到要移动的文件或文件夹。";
+"alert.move_blocked.title" = "无法移动";
+"alert.open_with.choose_app %@" = "选择用于打开「%@」的应用";
+"alert.open_with.prompt" = "打开";
+"alert.operation_failed" = "操作失败";
+"alert.put_back_failed.multiple %lld" = "%lld 个项目无法放回原处。";
+"alert.put_back_failed.single %@" = "「%@」没有可用的原始位置记录，且 Finder 无法恢复此项目。";
+"alert.put_back_failed.title" = "无法放回原处";
+"alert.selected_items %lld" = "已选择 %lld 个项目";
+"archive.error.encrypted" = "不支持加密压缩包";
+"archive.error.unsupported" = "无法识别或不支持的归档格式";
+"archive.hint.network_slow" = "网络卷上的归档操作可能较慢";
+"archive.job.compress" = "压缩";
+"archive.job.extract" = "解压";
+"archive.password.message %@" = "请输入解压「%@」所需的密码。";
+"archive.password.placeholder" = "密码";
+"archive.password.title" = "需要密码";
+"archive.status.compressing_count %lld" = "正在压缩 %lld 个项目…";
+"archive.status.compressing_item %@" = "正在压缩 %@…";
+"archive.status.extracting_count %lld" = "正在解压 %lld 个压缩包…";
+"archive.status.extracting_item %@ %@" = "正在解压 %@ → %@";
+"archive.status.extracting_partial %lld %@ %@" = "正在解压 %lld 项（%@）→ %@";
+"command_palette.common_section" = "常用命令";
+"command_palette.menu_title" = "命令面板…";
+"command_palette.no_results" = "未找到匹配的命令";
+"command_palette.placeholder" = "输入命令名称…";
+"command_palette.recents_section" = "最近使用";
+"command_palette.snippets_section" = "Snippets";
+"dialog.cannot_create_file" = "无法创建文件";
+"dialog.cannot_create_file_message" = "请检查名称是否合法，或目标位置是否可写。";
+"dialog.create" = "创建";
+"dialog.file_name_placeholder" = "文件名称";
+"dialog.folder_name_placeholder" = "文件夹名称";
+"dialog.new_file_message" = "输入新文件名称：";
+"dialog.new_file_title" = "新建文件";
+"dialog.new_folder_message" = "输入新文件夹名称：";
+"dialog.new_folder_title" = "新建文件夹";
+"error.archive.empty_listing" = "无法读取 ZIP 目录";
+"error.archive.timed_out" = "目录读取超时";
+"error.default_image_viewer.defaults_command %lld" = "defaults 命令失败（退出码 %lld）。";
+"error.default_image_viewer.launch_services %lld" = "Launch Services 注册失败（错误 %lld）。";
+"error.default_image_viewer.preferences_sync" = "无法写入系统偏好设置。";
+"error.default_image_viewer.preview_not_found" = "未找到 Preview 应用。";
+"error.default_preview_handler.defaults_command %lld" = "defaults 命令失败（代码 %lld）。";
+"error.default_preview_handler.fallback_not_found %@" = "未找到系统默认应用：%@";
+"error.default_preview_handler.launch_services %lld" = "Launch Services 失败（代码 %lld）。";
+"error.default_preview_handler.preferences_sync" = "无法写入系统偏好设置。";
+"error.default_viewer.defaults_command %lld" = "系统命令执行失败（退出码 %lld）。";
+"error.default_viewer.finder_not_found" = "未找到 Finder 应用。";
+"error.default_viewer.launch_services %lld" = "Launch Services 注册失败（错误码 %lld）。";
+"error.default_viewer.preferences_sync" = "无法写入系统偏好设置。";
+"error.directory_not_found" = "目录不存在";
+"error.eml.empty_body" = "邮件没有可读正文";
+"error.eml.empty_message" = "邮件文件为空";
+"error.eml.invalid_format" = "无法解析邮件格式";
+"error.eml.unreadable_encoding" = "无法解码邮件文本编码";
+"error.empty_name" = "名称不能为空";
+"error.epub.container_not_found" = "未找到 EPUB 容器元数据";
+"error.epub.empty_spine" = "EPUB 没有可读的章节";
+"error.epub.invalid_opf" = "无法解析 EPUB 包文档";
+"error.epub.opf_not_found" = "未找到 EPUB 包文档";
+"error.epub.unzip_failed" = "无法解压 EPUB 文件";
+"error.font.unable_to_load" = "无法加载字体文件";
+"error.image.unable_to_encode" = "无法编码图片";
+"error.image.unable_to_write" = "无法写入文件";
+"error.model3d.empty_model" = "3D 模型文件不包含几何数据";
+"error.model3d.file_too_large" = "3D 模型文件过大，无法预览";
+"error.model3d.too_many_triangles %lld" = "模型三角面数量过多（%lld），无法预览";
+"error.model3d.unable_to_load" = "无法加载 3D 模型";
+"error.no_permission" = "无权限";
+"error.shell.timed_out" = "命令执行超时";
+"error.snippet_ask.empty_prompt" = "用户输入参数的提示不能为空（%ask{}）";
+"error.snippet_ask.invalid_id %@" = "无效的 ask id「%@」（仅允许字母、数字、下划线）";
+"error.snippet_ask.unclosed_brace" = "Snippet 中存在未闭合的 %ask{…}";
+"error.snippet_expansion.file_selection" = "需要选中一个文件（非目录）";
+"error.snippet_expansion.files_in_selection" = "需要选中至少一个文件";
+"error.snippet_expansion.no_files" = "选中项中没有文件";
+"error.snippet_expansion.requires_selection" = "需要至少选中一项";
+"error.snippet_expansion.single_selection" = "需要恰好选中一项";
+"error.snippet_import.empty_content" = "内容为空";
+"error.snippet_import.empty_name" = "名称为空";
+"error.snippet_import.invalid %@" = "无效 Snippet：%@";
+"error.snippet_import.invalid_format" = "无法识别的 Snippets 文件格式";
+"error.snippet_import.too_many" = "导入条目过多";
+"error.snippet_import.unsupported_schema" = "不支持的文件版本";
+"error.symlink_loop" = "检测到循环链接";
+"file.default_new_name" = "未命名.txt";
+"file.paste_creating_from_clipboard" = "正在从剪贴板创建文件…";
+"file.paste_progress" = "正在粘贴 %1$lld / %2$lld…";
+"file.paste_progress_with_name" = "正在粘贴 %1$lld / %2$lld：%3$@";
+"file.pasted_image_base" = "粘贴的图片";
+"file.pasted_image_name" = "粘贴的图片.png";
+"file.pasted_markdown_name" = "粘贴的文档.md";
+"file.pasted_text_name" = "粘贴的文本.txt";
+"folder.desktop" = "桌面";
+"folder.documents" = "文稿";
+"folder.downloads" = "下载";
+"folder.home" = "个人";
+"git.action.commit_and_sync" = "提交并同步";
+"git.action.commit_only" = "仅提交";
+"git.action.pull" = "拉取更新";
+"git.action.push" = "推送到远程";
+"git.action.resolve_conflict" = "需解决冲突";
+"git.action.sync" = "同步";
+"git.action.working" = "处理中…";
+"git.chip.ahead %lld" = "↑%lld";
+"git.chip.behind %lld" = "↓%lld";
+"git.commit.ai_tooltip" = "AI 生成提交说明（即将推出）";
+"git.commit.generated_directory %@ %lld" = "更新 %@ 下 %lld 个文件";
+"git.commit.generated_files %lld" = "更新 %lld 个文件";
+"git.commit.large_message" = "将暂存并提交大量文件，请确认后继续。";
+"git.commit.large_title %lld" = "提交 %lld 个文件？";
+"git.commit.placeholder" = "提交说明";
+"git.commit.scope_all" = "将提交全部变更";
+"git.empty.init_repo" = "初始化仓库";
+"git.empty.not_repo" = "当前目录不在 Git 仓库中";
+"git.error.cancelled" = "Git 操作已取消";
+"git.error.conflict" = "请先解决合并冲突";
+"git.error.empty_commit_message" = "请输入提交说明";
+"git.error.executable_not_found" = "未安装 Git 或找不到 Git 可执行文件";
+"git.error.no_upstream" = "未配置远程跟踪分支";
+"git.error.pull_with_dirty" = "请先提交或暂存变更后再拉取";
+"git.history.empty" = "尚无提交记录";
+"git.history.title" = "最近提交";
+"git.job.commit" = "Git：提交";
+"git.job.init" = "Git：初始化仓库";
+"git.job.pull" = "Git：拉取";
+"git.job.push" = "Git：推送";
+"git.job.stage" = "Git：暂存变更";
+"git.job.sync" = "Git：同步";
+"git.panel.close" = "关闭 Git 面板";
+"git.panel.collapse" = "折叠";
+"git.panel.configure_git" = "配置 Git";
+"git.panel.configure_git_hint" = "请通过 Xcode Command Line Tools 或 Homebrew 安装 Git，然后在设置中指定 git 可执行文件路径。";
+"git.panel.expand" = "展开";
+"git.panel.placeholder" = "Git 状态与同步将显示在此处。";
+"git.panel.refresh" = "刷新状态";
+"git.panel.title" = "Git";
+"git.status.ahead %lld" = "本地领先远程 %lld 个提交";
+"git.status.behind %lld" = "远程领先本地 %lld 个提交";
+"git.status.changes %lld" = "%lld 个变更";
+"git.status.clean" = "工作区干净，已与远程同步";
+"git.status.conflict" = "存在合并冲突";
+"git.status.dirty %lld" = "%lld 个文件待提交";
+"git.status.more_changes %lld" = "还有 %lld 个…";
+"git.status.pending_commit" = "待提交";
+"help.cheat_sheet_menu" = "功能速查表";
+"help.column.description" = "说明";
+"help.column.feature" = "功能";
+"help.column.shortcut" = "快捷键";
+"help.entry.add_favorite.desc" = "将文件夹加入侧边栏收藏夹";
+"help.entry.add_favorite.name" = "收藏";
+"help.entry.add_favorite.shortcut" = "右键";
+"help.entry.archive.desc" = "浏览 ZIP、TAR 等归档内文件列表";
+"help.entry.archive.name" = "压缩包";
+"help.entry.archive.shortcut" = "";
+"help.entry.automation.desc" = "读取废纸篓、控制终端需要自动化权限";
+"help.entry.automation.name" = "自动化";
+"help.entry.automation.shortcut" = "";
+"help.entry.back_forward.desc" = "在浏览历史中前进或后退";
+"help.entry.back_forward.name" = "前进 / 后退";
+"help.entry.back_forward.shortcut" = "⌘[ / ⌘]";
+"help.entry.blank_double_click.desc" = "可设为返回上级目录或在当前目录打开终端";
+"help.entry.blank_double_click.name" = "空白处双击";
+"help.entry.blank_double_click.shortcut" = "设置";
+"help.entry.builtin_snippets.desc" = "列目录、复制路径、打开终端等开箱即用";
+"help.entry.builtin_snippets.name" = "内置片段";
+"help.entry.builtin_snippets.shortcut" = "右键";
+"help.entry.command_box.desc" = "在当前目录执行 zsh 命令，目录随地址栏同步";
+"help.entry.command_box.name" = "命令框";
+"help.entry.command_box.shortcut" = "回车";
+"help.entry.command_history.desc" = "上方向键调出历史命令";
+"help.entry.command_history.name" = "命令历史";
+"help.entry.command_history.shortcut" = "↑";
+"help.entry.connect_server.desc" = "连接 SMB、AFP 或 FTP 共享，挂载后卷出现在设备中";
+"help.entry.connect_server.name" = "连接服务器";
+"help.entry.connect_server.shortcut" = "⌘K";
+"help.entry.content_search.desc" = "在当前文件夹内搜索文件内容";
+"help.entry.content_search.name" = "在文件夹中查找";
+"help.entry.content_search.shortcut" = "⌘⇧F";
+"help.entry.copy_clear.desc" = "复制全部输出或清空当前标签";
+"help.entry.copy_clear.name" = "复制 / 清空";
+"help.entry.copy_clear.shortcut" = "";
+"help.entry.copy_name_path.desc" = "将选中项名称或完整路径复制到剪贴板";
+"help.entry.copy_name_path.name" = "复制文件名 / 路径";
+"help.entry.copy_name_path.shortcut" = "⌘⇧C";
+"help.entry.create_edit.desc" = "支持 Shell、Python、AppleScript 等类型";
+"help.entry.create_edit.name" = "新建 / 编辑";
+"help.entry.create_edit.shortcut" = "";
+"help.entry.custom_preview_rules.desc" = "按扩展名指定预览方式，可导入导出规则";
+"help.entry.custom_preview_rules.name" = "自定义预览规则";
+"help.entry.custom_preview_rules.shortcut" = "设置";
+"help.entry.cut_copy_paste.desc" = "标准文件剪贴板操作";
+"help.entry.cut_copy_paste.name" = "剪切 / 复制 / 粘贴";
+"help.entry.cut_copy_paste.shortcut" = "⌘X / ⌘C / ⌘V";
+"help.entry.default_file_manager.desc" = "将 MeoFind 设为系统默认文件夹打开方式";
+"help.entry.default_file_manager.name" = "默认文件管理器";
+"help.entry.default_file_manager.shortcut" = "设置";
+"help.entry.delete.desc" = "将选中项移入废纸篓";
+"help.entry.delete.name" = "删除";
+"help.entry.delete.shortcut" = "Delete";
+"help.entry.delete_immediately.desc" = "废纸篓内永久删除，跳过废纸篓";
+"help.entry.delete_immediately.name" = "立即删除";
+"help.entry.delete_immediately.shortcut" = "右键";
+"help.entry.detach_preview.desc" = "将预览拖出为独立窗口，主窗口仍保留列表";
+"help.entry.detach_preview.name" = "独立预览窗口";
+"help.entry.detach_preview.shortcut" = "⌘⌥P";
+"help.entry.devices.desc" = "动态显示已挂载的磁盘、移动硬盘与网络卷，可推出";
+"help.entry.devices.name" = "设备";
+"help.entry.devices.shortcut" = "";
+"help.entry.double_click_open.desc" = "文件夹进入、文件用默认应用打开";
+"help.entry.double_click_open.name" = "双击打开";
+"help.entry.double_click_open.shortcut" = "双击";
+"help.entry.drag_drop_open.desc" = "将文件或文件夹拖入窗口可导航到对应位置";
+"help.entry.drag_drop_open.name" = "拖放打开";
+"help.entry.drag_drop_open.shortcut" = "";
+"help.entry.empty_trash.desc" = "永久清空废纸篓全部内容";
+"help.entry.empty_trash.name" = "清空废纸篓";
+"help.entry.empty_trash.shortcut" = "右键";
+"help.entry.external_open.desc" = "从 Finder 拖入或作为默认文件管理器打开文件夹";
+"help.entry.external_open.name" = "外部打开";
+"help.entry.external_open.shortcut" = "";
+"help.entry.favorites.desc" = "固定常用目录，右键可添加或移除收藏";
+"help.entry.favorites.name" = "收藏夹";
+"help.entry.favorites.shortcut" = "";
+"help.entry.file_list.desc" = "当前目录下的文件与文件夹，支持列表与缩略图两种视图";
+"help.entry.file_list.name" = "文件列表";
+"help.entry.file_list.shortcut" = "";
+"help.entry.file_preview.desc" = "右侧面板实时预览选中文件，无需离开浏览器";
+"help.entry.file_preview.name" = "文件预览";
+"help.entry.file_preview.shortcut" = "";
+"help.entry.full_disk_access.desc" = "浏览受保护目录需在系统设置中授权";
+"help.entry.full_disk_access.name" = "完全磁盘访问";
+"help.entry.full_disk_access.shortcut" = "";
+"help.entry.global_search.desc" = "工具栏搜索框聚焦，按文件名筛选";
+"help.entry.global_search.name" = "全局搜索框";
+"help.entry.global_search.shortcut" = "⌘F";
+"help.entry.image.desc" = "缩放、旋转、翻转、取色、简单编辑与保存";
+"help.entry.image.name" = "图片";
+"help.entry.image.shortcut" = "预览工具栏";
+"help.entry.import_export.desc" = "单条或全部 JSON 备份与恢复";
+"help.entry.import_export.name" = "导入 / 导出";
+"help.entry.import_export.shortcut" = "菜单";
+"help.entry.in_preview_search.desc" = "在预览内容中查找并高亮，跳转下一处匹配";
+"help.entry.in_preview_search.name" = "文内搜索";
+"help.entry.in_preview_search.shortcut" = "预览工具栏";
+"help.entry.job_tabs.desc" = "每次执行一个标签，可并行多个任务";
+"help.entry.job_tabs.name" = "Job 标签页";
+"help.entry.job_tabs.shortcut" = "";
+"help.entry.list_view.desc" = "表格显示名称、类型、大小、日期等列，可点击表头排序";
+"help.entry.list_view.name" = "列表视图";
+"help.entry.list_view.shortcut" = "工具栏";
+"help.entry.locations.desc" = "快速访问主目录、桌面、文稿、下载等系统位置";
+"help.entry.locations.name" = "位置";
+"help.entry.locations.shortcut" = "";
+"help.entry.markdown_html.desc" = "源码与渲染模式切换";
+"help.entry.markdown_html.name" = "Markdown / HTML";
+"help.entry.markdown_html.shortcut" = "预览工具栏";
+"help.entry.media.desc" = "播放、暂停、静音";
+"help.entry.media.name" = "音视频";
+"help.entry.media.shortcut" = "预览工具栏";
+"help.entry.multi_window.desc" = "文件夹可在新窗口独立打开";
+"help.entry.multi_window.name" = "多窗口";
+"help.entry.multi_window.shortcut" = "";
+"help.entry.new_folder_file.desc" = "在当前目录创建新文件夹或文件";
+"help.entry.new_folder_file.name" = "新建文件夹 / 文件";
+"help.entry.new_folder_file.shortcut" = "右键";
+"help.entry.open.desc" = "用默认方式打开文件或进入文件夹";
+"help.entry.open.name" = "打开";
+"help.entry.open.shortcut" = "回车";
+"help.entry.open_new_window.desc" = "在独立窗口中打开文件夹";
+"help.entry.open_new_window.name" = "新窗口打开";
+"help.entry.open_new_window.shortcut" = "右键";
+"help.entry.open_terminal.desc" = "在选中目录启动系统终端";
+"help.entry.open_terminal.name" = "在此处打开终端";
+"help.entry.open_terminal.shortcut" = "右键";
+"help.entry.open_with.desc" = "选择其他应用打开文件";
+"help.entry.open_with.name" = "打开方式";
+"help.entry.open_with.shortcut" = "右键";
+"help.entry.operation_recording.desc" = "在工具栏录制文件操作，停止后审阅并保存为 Snippet";
+"help.entry.operation_recording.name" = "操作录制";
+"help.entry.operation_recording.shortcut" = "工具栏";
+"help.entry.output_find.desc" = "在输出文本中搜索并高亮匹配";
+"help.entry.output_find.name" = "输出查找";
+"help.entry.output_find.shortcut" = "";
+"help.entry.output_panel.desc" = "底部显示脚本执行结果与交互式命令行";
+"help.entry.output_panel.name" = "输出面板";
+"help.entry.output_panel.shortcut" = "⌘J";
+"help.entry.panel_height.desc" = "拖拽预览与 Snippets 之间的分隔条调整比例";
+"help.entry.panel_height.name" = "面板高度";
+"help.entry.panel_height.shortcut" = "拖拽";
+"help.entry.panel_width.desc" = "拖拽主列表与右侧面板之间的分隔条";
+"help.entry.panel_width.name" = "面板宽度";
+"help.entry.panel_width.shortcut" = "拖拽";
+"help.entry.path_breadcrumb.desc" = "点击路径段快速跳转，空间不足时自动折叠中间段";
+"help.entry.path_breadcrumb.name" = "路径面包屑";
+"help.entry.path_breadcrumb.shortcut" = "";
+"help.entry.path_edit.desc" = "点击路径栏可手动输入或粘贴完整路径";
+"help.entry.path_edit.name" = "路径编辑";
+"help.entry.path_edit.shortcut" = "";
+"help.entry.path_history.desc" = "下拉查看最近访问过的目录";
+"help.entry.path_history.name" = "路径历史";
+"help.entry.path_history.shortcut" = "";
+"help.entry.pdf.desc" = "翻页、缩放、适应宽度或页面";
+"help.entry.pdf.name" = "PDF";
+"help.entry.pdf.shortcut" = "预览工具栏";
+"help.entry.preview_browser.desc" = "底部胶片条浏览当前目录文件，上一项 / 下一项";
+"help.entry.preview_browser.name" = "预览浏览器";
+"help.entry.preview_browser.shortcut" = "⌘⌥B";
+"help.entry.preview_text_edit.desc" = "在预览面板中将当前文本或代码文件进入编辑模式";
+"help.entry.preview_text_edit.name" = "编辑预览文本";
+"help.entry.preview_text_edit.shortcut" = "⌘E";
+"help.entry.put_back.desc" = "从废纸篓恢复文件到原位置";
+"help.entry.put_back.name" = "放回原处";
+"help.entry.put_back.shortcut" = "右键";
+"help.entry.quick_look.desc" = "对不支持的类型回退到系统 Quick Look";
+"help.entry.quick_look.name" = "Quick Look";
+"help.entry.quick_look.shortcut" = "";
+"help.entry.quick_search.desc" = "输入即过滤当前列表，Tab 循环匹配项并同步预览";
+"help.entry.quick_search.name" = "快速搜索";
+"help.entry.quick_search.shortcut" = "直接打字";
+"help.entry.recent_servers.desc" = "在连接对话框中从最近列表快速重连";
+"help.entry.recent_servers.name" = "最近服务器";
+"help.entry.recent_servers.shortcut" = "";
+"help.entry.rename.desc" = "再次点击文件名或右键重命名";
+"help.entry.rename.name" = "重命名";
+"help.entry.rename.shortcut" = "";
+"help.entry.run_snippet.desc" = "搜索、方向键选择、回车或双击运行";
+"help.entry.run_snippet.name" = "执行片段";
+"help.entry.run_snippet.shortcut" = "";
+"help.entry.scope.desc" = "按全局、文件类型、路径等限制片段出现时机";
+"help.entry.scope.name" = "作用域";
+"help.entry.scope.shortcut" = "";
+"help.entry.services.desc" = "调用 macOS 系统服务菜单";
+"help.entry.services.name" = "服务";
+"help.entry.services.shortcut" = "右键";
+"help.entry.settings_general.desc" = "空白双击行为、窗口贴靠、界面语言";
+"help.entry.settings_general.name" = "通用";
+"help.entry.settings_general.shortcut" = "⌘,";
+"help.entry.settings_preview.desc" = "行号、独立窗口浏览、自定义文件类型规则";
+"help.entry.settings_preview.name" = "预览";
+"help.entry.settings_preview.shortcut" = "设置";
+"help.entry.settings_snippets.desc" = "显示模式、最近置顶、自动显示输出、并发上限";
+"help.entry.settings_snippets.name" = "Snippets";
+"help.entry.settings_snippets.shortcut" = "设置";
+"help.entry.show_info.desc" = "独立窗口查看大小、权限、标签、注释等详情";
+"help.entry.show_info.name" = "属性";
+"help.entry.show_info.shortcut" = "右键";
+"help.entry.snippets_panel.desc" = "右侧面板管理可复用脚本，按上下文过滤显示";
+"help.entry.snippets_panel.name" = "Snippets 面板";
+"help.entry.snippets_panel.shortcut" = "⌘⇧S";
+"help.entry.spreadsheet.desc" = "文本模式与 Quick Look 预览切换";
+"help.entry.spreadsheet.name" = "电子表格";
+"help.entry.spreadsheet.shortcut" = "预览工具栏";
+"help.entry.stop_task.desc" = "运行中按 Ctrl+C 或点停止按钮";
+"help.entry.stop_task.name" = "终止任务";
+"help.entry.stop_task.shortcut" = "⌃C";
+"help.entry.text_code.desc" = "语法高亮、行号、换行、字体缩放、文内搜索";
+"help.entry.text_code.name" = "文本 / 代码";
+"help.entry.text_code.shortcut" = "预览工具栏";
+"help.entry.thumbnail_view.desc" = "图标网格浏览，可拖动滑块调整缩略图大小";
+"help.entry.thumbnail_view.name" = "缩略图视图";
+"help.entry.thumbnail_view.shortcut" = "工具栏";
+"help.entry.toggle_left_panel.desc" = "显示或隐藏侧边栏";
+"help.entry.toggle_left_panel.name" = "左侧面板";
+"help.entry.toggle_left_panel.shortcut" = "⌘B";
+"help.entry.toggle_right_panel.desc" = "切换预览与 Snippets 整列显示";
+"help.entry.toggle_right_panel.name" = "右侧面板";
+"help.entry.toggle_right_panel.shortcut" = "⌘⇧B";
+"help.entry.toolbar_customize.desc" = "右键工具栏进入自定义模式，拖拽增减与排序按钮，点击完成保存";
+"help.entry.toolbar_customize.name" = "自定义工具栏";
+"help.entry.toolbar_customize.shortcut" = "右键工具栏";
+"help.entry.toolbar_delete.desc" = "选中文件后点击工具栏删除按钮移入废纸篓";
+"help.entry.toolbar_delete.name" = "工具栏删除";
+"help.entry.toolbar_delete.shortcut" = "";
+"help.entry.toolbar_open_app.desc" = "在自定义面板点击 ＋ 添加按钮，用指定应用打开选中项或当前文件夹";
+"help.entry.toolbar_open_app.name" = "打开应用按钮";
+"help.entry.toolbar_open_app.shortcut" = "自定义面板 ＋";
+"help.entry.trash.desc" = "浏览已删除文件，支持放回原处与清空";
+"help.entry.trash.name" = "废纸篓";
+"help.entry.trash.shortcut" = "";
+"help.entry.variables.desc" = "脚本中 %p（路径）、%d（目录）等自动替换";
+"help.entry.variables.name" = "变量展开";
+"help.entry.variables.shortcut" = "";
+"help.entry.window_snap.desc" = "拖拽窗口靠边自动半屏或全屏贴靠";
+"help.entry.window_snap.name" = "窗口贴靠";
+"help.entry.window_snap.shortcut" = "设置";
+"help.no_shortcut" = "—";
+"help.section.files" = "文件操作";
+"help.section.layout" = "窗口与布局";
+"help.section.navigation" = "浏览与导航";
+"help.section.output" = "输出面板";
+"help.section.permissions" = "权限";
+"help.section.preview" = "预览";
+"help.section.remote_server" = "远程服务器";
+"help.section.settings" = "设置";
+"help.section.sidebar" = "侧边栏";
+"help.section.snippets" = "Snippets";
+"help.section.toolbar" = "工具栏";
+"help.subtitle" = "一句话了解 MeoFind 能做什么";
+"help.window_title" = "MeoFind 功能速查表";
+"info.access.executable" = "可执行";
+"info.access.label" = "访问：";
+"info.access.readable" = "可读";
+"info.access.writable" = "可写";
+"info.bullet_item %@ %@ %@" = "• %@（%@，%@）";
+"info.created %@" = "创建时间：%@";
+"info.ellipsis" = "…";
+"info.hidden %@" = "隐藏：%@";
+"info.hidden.label" = "隐藏：";
+"info.kind.extension_file %@" = "种类：%@ 文件";
+"info.kind.file" = "种类：文件";
+"info.kind.file_short" = "文件";
+"info.kind.folder" = "种类：文件夹";
+"info.kind.folder_short" = "文件夹";
+"info.location %@" = "位置：%@";
+"info.modified %@" = "修改时间：%@";
+"info.no" = "否";
+"info.path %@" = "路径：%@";
+"info.path.label" = "路径：";
+"info.permissions %@ %@" = "权限：%@（%@）";
+"info.size %@" = "大小：%@";
+"info.type_identifier %@" = "类型标识：%@";
+"info.yes" = "是";
+"menu.collapse_strip" = "收起胶片条";
+"menu.expand_strip" = "展开胶片条";
+"menu.export_snippets" = "导出全部 Snippets…";
+"menu.go" = "前往";
+"menu.hide_git" = "关闭 Git 面板";
+"menu.hide_output" = "关闭输出面板";
+"menu.hide_preview" = "关闭预览";
+"menu.hide_snippets" = "关闭 Snippets";
+"menu.import_snippets" = "导入 Snippets…";
+"menu.next_preview" = "下一个预览";
+"menu.open_preview_detached" = "在独立窗口中打开预览";
+"menu.previous_preview" = "上一个预览";
+"menu.reattach_preview" = "收回预览到侧栏";
+"menu.show_git" = "显示 Git 面板";
+"menu.show_output" = "显示输出面板";
+"menu.show_preview" = "显示预览";
+"menu.show_snippets" = "显示 Snippets";
+"menu.toggle_left_panel" = "切换左侧面板";
+"menu.toggle_right_panel" = "切换右侧面板";
+"operation_recording.banner.discard" = "放弃";
+"operation_recording.banner.message" = "正在录制操作 · 已 %lld 步";
+"operation_recording.banner.stop" = "停止并审阅";
+"operation_recording.close_while_recording.discard" = "放弃录制";
+"operation_recording.close_while_recording.message" = "窗口关闭时仍在录制操作。";
+"operation_recording.close_while_recording.stop" = "停止并审阅";
+"operation_recording.close_while_recording.title" = "停止录制？";
+"operation_recording.copy_script" = "复制脚本";
+"operation_recording.create_snippet" = "创建 Snippet…";
+"operation_recording.default_snippet_name" = "录制的 Snippet";
+"operation_recording.discard_confirm.message" = "已录制的步骤将被丢弃，且无法恢复。";
+"operation_recording.discard_confirm.title" = "放弃录制？";
+"operation_recording.discarded" = "已放弃录制";
+"operation_recording.generalize_paths" = "将路径泛化为 Snippet 变量";
+"operation_recording.no_steps" = "未记录到文件操作";
+"operation_recording.preview_label" = "脚本预览";
+"operation_recording.recording_name" = "录制 · %@";
+"operation_recording.review_subtitle" = "已记录 %lld 步 · 录制于 %@";
+"operation_recording.review_title" = "从录制生成 Snippet";
+"operation_recording.scope_suggestion" = "建议作用域：%@";
+"operation_recording.script_copied" = "Shell 脚本已复制（%lld 步）";
+"operation_recording.security.chmod_777" = "包含过于宽松的权限设置（chmod 777）。";
+"operation_recording.security.chmod_777_recursive" = "包含递归宽松权限设置（chmod -R 777）。";
+"operation_recording.security.curl_pipe" = "将 curl 输出管道到其它命令，可能执行远程代码。";
+"operation_recording.security.dd" = "包含底层磁盘写入命令（dd）。";
+"operation_recording.security.eval" = "包含动态执行（eval）。";
+"operation_recording.security.mkfs" = "包含格式化文件系统命令（mkfs）。";
+"operation_recording.security.mv" = "包含移动/重命名命令（mv），可能覆盖已有文件。";
+"operation_recording.security.rm" = "包含删除命令（rm）。";
+"operation_recording.security.rm_r" = "包含递归删除（rm -r）。";
+"operation_recording.security.rm_rf" = "包含递归删除（rm -rf），可能永久删除文件。";
+"operation_recording.security.sudo" = "包含提权命令（sudo）。";
+"operation_recording.security.wget_pipe" = "将 wget 输出管道到其它命令，可能执行远程代码。";
+"operation_recording.security.write_dev" = "直接向 /dev/ 设备节点写入。";
+"operation_recording.short.clipboard" = "剪贴板";
+"operation_recording.short.compress" = "压缩";
+"operation_recording.short.copy" = "复制";
+"operation_recording.short.delete" = "删除";
+"operation_recording.short.extract" = "解压";
+"operation_recording.short.move" = "移动";
+"operation_recording.short.new_file" = "新建文件";
+"operation_recording.short.new_folder" = "新建文件夹";
+"operation_recording.short.rename" = "重命名";
+"operation_recording.snippet_saved" = "Snippet 已保存：%@";
+"operation_recording.step.compress" = "压缩 %lld 个项目为 %@";
+"operation_recording.step.copy" = "复制 %lld 个项目";
+"operation_recording.step.create_directory" = "新建文件夹 %@";
+"operation_recording.step.create_file" = "新建文件 %@";
+"operation_recording.step.cut" = "剪切 %lld 个项目";
+"operation_recording.step.delete_immediately" = "立即删除 %lld 个项目";
+"operation_recording.step.drag_copy" = "拖放复制 %lld 个项目到 %@";
+"operation_recording.step.drag_move" = "拖放移动 %lld 个项目到 %@";
+"operation_recording.step.extract" = "解压 %@ 到 %@";
+"operation_recording.step.paste_copy" = "粘贴 %lld 个项目到 %@";
+"operation_recording.step.paste_move" = "移动 %lld 个项目到 %@";
+"operation_recording.step.rename" = "重命名为 %@";
+"operation_recording.step.trash" = "将 %lld 个项目移到废纸篓";
+"operation_recording.test_script" = "测试";
+"operation_recording.trash_warning" = "当前在废纸篓内录制：生成的脚本在废纸篓外可能无法正确重放。";
+"operation_recording.validation.empty" = "脚本为空。";
+"operation_recording.validation.invalid_shell" = "Shell 语法检查失败。";
+"operation_recording.validation.passed" = "脚本语法与变量检查通过。";
+"operation_recording.validation.shell_syntax" = "Shell 语法错误：%@";
+"operation_recording.validation.unsupported_variable" = "不支持的变量：%@";
+"operation_recording.validation.variable_expansion" = "变量展开失败：%@";
+"operation_recording.variables_footer" = "开启泛化后，路径可能替换为 %p、%d、%n、%b 等变量；保存前可在预览中继续编辑。";
+"operation_recording.variables_title" = "Snippet 变量参考";
+"panorama.collapse_folder" = "收起文件夹";
+"panorama.expand_depth.automatic" = "自动";
+"panorama.expand_depth.depth2" = "深度 2";
+"panorama.expand_depth.depth5" = "深度 5";
+"panorama.expand_depth.unlimited" = "全部";
+"panorama.expand_folder" = "展开文件夹";
+"panorama.folder_kind" = "文件夹";
+"panorama.item_count %lld" = "%lld 项";
+"panorama.loading" = "正在加载";
+"pathbar.back" = "后退";
+"pathbar.clear" = "清除";
+"pathbar.commit" = "进入新路径";
+"pathbar.edit" = "点击编辑完整路径";
+"pathbar.forward" = "前进";
+"pathbar.history" = "最近访问的路径";
+"pathbar.no_subdirs" = "无子文件夹";
+"pathbar.parent" = "显示上级路径";
+"pathbar.select_all" = "点击全选路径";
+"pathbar.subdirs" = "显示子目录";
+"permission.automation.message" = "MeoFind 需要「控制 Finder」的权限才能显示废纸篓内容。\n\n请在「系统设置 → 隐私与安全性 → 自动化」中，允许 MeoFind 控制 Finder。";
+"permission.automation.open_settings" = "打开系统设置";
+"permission.automation.title" = "需要自动化权限";
+"permission.fda.detected" = "已检测到完全磁盘访问权限，请重启应用以完成启用。";
+"permission.fda.later" = "稍后";
+"permission.fda.message" = "MeoFind 需要此权限才能浏览系统中的全部文件与文件夹。";
+"permission.fda.not_detected" = "尚未检测到权限。请确认已在系统设置中勾选本应用。";
+"permission.fda.open_settings" = "打开系统设置";
+"permission.fda.restart_app" = "重启应用";
+"permission.fda.step1" = "点击下方「打开系统设置」。";
+"permission.fda.step2 %@" = "在「隐私与安全性 → 完全磁盘访问权限」中，打开 %@ 的开关。";
+"permission.fda.step3" = "返回本应用后，点击「重启应用」使权限生效。";
+"permission.fda.title" = "需要完全磁盘访问权限";
+"preview.archive.loading_more" = "正在加载更多条目…";
+"preview.archive.selection_count %lld" = "已选 %lld 项 · ⌘ 点击可多选";
+"preview.archive_truncated" = "[已截断…]";
+"preview.chrome.back_to_folder" = "返回文件夹";
+"preview.chrome.close_preview" = "关闭预览";
+"preview.chrome.close_window" = "关闭窗口";
+"preview.chrome.collapse" = "折叠预览";
+"preview.chrome.detach" = "在独立窗口中打开";
+"preview.chrome.dock_back" = "收回侧栏";
+"preview.chrome.expand" = "展开预览";
+"preview.chrome.reveal_in_file_list" = "在文件列表中定位";
+"preview.close" = "关闭预览";
+"preview.collapse" = "折叠预览";
+"preview.detached_placeholder %@" = "%@ 已在独立窗口中预览";
+"preview.dock_back" = "收回侧栏";
+"preview.eml.attachment_size %lld" = "%lld 字节";
+"preview.eml.attachments" = "附件";
+"preview.eml.cc" = "抄送";
+"preview.eml.date" = "日期";
+"preview.eml.empty_body" = "无正文内容";
+"preview.eml.from" = "发件人";
+"preview.eml.subject" = "主题";
+"preview.eml.to" = "收件人";
+"preview.empty_state" = "选择文件以预览";
+"preview.epub.chapter_progress %lld %lld" = "第 %lld / %lld 章";
+"preview.epub.no_chapters" = "无章节";
+"preview.error_loading" = "预览加载失败";
+"preview.expand" = "展开预览";
+"preview.focus_window" = "聚焦窗口";
+"preview.folder_inline.open_directory" = "双击进入";
+"preview.folder_inline.preview_file" = "单击预览 · 双击打开 · ⌥双击独立预览";
+"preview.font.copyright" = "版权";
+"preview.font.family" = "字体族";
+"preview.font.glyphs" = "字形数";
+"preview.font.point_size %lld" = "%lld 磅";
+"preview.font.post_script_name" = "PostScript 名";
+"preview.font.registration_failed" = "无法注册字体用于预览";
+"preview.font.samples" = "样张";
+"preview.font.style" = "风格";
+"preview.font.version" = "版本";
+"preview.image.confirm" = "确定";
+"preview.image.height" = "高度";
+"preview.image.maintain_aspect" = "保持宽高比";
+"preview.image.resize_hint" = "按像素设置输出尺寸。确认后需点击「保存编辑结果」写入文件。";
+"preview.image.resize_title" = "调整图片尺寸";
+"preview.image.validation.empty" = "请输入宽度和高度";
+"preview.image.validation.invalid" = "请输入有效的像素数值";
+"preview.image.validation.max" = "单边像素不能超过 65535";
+"preview.image.validation.positive" = "宽度和高度必须大于 0";
+"preview.image.width" = "宽度";
+"preview.loading" = "正在加载预览…";
+"preview.markdown.mermaid_render_failed" = "流程图渲染失败";
+"preview.markdown.mermaid_rendering" = "正在渲染流程图…";
+"preview.model3d.dimensions %.1f %.1f %.1f" = "尺寸：%.1f × %.1f × %.1f";
+"preview.model3d.triangles %lld" = "三角面：%lld";
+"preview.model3d.unit_hint" = "STL 文件不含单位信息，所示尺寸为相对值。";
+"preview.next" = "下一个";
+"preview.not_available" = "无法预览此文件类型";
+"preview.previous" = "上一个";
+"preview.reattach.confirm" = "收回";
+"preview.reattach.message" = "收回将替换侧栏当前预览。是否继续？";
+"preview.reattach.title" = "收回预览";
+"preview.save_failed_title" = "保存失败";
+"preview.session_closed" = "预览会话已关闭";
+"preview.text_edit.cancel" = "取消";
+"preview.text_edit.discard" = "放弃修改";
+"preview.text_edit.discard_confirm_message %@" = "将丢弃对「%@」的未保存修改。";
+"preview.text_edit.discard_confirm_title" = "放弃修改？";
+"preview.text_edit.dont_save" = "不保存";
+"preview.text_edit.edit" = "编辑";
+"preview.text_edit.not_writable" = "文件不可写";
+"preview.text_edit.save" = "保存";
+"preview.text_edit.save_confirm_message %@" = "将覆盖原文件「%@」。";
+"preview.text_edit.save_confirm_title" = "保存修改";
+"preview.text_edit.too_large" = "文件过大，无法在预览中编辑";
+"preview.text_edit.unsaved_message %@" = "「%@」有未保存的修改。";
+"preview.text_edit.unsaved_title" = "未保存的修改";
+"preview.title" = "预览";
+"preview.toolbar.actual_size" = "原始大小";
+"preview.toolbar.archive_collapse" = "折叠到第一层";
+"preview.toolbar.archive_expand" = "展开到全部层级";
+"preview.toolbar.clear_search" = "清除搜索";
+"preview.toolbar.color_hex %@" = "颜色 %@";
+"preview.toolbar.color_picker" = "取色棒（点击图像复制 Web 颜色）";
+"preview.toolbar.copied_to_clipboard" = "已复制到剪贴板";
+"preview.toolbar.copy_all" = "复制全文";
+"preview.toolbar.copy_image" = "复制图片";
+"preview.toolbar.copy_manifest" = "复制清单";
+"preview.toolbar.copy_model_info" = "复制模型信息";
+"preview.toolbar.epub_chapters" = "章节";
+"preview.toolbar.epub_next_chapter" = "下一章";
+"preview.toolbar.epub_previous_chapter" = "上一章";
+"preview.toolbar.extract" = "解压";
+"preview.toolbar.extract_selected" = "解压选中项";
+"preview.toolbar.extract_selected_to" = "解压选中项到…";
+"preview.toolbar.extract_to" = "解压到…";
+"preview.toolbar.eyedropper" = "取色棒";
+"preview.toolbar.fit_page" = "整页适配";
+"preview.toolbar.fit_width" = "适配宽度";
+"preview.toolbar.fit_window" = "适配窗口";
+"preview.toolbar.flip_horizontal" = "水平翻转";
+"preview.toolbar.flip_vertical" = "垂直翻转";
+"preview.toolbar.font_size" = "字体大小";
+"preview.toolbar.html_preview" = "HTML 解析预览";
+"preview.toolbar.jump_bottom" = "跳转底部";
+"preview.toolbar.jump_to_page" = "跳转到页码";
+"preview.toolbar.jump_top" = "跳转顶部";
+"preview.toolbar.markdown_to_preview" = "切换为预览模式";
+"preview.toolbar.markdown_to_source" = "切换为源码模式";
+"preview.toolbar.model3d_rotate_down" = "向下旋转";
+"preview.toolbar.model3d_rotate_up" = "向上旋转";
+"preview.toolbar.model3d_solid" = "实体模式";
+"preview.toolbar.model3d_wireframe" = "线框模式";
+"preview.toolbar.more_actions" = "更多操作";
+"preview.toolbar.mute" = "静音";
+"preview.toolbar.next_match" = "下一个";
+"preview.toolbar.next_page" = "下一页";
+"preview.toolbar.open_default_app" = "用默认应用打开";
+"preview.toolbar.page_number" = "页码";
+"preview.toolbar.pause" = "暂停";
+"preview.toolbar.play" = "播放";
+"preview.toolbar.previous_match" = "上一个";
+"preview.toolbar.previous_page" = "上一页";
+"preview.toolbar.refresh_listing" = "刷新目录";
+"preview.toolbar.reset" = "还原";
+"preview.toolbar.reset_view" = "重置视图";
+"preview.toolbar.resize" = "调整尺寸";
+"preview.toolbar.rotate_ccw" = "逆时针旋转";
+"preview.toolbar.rotate_cw" = "顺时针旋转";
+"preview.toolbar.run_script" = "运行";
+"preview.toolbar.save_edits" = "保存编辑结果";
+"preview.toolbar.search_in_preview" = "在预览中搜索";
+"preview.toolbar.search_no_results" = "无结果";
+"preview.toolbar.search_prompt" = "搜索";
+"preview.toolbar.source_mode" = "源码模式";
+"preview.toolbar.undo" = "撤销上一步";
+"preview.toolbar.unmute" = "取消静音";
+"preview.toolbar.word_document_to_formatted" = "切换为格式化预览";
+"preview.toolbar.word_document_to_text" = "切换为纯文本预览";
+"preview.toolbar.wrap_disable" = "关闭自动换行";
+"preview.toolbar.wrap_enable" = "开启自动换行";
+"preview.toolbar.zoom" = "缩放";
+"preview.toolbar.zoom_in" = "放大";
+"preview.toolbar.zoom_in_font" = "放大字体";
+"preview.toolbar.zoom_in_overall" = "放大（整体）";
+"preview.toolbar.zoom_out" = "缩小";
+"preview.toolbar.zoom_out_font" = "缩小字体";
+"preview.toolbar.zoom_out_overall" = "缩小（整体）";
+"preview.toolbar.zoom_scale" = "缩放比例";
+"remote_server.address_placeholder" = "smb://server.example.com/share";
+"remote_server.address_prompt" = "服务器地址";
+"remote_server.connect" = "连接";
+"remote_server.connect_server_menu" = "连接服务器…";
+"remote_server.connecting" = "正在连接…";
+"remote_server.disconnected_from_server" = "已断开与服务器的连接";
+"remote_server.error.ambiguous_new_volumes" = "检测到多个新挂载卷，已打开第一个。";
+"remote_server.error.invalid_url" = "无法识别服务器地址，请使用 smb://、ftp://、nfs:// 或 https:// 格式。";
+"remote_server.error.mount_failed %@" = "无法连接服务器：%@";
+"remote_server.error.sftp_deferred" = "SFTP 将在后续版本支持；当前请使用 SMB，或通过 sshfs 挂载后再浏览。";
+"remote_server.error.timeout" = "连接超时，请检查网络或服务器是否可用。";
+"remote_server.error.unsupported_protocol %@" = "不支持 %@ 协议。";
+"remote_server.ftp_security_notice" = "FTP 为明文传输，敏感数据请改用 SMB。";
+"remote_server.recent_title" = "最近连接";
+"remote_server.remove_from_recent" = "从最近连接中移除";
+"remote_server.sheet.title" = "连接服务器";
+"remote_server.supported_protocols" = "支持：SMB · NFS · WebDAV · FTP";
+"search.close_quick_search" = "关闭快速搜索";
+"search.content_cancelled" = "已取消";
+"search.content_find_in_folder" = "在文件夹中查找";
+"search.content_next_match" = "下一个匹配";
+"search.content_no_results" = "未找到匹配内容";
+"search.content_progress" = "已扫描 %lld/%lld 个文件 · %lld 处匹配";
+"search.content_prompt" = "在当前文件夹中搜索…";
+"search.content_searching" = "搜索中… %lld 处匹配";
+"search.content_summary.elapsed" = "%.1fs";
+"search.content_summary.files" = "%lld 个文件";
+"search.content_summary.matches" = "%lld 处匹配";
+"search.content_summary.position" = "%lld/%lld";
+"search.content_truncated" = "已截断";
+"search.filter.case_sensitive" = "区分大小写";
+"search.filter.exclude" = "排除";
+"search.filter.exclude_placeholder" = "node_modules/**";
+"search.filter.include" = "包含";
+"search.filter.include_placeholder" = "*.swift *.md";
+"search.filter.reset" = "重置";
+"search.filter.subdirectories" = "包含子文件夹";
+"search.filter.title" = "过滤";
+"search.focus" = "聚焦搜索";
+"search.mode.content" = "内容";
+"search.mode.filename" = "文件名";
+"search.prompt" = "搜索文件";
+"search.quick_search" = "快速搜索";
+"settings.auto_show_output" = "Shell 执行时自动展开输出面板";
+"settings.blank_action.parent" = "返回上级目录";
+"settings.blank_action.terminal" = "在本目录打开终端";
+"settings.blank_double_click" = "空白处双击";
+"settings.confirm_destructive" = "危险命令二次确认";
+"settings.default_image_viewer.current" = "当前默认";
+"settings.default_image_viewer.footer" = "双击图片时以预览独立窗打开，并自动适应屏幕大小。";
+"settings.default_image_viewer.restart_hint" = "更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。";
+"settings.default_image_viewer.restore_preview" = "恢复 Preview";
+"settings.default_image_viewer.restore_success" = "已恢复 Preview 为默认图片查看器。";
+"settings.default_image_viewer.set" = "设为默认图片查看器";
+"settings.default_image_viewer.set_success" = "已将 MeoFind 设为默认图片查看器。双击图片将打开预览独立窗。";
+"settings.default_image_viewer.title" = "默认图片查看器";
+"settings.default_viewer.current" = "当前默认";
+"settings.default_viewer.restart_hint" = "更改后请注销并重新登录，或重启 Mac，才能在全部场景中生效。";
+"settings.default_viewer.restore_finder" = "恢复 Finder";
+"settings.default_viewer.restore_success" = "已恢复 Finder 为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。";
+"settings.default_viewer.set" = "设为默认文件夹查看器";
+"settings.default_viewer.set_success" = "已将 MeoFind 设为默认文件夹查看器。请注销并重新登录（或重启）后，更改才会在全部场景中生效。";
+"settings.default_viewer.title" = "默认文件夹查看器";
+"settings.file_list.row_hover_highlight" = "鼠标悬停时高亮文件列表行";
+"settings.general.interface_language" = "界面语言";
+"settings.general.interface_language_footer" = "大部分界面会立即切换。若菜单栏未更新，请重启 MeoFind。";
+"settings.git.choose" = "选择…";
+"settings.git.choose_panel_title" = "选择 Git 可执行文件";
+"settings.git.executable" = "Git 可执行文件";
+"settings.git.footer" = "MeoFind 的 Git 面板依赖 git 命令。若 git 不在标准路径，请手动选择可执行文件。可通过 Xcode Command Line Tools（xcode-select --install）或 Homebrew（brew install git）安装。";
+"settings.git.invalid_executable" = "所选文件不是有效的 git 可执行文件。";
+"settings.git.not_found" = "未找到 Git。请安装 Git，或在上方选择可执行文件路径。";
+"settings.git.reset" = "自动检测";
+"settings.git.title" = "Git";
+"settings.git.version" = "版本";
+"settings.job_concurrency_limit %lld" = "Job 并发上限：%lld";
+"settings.menu_item" = "设置…";
+"settings.pin_recent_snippets" = "最近执行置顶";
+"settings.preview.add_rule" = "添加规则…";
+"settings.preview.add_rule_title" = "添加预览规则";
+"settings.preview.archive_double_click" = "应用内双击压缩包（默认应用模式）";
+"settings.preview.archive_double_click.extract" = "解压到当前目录";
+"settings.preview.archive_double_click.preview" = "在独立预览窗口中打开";
+"settings.preview.builtin_catalog" = "内置预览类型（只读）";
+"settings.preview.code_line_numbers" = "代码预览";
+"settings.preview.code_line_numbers.footer" = "开启后，在右侧预览面板查看代码文件时，于代码左侧显示行号。";
+"settings.preview.code_line_numbers.toggle" = "代码预览显示行号";
+"settings.preview.custom_types" = "自定义文件类型";
+"settings.preview.customize" = "自定义";
+"settings.preview.detached_browse" = "独立窗口浏览";
+"settings.preview.detached_browse.footer" = "开启后，弹出预览窗口时胶片条与 ← → 导航仅在同类型文件间切换。";
+"settings.preview.detached_browse.toggle" = "独立窗口浏览条仅显示同扩展名";
+"settings.preview.disabled" = "已禁用";
+"settings.preview.double_click" = "应用内双击可预览文件";
+"settings.preview.double_click.default_app" = "用默认应用打开";
+"settings.preview.double_click.sidebar_preview" = "在侧栏预览";
+"settings.preview.double_click.standalone_preview" = "在独立预览窗口中打开";
+"settings.preview.edit_rule_title" = "编辑预览规则";
+"settings.preview.enabled_toggle" = "启用";
+"settings.preview.export_panel_title" = "导出自定义预览规则";
+"settings.preview.export_rules" = "导出规则…";
+"settings.preview.export_success %lld" = "已导出 %lld 条规则。";
+"settings.preview.extensionless_label" = "（无扩展名）";
+"settings.preview.extensions_field" = "扩展名（逗号分隔）";
+"settings.preview.external_multi_image" = "外部打开多张图片";
+"settings.preview.external_multi_image.one_window_per_file" = "每张图片单独窗口";
+"settings.preview.external_multi_image.single_window_with_strip" = "单窗 + 胶片条";
+"settings.preview.external_open" = "外部打开可预览文件";
+"settings.preview.external_open.browser_and_select" = "打开浏览窗口并选中该文件";
+"settings.preview.external_open.standalone_only" = "仅独立预览窗";
+"settings.preview.handler_group.current_handler %@" = "当前：%@";
+"settings.preview.handler_group.footer" = "开启后，Finder 双击该组文件将由 MeoFind 打开。可能需要重启 MeoFind 或重新登录后系统才会生效。";
+"settings.preview.handler_group.image" = "图片";
+"settings.preview.handler_group.image.hint" = "双击图片时以预览独立窗打开，并自动适应屏幕大小。";
+"settings.preview.handler_group.media" = "音视频";
+"settings.preview.handler_group.office" = "Office 文档";
+"settings.preview.handler_group.pdf" = "PDF";
+"settings.preview.handler_group.restart_hint" = "若 Finder 未立即使用新默认程序，请重启 MeoFind。";
+"settings.preview.handler_group.restore_success %@" = "已恢复 %@ 的系统默认程序。";
+"settings.preview.handler_group.set_success %@" = "已将 %@ 设为默认打开程序。";
+"settings.preview.handler_group.text_and_code" = "文本与代码";
+"settings.preview.handler_group.title" = "注册为默认打开程序";
+"settings.preview.import.merge" = "合并";
+"settings.preview.import.replace" = "替换";
+"settings.preview.import_complete" = "导入完成。";
+"settings.preview.import_export_title" = "导入 / 导出";
+"settings.preview.import_method_message" = "合并会保留现有规则并更新同 ID 条目；替换会清空现有规则。";
+"settings.preview.import_method_title" = "导入方式";
+"settings.preview.import_panel_title" = "导入自定义预览规则";
+"settings.preview.import_rules" = "导入规则…";
+"settings.preview.mode.archive" = "压缩包预览";
+"settings.preview.mode.archive.detail" = "以目录树列出 ZIP / TAR 内容，支持解压。";
+"settings.preview.mode.html" = "HTML 预览";
+"settings.preview.mode.html.detail" = "在 WebKit 中渲染 HTML；可切换源码视图。";
+"settings.preview.mode.image" = "图片预览";
+"settings.preview.mode.image.detail" = "尝试按图片解码并显示。";
+"settings.preview.mode.markdown" = "Markdown 预览";
+"settings.preview.mode.markdown.detail" = "渲染 Markdown；可在顶栏切换源码视图。";
+"settings.preview.mode.media" = "媒体预览";
+"settings.preview.mode.media.detail" = "使用 AVPlayer 播放音视频。";
+"settings.preview.mode.pdf" = "PDF 预览";
+"settings.preview.mode.pdf.detail" = "使用 PDFKit 显示 PDF 文档。";
+"settings.preview.mode.quicklook" = "QuickLook 预览";
+"settings.preview.mode.quicklook.detail" = "使用 macOS QuickLook，适合系统已支持预览的格式。";
+"settings.preview.mode.text" = "文本预览";
+"settings.preview.mode.text.detail" = "以纯文本显示，并根据扩展名做语法高亮。";
+"settings.preview.no_rules_hint" = "尚未添加自定义规则。选中无法预览的文件时，可直接在预览面板一键添加。";
+"settings.preview.open_behavior" = "双击与外部打开";
+"settings.preview.open_behavior.footer" = "⌥ 双击与 ⌘↩ 始终打开独立预览窗。外部打开在 MeoFind 被设为某类型默认程序时生效。";
+"settings.preview.open_in_settings" = "在设置中自定义…";
+"settings.preview.override_builtin" = "覆盖内置";
+"settings.preview.override_builtin_toggle" = "覆盖内置预览";
+"settings.preview.preview_as_text" = "以文本预览";
+"settings.preview.preview_mode" = "预览方式";
+"settings.preview.preview_quicklook" = "QuickLook 预览";
+"settings.preview.unavailable_hint" = "可将此类型添加到自定义预览规则，或尝试 QuickLook。";
+"settings.preview.unavailable_title %@" = "无法预览 %@ 文件";
+"settings.preview.validation_extensions" = "请至少填写一个有效扩展名。";
+"settings.shortcut.cheat_sheet" = "功能速查表";
+"settings.shortcut.click_to_record" = "点击以录制新快捷键";
+"settings.shortcut.close_detached_preview" = "关闭独立预览窗口";
+"settings.shortcut.copy_path" = "复制完整路径";
+"settings.shortcut.global_toggle" = "显示 / 隐藏应用";
+"settings.shortcut.global_toggle_enabled" = "启用全局快捷键";
+"settings.shortcut.global_toggle_footer" = "可在任意应用中生效：隐藏时唤起 MeoFind，已在前台时则隐藏应用。";
+"settings.shortcut.new_tab" = "新建标签页";
+"settings.shortcut.preview_text_edit" = "编辑预览文本";
+"settings.shortcut.recording_hint" = "按下目标组合键，Esc 取消。";
+"settings.shortcut.recording_placeholder" = "请按键…";
+"settings.shortcut.reset" = "恢复默认";
+"settings.shortcuts.category.files" = "文件";
+"settings.shortcuts.category.global" = "全局";
+"settings.shortcuts.category.navigation" = "导航";
+"settings.shortcuts.category.output" = "输出";
+"settings.shortcuts.category.panels" = "面板";
+"settings.shortcuts.category.preview" = "预览";
+"settings.shortcuts.category.system" = "系统";
+"settings.snippets.display.minimal" = "极简";
+"settings.snippets.display.standard" = "标准";
+"settings.snippets.display_mode" = "面板显示模式";
+"settings.snippets.output_color.dark" = "深色";
+"settings.snippets.output_color.gray" = "灰色";
+"settings.snippets.output_color.light" = "浅色";
+"settings.snippets.output_color_scheme" = "输出面板配色";
+"settings.snippets.recording_generalize_paths" = "默认开启路径泛化";
+"settings.snippets.recording_section" = "操作录制";
+"settings.snippets.recording_section_footer" = "审阅面板与录制指示条的默认行为。录制期间执行 Snippet 不会被记录。";
+"settings.snippets.recording_show_banner" = "显示录制指示条";
+"settings.tab.general" = "通用";
+"settings.tab.preview" = "预览";
+"settings.tab.shortcuts" = "快捷键";
+"settings.tab.snippets" = "Snippets";
+"settings.window_snap" = "启用窗口吸附与联动移动";
+"settings.window_title" = "设置";
+"sidebar.devices" = "设备";
+"sidebar.disconnect_device %@" = "断开 %@";
+"sidebar.eject_device %@" = "推出 %@";
+"sidebar.eject_failed %@" = "无法断开 %@，请关闭正在使用该卷的窗口或文件后重试。";
+"sidebar.favorites" = "个人收藏";
+"sidebar.locations" = "位置";
+"sidebar.no_devices" = "无设备";
+"sidebar.trash" = "废纸篓";
+"snippets.ask.continue" = "继续";
+"snippets.ask.for_snippet %@" = "用于：%@";
+"snippets.ask.form_title" = "填写参数";
+"snippets.badge.directory" = "目录";
+"snippets.badge.file" = "文件";
+"snippets.badge.path" = "路径";
+"snippets.badge.single" = "1项";
+"snippets.builtin.copy_path" = "复制路径";
+"snippets.builtin.finder_info" = "显示 Finder 信息";
+"snippets.builtin.list_directory" = "列出目录";
+"snippets.builtin.open_default" = "用默认应用打开";
+"snippets.builtin.open_pdf" = "打开 PDF（预览）";
+"snippets.builtin.open_terminal" = "在终端打开";
+"snippets.builtin.show_attributes" = "查看属性";
+"snippets.confirm.destructive_message" = "此 Snippet 可能删除或移动文件，确定执行？";
+"snippets.confirm.destructive_title" = "危险命令确认";
+"snippets.confirm.proceed" = "仍要执行";
+"snippets.editor.content" = "内容";
+"snippets.editor.edit_title" = "编辑 Snippet";
+"snippets.editor.extensions_placeholder" = "扩展名（逗号分隔，如 pdf, md）";
+"snippets.editor.insert_variable" = "在光标处插入变量";
+"snippets.editor.interpreter" = "解释器";
+"snippets.editor.name" = "名称";
+"snippets.editor.new_title" = "新建 Snippet";
+"snippets.editor.paths_placeholder" = "文件路径（每行一个）";
+"snippets.editor.scope" = "作用域";
+"snippets.editor.script_type" = "脚本类型";
+"snippets.editor.section_execution" = "执行方式";
+"snippets.editor.section_general" = "基本信息";
+"snippets.editor.section_scope" = "可见范围";
+"snippets.editor.section_script" = "脚本内容";
+"snippets.editor.subtitle" = "配置可见范围、执行方式与脚本内容。";
+"snippets.editor.terminal_hint" = "在 Terminal 等应用中运行，输出不显示在应用内面板";
+"snippets.editor.use_system_terminal" = "使用系统终端";
+"snippets.import.rename_suffix" = "（导入）";
+"snippets.import.rename_suffix %lld" = "（导入 %lld）";
+"snippets.output.cancelled" = "已取消";
+"snippets.output.clear" = "清屏";
+"snippets.output.close_all" = "关闭所有";
+"snippets.output.close_current" = "关闭当前";
+"snippets.output.close_others" = "关闭其他";
+"snippets.output.close_panel" = "关闭输出面板";
+"snippets.output.collapse" = "折叠输出面板";
+"snippets.output.collapse_command" = "收起";
+"snippets.output.command_failed %lld" = "命令失败，退出码 %lld";
+"snippets.output.command_placeholder" = "展开后的命令，回车重新执行";
+"snippets.output.completed_with_exit_code %lld" = "已有输出，但退出码为 %lld（若上方结果正常可忽略）";
+"snippets.output.copy" = "复制";
+"snippets.output.empty_hint" = "执行 Snippet 后在此查看输出";
+"snippets.output.exit_code %lld" = "退出码 %lld";
+"snippets.output.expand" = "展开输出面板";
+"snippets.output.expand_command" = "查看命令全文";
+"snippets.output.find" = "查找";
+"snippets.output.full_command_title" = "命令全文";
+"snippets.output.no_output" = "（无输出）";
+"snippets.output.queued" = "排队中";
+"snippets.output.run_command" = "执行";
+"snippets.output.run_history_command" = "直接执行此命令";
+"snippets.output.running" = "运行中…";
+"snippets.output.status_banner.dismiss" = "关闭";
+"snippets.output.status_banner.hide_details" = "收起";
+"snippets.output.status_banner.show_details" = "详情";
+"snippets.output.stop" = "停止";
+"snippets.output.truncated" = "[输出已截断：已达单 Tab 输出上限]";
+"snippets.panel.close" = "关闭 Snippets";
+"snippets.panel.collapse" = "折叠 Snippets";
+"snippets.panel.execute" = "执行";
+"snippets.panel.execute_in_terminal" = "在终端中执行";
+"snippets.panel.expand" = "展开 Snippets";
+"snippets.panel.export_all" = "导出全部…";
+"snippets.panel.export_single" = "导出此条";
+"snippets.panel.import" = "导入…";
+"snippets.panel.import_button" = "导入";
+"snippets.panel.import_conflict_message %lld" = "有 %lld 条与现有 Snippet 冲突";
+"snippets.panel.import_conflict_title" = "导入冲突";
+"snippets.panel.import_done_message %lld %lld" = "已导入 %lld 条，跳过 %lld 条";
+"snippets.panel.import_done_title" = "导入完成";
+"snippets.panel.import_export" = "导入 / 导出";
+"snippets.panel.import_failed_title" = "导入失败";
+"snippets.panel.import_strategy_label" = "处理方式";
+"snippets.panel.new" = "新建";
+"snippets.panel.no_match" = "当前上下文无匹配 Snippet";
+"snippets.panel.no_results" = "无搜索结果";
+"snippets.panel.search_prompt" = "搜索名称或脚本内容…";
+"snippets.scope.anytime" = "始终";
+"snippets.scope.anytime.desc" = "无论是否选中文件，Snippet 始终显示在列表中。";
+"snippets.scope.directories_only" = "仅目录";
+"snippets.scope.directories_only.desc" = "仅当所选项目全部为文件夹时显示。";
+"snippets.scope.file_extensions" = "指定扩展名";
+"snippets.scope.file_extensions.desc" = "当选中文件的扩展名与下方配置匹配时显示（如 pdf、jpg）。";
+"snippets.scope.files_only" = "仅文件";
+"snippets.scope.files_only.desc" = "仅当所选项目全部为文件（非文件夹）时显示。";
+"snippets.scope.global" = "有选中项";
+"snippets.scope.global.desc" = "当选中一个或多个文件或文件夹时显示。";
+"snippets.scope.single_selection" = "单选";
+"snippets.scope.single_selection.desc" = "仅当选中唯一一个项目时显示；使用 %p 等单选变量时通常选此项。";
+"snippets.scope.specific_files" = "指定文件";
+"snippets.scope.specific_files.desc" = "当选中项的绝对路径与下方配置的路径匹配时显示。";
+"snippets.strategy.overwrite" = "覆盖";
+"snippets.strategy.rename" = "重命名";
+"snippets.strategy.skip" = "跳过";
+"snippets.title" = "Snippets";
+"snippets.variable.ask" = "执行时弹出输入框；花括号内文案作为输入项标题";
+"snippets.variable.ask_named" = "命名用户输入；相同 id 只询问一次并复用";
+"snippets.variable.b" = "不含扩展名的文件名";
+"snippets.variable.capital_f" = "所有选中的文件路径，空格分隔";
+"snippets.variable.capital_n" = "选中项数量";
+"snippets.variable.capital_p" = "所有选中项路径，空格分隔";
+"snippets.variable.capital_q" = "每个选中路径分别 Shell 转义后空格拼接";
+"snippets.variable.d" = "当前浏览目录（工作目录）";
+"snippets.variable.date" = "执行时的 ISO8601 时间戳";
+"snippets.variable.e" = "扩展名（小写、不含点，如 pdf）";
+"snippets.variable.f" = "选中文件的路径（须单选且为文件）";
+"snippets.variable.h" = "用户主目录路径";
+"snippets.variable.n" = "选中项文件名（含扩展名，如 report.pdf）";
+"snippets.variable.p" = "当前选中项的完整路径（须单选）";
+"snippets.variable.q" = "%p 的 Shell 单引号转义路径（含空格时安全）";
+"snippets.variable.u" = "当前短用户名";
+"snippets.variable.uuid" = "每次执行生成的新 UUID";
+"snippets.variable.w" = "当前目录名（路径最后一段）";
+"snippets.variable_help.column_description" = "说明";
+"snippets.variable_help.column_token" = "变量";
+"snippets.variable_help.footer" = "点击下方变量按钮可在光标处插入；悬停可查看简要说明。";
+"snippets.variable_help.show_reference" = "查看 Snippet 变量说明";
+"sort.date_newest" = "日期 (最新优先)";
+"sort.date_oldest" = "日期 (最早优先)";
+"sort.name_ascending" = "名称 (A 到 Z)";
+"sort.name_descending" = "名称 (Z 到 A)";
+"sort.size_largest" = "大小 (最大优先)";
+"sort.size_smallest" = "大小 (最小优先)";
+"toolbar.auto_folder_size" = "自动计算文件夹大小（较慢）";
+"toolbar.browse_settings" = "浏览设置";
+"toolbar.customize" = "自定义工具栏…";
+"toolbar.customize.add_open_app" = "添加工具栏项…";
+"toolbar.customize.cancel" = "取消";
+"toolbar.customize.done" = "完成";
+"toolbar.customize.hint" = "将项目拖到工具栏以添加；将项目拖出工具栏以移除。";
+"toolbar.customize.reset" = "恢复默认";
+"toolbar.customize.title" = "自定义工具栏";
+"toolbar.delete" = "删除";
+"toolbar.error.app_missing" = "找不到应用「%@」，请在自定义工具栏中重新配置。";
+"toolbar.error.app_missing_title" = "找不到应用";
+"toolbar.error.no_selection" = "需要先选中文件";
+"toolbar.hide_hidden_files" = "不显示隐藏文件";
+"toolbar.hide_left_panel" = "隐藏左侧面板";
+"toolbar.hide_tab_bar" = "隐藏标签栏";
+"toolbar.list_view" = "列表视图";
+"toolbar.new_file" = "新建文件";
+"toolbar.new_folder" = "新建文件夹";
+"toolbar.new_tab" = "新建标签页";
+"toolbar.new_window" = "新建窗口";
+"toolbar.open_app.add" = "添加";
+"toolbar.open_app.choose" = "选择…";
+"toolbar.open_app.choose_prompt" = "选择应用程序";
+"toolbar.open_app.edit" = "编辑工具栏项…";
+"toolbar.open_app.edit_title" = "编辑工具栏项";
+"toolbar.open_app.name" = "名称";
+"toolbar.open_app.save" = "存储";
+"toolbar.open_app.selection_current_folder" = "将当前文件夹作为参数";
+"toolbar.open_app.selection_optional" = "无选中也可运行，选中时传递";
+"toolbar.open_app.selection_policy" = "选中项策略";
+"toolbar.open_app.selection_policy_help" = "必须选中：需先选中文件或文件夹再运行。无选中也可运行：有选中时传递选中项，否则直接启动应用。当前文件夹：始终将当前浏览的文件夹路径传给应用。";
+"toolbar.open_app.selection_require" = "必须选中文件或文件夹";
+"toolbar.open_app.title" = "添加工具栏项";
+"toolbar.open_app.tooltip" = "用 %@ 打开";
+"toolbar.open_app.use_app_icon" = "使用应用图标";
+"toolbar.panorama.collapse_all" = "全部收起";
+"toolbar.panorama.expand_all" = "全部展开";
+"toolbar.panorama.expand_depth" = "展开深度";
+"toolbar.panorama.layout_grid" = "标准网格";
+"toolbar.panorama.layout_panorama" = "子目录全景";
+"toolbar.panorama_mode" = "全景视图";
+"toolbar.record_operations" = "录制操作用于生成 Snippet";
+"toolbar.record_operations_active" = "正在录制 — 点击停止";
+"toolbar.show_all_tabs" = "显示所有标签页";
+"toolbar.show_hidden_files" = "显示隐藏文件";
+"toolbar.show_left_panel" = "显示左侧面板";
+"toolbar.show_tab_bar" = "显示标签栏";
+"toolbar.sort" = "排序";
+"toolbar.tab_bar.cannot_hide_multiple" = "已打开多个标签页，无法隐藏标签栏";
+"toolbar.tab_bar.unavailable" = "此窗口不支持标签栏";
+"toolbar.thumbnail_size" = "缩略图大小";
+"toolbar.thumbnail_view" = "缩略图视图";
+"toolbar.use_icon_preview" = "使用图标预览";
+"toolbar.view_picker" = "视图";

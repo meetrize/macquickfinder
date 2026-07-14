@@ -1,46 +1,22 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>action.empty_trash</key>
-	<string>Empty Trash</string>
-	<key>action.go_back</key>
-	<string>Back</string>
-	<key>action.go_up</key>
-	<string>Up</string>
-	<key>action.new_file</key>
-	<string>New File</string>
-	<key>action.new_folder</key>
-	<string>New Folder</string>
-	<key>action.open_terminal_here</key>
-	<string>Open Terminal Here</string>
-	<key>action.paste</key>
-	<string>Paste</string>
-	<key>action.refresh</key>
-	<string>Refresh</string>
-	<key>column.comment</key>
-	<string>Comment</string>
-	<key>column.date_created</key>
-	<string>Date Created</string>
-	<key>column.date_modified</key>
-	<string>Date Modified</string>
-	<key>column.move_left</key>
-	<string>Move Left</string>
-	<key>column.move_right</key>
-	<string>Move Right</string>
-	<key>column.name</key>
-	<string>Name</string>
-	<key>column.size</key>
-	<string>Size</string>
-	<key>column.tags</key>
-	<string>Tags</string>
-	<key>column.type</key>
-	<string>Type</string>
-	<key>settings.language.system</key>
-	<string>Follow System</string>
-	<key>view_mode.list</key>
-	<string>List</string>
-	<key>view_mode.thumbnail</key>
-	<string>Icons</string>
-</dict>
-</plist>
+/* Generated from Localizable.xcstrings — do not edit by hand; run Scripts/compile_localizations.sh */
+
+"action.empty_trash" = "Empty Trash";
+"action.go_back" = "Back";
+"action.go_up" = "Up";
+"action.new_file" = "New File";
+"action.new_folder" = "New Folder";
+"action.open_terminal_here" = "Open Terminal Here";
+"action.paste" = "Paste";
+"action.refresh" = "Refresh";
+"column.comment" = "Comment";
+"column.date_created" = "Date Created";
+"column.date_modified" = "Date Modified";
+"column.move_left" = "Move Left";
+"column.move_right" = "Move Right";
+"column.name" = "Name";
+"column.size" = "Size";
+"column.tags" = "Tags";
+"column.type" = "Type";
+"settings.language.system" = "Follow System";
+"view_mode.list" = "List";
+"view_mode.thumbnail" = "Icons";

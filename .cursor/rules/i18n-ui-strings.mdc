@@ -1,55 +1,65 @@
 ---
-description: 新增 UI 文案时必须同步 String Catalog，禁止界面只显示语言键
+description: 新增 UI 文案时必须同步 String Catalog 并编译 .lproj，禁止界面只显示语言键
 alwaysApply: true
 ---
 
 # UI 多语言文案（i18n）规则
 
-新增或修改**用户可见文案**时，必须保证运行时显示翻译后的文本，**禁止**界面上出现 `settings.foo.bar` 这类语言键。
+新增或修改**用户可见文案**时，必须保证运行时显示翻译后的文本，**禁止**界面上出现 `settings.foo.bar` / `snippets.ask.form_title` 这类语言键。
+
+## 根因（必读）
+
+本项目是 **SPM**：`swift build` **不会**把 `Localizable.xcstrings` 编进可加载文案。  
+运行时 `ModuleLocalization` 读的是：
+
+`Sources/<Module>/Resources/<lang>.lproj/Localizable.strings`
+
+因此仅改 `.xcstrings` 却**未**运行同步编译 → **必然显示键名**。这是历史反复出现的事故，文档写「写 xcstrings」不够，**必须同步 `.lproj`**。
 
 ## 单一真相来源
 
-| 模块 | 权威文件 |
-|------|----------|
-| Explorer | `Sources/Explorer/Resources/Localizable.xcstrings` |
-| FileList | `Sources/FileList/Resources/Localizable.xcstrings` |
+| 模块 | 权威文件（编辑） | 运行时产物（必须同步） |
+|------|------------------|------------------------|
+| Explorer | `Sources/Explorer/Resources/Localizable.xcstrings` | `…/en.lproj` + `…/zh-Hans.lproj` 的 `Localizable.strings` |
+| FileList | `Sources/FileList/Resources/Localizable.xcstrings` | 同上 |
 
-SPM 构建时以 **String Catalog（`.xcstrings`）** 为准编译进 bundle。仅写入 `*.lproj/Localizable.strings` 而**未**写入 `.xcstrings` 的键，运行时通常会**原样显示键名**。
+## 新增 UI 文案的标准流程（缺一步都不算完成）
 
-详细设计见 `docs/i18n-design.md`。
-
-## 新增 UI 文案的标准流程
-
-1. **先在 `Localizable.xcstrings` 添加键**，并补齐至少 `en` 与 `zh-Hans` 翻译。
-2. **在 `L10n.swift` 增加类型安全访问**（`L10n.Section.key`），不要在 View 里硬编码键名字符串。
-3. **UI 只引用 `L10n`**，不要直接 `Text("some.key")` 或 `ModuleLocalization.localized("some.key")` 散落在视图层。
-4. **动态键**（如 `help.entry.\(id).name`）使用 `ModuleLocalization.localizedFromTable(_:bundle:)`；静态键使用 `ModuleLocalization.localized(_:bundle:)`。
-5. **提交前自测**：切换中/英界面语言，确认新文案不是键名。
-6. **补充测试**：在 `Tests/ExplorerTests/L10nTests.swift`（或 FileList 对应用例）增加 `XCTAssertNotEqual(L10n.…, "键名")` 断言。
+1. **在 `Localizable.xcstrings` 添加键**，补齐 `en` 与 `zh-Hans`（`state: translated`）。
+2. **在 `L10n.swift` 增加类型安全访问**（`L10n.Section.key`）。
+3. **UI 只引用 `L10n`**，不要硬编码键名或 `ModuleLocalization.localized("…")` 散落在视图层。
+4. **立刻执行**（写入 xcstrings 后、声称完成前）：
+   ```bash
+   bash Scripts/compile_localizations.sh
+   ```
+   该脚本会用 `xcstringstool` 或 Python 兜底生成 `.lproj`，并校验 catalog ⊆ `en.lproj`；失败则不得交付。
+5. **自测**：`grep 'your.key' Sources/.../zh-Hans.lproj/Localizable.strings` 能搜到；切换中/英界面确认不是键名。
+6. **补充测试**：`L10nTests` 增加 `XCTAssertNotEqual(L10n.…, "键名")`。
 
 ## 禁止
 
+- 只改 `L10n.swift` / 只改 `.xcstrings`，不跑 `compile_localizations.sh`
 - 只改 `en.lproj` / `zh-Hans.lproj` 的 `.strings`，不改 `.xcstrings`
-- 在 SwiftUI / AppKit 视图里写死未本地化的英文字符串（除非是代码标识符、日志）
-- 用运行时拼接的键调用 `ModuleLocalization.localized()` 却未把完整键写入 catalog
-- 合并 PR 时跳过语言切换肉眼检查
+- 依赖「用户之后会 build」而不在当前会话同步 `.lproj`
+- 无 `xcstringstool` 时以为可以跳过编译（现已有 Python 兜底，不可跳过）
 
-## 自检清单（Agent / 人工）
+## 自检清单（Agent 完成前必勾）
 
-- [ ] 每个新键都在对应模块的 `Localizable.xcstrings` 中存在
-- [ ] `en` 与 `zh-Hans` 均有 `state: translated` 的 `value`
-- [ ] `L10n.swift` 已暴露访问入口
-- [ ] `L10nTests` 已覆盖关键新键（`XCTAssertNotEqual` 键名）
-- [ ] 设置 / 菜单 / 弹窗在中文与英文下均无键名泄露
+- [ ] 新键已在对应 `Localizable.xcstrings`
+- [ ] `en` + `zh-Hans` 均有译文
+- [ ] `L10n.swift` 已暴露
+- [ ] **已运行 `bash Scripts/compile_localizations.sh` 且成功**
+- [ ] 新键已出现在 `zh-Hans.lproj/Localizable.strings`
+- [ ] `L10nTests` 覆盖关键新键
 
 ## 示例
 
 ```
-// ✅ 正确
+// ✅ 正确（且已 compile_localizations）
 Text(L10n.Settings.Shortcuts.globalToggle)
 
-// ❌ 错误：键未进 xcstrings 时会显示 settings.shortcut.global_toggle
+// ❌ 错误：键未进 xcstrings / 未编译进 .lproj → 显示 settings.shortcut.global_toggle
 Text(ModuleLocalization.localized("settings.shortcut.global_toggle", bundle: .module))
-
-// ❌ 错误：只写了 .strings，没写 xcstrings
 ```
+
+细则见 `docs/i18n-design.md` §「SPM 与 .lproj 同步」。

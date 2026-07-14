@@ -30,4 +30,10 @@ chore: 编译 String Catalog 修复界面显示键名问题
 
 ## UI 多语言文案（i18n）
 
-新增用户可见 UI 文案时，**必须**同步写入对应模块的 `Localizable.xcstrings`（`en` + `zh-Hans`），并在 `L10n.swift` 暴露访问；禁止只改 `*.lproj/Localizable.strings`。否则界面会显示语言键而非译文。细则见 `.cursor/rules/i18n-ui-strings.mdc` 与 `docs/i18n-design.md`。
+新增用户可见 UI 文案时，**必须**完成以下全部步骤，缺一不可：
+
+1. 写入对应模块的 `Localizable.xcstrings`（`en` + `zh-Hans`）
+2. 在 `L10n.swift` 暴露访问
+3. **立即执行** `bash Scripts/compile_localizations.sh`，把 catalog 同步到 `*.lproj/Localizable.strings`
+
+SPM **不会**自动编译 String Catalog。只改 `.xcstrings` / `L10n.swift` 而不同步 `.lproj`，界面会**原样显示语言键**（历史重复事故）。禁止只改 `*.lproj` 而不改 `.xcstrings`。细则见 `.cursor/rules/i18n-ui-strings.mdc` 与 `docs/i18n-design.md`。

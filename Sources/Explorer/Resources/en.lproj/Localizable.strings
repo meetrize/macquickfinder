@@ -1,2182 +1,1126 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>action.add_favorite</key>
-	<string>Add to Favorites</string>
-	<key>action.cancel</key>
-	<string>Cancel</string>
-	<key>action.compress_many %lld</key>
-	<string>Compress %lld Items</string>
-	<key>action.compress_one %@</key>
-	<string>Compress "%@"</string>
-	<key>action.copy</key>
-	<string>Copy</string>
-	<key>action.copy_filename</key>
-	<string>Copy Filename</string>
-	<key>action.copy_paths</key>
-	<string>Copy Full Path</string>
-	<key>action.cut</key>
-	<string>Cut</string>
-	<key>action.delete</key>
-	<string>Delete</string>
-	<key>action.delete_immediately</key>
-	<string>Delete Immediately</string>
-	<key>action.edit</key>
-	<string>Edit</string>
-	<key>action.empty_trash</key>
-	<string>Empty Trash</string>
-	<key>action.extract</key>
-	<string>Extract</string>
-	<key>action.extract_downloads</key>
-	<string>Extract to Downloads</string>
-	<key>action.extract_here</key>
-	<string>Extract Here</string>
-	<key>action.extract_to</key>
-	<string>Extract To…</string>
-	<key>action.ok</key>
-	<string>OK</string>
-	<key>action.open</key>
-	<string>Open</string>
-	<key>action.open_in_detached_preview</key>
-	<string>Open in Detached Preview Window</string>
-	<key>action.open_in_new_window</key>
-	<string>Open in New Window</string>
-	<key>action.open_terminal_here</key>
-	<string>Open Terminal Here</string>
-	<key>action.open_with</key>
-	<string>Open With</string>
-	<key>action.open_with_default %@</key>
-	<string>%@ (Default)</string>
-	<key>action.open_with_none</key>
-	<string>(No Available Applications)</string>
-	<key>action.open_with_other</key>
-	<string>Other…</string>
-	<key>action.paste</key>
-	<string>Paste</string>
-	<key>action.put_back</key>
-	<string>Put Back</string>
-	<key>action.refresh</key>
-	<string>Refresh</string>
-	<key>action.remove_favorite</key>
-	<string>Remove from Favorites</string>
-	<key>action.rename</key>
-	<string>Rename</string>
-	<key>action.save</key>
-	<string>Save</string>
-	<key>action.services</key>
-	<string>Services</string>
-	<key>action.show_info</key>
-	<string>Get Info</string>
-	<key>alert.confirm_delete.multiple %lld</key>
-	<string>Delete %lld items?</string>
-	<key>alert.confirm_delete.single %@</key>
-	<string>Delete "%@"?</string>
-	<key>alert.delete_immediately.message</key>
-	<string>These items will be permanently deleted and cannot be recovered.</string>
-	<key>alert.delete_immediately.multiple %lld</key>
-	<string>Delete %lld items immediately?</string>
-	<key>alert.delete_immediately.single %@</key>
-	<string>Delete "%@" immediately?</string>
-	<key>alert.delete_to_trash.message</key>
-	<string>Items will be moved to the Trash.</string>
-	<key>alert.empty_trash.message</key>
-	<string>All items in the Trash will be permanently deleted. This action cannot be undone.</string>
-	<key>alert.empty_trash.title</key>
-	<string>Empty Trash?</string>
-	<key>alert.move_blocked.already_in_destination</key>
-	<string>The item is already in this folder.</string>
-	<key>alert.move_blocked.destination_inside_source</key>
-	<string>Cannot move a folder into one of its own subfolders.</string>
-	<key>alert.move_blocked.destination_not_directory</key>
-	<string>The destination is not a folder.</string>
-	<key>alert.move_blocked.destination_unavailable</key>
-	<string>The destination folder is not available.</string>
-	<key>alert.move_blocked.same_location</key>
-	<string>The item is the destination folder itself.</string>
-	<key>alert.move_blocked.source_missing</key>
-	<string>The selected items could not be found.</string>
-	<key>alert.move_blocked.title</key>
-	<string>Cannot Move</string>
-	<key>alert.open_with.choose_app %@</key>
-	<string>Choose an app to open "%@"</string>
-	<key>alert.open_with.prompt</key>
-	<string>Open</string>
-	<key>alert.operation_failed</key>
-	<string>Operation Failed</string>
-	<key>alert.put_back_failed.multiple %lld</key>
-	<string>%lld items could not be put back.</string>
-	<key>alert.put_back_failed.single %@</key>
-	<string>"%@" has no restore record and Finder cannot recover this item.</string>
-	<key>alert.put_back_failed.title</key>
-	<string>Cannot Put Back</string>
-	<key>alert.selected_items %lld</key>
-	<string>%lld items selected</string>
-	<key>archive.error.encrypted</key>
-	<string>Encrypted archives are not supported</string>
-	<key>archive.error.unsupported</key>
-	<string>Unrecognized or unsupported archive format</string>
-	<key>archive.hint.network_slow</key>
-	<string>Archive operations on network volumes may be slow</string>
-	<key>archive.job.compress</key>
-	<string>Compress</string>
-	<key>archive.job.extract</key>
-	<string>Extract</string>
-	<key>archive.password.message %@</key>
-	<string>Enter the password to extract "%@".</string>
-	<key>archive.password.placeholder</key>
-	<string>Password</string>
-	<key>archive.password.title</key>
-	<string>Password Required</string>
-	<key>archive.status.compressing_count %lld</key>
-	<string>Compressing %lld items…</string>
-	<key>archive.status.compressing_item %@</key>
-	<string>Compressing %@…</string>
-	<key>archive.status.extracting_count %lld</key>
-	<string>Extracting %lld archives…</string>
-	<key>archive.status.extracting_item %@ %@</key>
-	<string>Extracting %@ → %@</string>
-	<key>archive.status.extracting_partial %lld %@ %@</key>
-	<string>Extracting %lld items from %@ → %@</string>
-	<key>dialog.cannot_create_file</key>
-	<string>Cannot Create File</string>
-	<key>dialog.cannot_create_file_message</key>
-	<string>Check whether the name is valid and the destination is writable.</string>
-	<key>dialog.create</key>
-	<string>Create</string>
-	<key>dialog.file_name_placeholder</key>
-	<string>File name</string>
-	<key>dialog.folder_name_placeholder</key>
-	<string>Folder name</string>
-	<key>dialog.new_file_message</key>
-	<string>Enter a name for the new file:</string>
-	<key>dialog.new_file_title</key>
-	<string>New File</string>
-	<key>dialog.new_folder_message</key>
-	<string>Enter a name for the new folder:</string>
-	<key>dialog.new_folder_title</key>
-	<string>New Folder</string>
-	<key>error.archive.empty_listing</key>
-	<string>Unable to read ZIP listing</string>
-	<key>error.archive.timed_out</key>
-	<string>Listing read timed out</string>
-	<key>error.default_image_viewer.defaults_command %lld</key>
-	<string>defaults command failed (exit code %lld).</string>
-	<key>error.default_image_viewer.launch_services %lld</key>
-	<string>Launch Services registration failed (error %lld).</string>
-	<key>error.default_image_viewer.preferences_sync</key>
-	<string>Unable to write system preferences.</string>
-	<key>error.default_image_viewer.preview_not_found</key>
-	<string>Preview.app was not found on this Mac.</string>
-	<key>error.default_preview_handler.defaults_command %lld</key>
-	<string>defaults command failed (code %lld).</string>
-	<key>error.default_preview_handler.fallback_not_found %@</key>
-	<string>Fallback app not found: %@</string>
-	<key>error.default_preview_handler.launch_services %lld</key>
-	<string>Launch Services failed (code %lld).</string>
-	<key>error.default_preview_handler.preferences_sync</key>
-	<string>Unable to write system preferences.</string>
-	<key>error.default_viewer.defaults_command %lld</key>
-	<string>System command failed (exit code %lld).</string>
-	<key>error.default_viewer.finder_not_found</key>
-	<string>Finder app not found.</string>
-	<key>error.default_viewer.launch_services %lld</key>
-	<string>Launch Services registration failed (error %lld).</string>
-	<key>error.default_viewer.preferences_sync</key>
-	<string>Unable to write system preferences.</string>
-	<key>error.directory_not_found</key>
-	<string>Directory not found</string>
-	<key>error.empty_name</key>
-	<string>Name cannot be empty</string>
-	<key>error.font.unable_to_load</key>
-	<string>Unable to load font file</string>
-	<key>error.model3d.empty_model</key>
-	<string>The 3D model file contains no geometry</string>
-	<key>error.model3d.file_too_large</key>
-	<string>The 3D model is too large to preview</string>
-	<key>error.model3d.too_many_triangles %lld</key>
-	<string>The model has too many triangles (%lld) to preview</string>
-	<key>error.model3d.unable_to_load</key>
-	<string>Unable to load 3D model file</string>
-	<key>error.image.unable_to_encode</key>
-	<string>Unable to encode image</string>
-	<key>error.image.unable_to_write</key>
-	<string>Unable to write file</string>
-	<key>error.no_permission</key>
-	<string>Permission denied</string>
-	<key>error.shell.timed_out</key>
-	<string>Command timed out</string>
-	<key>error.snippet_expansion.file_selection</key>
-	<string>A file (not a folder) must be selected</string>
-	<key>error.snippet_expansion.files_in_selection</key>
-	<string>At least one file must be selected</string>
-	<key>error.snippet_expansion.no_files</key>
-	<string>No files in selection</string>
-	<key>error.snippet_expansion.requires_selection</key>
-	<string>At least one item must be selected</string>
-	<key>error.snippet_expansion.single_selection</key>
-	<string>Exactly one item must be selected</string>
-	<key>error.snippet_import.empty_content</key>
-	<string>Content is empty</string>
-	<key>error.snippet_import.empty_name</key>
-	<string>Name is empty</string>
-	<key>error.snippet_import.invalid %@</key>
-	<string>Invalid Snippet: %@</string>
-	<key>error.snippet_import.invalid_format</key>
-	<string>Unrecognized Snippets file format</string>
-	<key>error.snippet_import.too_many</key>
-	<string>Too many items to import</string>
-	<key>error.snippet_import.unsupported_schema</key>
-	<string>Unsupported file version</string>
-	<key>error.symlink_loop</key>
-	<string>Symbolic link loop detected</string>
-	<key>file.default_new_name</key>
-	<string>untitled.txt</string>
-	<key>folder.desktop</key>
-	<string>Desktop</string>
-	<key>folder.documents</key>
-	<string>Documents</string>
-	<key>folder.downloads</key>
-	<string>Downloads</string>
-	<key>folder.home</key>
-	<string>Home</string>
-	<key>git.action.commit_and_sync</key>
-	<string>Commit &amp; Sync</string>
-	<key>git.action.commit_only</key>
-	<string>Commit Only</string>
-	<key>git.action.pull</key>
-	<string>Pull Updates</string>
-	<key>git.action.push</key>
-	<string>Push</string>
-	<key>git.action.resolve_conflict</key>
-	<string>Resolve Conflicts</string>
-	<key>git.action.sync</key>
-	<string>Sync</string>
-	<key>git.action.working</key>
-	<string>Working…</string>
-	<key>git.chip.ahead %lld</key>
-	<string>↑%lld</string>
-	<key>git.chip.behind %lld</key>
-	<string>↓%lld</string>
-	<key>git.commit.ai_tooltip</key>
-	<string>AI commit message (coming soon)</string>
-	<key>git.commit.generated_directory %@ %lld</key>
-	<string>Update %lld files under %@</string>
-	<key>git.commit.generated_files %lld</key>
-	<string>Update %lld files</string>
-	<key>git.commit.large_message</key>
-	<string>This will stage and commit a large number of files.</string>
-	<key>git.commit.large_title %lld</key>
-	<string>Commit %lld files?</string>
-	<key>git.commit.placeholder</key>
-	<string>Commit message</string>
-	<key>git.commit.scope_all</key>
-	<string>All changes will be committed</string>
-	<key>git.empty.init_repo</key>
-	<string>Initialize Repository</string>
-	<key>git.empty.not_repo</key>
-	<string>Not a Git repository</string>
-	<key>git.error.cancelled</key>
-	<string>Git operation cancelled</string>
-	<key>git.error.executable_not_found</key>
-	<string>Git is not installed or could not be found</string>
-	<key>git.error.conflict</key>
-	<string>Resolve merge conflicts first</string>
-	<key>git.error.empty_commit_message</key>
-	<string>Enter a commit message</string>
-	<key>git.error.no_upstream</key>
-	<string>No upstream branch configured</string>
-	<key>git.error.pull_with_dirty</key>
-	<string>Commit or stash changes before pulling</string>
-	<key>git.history.empty</key>
-	<string>No commits yet</string>
-	<key>git.history.title</key>
-	<string>Recent Commits</string>
-	<key>git.job.commit</key>
-	<string>Git: Commit</string>
-	<key>git.job.init</key>
-	<string>Git: Initialize Repository</string>
-	<key>git.job.pull</key>
-	<string>Git: Pull</string>
-	<key>git.job.push</key>
-	<string>Git: Push</string>
-	<key>git.job.stage</key>
-	<string>Git: Stage Changes</string>
-	<key>git.job.sync</key>
-	<string>Git: Sync</string>
-	<key>git.panel.close</key>
-	<string>Close Git Panel</string>
-	<key>git.panel.collapse</key>
-	<string>Collapse</string>
-	<key>git.panel.expand</key>
-	<string>Expand</string>
-	<key>git.panel.placeholder</key>
-	<string>Git status and sync will appear here.</string>
-	<key>git.panel.refresh</key>
-	<string>Refresh Status</string>
-	<key>git.panel.configure_git</key>
-	<string>Configure Git</string>
-	<key>git.panel.configure_git_hint</key>
-	<string>Install Git via Xcode Command Line Tools or Homebrew, then choose the git executable in Settings.</string>
-	<key>git.panel.title</key>
-	<string>Git</string>
-	<key>git.status.ahead %lld</key>
-	<string>%lld commits ahead of remote</string>
-	<key>git.status.behind %lld</key>
-	<string>%lld commits behind remote</string>
-	<key>git.status.changes %lld</key>
-	<string>%lld changes</string>
-	<key>git.status.clean</key>
-	<string>Working tree clean and synced</string>
-	<key>git.status.conflict</key>
-	<string>Merge conflicts detected</string>
-	<key>git.status.dirty %lld</key>
-	<string>%lld files to commit</string>
-	<key>git.status.more_changes %lld</key>
-	<string>%lld more…</string>
-	<key>git.status.pending_commit</key>
-	<string>Pending commit</string>
-	<key>help.cheat_sheet_menu</key>
-	<string>Cheat Sheet</string>
-	<key>help.column.description</key>
-	<string>Description</string>
-	<key>help.column.feature</key>
-	<string>Feature</string>
-	<key>help.column.shortcut</key>
-	<string>Shortcut</string>
-	<key>help.entry.add_favorite.desc</key>
-	<string>Add a folder to sidebar Favorites</string>
-	<key>help.entry.add_favorite.name</key>
-	<string>Add to Favorites</string>
-	<key>help.entry.add_favorite.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.archive.desc</key>
-	<string>Browse file listings inside ZIP, TAR, and similar archives</string>
-	<key>help.entry.archive.name</key>
-	<string>Archives</string>
-	<key>help.entry.archive.shortcut</key>
-	<string></string>
-	<key>help.entry.automation.desc</key>
-	<string>Needed to read Trash and control Terminal</string>
-	<key>help.entry.automation.name</key>
-	<string>Automation</string>
-	<key>help.entry.automation.shortcut</key>
-	<string></string>
-	<key>help.entry.back_forward.desc</key>
-	<string>Navigate through browsing history</string>
-	<key>help.entry.back_forward.name</key>
-	<string>Back / Forward</string>
-	<key>help.entry.back_forward.shortcut</key>
-	<string>⌘[ / ⌘]</string>
-	<key>help.entry.blank_double_click.desc</key>
-	<string>Go to parent folder or open Terminal here (Settings)</string>
-	<key>help.entry.blank_double_click.name</key>
-	<string>Blank Double-Click</string>
-	<key>help.entry.blank_double_click.shortcut</key>
-	<string>Settings</string>
-	<key>help.entry.builtin_snippets.desc</key>
-	<string>List directory, copy path, open Terminal, and more out of the box</string>
-	<key>help.entry.builtin_snippets.name</key>
-	<string>Built-in Snippets</string>
-	<key>help.entry.builtin_snippets.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.command_box.desc</key>
-	<string>Run zsh commands in the current directory synced to the path bar</string>
-	<key>help.entry.command_box.name</key>
-	<string>Command Box</string>
-	<key>help.entry.command_box.shortcut</key>
-	<string>Return</string>
-	<key>help.entry.command_history.desc</key>
-	<string>Up arrow recalls previous commands</string>
-	<key>help.entry.command_history.name</key>
-	<string>Command History</string>
-	<key>help.entry.command_history.shortcut</key>
-	<string>↑</string>
-	<key>help.entry.connect_server.desc</key>
-	<string>Connect SMB, AFP, or FTP shares; mounted volumes appear in Devices</string>
-	<key>help.entry.connect_server.name</key>
-	<string>Connect to Server</string>
-	<key>help.entry.connect_server.shortcut</key>
-	<string>⌘K</string>
-	<key>help.entry.content_search.desc</key>
-	<string>Search file contents in the current folder</string>
-	<key>help.entry.content_search.name</key>
-	<string>Find in Folder</string>
-	<key>help.entry.content_search.shortcut</key>
-	<string>⌘⇧F</string>
-	<key>help.entry.copy_clear.desc</key>
-	<string>Copy all output or clear the current tab</string>
-	<key>help.entry.copy_clear.name</key>
-	<string>Copy / Clear</string>
-	<key>help.entry.copy_clear.shortcut</key>
-	<string></string>
-	<key>help.entry.copy_name_path.desc</key>
-	<string>Copy filename or full path to the clipboard</string>
-	<key>help.entry.copy_name_path.name</key>
-	<string>Copy Name / Path</string>
-	<key>help.entry.copy_name_path.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.create_edit.desc</key>
-	<string>Shell, Python, AppleScript, and other script types</string>
-	<key>help.entry.create_edit.name</key>
-	<string>Create / Edit</string>
-	<key>help.entry.create_edit.shortcut</key>
-	<string></string>
-	<key>help.entry.custom_preview_rules.desc</key>
-	<string>Assign preview modes by extension; import and export rules</string>
-	<key>help.entry.custom_preview_rules.name</key>
-	<string>Custom Preview Rules</string>
-	<key>help.entry.custom_preview_rules.shortcut</key>
-	<string>Settings</string>
-	<key>help.entry.cut_copy_paste.desc</key>
-	<string>Standard file clipboard operations</string>
-	<key>help.entry.cut_copy_paste.name</key>
-	<string>Cut / Copy / Paste</string>
-	<key>help.entry.cut_copy_paste.shortcut</key>
-	<string>⌘X / ⌘C / ⌘V</string>
-	<key>help.entry.default_file_manager.desc</key>
-	<string>Set MeoFind as the system default for opening folders</string>
-	<key>help.entry.default_file_manager.name</key>
-	<string>Default File Manager</string>
-	<key>help.entry.default_file_manager.shortcut</key>
-	<string>Settings</string>
-	<key>help.entry.delete.desc</key>
-	<string>Move selected items to Trash</string>
-	<key>help.entry.delete.name</key>
-	<string>Delete</string>
-	<key>help.entry.delete.shortcut</key>
-	<string>Delete</string>
-	<key>help.entry.delete_immediately.desc</key>
-	<string>Permanently delete from Trash, bypassing Trash</string>
-	<key>help.entry.delete_immediately.name</key>
-	<string>Delete Immediately</string>
-	<key>help.entry.delete_immediately.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.detach_preview.desc</key>
-	<string>Pop preview into its own window; list stays in the main window</string>
-	<key>help.entry.detach_preview.name</key>
-	<string>Detached Preview</string>
-	<key>help.entry.detach_preview.shortcut</key>
-	<string>⌘⌥P</string>
-	<key>help.entry.devices.desc</key>
-	<string>Shows mounted disks, removable drives, and network shares; eject supported</string>
-	<key>help.entry.devices.name</key>
-	<string>Devices</string>
-	<key>help.entry.devices.shortcut</key>
-	<string></string>
-	<key>help.entry.double_click_open.desc</key>
-	<string>Open folders or files with the default app</string>
-	<key>help.entry.double_click_open.name</key>
-	<string>Double-Click Open</string>
-	<key>help.entry.double_click_open.shortcut</key>
-	<string>Double-click</string>
-	<key>help.entry.drag_drop_open.desc</key>
-	<string>Drop files or folders into the window to navigate</string>
-	<key>help.entry.drag_drop_open.name</key>
-	<string>Drag &amp; Drop</string>
-	<key>help.entry.drag_drop_open.shortcut</key>
-	<string></string>
-	<key>help.entry.empty_trash.desc</key>
-	<string>Permanently erase all items in Trash</string>
-	<key>help.entry.empty_trash.name</key>
-	<string>Empty Trash</string>
-	<key>help.entry.empty_trash.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.external_open.desc</key>
-	<string>Open from Finder or as the default file manager</string>
-	<key>help.entry.external_open.name</key>
-	<string>Open Externally</string>
-	<key>help.entry.external_open.shortcut</key>
-	<string></string>
-	<key>help.entry.favorites.desc</key>
-	<string>Pin frequent folders; add or remove via context menu</string>
-	<key>help.entry.favorites.name</key>
-	<string>Favorites</string>
-	<key>help.entry.favorites.shortcut</key>
-	<string></string>
-	<key>help.entry.file_list.desc</key>
-	<string>Browse files and folders in list or thumbnail view</string>
-	<key>help.entry.file_list.name</key>
-	<string>File List</string>
-	<key>help.entry.file_list.shortcut</key>
-	<string></string>
-	<key>help.entry.file_preview.desc</key>
-	<string>Live preview in the right panel without leaving the browser</string>
-	<key>help.entry.file_preview.name</key>
-	<string>File Preview</string>
-	<key>help.entry.file_preview.shortcut</key>
-	<string></string>
-	<key>help.entry.full_disk_access.desc</key>
-	<string>Required in System Settings to browse protected locations</string>
-	<key>help.entry.full_disk_access.name</key>
-	<string>Full Disk Access</string>
-	<key>help.entry.full_disk_access.shortcut</key>
-	<string></string>
-	<key>help.entry.global_search.desc</key>
-	<string>Focus toolbar search to filter by filename</string>
-	<key>help.entry.global_search.name</key>
-	<string>Search Field</string>
-	<key>help.entry.global_search.shortcut</key>
-	<string>⌘F</string>
-	<key>help.entry.image.desc</key>
-	<string>Zoom, rotate, flip, eyedropper, basic edit and save</string>
-	<key>help.entry.image.name</key>
-	<string>Images</string>
-	<key>help.entry.image.shortcut</key>
-	<string>Preview toolbar</string>
-	<key>help.entry.import_export.desc</key>
-	<string>Back up or restore single snippets or the full JSON library</string>
-	<key>help.entry.import_export.name</key>
-	<string>Import / Export</string>
-	<key>help.entry.import_export.shortcut</key>
-	<string>Menu</string>
-	<key>help.entry.in_preview_search.desc</key>
-	<string>Find and highlight matches inside preview content</string>
-	<key>help.entry.in_preview_search.name</key>
-	<string>In-Preview Search</string>
-	<key>help.entry.in_preview_search.shortcut</key>
-	<string>Preview toolbar</string>
-	<key>help.entry.job_tabs.desc</key>
-	<string>Each run gets a tab; multiple jobs can run in parallel</string>
-	<key>help.entry.job_tabs.name</key>
-	<string>Job Tabs</string>
-	<key>help.entry.job_tabs.shortcut</key>
-	<string></string>
-	<key>help.entry.list_view.desc</key>
-	<string>Table with name, type, size, dates; click headers to sort</string>
-	<key>help.entry.list_view.name</key>
-	<string>List View</string>
-	<key>help.entry.list_view.shortcut</key>
-	<string>Toolbar</string>
-	<key>help.entry.locations.desc</key>
-	<string>Quick access to Home, Desktop, Documents, Downloads, etc.</string>
-	<key>help.entry.locations.name</key>
-	<string>Locations</string>
-	<key>help.entry.locations.shortcut</key>
-	<string></string>
-	<key>help.entry.markdown_html.desc</key>
-	<string>Switch between source and rendered modes</string>
-	<key>help.entry.markdown_html.name</key>
-	<string>Markdown / HTML</string>
-	<key>help.entry.markdown_html.shortcut</key>
-	<string>Preview toolbar</string>
-	<key>help.entry.media.desc</key>
-	<string>Play, pause, mute</string>
-	<key>help.entry.media.name</key>
-	<string>Audio / Video</string>
-	<key>help.entry.media.shortcut</key>
-	<string>Preview toolbar</string>
-	<key>help.entry.multi_window.desc</key>
-	<string>Open folders in separate windows</string>
-	<key>help.entry.multi_window.name</key>
-	<string>Multiple Windows</string>
-	<key>help.entry.multi_window.shortcut</key>
-	<string></string>
-	<key>help.entry.new_folder_file.desc</key>
-	<string>Create a new folder or file in the current directory</string>
-	<key>help.entry.new_folder_file.name</key>
-	<string>New Folder / File</string>
-	<key>help.entry.new_folder_file.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.open.desc</key>
-	<string>Open files or enter folders with the default handler</string>
-	<key>help.entry.open.name</key>
-	<string>Open</string>
-	<key>help.entry.open.shortcut</key>
-	<string>Return</string>
-	<key>help.entry.open_new_window.desc</key>
-	<string>Open a folder in a separate window</string>
-	<key>help.entry.open_new_window.name</key>
-	<string>Open in New Window</string>
-	<key>help.entry.open_new_window.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.open_terminal.desc</key>
-	<string>Launch the system Terminal in the selected folder</string>
-	<key>help.entry.open_terminal.name</key>
-	<string>Open Terminal Here</string>
-	<key>help.entry.open_terminal.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.open_with.desc</key>
-	<string>Choose another app to open a file</string>
-	<key>help.entry.open_with.name</key>
-	<string>Open With</string>
-	<key>help.entry.open_with.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.operation_recording.desc</key>
-	<string>Record file operations in the toolbar, then review and save as a Snippet</string>
-	<key>help.entry.operation_recording.name</key>
-	<string>Operation Recording</string>
-	<key>help.entry.operation_recording.shortcut</key>
-	<string>Toolbar</string>
-	<key>help.entry.output_find.desc</key>
-	<string>Search and highlight matches in output text</string>
-	<key>help.entry.output_find.name</key>
-	<string>Find in Output</string>
-	<key>help.entry.output_find.shortcut</key>
-	<string></string>
-	<key>help.entry.output_panel.desc</key>
-	<string>Script output and an interactive command line at the bottom</string>
-	<key>help.entry.output_panel.name</key>
-	<string>Output Panel</string>
-	<key>help.entry.output_panel.shortcut</key>
-	<string>⌘J</string>
-	<key>help.entry.panel_height.desc</key>
-	<string>Drag the splitter between Preview and Snippets</string>
-	<key>help.entry.panel_height.name</key>
-	<string>Panel Height</string>
-	<key>help.entry.panel_height.shortcut</key>
-	<string>Drag</string>
-	<key>help.entry.panel_width.desc</key>
-	<string>Drag the splitter between the file list and right panel</string>
-	<key>help.entry.panel_width.name</key>
-	<string>Panel Width</string>
-	<key>help.entry.panel_width.shortcut</key>
-	<string>Drag</string>
-	<key>help.entry.path_breadcrumb.desc</key>
-	<string>Click segments to jump; middle segments collapse when space is tight</string>
-	<key>help.entry.path_breadcrumb.name</key>
-	<string>Path Breadcrumb</string>
-	<key>help.entry.path_breadcrumb.shortcut</key>
-	<string></string>
-	<key>help.entry.path_edit.desc</key>
-	<string>Click the path bar to type or paste a full path</string>
-	<key>help.entry.path_edit.name</key>
-	<string>Path Editing</string>
-	<key>help.entry.path_edit.shortcut</key>
-	<string></string>
-	<key>help.entry.path_history.desc</key>
-	<string>Drop down to see recently visited folders</string>
-	<key>help.entry.path_history.name</key>
-	<string>Path History</string>
-	<key>help.entry.path_history.shortcut</key>
-	<string></string>
-	<key>help.entry.pdf.desc</key>
-	<string>Page through, zoom, fit width or page</string>
-	<key>help.entry.pdf.name</key>
-	<string>PDF</string>
-	<key>help.entry.pdf.shortcut</key>
-	<string>Preview toolbar</string>
-	<key>help.entry.preview_browser.desc</key>
-	<string>Filmstrip at the bottom to browse files in the current folder</string>
-	<key>help.entry.preview_browser.name</key>
-	<string>Preview Browser</string>
-	<key>help.entry.preview_browser.shortcut</key>
-	<string>⌘⌥B</string>
-	<key>help.entry.put_back.desc</key>
-	<string>Restore items from Trash to their original location</string>
-	<key>help.entry.put_back.name</key>
-	<string>Put Back</string>
-	<key>help.entry.put_back.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.quick_look.desc</key>
-	<string>Fall back to system Quick Look for unsupported types</string>
-	<key>help.entry.quick_look.name</key>
-	<string>Quick Look</string>
-	<key>help.entry.quick_look.shortcut</key>
-	<string></string>
-	<key>help.entry.quick_search.desc</key>
-	<string>Type to filter the list; Tab cycles matches and syncs preview</string>
-	<key>help.entry.quick_search.name</key>
-	<string>Quick Search</string>
-	<key>help.entry.quick_search.shortcut</key>
-	<string>Type</string>
-	<key>help.entry.recent_servers.desc</key>
-	<string>Quickly reconnect from the list in the connect dialog</string>
-	<key>help.entry.recent_servers.name</key>
-	<string>Recent Servers</string>
-	<key>help.entry.recent_servers.shortcut</key>
-	<string></string>
-	<key>help.entry.rename.desc</key>
-	<string>Click the name again or use the context menu</string>
-	<key>help.entry.rename.name</key>
-	<string>Rename</string>
-	<key>help.entry.rename.shortcut</key>
-	<string></string>
-	<key>help.entry.run_snippet.desc</key>
-	<string>Search, arrow keys, Return or double-click to run</string>
-	<key>help.entry.run_snippet.name</key>
-	<string>Run Snippet</string>
-	<key>help.entry.run_snippet.shortcut</key>
-	<string></string>
-	<key>help.entry.scope.desc</key>
-	<string>Limit when a snippet appears by context, type, or path</string>
-	<key>help.entry.scope.name</key>
-	<string>Scope</string>
-	<key>help.entry.scope.shortcut</key>
-	<string></string>
-	<key>help.entry.services.desc</key>
-	<string>Invoke macOS Services menu actions</string>
-	<key>help.entry.services.name</key>
-	<string>Services</string>
-	<key>help.entry.services.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.settings_general.desc</key>
-	<string>Blank double-click, window snap, interface language</string>
-	<key>help.entry.settings_general.name</key>
-	<string>General</string>
-	<key>help.entry.settings_general.shortcut</key>
-	<string>⌘,</string>
-	<key>help.entry.settings_preview.desc</key>
-	<string>Line numbers, detached browsing, custom file-type rules</string>
-	<key>help.entry.settings_preview.name</key>
-	<string>Preview</string>
-	<key>help.entry.settings_preview.shortcut</key>
-	<string>Settings</string>
-	<key>help.entry.settings_snippets.desc</key>
-	<string>Display mode, pin recent, auto-show output, concurrency limit</string>
-	<key>help.entry.settings_snippets.name</key>
-	<string>Snippets</string>
-	<key>help.entry.settings_snippets.shortcut</key>
-	<string>Settings</string>
-	<key>help.entry.show_info.desc</key>
-	<string>Separate window with size, permissions, tags, comments, etc.</string>
-	<key>help.entry.show_info.name</key>
-	<string>Get Info</string>
-	<key>help.entry.show_info.shortcut</key>
-	<string>Right-click</string>
-	<key>help.entry.snippets_panel.desc</key>
-	<string>Reusable scripts in the right panel, filtered by context</string>
-	<key>help.entry.snippets_panel.name</key>
-	<string>Snippets Panel</string>
-	<key>help.entry.snippets_panel.shortcut</key>
-	<string>⌘⇧S</string>
-	<key>help.entry.spreadsheet.desc</key>
-	<string>Switch between text mode and Quick Look preview</string>
-	<key>help.entry.spreadsheet.name</key>
-	<string>Spreadsheets</string>
-	<key>help.entry.spreadsheet.shortcut</key>
-	<string>Preview toolbar</string>
-	<key>help.entry.stop_task.desc</key>
-	<string>Press Ctrl+C or click Stop while a job is running</string>
-	<key>help.entry.stop_task.name</key>
-	<string>Stop Task</string>
-	<key>help.entry.stop_task.shortcut</key>
-	<string>⌃C</string>
-	<key>help.entry.text_code.desc</key>
-	<string>Syntax highlighting, line numbers, wrap, zoom, in-preview search</string>
-	<key>help.entry.text_code.name</key>
-	<string>Text / Code</string>
-	<key>help.entry.text_code.shortcut</key>
-	<string>Preview toolbar</string>
-	<key>help.entry.thumbnail_view.desc</key>
-	<string>Icon grid; drag slider to resize thumbnails</string>
-	<key>help.entry.thumbnail_view.name</key>
-	<string>Thumbnail View</string>
-	<key>help.entry.thumbnail_view.shortcut</key>
-	<string>Toolbar</string>
-	<key>help.entry.toggle_left_panel.desc</key>
-	<string>Show or hide the sidebar</string>
-	<key>help.entry.toggle_left_panel.name</key>
-	<string>Left Panel</string>
-	<key>help.entry.toggle_left_panel.shortcut</key>
-	<string>⌘B</string>
-	<key>help.entry.toggle_right_panel.desc</key>
-	<string>Show or hide the preview and Snippets column</string>
-	<key>help.entry.toggle_right_panel.name</key>
-	<string>Right Panel</string>
-	<key>help.entry.toggle_right_panel.shortcut</key>
-	<string>⌘⇧B</string>
-	<key>help.entry.toolbar_customize.desc</key>
-	<string>Right-click the toolbar to add, remove, and reorder buttons; click Done to save</string>
-	<key>help.entry.toolbar_customize.name</key>
-	<string>Customize Toolbar</string>
-	<key>help.entry.toolbar_customize.shortcut</key>
-	<string>Right-click toolbar</string>
-	<key>help.entry.toolbar_delete.desc</key>
-	<string>Move selected items to Trash from the toolbar delete button</string>
-	<key>help.entry.toolbar_delete.name</key>
-	<string>Toolbar Delete</string>
-	<key>help.entry.toolbar_delete.shortcut</key>
-	<string></string>
-	<key>help.entry.toolbar_open_app.desc</key>
-	<string>Add a custom button to launch an app with selected files or the current folder</string>
-	<key>help.entry.toolbar_open_app.name</key>
-	<string>Open With App</string>
-	<key>help.entry.toolbar_open_app.shortcut</key>
-	<string>Customize panel +</string>
-	<key>help.entry.trash.desc</key>
-	<string>Browse deleted items; put back or empty trash</string>
-	<key>help.entry.trash.name</key>
-	<string>Trash</string>
-	<key>help.entry.trash.shortcut</key>
-	<string></string>
-	<key>help.entry.variables.desc</key>
-	<string>%p (path), %d (directory), and more are expanded at run time</string>
-	<key>help.entry.variables.name</key>
-	<string>Variable Expansion</string>
-	<key>help.entry.variables.shortcut</key>
-	<string></string>
-	<key>help.entry.window_snap.desc</key>
-	<string>Drag a window to the screen edge to snap half or full screen</string>
-	<key>help.entry.window_snap.name</key>
-	<string>Window Snap</string>
-	<key>help.entry.window_snap.shortcut</key>
-	<string>Settings</string>
-	<key>help.no_shortcut</key>
-	<string>—</string>
-	<key>help.section.files</key>
-	<string>File Actions</string>
-	<key>help.section.layout</key>
-	<string>Window &amp; Layout</string>
-	<key>help.section.navigation</key>
-	<string>Browse &amp; Navigate</string>
-	<key>help.section.output</key>
-	<string>Output Panel</string>
-	<key>help.section.permissions</key>
-	<string>Permissions</string>
-	<key>help.section.preview</key>
-	<string>Preview</string>
-	<key>help.section.remote_server</key>
-	<string>Remote Server</string>
-	<key>help.section.settings</key>
-	<string>Settings</string>
-	<key>help.section.sidebar</key>
-	<string>Sidebar</string>
-	<key>help.section.snippets</key>
-	<string>Snippets</string>
-	<key>help.section.toolbar</key>
-	<string>Toolbar</string>
-	<key>help.subtitle</key>
-	<string>A quick overview of what MeoFind can do</string>
-	<key>help.window_title</key>
-	<string>MeoFind Cheat Sheet</string>
-	<key>info.access.executable</key>
-	<string>executable</string>
-	<key>info.access.label</key>
-	<string>Access:</string>
-	<key>info.access.readable</key>
-	<string>readable</string>
-	<key>info.access.writable</key>
-	<string>writable</string>
-	<key>info.bullet_item %@ %@ %@</key>
-	<string>• %@ (%@, %@)</string>
-	<key>info.created %@</key>
-	<string>Created: %@</string>
-	<key>info.ellipsis</key>
-	<string>…</string>
-	<key>info.hidden %@</key>
-	<string>Hidden: %@</string>
-	<key>info.hidden.label</key>
-	<string>Hidden:</string>
-	<key>info.kind.extension_file %@</key>
-	<string>Kind: %@ file</string>
-	<key>info.kind.file</key>
-	<string>Kind: File</string>
-	<key>info.kind.file_short</key>
-	<string>file</string>
-	<key>info.kind.folder</key>
-	<string>Kind: Folder</string>
-	<key>info.kind.folder_short</key>
-	<string>folder</string>
-	<key>info.location %@</key>
-	<string>Location: %@</string>
-	<key>info.modified %@</key>
-	<string>Modified: %@</string>
-	<key>info.no</key>
-	<string>No</string>
-	<key>info.path %@</key>
-	<string>Path: %@</string>
-	<key>info.path.label</key>
-	<string>Path:</string>
-	<key>info.permissions %@ %@</key>
-	<string>Permissions: %@ (%@)</string>
-	<key>info.size %@</key>
-	<string>Size: %@</string>
-	<key>info.type_identifier %@</key>
-	<string>Type identifier: %@</string>
-	<key>info.yes</key>
-	<string>Yes</string>
-	<key>menu.collapse_strip</key>
-	<string>Collapse Filmstrip</string>
-	<key>menu.expand_strip</key>
-	<string>Expand Filmstrip</string>
-	<key>menu.export_snippets</key>
-	<string>Export All Snippets…</string>
-	<key>menu.go</key>
-	<string>Go</string>
-	<key>menu.hide_git</key>
-	<string>Hide Git Panel</string>
-	<key>menu.hide_output</key>
-	<string>Hide Output Panel</string>
-	<key>menu.hide_preview</key>
-	<string>Hide Preview</string>
-	<key>menu.hide_snippets</key>
-	<string>Hide Snippets</string>
-	<key>menu.import_snippets</key>
-	<string>Import Snippets…</string>
-	<key>menu.next_preview</key>
-	<string>Next Preview</string>
-	<key>menu.open_preview_detached</key>
-	<string>Open Preview in Separate Window</string>
-	<key>menu.previous_preview</key>
-	<string>Previous Preview</string>
-	<key>menu.reattach_preview</key>
-	<string>Move Preview Back to Sidebar</string>
-	<key>menu.show_git</key>
-	<string>Show Git Panel</string>
-	<key>menu.show_output</key>
-	<string>Show Output Panel</string>
-	<key>menu.show_preview</key>
-	<string>Show Preview</string>
-	<key>menu.show_snippets</key>
-	<string>Show Snippets</string>
-	<key>menu.toggle_left_panel</key>
-	<string>Toggle Left Panel</string>
-	<key>menu.toggle_right_panel</key>
-	<string>Toggle Right Panel</string>
-	<key>operation_recording.banner.discard</key>
-	<string>Discard</string>
-	<key>operation_recording.banner.message</key>
-	<string>Recording operations · %lld steps</string>
-	<key>operation_recording.banner.stop</key>
-	<string>Stop and Review</string>
-	<key>operation_recording.close_while_recording.discard</key>
-	<string>Discard Recording</string>
-	<key>operation_recording.close_while_recording.message</key>
-	<string>This window is closing while operation recording is active.</string>
-	<key>operation_recording.close_while_recording.stop</key>
-	<string>Stop and Review</string>
-	<key>operation_recording.close_while_recording.title</key>
-	<string>Stop recording?</string>
-	<key>operation_recording.copy_script</key>
-	<string>Copy Script</string>
-	<key>operation_recording.create_snippet</key>
-	<string>Create Snippet…</string>
-	<key>operation_recording.default_snippet_name</key>
-	<string>Recorded Snippet</string>
-	<key>operation_recording.discard_confirm.message</key>
-	<string>Recorded steps will be lost and cannot be recovered.</string>
-	<key>operation_recording.discard_confirm.title</key>
-	<string>Discard recording?</string>
-	<key>operation_recording.discarded</key>
-	<string>Recording discarded</string>
-	<key>operation_recording.generalize_paths</key>
-	<string>Generalize paths to Snippet variables</string>
-	<key>operation_recording.no_steps</key>
-	<string>No file operations were recorded</string>
-	<key>operation_recording.preview_label</key>
-	<string>Script preview</string>
-	<key>operation_recording.recording_name</key>
-	<string>Recording · %@</string>
-	<key>operation_recording.review_subtitle</key>
-	<string>%lld steps recorded at %@</string>
-	<key>operation_recording.review_title</key>
-	<string>Create Snippet from Recording</string>
-	<key>operation_recording.scope_suggestion</key>
-	<string>Suggested scope: %@</string>
-	<key>operation_recording.script_copied</key>
-	<string>Shell script copied (%lld steps)</string>
-	<key>operation_recording.security.chmod_777</key>
-	<string>Contains permissive permissions (chmod 777).</string>
-	<key>operation_recording.security.chmod_777_recursive</key>
-	<string>Contains recursive permissive permissions (chmod -R 777).</string>
-	<key>operation_recording.security.curl_pipe</key>
-	<string>Pipes curl output into another command, which can execute remote code.</string>
-	<key>operation_recording.security.dd</key>
-	<string>Contains low-level disk write (dd).</string>
-	<key>operation_recording.security.eval</key>
-	<string>Contains dynamic evaluation (eval).</string>
-	<key>operation_recording.security.mkfs</key>
-	<string>Contains filesystem formatting (mkfs).</string>
-	<key>operation_recording.security.mv</key>
-	<string>Contains move/rename commands (mv), which can overwrite files.</string>
-	<key>operation_recording.security.rm</key>
-	<string>Contains delete commands (rm).</string>
-	<key>operation_recording.security.rm_r</key>
-	<string>Contains recursive delete (rm -r).</string>
-	<key>operation_recording.security.rm_rf</key>
-	<string>Contains recursive delete (rm -rf), which may permanently remove files.</string>
-	<key>operation_recording.security.sudo</key>
-	<string>Contains elevated privileges (sudo).</string>
-	<key>operation_recording.security.wget_pipe</key>
-	<string>Pipes wget output into another command, which can execute remote code.</string>
-	<key>operation_recording.security.write_dev</key>
-	<string>Writes directly to a device node under /dev/.</string>
-	<key>operation_recording.short.clipboard</key>
-	<string>Clipboard</string>
-	<key>operation_recording.short.compress</key>
-	<string>Compress</string>
-	<key>operation_recording.short.copy</key>
-	<string>Copy</string>
-	<key>operation_recording.short.delete</key>
-	<string>Delete</string>
-	<key>operation_recording.short.extract</key>
-	<string>Extract</string>
-	<key>operation_recording.short.move</key>
-	<string>Move</string>
-	<key>operation_recording.short.new_file</key>
-	<string>New file</string>
-	<key>operation_recording.short.new_folder</key>
-	<string>New folder</string>
-	<key>operation_recording.short.rename</key>
-	<string>Rename</string>
-	<key>operation_recording.snippet_saved</key>
-	<string>Snippet saved: %@</string>
-	<key>operation_recording.step.compress</key>
-	<string>Compress %lld item(s) to %@</string>
-	<key>operation_recording.step.copy</key>
-	<string>Copy %lld item(s)</string>
-	<key>operation_recording.step.create_directory</key>
-	<string>Create folder %@</string>
-	<key>operation_recording.step.create_file</key>
-	<string>Create file %@</string>
-	<key>operation_recording.step.cut</key>
-	<string>Cut %lld item(s)</string>
-	<key>operation_recording.step.delete_immediately</key>
-	<string>Delete %lld item(s) immediately</string>
-	<key>operation_recording.step.drag_copy</key>
-	<string>Drag-copy %lld item(s) to %@</string>
-	<key>operation_recording.step.drag_move</key>
-	<string>Drag-move %lld item(s) to %@</string>
-	<key>operation_recording.step.extract</key>
-	<string>Extract %@ to %@</string>
-	<key>operation_recording.step.paste_copy</key>
-	<string>Paste %lld item(s) to %@</string>
-	<key>operation_recording.step.paste_move</key>
-	<string>Move %lld item(s) to %@</string>
-	<key>operation_recording.step.rename</key>
-	<string>Rename to %@</string>
-	<key>operation_recording.step.trash</key>
-	<string>Move %lld item(s) to Trash</string>
-	<key>operation_recording.test_script</key>
-	<string>Test</string>
-	<key>operation_recording.trash_warning</key>
-	<string>Recorded in Trash: generated scripts may not replay correctly outside Trash.</string>
-	<key>operation_recording.validation.empty</key>
-	<string>Script is empty.</string>
-	<key>operation_recording.validation.invalid_shell</key>
-	<string>Shell syntax check failed.</string>
-	<key>operation_recording.validation.passed</key>
-	<string>Script syntax and variables look good.</string>
-	<key>operation_recording.validation.shell_syntax</key>
-	<string>Shell syntax error: %@</string>
-	<key>operation_recording.validation.unsupported_variable</key>
-	<string>Unsupported variable: %@</string>
-	<key>operation_recording.validation.variable_expansion</key>
-	<string>Variable expansion failed: %@</string>
-	<key>operation_recording.variables_footer</key>
-	<string>When generalization is on, paths may become %p, %d, %n, %b, etc. Edit the preview before saving if needed.</string>
-	<key>operation_recording.variables_title</key>
-	<string>Snippet Variable Reference</string>
-	<key>pathbar.back</key>
-	<string>Back</string>
-	<key>pathbar.clear</key>
-	<string>Clear</string>
-	<key>pathbar.commit</key>
-	<string>Go to path</string>
-	<key>pathbar.edit</key>
-	<string>Click to edit full path</string>
-	<key>pathbar.forward</key>
-	<string>Forward</string>
-	<key>pathbar.history</key>
-	<string>Recent paths</string>
-	<key>pathbar.no_subdirs</key>
-	<string>No subfolders</string>
-	<key>pathbar.parent</key>
-	<string>Show parent path</string>
-	<key>pathbar.select_all</key>
-	<string>Click to select full path</string>
-	<key>pathbar.subdirs</key>
-	<string>Show subdirectories</string>
-	<key>permission.automation.message</key>
-	<string>MeoFind needs permission to control Finder to show Trash contents.
+/* Generated from Localizable.xcstrings — do not edit by hand; run Scripts/compile_localizations.sh */
 
-In System Settings → Privacy &amp; Security → Automation, allow MeoFind to control Finder.</string>
-	<key>permission.automation.open_settings</key>
-	<string>Open System Settings</string>
-	<key>permission.automation.title</key>
-	<string>Automation Permission Required</string>
-	<key>permission.fda.detected</key>
-	<string>Full Disk Access detected. Restart the app to finish enabling it.</string>
-	<key>permission.fda.later</key>
-	<string>Later</string>
-	<key>permission.fda.message</key>
-	<string>MeoFind needs this permission to browse all files and folders on your system.</string>
-	<key>permission.fda.not_detected</key>
-	<string>Permission not detected yet. Make sure this app is enabled in System Settings.</string>
-	<key>permission.fda.open_settings</key>
-	<string>Open System Settings</string>
-	<key>permission.fda.restart_app</key>
-	<string>Restart App</string>
-	<key>permission.fda.step1</key>
-	<string>Click Open System Settings below.</string>
-	<key>permission.fda.step2 %@</key>
-	<string>In Privacy &amp; Security → Full Disk Access, turn on %@.</string>
-	<key>permission.fda.step3</key>
-	<string>Return to this app and click Restart App to apply the permission.</string>
-	<key>permission.fda.title</key>
-	<string>Full Disk Access Required</string>
-	<key>panorama.collapse_folder</key>
-	<string>Collapse folder</string>
-	<key>panorama.expand_folder</key>
-	<string>Expand folder</string>
-	<key>panorama.expand_depth.automatic</key>
-	<string>Automatic</string>
-	<key>panorama.expand_depth.depth2</key>
-	<string>Depth 2</string>
-	<key>panorama.expand_depth.depth5</key>
-	<string>Depth 5</string>
-	<key>panorama.expand_depth.unlimited</key>
-	<string>Unlimited</string>
-	<key>panorama.folder_kind</key>
-	<string>Folder</string>
-	<key>panorama.item_count %lld</key>
-	<string>%lld items</string>
-	<key>panorama.loading</key>
-	<string>Loading</string>
-	<key>preview.archive.loading_more</key>
-	<string>Loading more entries…</string>
-	<key>preview.archive.selection_count %lld</key>
-	<string>%lld selected · ⌘-click to multi-select</string>
-	<key>preview.archive_truncated</key>
-	<string>[Truncated...]</string>
-	<key>preview.chrome.back_to_folder</key>
-	<string>Back to Folder</string>
-	<key>preview.chrome.close_preview</key>
-	<string>Close Preview</string>
-	<key>preview.chrome.close_window</key>
-	<string>Close Window</string>
-	<key>preview.chrome.collapse</key>
-	<string>Collapse Preview</string>
-	<key>preview.chrome.detach</key>
-	<string>Open in Detached Window</string>
-	<key>preview.chrome.dock_back</key>
-	<string>Dock to Sidebar</string>
-	<key>preview.chrome.expand</key>
-	<string>Expand Preview</string>
-	<key>preview.chrome.reveal_in_file_list</key>
-	<string>Reveal in File List</string>
-	<key>preview.close</key>
-	<string>Close Preview</string>
-	<key>preview.collapse</key>
-	<string>Collapse Preview</string>
-	<key>preview.detached_placeholder %@</key>
-	<string>%@ is being previewed in a separate window</string>
-	<key>preview.dock_back</key>
-	<string>Move Back to Sidebar</string>
-	<key>preview.empty_state</key>
-	<string>Select a file to preview</string>
-	<key>preview.epub.chapter_progress %lld %lld</key>
-	<string>Chapter %lld of %lld</string>
-	<key>preview.epub.no_chapters</key>
-	<string>No chapters</string>
-	<key>preview.error_loading</key>
-	<string>Error Loading Preview</string>
-	<key>preview.expand</key>
-	<string>Expand Preview</string>
-	<key>preview.focus_window</key>
-	<string>Focus Window</string>
-	<key>preview.folder_inline.open_directory</key>
-	<string>Double-click to open</string>
-	<key>preview.folder_inline.preview_file</key>
-	<string>Click to preview · Double-click to open · Option-double-click for detached preview</string>
-	<key>preview.font.copyright</key>
-	<string>Copyright</string>
-	<key>preview.font.family</key>
-	<string>Family</string>
-	<key>preview.font.glyphs</key>
-	<string>Glyphs</string>
-	<key>preview.font.point_size %lld</key>
-	<string>%lld pt</string>
-	<key>preview.font.post_script_name</key>
-	<string>PostScript</string>
-	<key>preview.font.registration_failed</key>
-	<string>Unable to register font for preview</string>
-	<key>preview.font.samples</key>
-	<string>Samples</string>
-	<key>preview.font.style</key>
-	<string>Style</string>
-	<key>preview.font.version</key>
-	<string>Version</string>
-	<key>preview.markdown.mermaid_render_failed</key>
-	<string>Failed to render diagram</string>
-	<key>preview.markdown.mermaid_rendering</key>
-	<string>Rendering diagram…</string>
-	<key>preview.model3d.dimensions %.1f %.1f %.1f</key>
-	<string>Size: %.1f × %.1f × %.1f</string>
-	<key>preview.model3d.triangles %lld</key>
-	<string>Triangles: %lld</string>
-	<key>preview.model3d.unit_hint</key>
-	<string>STL has no unit metadata; values are relative.</string>
-	<key>preview.image.confirm</key>
-	<string>OK</string>
-	<key>preview.image.height</key>
-	<string>Height</string>
-	<key>preview.image.maintain_aspect</key>
-	<string>Maintain Aspect Ratio</string>
-	<key>preview.image.resize_hint</key>
-	<string>Set output size in pixels. After confirming, click Save Edits to write the file.</string>
-	<key>preview.image.resize_title</key>
-	<string>Resize Image</string>
-	<key>preview.image.validation.empty</key>
-	<string>Enter width and height</string>
-	<key>preview.image.validation.invalid</key>
-	<string>Enter valid pixel values</string>
-	<key>preview.image.validation.max</key>
-	<string>Each side cannot exceed 65535 pixels</string>
-	<key>preview.image.validation.positive</key>
-	<string>Width and height must be greater than 0</string>
-	<key>preview.image.width</key>
-	<string>Width</string>
-	<key>preview.loading</key>
-	<string>Loading preview...</string>
-	<key>preview.next</key>
-	<string>Next</string>
-	<key>preview.not_available</key>
-	<string>Preview not available for this file type</string>
-	<key>preview.previous</key>
-	<string>Previous</string>
-	<key>preview.reattach.confirm</key>
-	<string>Move Back</string>
-	<key>preview.reattach.message</key>
-	<string>Moving the preview back will replace the current sidebar preview. Continue?</string>
-	<key>preview.reattach.title</key>
-	<string>Move Preview Back</string>
-	<key>preview.save_failed_title</key>
-	<string>Save Failed</string>
-	<key>preview.session_closed</key>
-	<string>Preview session closed</string>
-	<key>preview.text_edit.cancel</key>
-	<string>Cancel</string>
-	<key>preview.text_edit.discard</key>
-	<string>Discard Changes</string>
-	<key>preview.text_edit.discard_confirm_message %@</key>
-	<string>Unsaved changes to "%@" will be lost.</string>
-	<key>preview.text_edit.discard_confirm_title</key>
-	<string>Discard Changes?</string>
-	<key>preview.text_edit.dont_save</key>
-	<string>Don't Save</string>
-	<key>preview.text_edit.edit</key>
-	<string>Edit</string>
-	<key>preview.text_edit.not_writable</key>
-	<string>File is not writable</string>
-	<key>preview.text_edit.save</key>
-	<string>Save</string>
-	<key>preview.text_edit.save_confirm_message %@</key>
-	<string>This will overwrite "%@".</string>
-	<key>preview.text_edit.save_confirm_title</key>
-	<string>Save Changes</string>
-	<key>preview.text_edit.too_large</key>
-	<string>File is too large to edit in preview</string>
-	<key>preview.text_edit.unsaved_message %@</key>
-	<string>"%@" has unsaved changes.</string>
-	<key>preview.text_edit.unsaved_title</key>
-	<string>Unsaved Changes</string>
-	<key>preview.title</key>
-	<string>Preview</string>
-	<key>preview.toolbar.actual_size</key>
-	<string>Actual Size</string>
-	<key>preview.toolbar.archive_collapse</key>
-	<string>Collapse to Top Level</string>
-	<key>preview.toolbar.archive_expand</key>
-	<string>Expand All Levels</string>
-	<key>preview.toolbar.clear_search</key>
-	<string>Clear Search</string>
-	<key>preview.toolbar.color_hex %@</key>
-	<string>Color %@</string>
-	<key>preview.toolbar.color_picker</key>
-	<string>Color Picker (click image to copy Web color)</string>
-	<key>preview.toolbar.copied_to_clipboard</key>
-	<string>Copied to Clipboard</string>
-	<key>preview.toolbar.copy_all</key>
-	<string>Copy All</string>
-	<key>preview.toolbar.copy_image</key>
-	<string>Copy Image</string>
-	<key>preview.toolbar.copy_manifest</key>
-	<string>Copy Manifest</string>
-	<key>preview.toolbar.copy_model_info</key>
-	<string>Copy Model Info</string>
-	<key>preview.toolbar.epub_chapters</key>
-	<string>Chapters</string>
-	<key>preview.toolbar.epub_next_chapter</key>
-	<string>Next Chapter</string>
-	<key>preview.toolbar.epub_previous_chapter</key>
-	<string>Previous Chapter</string>
-	<key>preview.toolbar.extract</key>
-	<string>Extract</string>
-	<key>preview.toolbar.extract_selected</key>
-	<string>Extract Selected</string>
-	<key>preview.toolbar.extract_selected_to</key>
-	<string>Extract Selected To…</string>
-	<key>preview.toolbar.extract_to</key>
-	<string>Extract To…</string>
-	<key>preview.toolbar.eyedropper</key>
-	<string>Eyedropper</string>
-	<key>preview.toolbar.fit_page</key>
-	<string>Fit Page</string>
-	<key>preview.toolbar.fit_width</key>
-	<string>Fit Width</string>
-	<key>preview.toolbar.fit_window</key>
-	<string>Fit Window</string>
-	<key>preview.toolbar.flip_horizontal</key>
-	<string>Flip Horizontal</string>
-	<key>preview.toolbar.flip_vertical</key>
-	<string>Flip Vertical</string>
-	<key>preview.toolbar.font_size</key>
-	<string>Font Size</string>
-	<key>preview.toolbar.html_preview</key>
-	<string>HTML Parsed Preview</string>
-	<key>preview.toolbar.jump_bottom</key>
-	<string>Jump to Bottom</string>
-	<key>preview.toolbar.jump_to_page</key>
-	<string>Go to Page</string>
-	<key>preview.toolbar.jump_top</key>
-	<string>Jump to Top</string>
-	<key>preview.toolbar.markdown_to_preview</key>
-	<string>Switch to Preview Mode</string>
-	<key>preview.toolbar.markdown_to_source</key>
-	<string>Switch to Source Mode</string>
-	<key>preview.toolbar.more_actions</key>
-	<string>More Actions</string>
-	<key>preview.toolbar.model3d_rotate_down</key>
-	<string>Rotate Down</string>
-	<key>preview.toolbar.model3d_rotate_up</key>
-	<string>Rotate Up</string>
-	<key>preview.toolbar.model3d_solid</key>
-	<string>Solid</string>
-	<key>preview.toolbar.model3d_wireframe</key>
-	<string>Wireframe</string>
-	<key>preview.toolbar.mute</key>
-	<string>Mute</string>
-	<key>preview.toolbar.next_match</key>
-	<string>Next</string>
-	<key>preview.toolbar.next_page</key>
-	<string>Next Page</string>
-	<key>preview.toolbar.open_default_app</key>
-	<string>Open with Default App</string>
-	<key>preview.toolbar.page_number</key>
-	<string>Page Number</string>
-	<key>preview.toolbar.pause</key>
-	<string>Pause</string>
-	<key>preview.toolbar.play</key>
-	<string>Play</string>
-	<key>preview.toolbar.previous_match</key>
-	<string>Previous</string>
-	<key>preview.toolbar.previous_page</key>
-	<string>Previous Page</string>
-	<key>preview.toolbar.refresh_listing</key>
-	<string>Refresh Listing</string>
-	<key>preview.toolbar.reset</key>
-	<string>Reset</string>
-	<key>preview.toolbar.reset_view</key>
-	<string>Reset View</string>
-	<key>preview.toolbar.resize</key>
-	<string>Resize</string>
-	<key>preview.toolbar.rotate_ccw</key>
-	<string>Rotate Counterclockwise</string>
-	<key>preview.toolbar.rotate_cw</key>
-	<string>Rotate Clockwise</string>
-	<key>preview.toolbar.run_script</key>
-	<string>Run</string>
-	<key>preview.toolbar.save_edits</key>
-	<string>Save Edits</string>
-	<key>preview.toolbar.search_in_preview</key>
-	<string>Search in Preview</string>
-	<key>preview.toolbar.search_no_results</key>
-	<string>No results</string>
-	<key>preview.toolbar.search_prompt</key>
-	<string>Search</string>
-	<key>preview.toolbar.source_mode</key>
-	<string>Source Mode</string>
-	<key>preview.toolbar.undo</key>
-	<string>Undo Last Step</string>
-	<key>preview.toolbar.unmute</key>
-	<string>Unmute</string>
-	<key>preview.toolbar.word_document_to_formatted</key>
-	<string>Switch to Formatted Preview</string>
-	<key>preview.toolbar.word_document_to_text</key>
-	<string>Switch to Plain Text</string>
-	<key>preview.toolbar.wrap_disable</key>
-	<string>Disable Word Wrap</string>
-	<key>preview.toolbar.wrap_enable</key>
-	<string>Enable Word Wrap</string>
-	<key>preview.toolbar.zoom</key>
-	<string>Zoom</string>
-	<key>preview.toolbar.zoom_in</key>
-	<string>Zoom In</string>
-	<key>preview.toolbar.zoom_in_font</key>
-	<string>Increase Font Size</string>
-	<key>preview.toolbar.zoom_in_overall</key>
-	<string>Zoom In (Overall)</string>
-	<key>preview.toolbar.zoom_out</key>
-	<string>Zoom Out</string>
-	<key>preview.toolbar.zoom_out_font</key>
-	<string>Decrease Font Size</string>
-	<key>preview.toolbar.zoom_out_overall</key>
-	<string>Zoom Out (Overall)</string>
-	<key>preview.toolbar.zoom_scale</key>
-	<string>Zoom Level</string>
-	<key>remote_server.address_placeholder</key>
-	<string>smb://server.example.com/share</string>
-	<key>remote_server.address_prompt</key>
-	<string>Server Address</string>
-	<key>remote_server.connect</key>
-	<string>Connect</string>
-	<key>remote_server.connect_server_menu</key>
-	<string>Connect to Server…</string>
-	<key>remote_server.connecting</key>
-	<string>Connecting…</string>
-	<key>remote_server.disconnected_from_server</key>
-	<string>Disconnected from the server</string>
-	<key>remote_server.error.ambiguous_new_volumes</key>
-	<string>Multiple new volumes were mounted. Opened the first one.</string>
-	<key>remote_server.error.invalid_url</key>
-	<string>Unrecognized server address. Use smb://, ftp://, nfs://, or https://.</string>
-	<key>remote_server.error.mount_failed %@</key>
-	<string>Could not connect to the server: %@</string>
-	<key>remote_server.error.sftp_deferred</key>
-	<string>SFTP will be supported in a future release. Use SMB, or mount with sshfs first.</string>
-	<key>remote_server.error.timeout</key>
-	<string>Connection timed out. Check the network or server availability.</string>
-	<key>remote_server.error.unsupported_protocol %@</key>
-	<string>The %@ protocol is not supported.</string>
-	<key>remote_server.ftp_security_notice</key>
-	<string>FTP transfers data in plain text. Use SMB for sensitive files.</string>
-	<key>remote_server.recent_title</key>
-	<string>Recent Connections</string>
-	<key>remote_server.remove_from_recent</key>
-	<string>Remove from Recent</string>
-	<key>remote_server.sheet.title</key>
-	<string>Connect to Server</string>
-	<key>remote_server.supported_protocols</key>
-	<string>Supported: SMB · NFS · WebDAV · FTP</string>
-	<key>search.close_quick_search</key>
-	<string>Close Quick Search</string>
-	<key>search.focus</key>
-	<string>Focus Search</string>
-	<key>search.prompt</key>
-	<string>Search files</string>
-	<key>search.quick_search</key>
-	<string>Quick Search</string>
-	<key>search.mode.filename</key>
-	<string>Filename</string>
-	<key>search.mode.content</key>
-	<string>Content</string>
-	<key>search.content_prompt</key>
-	<string>Search in folder…</string>
-	<key>search.content_no_results</key>
-	<string>No matches found</string>
-	<key>search.content_truncated</key>
-	<string>Truncated</string>
-	<key>search.content_cancelled</key>
-	<string>Cancelled</string>
-	<key>search.content_next_match</key>
-	<string>Next Match</string>
-	<key>search.content_find_in_folder</key>
-	<string>Find in Folder</string>
-	<key>search.content_searching</key>
-	<string>Searching… %lld matches</string>
-	<key>search.content_progress</key>
-	<string>Scanned %lld/%lld files · %lld matches</string>
-	<key>search.content_summary.files</key>
-	<string>%lld files</string>
-	<key>search.content_summary.matches</key>
-	<string>%lld matches</string>
-	<key>search.content_summary.elapsed</key>
-	<string>%.1fs</string>
-	<key>search.content_summary.position</key>
-	<string>%lld/%lld</string>
-	<key>search.filter.title</key>
-	<string>Filter</string>
-	<key>search.filter.include</key>
-	<string>Include</string>
-	<key>search.filter.exclude</key>
-	<string>Exclude</string>
-	<key>search.filter.subdirectories</key>
-	<string>Include subfolders</string>
-	<key>search.filter.case_sensitive</key>
-	<string>Case sensitive</string>
-	<key>search.filter.reset</key>
-	<string>Reset</string>
-	<key>search.filter.include_placeholder</key>
-	<string>*.swift *.md</string>
-	<key>search.filter.exclude_placeholder</key>
-	<string>node_modules/**</string>
-	<key>settings.auto_show_output</key>
-	<string>Auto-show Output Panel on Shell Run</string>
-	<key>settings.blank_action.parent</key>
-	<string>Go to parent folder</string>
-	<key>settings.blank_action.terminal</key>
-	<string>Open Terminal here</string>
-	<key>settings.blank_double_click</key>
-	<string>Double-click on blank area</string>
-	<key>settings.confirm_destructive</key>
-	<string>Confirm Destructive Commands</string>
-	<key>settings.default_image_viewer.current</key>
-	<string>Current Default</string>
-	<key>settings.default_image_viewer.footer</key>
-	<string>Opens images in the detached preview window, sized to fit the screen.</string>
-	<key>settings.default_image_viewer.restart_hint</key>
-	<string>Log out and back in, or restart your Mac, for changes to take effect everywhere.</string>
-	<key>settings.default_image_viewer.restore_preview</key>
-	<string>Restore Preview</string>
-	<key>settings.default_image_viewer.restore_success</key>
-	<string>Preview is now the default image viewer.</string>
-	<key>settings.default_image_viewer.set</key>
-	<string>Set as Default Image Viewer</string>
-	<key>settings.default_image_viewer.set_success</key>
-	<string>MeoFind is now the default image viewer. Double-clicking an image opens the detached preview window.</string>
-	<key>settings.default_image_viewer.title</key>
-	<string>Default Image Viewer</string>
-	<key>settings.default_viewer.current</key>
-	<string>Current Default</string>
-	<key>settings.default_viewer.restart_hint</key>
-	<string>Log out and back in, or restart your Mac, for changes to take effect everywhere.</string>
-	<key>settings.default_viewer.restore_finder</key>
-	<string>Restore Finder</string>
-	<key>settings.default_viewer.restore_success</key>
-	<string>Finder is now the default folder viewer. Log out and back in (or restart) for the change to take effect everywhere.</string>
-	<key>settings.default_viewer.set</key>
-	<string>Set as Default Folder Viewer</string>
-	<key>settings.default_viewer.set_success</key>
-	<string>MeoFind is now the default folder viewer. Log out and back in (or restart) for the change to take effect everywhere.</string>
-	<key>settings.default_viewer.title</key>
-	<string>Default Folder Viewer</string>
-	<key>settings.git.title</key>
-	<string>Git</string>
-	<key>settings.git.executable</key>
-	<string>Git Executable</string>
-	<key>settings.git.version</key>
-	<string>Version</string>
-	<key>settings.git.choose</key>
-	<string>Choose…</string>
-	<key>settings.git.reset</key>
-	<string>Auto Detect</string>
-	<key>settings.git.footer</key>
-	<string>MeoFind uses git for the Git panel. If git is not in a standard location, choose the executable manually. Install via Xcode Command Line Tools (xcode-select --install) or Homebrew (brew install git).</string>
-	<key>settings.git.not_found</key>
-	<string>Git was not found. Install it or choose the executable path above.</string>
-	<key>settings.git.invalid_executable</key>
-	<string>The selected file is not a valid git executable.</string>
-	<key>settings.git.choose_panel_title</key>
-	<string>Choose Git Executable</string>
-	<key>settings.file_list.row_hover_highlight</key>
-	<string>Highlight file list row on hover</string>
-	<key>settings.general.interface_language</key>
-	<string>Interface Language</string>
-	<key>settings.general.interface_language_footer</key>
-	<string>Applies immediately to most of the app. Restart MeoFind if menu bar items look unchanged.</string>
-	<key>settings.job_concurrency_limit %lld</key>
-	<string>Job Concurrency Limit: %lld</string>
-	<key>settings.menu_item</key>
-	<string>Settings…</string>
-	<key>settings.pin_recent_snippets</key>
-	<string>Pin Recently Executed</string>
-	<key>settings.preview.add_rule</key>
-	<string>Add Rule…</string>
-	<key>settings.preview.add_rule_title</key>
-	<string>Add Preview Rule</string>
-	<key>settings.preview.archive_double_click</key>
-	<string>Double-click archives (default app mode)</string>
-	<key>settings.preview.archive_double_click.extract</key>
-	<string>Extract here</string>
-	<key>settings.preview.archive_double_click.preview</key>
-	<string>Open in detached preview</string>
-	<key>settings.preview.builtin_catalog</key>
-	<string>Built-in Preview Types (Read-only)</string>
-	<key>settings.preview.code_line_numbers</key>
-	<string>Code Preview</string>
-	<key>settings.preview.code_line_numbers.footer</key>
-	<string>When enabled, line numbers appear to the left of code in the sidebar preview panel.</string>
-	<key>settings.preview.code_line_numbers.toggle</key>
-	<string>Show line numbers in code preview</string>
-	<key>settings.preview.custom_types</key>
-	<string>Custom File Types</string>
-	<key>settings.preview.customize</key>
-	<string>Customize</string>
-	<key>settings.preview.detached_browse</key>
-	<string>Browse in Detached Window</string>
-	<key>settings.preview.detached_browse.footer</key>
-	<string>When enabled, the filmstrip and ← → navigation in a detached preview window only switch between files of the same type.</string>
-	<key>settings.preview.detached_browse.toggle</key>
-	<string>Show only same extension in detached browser strip</string>
-	<key>settings.preview.disabled</key>
-	<string>Disabled</string>
-	<key>settings.preview.double_click</key>
-	<string>Double-click previewable files</string>
-	<key>settings.preview.double_click.default_app</key>
-	<string>Open with default app</string>
-	<key>settings.preview.double_click.sidebar_preview</key>
-	<string>Preview in sidebar</string>
-	<key>settings.preview.double_click.standalone_preview</key>
-	<string>Open in detached preview window</string>
-	<key>settings.preview.edit_rule_title</key>
-	<string>Edit Preview Rule</string>
-	<key>settings.preview.enabled_toggle</key>
-	<string>Enabled</string>
-	<key>settings.preview.export_panel_title</key>
-	<string>Export Custom Preview Rules</string>
-	<key>settings.preview.export_rules</key>
-	<string>Export Rules…</string>
-	<key>settings.preview.export_success %lld</key>
-	<string>Exported %lld rules.</string>
-	<key>settings.preview.extensionless_label</key>
-	<string>(no extension)</string>
-	<key>settings.preview.extensions_field</key>
-	<string>Extensions (comma-separated)</string>
-	<key>settings.preview.external_multi_image</key>
-	<string>External open for multiple images</string>
-	<key>settings.preview.external_multi_image.one_window_per_file</key>
-	<string>One window per image</string>
-	<key>settings.preview.external_multi_image.single_window_with_strip</key>
-	<string>Single window with filmstrip</string>
-	<key>settings.preview.external_open</key>
-	<string>External open for previewable files</string>
-	<key>settings.preview.external_open.browser_and_select</key>
-	<string>Open browser window and select file</string>
-	<key>settings.preview.external_open.standalone_only</key>
-	<string>Detached preview window only</string>
-	<key>settings.preview.handler_group.current_handler %@</key>
-	<string>Current: %@</string>
-	<key>settings.preview.handler_group.footer</key>
-	<string>When enabled, Finder double-click opens MeoFind for that file group. You may need to restart MeoFind or log out for macOS to apply changes.</string>
-	<key>settings.preview.handler_group.image</key>
-	<string>Images</string>
-	<key>settings.preview.handler_group.image.hint</key>
-	<string>Opens images in the detached preview window, sized to fit the screen.</string>
-	<key>settings.preview.handler_group.media</key>
-	<string>Audio &amp; video</string>
-	<key>settings.preview.handler_group.office</key>
-	<string>Office documents</string>
-	<key>settings.preview.handler_group.pdf</key>
-	<string>PDF</string>
-	<key>settings.preview.handler_group.restart_hint</key>
-	<string>Restart MeoFind if Finder does not use the new default immediately.</string>
-	<key>settings.preview.handler_group.restore_success %@</key>
-	<string>Restored system default for %@.</string>
-	<key>settings.preview.handler_group.set_success %@</key>
-	<string>%@ registered as default.</string>
-	<key>settings.preview.handler_group.text_and_code</key>
-	<string>Text &amp; code</string>
-	<key>settings.preview.handler_group.title</key>
-	<string>Register as default app</string>
-	<key>settings.preview.import.merge</key>
-	<string>Merge</string>
-	<key>settings.preview.import.replace</key>
-	<string>Replace</string>
-	<key>settings.preview.import_complete</key>
-	<string>Import complete.</string>
-	<key>settings.preview.import_export_title</key>
-	<string>Import / Export</string>
-	<key>settings.preview.import_method_message</key>
-	<string>Merge keeps existing rules and updates matching IDs. Replace clears all existing rules.</string>
-	<key>settings.preview.import_method_title</key>
-	<string>Import Method</string>
-	<key>settings.preview.import_panel_title</key>
-	<string>Import Custom Preview Rules</string>
-	<key>settings.preview.import_rules</key>
-	<string>Import Rules…</string>
-	<key>settings.preview.mode.archive</key>
-	<string>Archive Listing</string>
-	<key>settings.preview.mode.archive.detail</key>
-	<string>List ZIP / TAR contents in a tree; supports extract.</string>
-	<key>settings.preview.mode.html</key>
-	<string>HTML Preview</string>
-	<key>settings.preview.mode.html.detail</key>
-	<string>Render HTML in WebKit; source view can be toggled.</string>
-	<key>settings.preview.mode.image</key>
-	<string>Image Preview</string>
-	<key>settings.preview.mode.image.detail</key>
-	<string>Decode and display as an image when possible.</string>
-	<key>settings.preview.mode.markdown</key>
-	<string>Markdown Preview</string>
-	<key>settings.preview.mode.markdown.detail</key>
-	<string>Render Markdown; source view can be toggled in the toolbar.</string>
-	<key>settings.preview.mode.media</key>
-	<string>Media Preview</string>
-	<key>settings.preview.mode.media.detail</key>
-	<string>Play audio and video with AVPlayer.</string>
-	<key>settings.preview.mode.pdf</key>
-	<string>PDF Preview</string>
-	<key>settings.preview.mode.pdf.detail</key>
-	<string>Display PDF documents with PDFKit.</string>
-	<key>settings.preview.mode.quicklook</key>
-	<string>QuickLook Preview</string>
-	<key>settings.preview.mode.quicklook.detail</key>
-	<string>Use macOS QuickLook for formats supported by the system.</string>
-	<key>settings.preview.mode.text</key>
-	<string>Text Preview</string>
-	<key>settings.preview.mode.text.detail</key>
-	<string>Display as plain text with syntax highlighting by extension.</string>
-	<key>settings.preview.no_rules_hint</key>
-	<string>No custom rules yet. Select an unpreviewable file to add one from the preview panel.</string>
-	<key>settings.preview.open_behavior</key>
-	<string>Double-click &amp; External Open</string>
-	<key>settings.preview.open_behavior.footer</key>
-	<string>Option-double-click and ⌘Return always open a detached preview window. External open applies when MeoFind is the default app for a file type.</string>
-	<key>settings.preview.open_in_settings</key>
-	<string>Customize in Settings…</string>
-	<key>settings.preview.override_builtin</key>
-	<string>Override Built-in</string>
-	<key>settings.preview.override_builtin_toggle</key>
-	<string>Override built-in preview</string>
-	<key>settings.preview.preview_as_text</key>
-	<string>Preview as Text</string>
-	<key>settings.preview.preview_mode</key>
-	<string>Preview Mode</string>
-	<key>settings.preview.preview_quicklook</key>
-	<string>QuickLook Preview</string>
-	<key>settings.preview.unavailable_hint</key>
-	<string>Add a custom preview rule for this type, or try QuickLook.</string>
-	<key>settings.preview.unavailable_title %@</key>
-	<string>Cannot preview %@ files</string>
-	<key>settings.preview.validation_extensions</key>
-	<string>Enter at least one valid extension.</string>
-	<key>settings.shortcut.cheat_sheet</key>
-	<string>Feature Cheat Sheet</string>
-	<key>settings.shortcut.click_to_record</key>
-	<string>Click to record a new shortcut</string>
-	<key>settings.shortcut.close_detached_preview</key>
-	<string>Close Detached Preview</string>
-	<key>settings.shortcut.global_toggle</key>
-	<string>Show / Hide App</string>
-	<key>settings.shortcut.global_toggle_enabled</key>
-	<string>Enable global shortcut</string>
-	<key>settings.shortcut.global_toggle_footer</key>
-	<string>Works from any app. Shows MeoFind when hidden, or hides it when the app is active.</string>
-	<key>settings.shortcut.new_tab</key>
-	<string>New Tab</string>
-	<key>settings.shortcut.recording_hint</key>
-	<string>Press the desired key combination. Esc cancels.</string>
-	<key>settings.shortcut.recording_placeholder</key>
-	<string>Press keys…</string>
-	<key>settings.shortcut.reset</key>
-	<string>Reset</string>
-	<key>settings.shortcuts.category.files</key>
-	<string>Files</string>
-	<key>settings.shortcuts.category.global</key>
-	<string>Global</string>
-	<key>settings.shortcuts.category.navigation</key>
-	<string>Navigation</string>
-	<key>settings.shortcuts.category.output</key>
-	<string>Output</string>
-	<key>settings.shortcuts.category.panels</key>
-	<string>Panels</string>
-	<key>settings.shortcuts.category.preview</key>
-	<string>Preview</string>
-	<key>settings.shortcuts.category.system</key>
-	<string>System</string>
-	<key>settings.snippets.display.minimal</key>
-	<string>Minimal</string>
-	<key>settings.snippets.display.standard</key>
-	<string>Standard</string>
-	<key>settings.snippets.display_mode</key>
-	<string>Panel display mode</string>
-	<key>settings.snippets.output_color.dark</key>
-	<string>Dark</string>
-	<key>settings.snippets.output_color.gray</key>
-	<string>Gray</string>
-	<key>settings.snippets.output_color.light</key>
-	<string>Light</string>
-	<key>settings.snippets.output_color_scheme</key>
-	<string>Output panel color scheme</string>
-	<key>settings.snippets.recording_generalize_paths</key>
-	<string>Generalize paths by default</string>
-	<key>settings.snippets.recording_section</key>
-	<string>Operation Recording</string>
-	<key>settings.snippets.recording_section_footer</key>
-	<string>Defaults for the review sheet and recording banner. Snippet execution during recording is not captured.</string>
-	<key>settings.snippets.recording_show_banner</key>
-	<string>Show recording banner</string>
-	<key>settings.tab.general</key>
-	<string>General</string>
-	<key>settings.tab.preview</key>
-	<string>Preview</string>
-	<key>settings.tab.shortcuts</key>
-	<string>Shortcuts</string>
-	<key>settings.tab.snippets</key>
-	<string>Snippets</string>
-	<key>settings.window_snap</key>
-	<string>Enable window snap and linked movement</string>
-	<key>settings.window_title</key>
-	<string>Settings</string>
-	<key>sidebar.devices</key>
-	<string>Devices</string>
-	<key>sidebar.disconnect_device %@</key>
-	<string>Disconnect %@</string>
-	<key>sidebar.eject_device %@</key>
-	<string>Eject %@</string>
-	<key>sidebar.eject_failed %@</key>
-	<string>Could not disconnect %@. Close files using this volume and try again.</string>
-	<key>sidebar.favorites</key>
-	<string>Favorites</string>
-	<key>sidebar.locations</key>
-	<string>Locations</string>
-	<key>sidebar.no_devices</key>
-	<string>No devices</string>
-	<key>sidebar.trash</key>
-	<string>Trash</string>
-	<key>snippets.badge.directory</key>
-	<string>Dir</string>
-	<key>snippets.badge.file</key>
-	<string>File</string>
-	<key>snippets.badge.path</key>
-	<string>Path</string>
-	<key>snippets.badge.single</key>
-	<string>1 item</string>
-	<key>snippets.builtin.copy_path</key>
-	<string>Copy Path</string>
-	<key>snippets.builtin.finder_info</key>
-	<string>Show Finder Info</string>
-	<key>snippets.builtin.list_directory</key>
-	<string>List Directory</string>
-	<key>snippets.builtin.open_default</key>
-	<string>Open with Default App</string>
-	<key>snippets.builtin.open_pdf</key>
-	<string>Open PDF (Preview)</string>
-	<key>snippets.builtin.open_terminal</key>
-	<string>Open in Terminal</string>
-	<key>snippets.builtin.show_attributes</key>
-	<string>Show Attributes</string>
-	<key>snippets.confirm.destructive_message</key>
-	<string>This Snippet may delete or move files. Continue?</string>
-	<key>snippets.confirm.destructive_title</key>
-	<string>Dangerous Command</string>
-	<key>snippets.confirm.proceed</key>
-	<string>Run Anyway</string>
-	<key>snippets.editor.content</key>
-	<string>Content</string>
-	<key>snippets.editor.edit_title</key>
-	<string>Edit Snippet</string>
-	<key>snippets.editor.extensions_placeholder</key>
-	<string>Extensions (comma-separated, e.g. pdf, md)</string>
-	<key>snippets.editor.insert_variable</key>
-	<string>Insert variable at cursor</string>
-	<key>snippets.editor.interpreter</key>
-	<string>Interpreter</string>
-	<key>snippets.editor.name</key>
-	<string>Name</string>
-	<key>snippets.editor.new_title</key>
-	<string>New Snippet</string>
-	<key>snippets.editor.paths_placeholder</key>
-	<string>File paths (one per line)</string>
-	<key>snippets.editor.scope</key>
-	<string>Scope</string>
-	<key>snippets.editor.script_type</key>
-	<string>Script Type</string>
-	<key>snippets.editor.section_execution</key>
-	<string>Execution</string>
-	<key>snippets.editor.section_general</key>
-	<string>General</string>
-	<key>snippets.editor.section_scope</key>
-	<string>Scope</string>
-	<key>snippets.editor.section_script</key>
-	<string>Script</string>
-	<key>snippets.editor.subtitle</key>
-	<string>Configure scope, execution, and script content.</string>
-	<key>snippets.editor.terminal_hint</key>
-	<string>Runs in Terminal or similar; output is not shown in the in-app panel</string>
-	<key>snippets.editor.use_system_terminal</key>
-	<string>Use System Terminal</string>
-	<key>snippets.import.rename_suffix</key>
-	<string>(imported)</string>
-	<key>snippets.import.rename_suffix %lld</key>
-	<string>(imported %lld)</string>
-	<key>snippets.output.cancelled</key>
-	<string>Cancelled</string>
-	<key>snippets.output.clear</key>
-	<string>Clear</string>
-	<key>snippets.output.close_all</key>
-	<string>Close All</string>
-	<key>snippets.output.close_current</key>
-	<string>Close Tab</string>
-	<key>snippets.output.close_others</key>
-	<string>Close Others</string>
-	<key>snippets.output.close_panel</key>
-	<string>Close Output Panel</string>
-	<key>snippets.output.collapse</key>
-	<string>Collapse Output Panel</string>
-	<key>snippets.output.collapse_command</key>
-	<string>Collapse</string>
-	<key>snippets.output.command_failed %lld</key>
-	<string>Command failed with exit code %lld</string>
-	<key>snippets.output.command_placeholder</key>
-	<string>Expanded command; press Return to rerun</string>
-	<key>snippets.output.completed_with_exit_code %lld</key>
-	<string>Output received, but exit code is %lld (you can ignore this if the result above looks fine)</string>
-	<key>snippets.output.copy</key>
-	<string>Copy</string>
-	<key>snippets.output.empty_hint</key>
-	<string>Run a Snippet to see output here</string>
-	<key>snippets.output.exit_code %lld</key>
-	<string>Exit code %lld</string>
-	<key>snippets.output.expand</key>
-	<string>Expand Output Panel</string>
-	<key>snippets.output.expand_command</key>
-	<string>Show full command</string>
-	<key>snippets.output.find</key>
-	<string>Find</string>
-	<key>snippets.output.full_command_title</key>
-	<string>Full command</string>
-	<key>snippets.output.no_output</key>
-	<string>(no output)</string>
-	<key>snippets.output.queued</key>
-	<string>Queued</string>
-	<key>snippets.output.run_command</key>
-	<string>Run</string>
-	<key>snippets.output.run_history_command</key>
-	<string>Run this command</string>
-	<key>snippets.output.running</key>
-	<string>Running…</string>
-	<key>snippets.output.status_banner.dismiss</key>
-	<string>Dismiss</string>
-	<key>snippets.output.status_banner.hide_details</key>
-	<string>Hide</string>
-	<key>snippets.output.status_banner.show_details</key>
-	<string>Details</string>
-	<key>snippets.output.stop</key>
-	<string>Stop</string>
-	<key>snippets.output.truncated</key>
-	<string>[Output truncated: maximum size reached]</string>
-	<key>snippets.panel.close</key>
-	<string>Close Snippets</string>
-	<key>snippets.panel.collapse</key>
-	<string>Collapse Snippets</string>
-	<key>snippets.panel.execute</key>
-	<string>Run</string>
-	<key>snippets.panel.execute_in_terminal</key>
-	<string>Run in Terminal</string>
-	<key>snippets.panel.expand</key>
-	<string>Expand Snippets</string>
-	<key>snippets.panel.export_all</key>
-	<string>Export All…</string>
-	<key>snippets.panel.export_single</key>
-	<string>Export This Snippet</string>
-	<key>snippets.panel.import</key>
-	<string>Import…</string>
-	<key>snippets.panel.import_button</key>
-	<string>Import</string>
-	<key>snippets.panel.import_conflict_message %lld</key>
-	<string>%lld snippets conflict with existing items</string>
-	<key>snippets.panel.import_conflict_title</key>
-	<string>Import Conflict</string>
-	<key>snippets.panel.import_done_message %lld %lld</key>
-	<string>Imported %lld, skipped %lld</string>
-	<key>snippets.panel.import_done_title</key>
-	<string>Import Complete</string>
-	<key>snippets.panel.import_export</key>
-	<string>Import / Export</string>
-	<key>snippets.panel.import_failed_title</key>
-	<string>Import Failed</string>
-	<key>snippets.panel.import_strategy_label</key>
-	<string>Resolution</string>
-	<key>snippets.panel.new</key>
-	<string>New</string>
-	<key>snippets.panel.no_match</key>
-	<string>No snippets match the current context</string>
-	<key>snippets.panel.no_results</key>
-	<string>No search results</string>
-	<key>snippets.panel.search_prompt</key>
-	<string>Search name or script content…</string>
-	<key>snippets.scope.anytime</key>
-	<string>Always</string>
-	<key>snippets.scope.anytime.desc</key>
-	<string>Always shown in the snippet list, whether or not anything is selected.</string>
-	<key>snippets.scope.directories_only</key>
-	<string>Directories Only</string>
-	<key>snippets.scope.directories_only.desc</key>
-	<string>Shown only when every selected item is a folder.</string>
-	<key>snippets.scope.file_extensions</key>
-	<string>Specific Extensions</string>
-	<key>snippets.scope.file_extensions.desc</key>
-	<string>Shown when a selected file's extension matches the list configured below (e.g. pdf, jpg).</string>
-	<key>snippets.scope.files_only</key>
-	<string>Files Only</string>
-	<key>snippets.scope.files_only.desc</key>
-	<string>Shown only when every selected item is a file (not a folder).</string>
-	<key>snippets.scope.global</key>
-	<string>When Items Selected</string>
-	<key>snippets.scope.global.desc</key>
-	<string>Shown when one or more files or folders are selected.</string>
-	<key>snippets.scope.single_selection</key>
-	<string>Single Selection</string>
-	<key>snippets.scope.single_selection.desc</key>
-	<string>Shown only when exactly one item is selected. Use this for snippets with %p and other single-selection variables.</string>
-	<key>snippets.scope.specific_files</key>
-	<string>Specific Files</string>
-	<key>snippets.scope.specific_files.desc</key>
-	<string>Shown when a selected item's absolute path matches one of the paths configured below.</string>
-	<key>snippets.strategy.overwrite</key>
-	<string>Overwrite</string>
-	<key>snippets.strategy.rename</key>
-	<string>Rename</string>
-	<key>snippets.strategy.skip</key>
-	<string>Skip</string>
-	<key>snippets.title</key>
-	<string>Snippets</string>
-	<key>snippets.variable.b</key>
-	<string>File name without extension (basename)</string>
-	<key>snippets.variable.capital_f</key>
-	<string>All selected files, space-separated</string>
-	<key>snippets.variable.capital_n</key>
-	<string>Number of selected items</string>
-	<key>snippets.variable.capital_p</key>
-	<string>All selected item paths, space-separated</string>
-	<key>snippets.variable.capital_q</key>
-	<string>Each selected path shell-quoted, space-separated</string>
-	<key>snippets.variable.d</key>
-	<string>Current browsing directory (cwd)</string>
-	<key>snippets.variable.date</key>
-	<string>ISO8601 timestamp at run time</string>
-	<key>snippets.variable.e</key>
-	<string>File extension without dot, lowercase (e.g. pdf)</string>
-	<key>snippets.variable.f</key>
-	<string>Selected file path (single file, not a folder)</string>
-	<key>snippets.variable.h</key>
-	<string>User home directory path</string>
-	<key>snippets.variable.n</key>
-	<string>Selected item file name including extension (e.g. report.pdf)</string>
-	<key>snippets.variable.p</key>
-	<string>Selected item path (single selection)</string>
-	<key>snippets.variable.q</key>
-	<string>Shell single-quoted path for %p (safe for spaces)</string>
-	<key>snippets.variable.u</key>
-	<string>Short user name</string>
-	<key>snippets.variable.uuid</key>
-	<string>New UUID generated on each run</string>
-	<key>snippets.variable.w</key>
-	<string>Current directory name (last path component)</string>
-	<key>snippets.variable_help.column_description</key>
-	<string>Description</string>
-	<key>snippets.variable_help.column_token</key>
-	<string>Variable</string>
-	<key>snippets.variable_help.footer</key>
-	<string>Click a variable chip below to insert it at the cursor. Hover for a short description.</string>
-	<key>snippets.variable_help.show_reference</key>
-	<string>Show Snippet variable reference</string>
-	<key>sort.date_newest</key>
-	<string>Date (Newest First)</string>
-	<key>sort.date_oldest</key>
-	<string>Date (Oldest First)</string>
-	<key>sort.name_ascending</key>
-	<string>Name (A to Z)</string>
-	<key>sort.name_descending</key>
-	<string>Name (Z to A)</string>
-	<key>sort.size_largest</key>
-	<string>Size (Largest First)</string>
-	<key>sort.size_smallest</key>
-	<string>Size (Smallest First)</string>
-	<key>command_palette.common_section</key>
-	<string>Common commands</string>
-	<key>command_palette.menu_title</key>
-	<string>Command Palette…</string>
-	<key>command_palette.no_results</key>
-	<string>No matching commands</string>
-	<key>command_palette.placeholder</key>
-	<string>Type a command name…</string>
-	<key>command_palette.recents_section</key>
-	<string>Recently used</string>
-	<key>command_palette.snippets_section</key>
-	<string>Snippets</string>
-	<key>toolbar.auto_folder_size</key>
-	<string>Calculate All Folder Sizes</string>
-	<key>toolbar.browse_settings</key>
-	<string>Browse Settings</string>
-	<key>toolbar.customize</key>
-	<string>Customize Toolbar…</string>
-	<key>toolbar.customize.add_open_app</key>
-	<string>Add Toolbar Item…</string>
-	<key>toolbar.customize.cancel</key>
-	<string>Cancel</string>
-	<key>toolbar.customize.done</key>
-	<string>Done</string>
-	<key>toolbar.customize.hint</key>
-	<string>Drag items into the toolbar to add them. Drag items out to remove them.</string>
-	<key>toolbar.customize.reset</key>
-	<string>Restore Defaults</string>
-	<key>toolbar.customize.title</key>
-	<string>Customize Toolbar</string>
-	<key>toolbar.delete</key>
-	<string>Delete</string>
-	<key>toolbar.error.app_missing</key>
-	<string>Application “%@” could not be found. Reconfigure it in Customize Toolbar.</string>
-	<key>toolbar.error.app_missing_title</key>
-	<string>Application Not Found</string>
-	<key>toolbar.error.no_selection</key>
-	<string>Select one or more items first</string>
-	<key>toolbar.hide_left_panel</key>
-	<string>Hide Left Panel</string>
-	<key>toolbar.hide_hidden_files</key>
-	<string>Hide Hidden Files</string>
-	<key>toolbar.hide_tab_bar</key>
-	<string>Hide Tab Bar</string>
-	<key>toolbar.list_view</key>
-	<string>List View</string>
-	<key>toolbar.new_file</key>
-	<string>New File</string>
-	<key>toolbar.new_folder</key>
-	<string>New Folder</string>
-	<key>toolbar.new_tab</key>
-	<string>New Tab</string>
-	<key>toolbar.new_window</key>
-	<string>New Window</string>
-	<key>toolbar.open_app.add</key>
-	<string>Add</string>
-	<key>toolbar.open_app.choose</key>
-	<string>Choose…</string>
-	<key>toolbar.open_app.choose_prompt</key>
-	<string>Choose an application</string>
-	<key>toolbar.open_app.edit</key>
-	<string>Edit Toolbar Item…</string>
-	<key>toolbar.open_app.edit_title</key>
-	<string>Edit Toolbar Item</string>
-	<key>toolbar.open_app.name</key>
-	<string>Name</string>
-	<key>toolbar.open_app.save</key>
-	<string>Save</string>
-	<key>toolbar.open_app.selection_current_folder</key>
-	<string>Pass current folder</string>
-	<key>toolbar.open_app.selection_optional</key>
-	<string>Pass selection when available</string>
-	<key>toolbar.open_app.selection_policy</key>
-	<string>Selection Policy</string>
-	<key>toolbar.open_app.selection_policy_help</key>
-	<string>Require selection: at least one item must be selected. Pass when available: passes selected items if any, otherwise launches the app without files. Current folder: always passes the folder you are browsing.</string>
-	<key>toolbar.open_app.selection_require</key>
-	<string>Require selected items</string>
-	<key>toolbar.open_app.title</key>
-	<string>Add Toolbar Item</string>
-	<key>toolbar.open_app.tooltip</key>
-	<string>Open with %@</string>
-	<key>toolbar.open_app.use_app_icon</key>
-	<string>Use application icon</string>
-	<key>toolbar.panorama.collapse_all</key>
-	<string>Collapse All Folders</string>
-	<key>toolbar.panorama.expand_all</key>
-	<string>Expand All Folders</string>
-	<key>toolbar.panorama.expand_depth</key>
-	<string>Expand Depth</string>
-	<key>toolbar.panorama.layout_grid</key>
-	<string>Standard Grid</string>
-	<key>toolbar.panorama.layout_panorama</key>
-	<string>Subfolder Panorama</string>
-	<key>toolbar.panorama_mode</key>
-	<string>Panorama View</string>
-	<key>toolbar.record_operations</key>
-	<string>Record operations to create a Snippet</string>
-	<key>toolbar.record_operations_active</key>
-	<string>Recording — click to stop</string>
-	<key>toolbar.show_all_tabs</key>
-	<string>Show All Tabs</string>
-	<key>toolbar.show_hidden_files</key>
-	<string>Show Hidden Files</string>
-	<key>toolbar.show_left_panel</key>
-	<string>Show Left Panel</string>
-	<key>toolbar.show_tab_bar</key>
-	<string>Show Tab Bar</string>
-	<key>toolbar.sort</key>
-	<string>Sort</string>
-	<key>toolbar.tab_bar.cannot_hide_multiple</key>
-	<string>Multiple tabs are open; the tab bar cannot be hidden</string>
-	<key>toolbar.tab_bar.unavailable</key>
-	<string>Tab bar is not available in this window</string>
-	<key>toolbar.thumbnail_size</key>
-	<string>Icon Size</string>
-	<key>toolbar.thumbnail_view</key>
-	<string>Icon View</string>
-	<key>toolbar.use_icon_preview</key>
-	<string>Use Icon Preview</string>
-	<key>toolbar.view_picker</key>
-	<string>View</string>
-</dict>
-</plist>
+"action.add_favorite" = "Add to Favorites";
+"action.cancel" = "Cancel";
+"action.compress_many %lld" = "Compress %lld Items";
+"action.compress_one %@" = "Compress \"%@\"";
+"action.copy" = "Copy";
+"action.copy_filename" = "Copy Filename";
+"action.copy_paths" = "Copy Full Path";
+"action.cut" = "Cut";
+"action.delete" = "Delete";
+"action.delete_immediately" = "Delete Immediately";
+"action.edit" = "Edit";
+"action.empty_trash" = "Empty Trash";
+"action.extract" = "Extract";
+"action.extract_downloads" = "Extract to Downloads";
+"action.extract_here" = "Extract Here";
+"action.extract_to" = "Extract To…";
+"action.ok" = "OK";
+"action.open" = "Open";
+"action.open_in_detached_preview" = "Open in Detached Preview Window";
+"action.open_in_new_window" = "Open in New Window";
+"action.open_terminal_here" = "Open Terminal Here";
+"action.open_with" = "Open With";
+"action.open_with_default %@" = "%@ (Default)";
+"action.open_with_none" = "(No Available Applications)";
+"action.open_with_other" = "Other…";
+"action.paste" = "Paste";
+"action.put_back" = "Put Back";
+"action.refresh" = "Refresh";
+"action.remove_favorite" = "Remove from Favorites";
+"action.rename" = "Rename";
+"action.save" = "Save";
+"action.services" = "Services";
+"action.show_info" = "Get Info";
+"alert.confirm_delete.multiple %lld" = "Delete %lld items?";
+"alert.confirm_delete.single %@" = "Delete \"%@\"?";
+"alert.delete_immediately.message" = "These items will be permanently deleted and cannot be recovered.";
+"alert.delete_immediately.multiple %lld" = "Delete %lld items immediately?";
+"alert.delete_immediately.single %@" = "Delete \"%@\" immediately?";
+"alert.delete_to_trash.message" = "Items will be moved to the Trash.";
+"alert.empty_trash.message" = "All items in the Trash will be permanently deleted. This action cannot be undone.";
+"alert.empty_trash.title" = "Empty Trash?";
+"alert.move_blocked.already_in_destination" = "The item is already in this folder.";
+"alert.move_blocked.destination_inside_source" = "Cannot move a folder into one of its own subfolders.";
+"alert.move_blocked.destination_not_directory" = "The destination is not a folder.";
+"alert.move_blocked.destination_unavailable" = "The destination folder is not available.";
+"alert.move_blocked.same_location" = "The item is the destination folder itself.";
+"alert.move_blocked.source_missing" = "The selected items could not be found.";
+"alert.move_blocked.title" = "Cannot Move";
+"alert.open_with.choose_app %@" = "Choose an app to open \"%@\"";
+"alert.open_with.prompt" = "Open";
+"alert.operation_failed" = "Operation Failed";
+"alert.put_back_failed.multiple %lld" = "%lld items could not be put back.";
+"alert.put_back_failed.single %@" = "\"%@\" has no restore record and Finder cannot recover this item.";
+"alert.put_back_failed.title" = "Cannot Put Back";
+"alert.selected_items %lld" = "%lld items selected";
+"archive.error.encrypted" = "Encrypted archives are not supported";
+"archive.error.unsupported" = "Unrecognized or unsupported archive format";
+"archive.hint.network_slow" = "Archive operations on network volumes may be slow";
+"archive.job.compress" = "Compress";
+"archive.job.extract" = "Extract";
+"archive.password.message %@" = "Enter the password to extract \"%@\".";
+"archive.password.placeholder" = "Password";
+"archive.password.title" = "Password Required";
+"archive.status.compressing_count %lld" = "Compressing %lld items…";
+"archive.status.compressing_item %@" = "Compressing %@…";
+"archive.status.extracting_count %lld" = "Extracting %lld archives…";
+"archive.status.extracting_item %@ %@" = "Extracting %@ → %@";
+"archive.status.extracting_partial %lld %@ %@" = "Extracting %lld items from %@ → %@";
+"command_palette.common_section" = "Common commands";
+"command_palette.menu_title" = "Command Palette…";
+"command_palette.no_results" = "No matching commands";
+"command_palette.placeholder" = "Type a command name…";
+"command_palette.recents_section" = "Recently used";
+"command_palette.snippets_section" = "Snippets";
+"dialog.cannot_create_file" = "Cannot Create File";
+"dialog.cannot_create_file_message" = "Check whether the name is valid and the destination is writable.";
+"dialog.create" = "Create";
+"dialog.file_name_placeholder" = "File name";
+"dialog.folder_name_placeholder" = "Folder name";
+"dialog.new_file_message" = "Enter a name for the new file:";
+"dialog.new_file_title" = "New File";
+"dialog.new_folder_message" = "Enter a name for the new folder:";
+"dialog.new_folder_title" = "New Folder";
+"error.archive.empty_listing" = "Unable to read ZIP listing";
+"error.archive.timed_out" = "Listing read timed out";
+"error.default_image_viewer.defaults_command %lld" = "defaults command failed (exit code %lld).";
+"error.default_image_viewer.launch_services %lld" = "Launch Services registration failed (error %lld).";
+"error.default_image_viewer.preferences_sync" = "Unable to write system preferences.";
+"error.default_image_viewer.preview_not_found" = "Preview.app was not found on this Mac.";
+"error.default_preview_handler.defaults_command %lld" = "defaults command failed (code %lld).";
+"error.default_preview_handler.fallback_not_found %@" = "Fallback app not found: %@";
+"error.default_preview_handler.launch_services %lld" = "Launch Services failed (code %lld).";
+"error.default_preview_handler.preferences_sync" = "Unable to write system preferences.";
+"error.default_viewer.defaults_command %lld" = "System command failed (exit code %lld).";
+"error.default_viewer.finder_not_found" = "Finder app not found.";
+"error.default_viewer.launch_services %lld" = "Launch Services registration failed (error %lld).";
+"error.default_viewer.preferences_sync" = "Unable to write system preferences.";
+"error.directory_not_found" = "Directory not found";
+"error.eml.empty_body" = "Email has no readable body";
+"error.eml.empty_message" = "Email file is empty";
+"error.eml.invalid_format" = "Unable to parse email format";
+"error.eml.unreadable_encoding" = "Unable to decode email text encoding";
+"error.empty_name" = "Name cannot be empty";
+"error.epub.container_not_found" = "EPUB container metadata not found";
+"error.epub.empty_spine" = "EPUB has no readable chapters";
+"error.epub.invalid_opf" = "Unable to parse EPUB package document";
+"error.epub.opf_not_found" = "EPUB package document not found";
+"error.epub.unzip_failed" = "Unable to extract EPUB archive";
+"error.font.unable_to_load" = "Unable to load font file";
+"error.image.unable_to_encode" = "Unable to encode image";
+"error.image.unable_to_write" = "Unable to write file";
+"error.model3d.empty_model" = "The 3D model file contains no geometry";
+"error.model3d.file_too_large" = "The 3D model is too large to preview";
+"error.model3d.too_many_triangles %lld" = "The model has too many triangles (%lld) to preview";
+"error.model3d.unable_to_load" = "Unable to load 3D model file";
+"error.no_permission" = "Permission denied";
+"error.shell.timed_out" = "Command timed out";
+"error.snippet_ask.empty_prompt" = "Ask parameter prompt cannot be empty (%ask{})";
+"error.snippet_ask.invalid_id %@" = "Invalid ask id \"%@\" (use letters, digits, underscore)";
+"error.snippet_ask.unclosed_brace" = "Unclosed %ask{…} brace in snippet";
+"error.snippet_expansion.file_selection" = "A file (not a folder) must be selected";
+"error.snippet_expansion.files_in_selection" = "At least one file must be selected";
+"error.snippet_expansion.no_files" = "No files in selection";
+"error.snippet_expansion.requires_selection" = "At least one item must be selected";
+"error.snippet_expansion.single_selection" = "Exactly one item must be selected";
+"error.snippet_import.empty_content" = "Content is empty";
+"error.snippet_import.empty_name" = "Name is empty";
+"error.snippet_import.invalid %@" = "Invalid Snippet: %@";
+"error.snippet_import.invalid_format" = "Unrecognized Snippets file format";
+"error.snippet_import.too_many" = "Too many items to import";
+"error.snippet_import.unsupported_schema" = "Unsupported file version";
+"error.symlink_loop" = "Symbolic link loop detected";
+"file.default_new_name" = "untitled.txt";
+"file.paste_creating_from_clipboard" = "Creating file from clipboard…";
+"file.paste_progress" = "Pasting %1$lld of %2$lld…";
+"file.paste_progress_with_name" = "Pasting %1$lld of %2$lld: %3$@";
+"file.pasted_image_base" = "Pasted Image";
+"file.pasted_image_name" = "Pasted Image.png";
+"file.pasted_markdown_name" = "Pasted Document.md";
+"file.pasted_text_name" = "Pasted Text.txt";
+"folder.desktop" = "Desktop";
+"folder.documents" = "Documents";
+"folder.downloads" = "Downloads";
+"folder.home" = "Home";
+"git.action.commit_and_sync" = "Commit & Sync";
+"git.action.commit_only" = "Commit Only";
+"git.action.pull" = "Pull Updates";
+"git.action.push" = "Push";
+"git.action.resolve_conflict" = "Resolve Conflicts";
+"git.action.sync" = "Sync";
+"git.action.working" = "Working…";
+"git.chip.ahead %lld" = "↑%lld";
+"git.chip.behind %lld" = "↓%lld";
+"git.commit.ai_tooltip" = "AI commit message (coming soon)";
+"git.commit.generated_directory %@ %lld" = "Update %lld files under %@";
+"git.commit.generated_files %lld" = "Update %lld files";
+"git.commit.large_message" = "This will stage and commit a large number of files.";
+"git.commit.large_title %lld" = "Commit %lld files?";
+"git.commit.placeholder" = "Commit message";
+"git.commit.scope_all" = "All changes will be committed";
+"git.empty.init_repo" = "Initialize Repository";
+"git.empty.not_repo" = "Not a Git repository";
+"git.error.cancelled" = "Git operation cancelled";
+"git.error.conflict" = "Resolve merge conflicts first";
+"git.error.empty_commit_message" = "Enter a commit message";
+"git.error.executable_not_found" = "Git is not installed or could not be found";
+"git.error.no_upstream" = "No upstream branch configured";
+"git.error.pull_with_dirty" = "Commit or stash changes before pulling";
+"git.history.empty" = "No commits yet";
+"git.history.title" = "Recent Commits";
+"git.job.commit" = "Git: Commit";
+"git.job.init" = "Git: Initialize Repository";
+"git.job.pull" = "Git: Pull";
+"git.job.push" = "Git: Push";
+"git.job.stage" = "Git: Stage Changes";
+"git.job.sync" = "Git: Sync";
+"git.panel.close" = "Close Git Panel";
+"git.panel.collapse" = "Collapse";
+"git.panel.configure_git" = "Configure Git";
+"git.panel.configure_git_hint" = "Install Git via Xcode Command Line Tools or Homebrew, then choose the git executable in Settings.";
+"git.panel.expand" = "Expand";
+"git.panel.placeholder" = "Git status and sync will appear here.";
+"git.panel.refresh" = "Refresh Status";
+"git.panel.title" = "Git";
+"git.status.ahead %lld" = "%lld commits ahead of remote";
+"git.status.behind %lld" = "%lld commits behind remote";
+"git.status.changes %lld" = "%lld changes";
+"git.status.clean" = "Working tree clean and synced";
+"git.status.conflict" = "Merge conflicts detected";
+"git.status.dirty %lld" = "%lld files to commit";
+"git.status.more_changes %lld" = "%lld more…";
+"git.status.pending_commit" = "Pending commit";
+"help.cheat_sheet_menu" = "Cheat Sheet";
+"help.column.description" = "Description";
+"help.column.feature" = "Feature";
+"help.column.shortcut" = "Shortcut";
+"help.entry.add_favorite.desc" = "Add a folder to sidebar Favorites";
+"help.entry.add_favorite.name" = "Add to Favorites";
+"help.entry.add_favorite.shortcut" = "Right-click";
+"help.entry.archive.desc" = "Browse file listings inside ZIP, TAR, and similar archives";
+"help.entry.archive.name" = "Archives";
+"help.entry.archive.shortcut" = "";
+"help.entry.automation.desc" = "Needed to read Trash and control Terminal";
+"help.entry.automation.name" = "Automation";
+"help.entry.automation.shortcut" = "";
+"help.entry.back_forward.desc" = "Navigate through browsing history";
+"help.entry.back_forward.name" = "Back / Forward";
+"help.entry.back_forward.shortcut" = "⌘[ / ⌘]";
+"help.entry.blank_double_click.desc" = "Go to parent folder or open Terminal here (Settings)";
+"help.entry.blank_double_click.name" = "Blank Double-Click";
+"help.entry.blank_double_click.shortcut" = "Settings";
+"help.entry.builtin_snippets.desc" = "List directory, copy path, open Terminal, and more out of the box";
+"help.entry.builtin_snippets.name" = "Built-in Snippets";
+"help.entry.builtin_snippets.shortcut" = "Right-click";
+"help.entry.command_box.desc" = "Run zsh commands in the current directory synced to the path bar";
+"help.entry.command_box.name" = "Command Box";
+"help.entry.command_box.shortcut" = "Return";
+"help.entry.command_history.desc" = "Up arrow recalls previous commands";
+"help.entry.command_history.name" = "Command History";
+"help.entry.command_history.shortcut" = "↑";
+"help.entry.connect_server.desc" = "Connect SMB, AFP, or FTP shares; mounted volumes appear in Devices";
+"help.entry.connect_server.name" = "Connect to Server";
+"help.entry.connect_server.shortcut" = "⌘K";
+"help.entry.content_search.desc" = "Search file contents in the current folder";
+"help.entry.content_search.name" = "Find in Folder";
+"help.entry.content_search.shortcut" = "⌘⇧F";
+"help.entry.copy_clear.desc" = "Copy all output or clear the current tab";
+"help.entry.copy_clear.name" = "Copy / Clear";
+"help.entry.copy_clear.shortcut" = "";
+"help.entry.copy_name_path.desc" = "Copy filename or full path to the clipboard";
+"help.entry.copy_name_path.name" = "Copy Name / Path";
+"help.entry.copy_name_path.shortcut" = "⌘⇧C";
+"help.entry.create_edit.desc" = "Shell, Python, AppleScript, and other script types";
+"help.entry.create_edit.name" = "Create / Edit";
+"help.entry.create_edit.shortcut" = "";
+"help.entry.custom_preview_rules.desc" = "Assign preview modes by extension; import and export rules";
+"help.entry.custom_preview_rules.name" = "Custom Preview Rules";
+"help.entry.custom_preview_rules.shortcut" = "Settings";
+"help.entry.cut_copy_paste.desc" = "Standard file clipboard operations";
+"help.entry.cut_copy_paste.name" = "Cut / Copy / Paste";
+"help.entry.cut_copy_paste.shortcut" = "⌘X / ⌘C / ⌘V";
+"help.entry.default_file_manager.desc" = "Set MeoFind as the system default for opening folders";
+"help.entry.default_file_manager.name" = "Default File Manager";
+"help.entry.default_file_manager.shortcut" = "Settings";
+"help.entry.delete.desc" = "Move selected items to Trash";
+"help.entry.delete.name" = "Delete";
+"help.entry.delete.shortcut" = "Delete";
+"help.entry.delete_immediately.desc" = "Permanently delete from Trash, bypassing Trash";
+"help.entry.delete_immediately.name" = "Delete Immediately";
+"help.entry.delete_immediately.shortcut" = "Right-click";
+"help.entry.detach_preview.desc" = "Pop preview into its own window; list stays in the main window";
+"help.entry.detach_preview.name" = "Detached Preview";
+"help.entry.detach_preview.shortcut" = "⌘⌥P";
+"help.entry.devices.desc" = "Shows mounted disks, removable drives, and network shares; eject supported";
+"help.entry.devices.name" = "Devices";
+"help.entry.devices.shortcut" = "";
+"help.entry.double_click_open.desc" = "Open folders or files with the default app";
+"help.entry.double_click_open.name" = "Double-Click Open";
+"help.entry.double_click_open.shortcut" = "Double-click";
+"help.entry.drag_drop_open.desc" = "Drop files or folders into the window to navigate";
+"help.entry.drag_drop_open.name" = "Drag & Drop";
+"help.entry.drag_drop_open.shortcut" = "";
+"help.entry.empty_trash.desc" = "Permanently erase all items in Trash";
+"help.entry.empty_trash.name" = "Empty Trash";
+"help.entry.empty_trash.shortcut" = "Right-click";
+"help.entry.external_open.desc" = "Open from Finder or as the default file manager";
+"help.entry.external_open.name" = "Open Externally";
+"help.entry.external_open.shortcut" = "";
+"help.entry.favorites.desc" = "Pin frequent folders; add or remove via context menu";
+"help.entry.favorites.name" = "Favorites";
+"help.entry.favorites.shortcut" = "";
+"help.entry.file_list.desc" = "Browse files and folders in list or thumbnail view";
+"help.entry.file_list.name" = "File List";
+"help.entry.file_list.shortcut" = "";
+"help.entry.file_preview.desc" = "Live preview in the right panel without leaving the browser";
+"help.entry.file_preview.name" = "File Preview";
+"help.entry.file_preview.shortcut" = "";
+"help.entry.full_disk_access.desc" = "Required in System Settings to browse protected locations";
+"help.entry.full_disk_access.name" = "Full Disk Access";
+"help.entry.full_disk_access.shortcut" = "";
+"help.entry.global_search.desc" = "Focus toolbar search to filter by filename";
+"help.entry.global_search.name" = "Search Field";
+"help.entry.global_search.shortcut" = "⌘F";
+"help.entry.image.desc" = "Zoom, rotate, flip, eyedropper, basic edit and save";
+"help.entry.image.name" = "Images";
+"help.entry.image.shortcut" = "Preview toolbar";
+"help.entry.import_export.desc" = "Back up or restore single snippets or the full JSON library";
+"help.entry.import_export.name" = "Import / Export";
+"help.entry.import_export.shortcut" = "Menu";
+"help.entry.in_preview_search.desc" = "Find and highlight matches inside preview content";
+"help.entry.in_preview_search.name" = "In-Preview Search";
+"help.entry.in_preview_search.shortcut" = "Preview toolbar";
+"help.entry.job_tabs.desc" = "Each run gets a tab; multiple jobs can run in parallel";
+"help.entry.job_tabs.name" = "Job Tabs";
+"help.entry.job_tabs.shortcut" = "";
+"help.entry.list_view.desc" = "Table with name, type, size, dates; click headers to sort";
+"help.entry.list_view.name" = "List View";
+"help.entry.list_view.shortcut" = "Toolbar";
+"help.entry.locations.desc" = "Quick access to Home, Desktop, Documents, Downloads, etc.";
+"help.entry.locations.name" = "Locations";
+"help.entry.locations.shortcut" = "";
+"help.entry.markdown_html.desc" = "Switch between source and rendered modes";
+"help.entry.markdown_html.name" = "Markdown / HTML";
+"help.entry.markdown_html.shortcut" = "Preview toolbar";
+"help.entry.media.desc" = "Play, pause, mute";
+"help.entry.media.name" = "Audio / Video";
+"help.entry.media.shortcut" = "Preview toolbar";
+"help.entry.multi_window.desc" = "Open folders in separate windows";
+"help.entry.multi_window.name" = "Multiple Windows";
+"help.entry.multi_window.shortcut" = "";
+"help.entry.new_folder_file.desc" = "Create a new folder or file in the current directory";
+"help.entry.new_folder_file.name" = "New Folder / File";
+"help.entry.new_folder_file.shortcut" = "Right-click";
+"help.entry.open.desc" = "Open files or enter folders with the default handler";
+"help.entry.open.name" = "Open";
+"help.entry.open.shortcut" = "Return";
+"help.entry.open_new_window.desc" = "Open a folder in a separate window";
+"help.entry.open_new_window.name" = "Open in New Window";
+"help.entry.open_new_window.shortcut" = "Right-click";
+"help.entry.open_terminal.desc" = "Launch the system Terminal in the selected folder";
+"help.entry.open_terminal.name" = "Open Terminal Here";
+"help.entry.open_terminal.shortcut" = "Right-click";
+"help.entry.open_with.desc" = "Choose another app to open a file";
+"help.entry.open_with.name" = "Open With";
+"help.entry.open_with.shortcut" = "Right-click";
+"help.entry.operation_recording.desc" = "Record file operations in the toolbar, then review and save as a Snippet";
+"help.entry.operation_recording.name" = "Operation Recording";
+"help.entry.operation_recording.shortcut" = "Toolbar";
+"help.entry.output_find.desc" = "Search and highlight matches in output text";
+"help.entry.output_find.name" = "Find in Output";
+"help.entry.output_find.shortcut" = "";
+"help.entry.output_panel.desc" = "Script output and an interactive command line at the bottom";
+"help.entry.output_panel.name" = "Output Panel";
+"help.entry.output_panel.shortcut" = "⌘J";
+"help.entry.panel_height.desc" = "Drag the splitter between Preview and Snippets";
+"help.entry.panel_height.name" = "Panel Height";
+"help.entry.panel_height.shortcut" = "Drag";
+"help.entry.panel_width.desc" = "Drag the splitter between the file list and right panel";
+"help.entry.panel_width.name" = "Panel Width";
+"help.entry.panel_width.shortcut" = "Drag";
+"help.entry.path_breadcrumb.desc" = "Click segments to jump; middle segments collapse when space is tight";
+"help.entry.path_breadcrumb.name" = "Path Breadcrumb";
+"help.entry.path_breadcrumb.shortcut" = "";
+"help.entry.path_edit.desc" = "Click the path bar to type or paste a full path";
+"help.entry.path_edit.name" = "Path Editing";
+"help.entry.path_edit.shortcut" = "";
+"help.entry.path_history.desc" = "Drop down to see recently visited folders";
+"help.entry.path_history.name" = "Path History";
+"help.entry.path_history.shortcut" = "";
+"help.entry.pdf.desc" = "Page through, zoom, fit width or page";
+"help.entry.pdf.name" = "PDF";
+"help.entry.pdf.shortcut" = "Preview toolbar";
+"help.entry.preview_browser.desc" = "Filmstrip at the bottom to browse files in the current folder";
+"help.entry.preview_browser.name" = "Preview Browser";
+"help.entry.preview_browser.shortcut" = "⌘⌥B";
+"help.entry.preview_text_edit.desc" = "Enter edit mode for the current text or code preview";
+"help.entry.preview_text_edit.name" = "Edit Preview Text";
+"help.entry.preview_text_edit.shortcut" = "⌘E";
+"help.entry.put_back.desc" = "Restore items from Trash to their original location";
+"help.entry.put_back.name" = "Put Back";
+"help.entry.put_back.shortcut" = "Right-click";
+"help.entry.quick_look.desc" = "Fall back to system Quick Look for unsupported types";
+"help.entry.quick_look.name" = "Quick Look";
+"help.entry.quick_look.shortcut" = "";
+"help.entry.quick_search.desc" = "Type to filter the list; Tab cycles matches and syncs preview";
+"help.entry.quick_search.name" = "Quick Search";
+"help.entry.quick_search.shortcut" = "Type";
+"help.entry.recent_servers.desc" = "Quickly reconnect from the list in the connect dialog";
+"help.entry.recent_servers.name" = "Recent Servers";
+"help.entry.recent_servers.shortcut" = "";
+"help.entry.rename.desc" = "Click the name again or use the context menu";
+"help.entry.rename.name" = "Rename";
+"help.entry.rename.shortcut" = "";
+"help.entry.run_snippet.desc" = "Search, arrow keys, Return or double-click to run";
+"help.entry.run_snippet.name" = "Run Snippet";
+"help.entry.run_snippet.shortcut" = "";
+"help.entry.scope.desc" = "Limit when a snippet appears by context, type, or path";
+"help.entry.scope.name" = "Scope";
+"help.entry.scope.shortcut" = "";
+"help.entry.services.desc" = "Invoke macOS Services menu actions";
+"help.entry.services.name" = "Services";
+"help.entry.services.shortcut" = "Right-click";
+"help.entry.settings_general.desc" = "Blank double-click, window snap, interface language";
+"help.entry.settings_general.name" = "General";
+"help.entry.settings_general.shortcut" = "⌘,";
+"help.entry.settings_preview.desc" = "Line numbers, detached browsing, custom file-type rules";
+"help.entry.settings_preview.name" = "Preview";
+"help.entry.settings_preview.shortcut" = "Settings";
+"help.entry.settings_snippets.desc" = "Display mode, pin recent, auto-show output, concurrency limit";
+"help.entry.settings_snippets.name" = "Snippets";
+"help.entry.settings_snippets.shortcut" = "Settings";
+"help.entry.show_info.desc" = "Separate window with size, permissions, tags, comments, etc.";
+"help.entry.show_info.name" = "Get Info";
+"help.entry.show_info.shortcut" = "Right-click";
+"help.entry.snippets_panel.desc" = "Reusable scripts in the right panel, filtered by context";
+"help.entry.snippets_panel.name" = "Snippets Panel";
+"help.entry.snippets_panel.shortcut" = "⌘⇧S";
+"help.entry.spreadsheet.desc" = "Switch between text mode and Quick Look preview";
+"help.entry.spreadsheet.name" = "Spreadsheets";
+"help.entry.spreadsheet.shortcut" = "Preview toolbar";
+"help.entry.stop_task.desc" = "Press Ctrl+C or click Stop while a job is running";
+"help.entry.stop_task.name" = "Stop Task";
+"help.entry.stop_task.shortcut" = "⌃C";
+"help.entry.text_code.desc" = "Syntax highlighting, line numbers, wrap, zoom, in-preview search";
+"help.entry.text_code.name" = "Text / Code";
+"help.entry.text_code.shortcut" = "Preview toolbar";
+"help.entry.thumbnail_view.desc" = "Icon grid; drag slider to resize thumbnails";
+"help.entry.thumbnail_view.name" = "Thumbnail View";
+"help.entry.thumbnail_view.shortcut" = "Toolbar";
+"help.entry.toggle_left_panel.desc" = "Show or hide the sidebar";
+"help.entry.toggle_left_panel.name" = "Left Panel";
+"help.entry.toggle_left_panel.shortcut" = "⌘B";
+"help.entry.toggle_right_panel.desc" = "Show or hide the preview and Snippets column";
+"help.entry.toggle_right_panel.name" = "Right Panel";
+"help.entry.toggle_right_panel.shortcut" = "⌘⇧B";
+"help.entry.toolbar_customize.desc" = "Right-click the toolbar to add, remove, and reorder buttons; click Done to save";
+"help.entry.toolbar_customize.name" = "Customize Toolbar";
+"help.entry.toolbar_customize.shortcut" = "Right-click toolbar";
+"help.entry.toolbar_delete.desc" = "Move selected items to Trash from the toolbar delete button";
+"help.entry.toolbar_delete.name" = "Toolbar Delete";
+"help.entry.toolbar_delete.shortcut" = "";
+"help.entry.toolbar_open_app.desc" = "Add a custom button to launch an app with selected files or the current folder";
+"help.entry.toolbar_open_app.name" = "Open With App";
+"help.entry.toolbar_open_app.shortcut" = "Customize panel +";
+"help.entry.trash.desc" = "Browse deleted items; put back or empty trash";
+"help.entry.trash.name" = "Trash";
+"help.entry.trash.shortcut" = "";
+"help.entry.variables.desc" = "%p (path), %d (directory), and more are expanded at run time";
+"help.entry.variables.name" = "Variable Expansion";
+"help.entry.variables.shortcut" = "";
+"help.entry.window_snap.desc" = "Drag a window to the screen edge to snap half or full screen";
+"help.entry.window_snap.name" = "Window Snap";
+"help.entry.window_snap.shortcut" = "Settings";
+"help.no_shortcut" = "—";
+"help.section.files" = "File Actions";
+"help.section.layout" = "Window & Layout";
+"help.section.navigation" = "Browse & Navigate";
+"help.section.output" = "Output Panel";
+"help.section.permissions" = "Permissions";
+"help.section.preview" = "Preview";
+"help.section.remote_server" = "Remote Server";
+"help.section.settings" = "Settings";
+"help.section.sidebar" = "Sidebar";
+"help.section.snippets" = "Snippets";
+"help.section.toolbar" = "Toolbar";
+"help.subtitle" = "A quick overview of what MeoFind can do";
+"help.window_title" = "MeoFind Cheat Sheet";
+"info.access.executable" = "executable";
+"info.access.label" = "Access:";
+"info.access.readable" = "readable";
+"info.access.writable" = "writable";
+"info.bullet_item %@ %@ %@" = "• %@ (%@, %@)";
+"info.created %@" = "Created: %@";
+"info.ellipsis" = "…";
+"info.hidden %@" = "Hidden: %@";
+"info.hidden.label" = "Hidden:";
+"info.kind.extension_file %@" = "Kind: %@ file";
+"info.kind.file" = "Kind: File";
+"info.kind.file_short" = "file";
+"info.kind.folder" = "Kind: Folder";
+"info.kind.folder_short" = "folder";
+"info.location %@" = "Location: %@";
+"info.modified %@" = "Modified: %@";
+"info.no" = "No";
+"info.path %@" = "Path: %@";
+"info.path.label" = "Path:";
+"info.permissions %@ %@" = "Permissions: %@ (%@)";
+"info.size %@" = "Size: %@";
+"info.type_identifier %@" = "Type identifier: %@";
+"info.yes" = "Yes";
+"menu.collapse_strip" = "Collapse Filmstrip";
+"menu.expand_strip" = "Expand Filmstrip";
+"menu.export_snippets" = "Export All Snippets…";
+"menu.go" = "Go";
+"menu.hide_git" = "Hide Git Panel";
+"menu.hide_output" = "Hide Output Panel";
+"menu.hide_preview" = "Hide Preview";
+"menu.hide_snippets" = "Hide Snippets";
+"menu.import_snippets" = "Import Snippets…";
+"menu.next_preview" = "Next Preview";
+"menu.open_preview_detached" = "Open Preview in Separate Window";
+"menu.previous_preview" = "Previous Preview";
+"menu.reattach_preview" = "Move Preview Back to Sidebar";
+"menu.show_git" = "Show Git Panel";
+"menu.show_output" = "Show Output Panel";
+"menu.show_preview" = "Show Preview";
+"menu.show_snippets" = "Show Snippets";
+"menu.toggle_left_panel" = "Toggle Left Panel";
+"menu.toggle_right_panel" = "Toggle Right Panel";
+"operation_recording.banner.discard" = "Discard";
+"operation_recording.banner.message" = "Recording operations · %lld steps";
+"operation_recording.banner.stop" = "Stop and Review";
+"operation_recording.close_while_recording.discard" = "Discard Recording";
+"operation_recording.close_while_recording.message" = "This window is closing while operation recording is active.";
+"operation_recording.close_while_recording.stop" = "Stop and Review";
+"operation_recording.close_while_recording.title" = "Stop recording?";
+"operation_recording.copy_script" = "Copy Script";
+"operation_recording.create_snippet" = "Create Snippet…";
+"operation_recording.default_snippet_name" = "Recorded Snippet";
+"operation_recording.discard_confirm.message" = "Recorded steps will be lost and cannot be recovered.";
+"operation_recording.discard_confirm.title" = "Discard recording?";
+"operation_recording.discarded" = "Recording discarded";
+"operation_recording.generalize_paths" = "Generalize paths to Snippet variables";
+"operation_recording.no_steps" = "No file operations were recorded";
+"operation_recording.preview_label" = "Script preview";
+"operation_recording.recording_name" = "Recording · %@";
+"operation_recording.review_subtitle" = "%lld steps recorded at %@";
+"operation_recording.review_title" = "Create Snippet from Recording";
+"operation_recording.scope_suggestion" = "Suggested scope: %@";
+"operation_recording.script_copied" = "Shell script copied (%lld steps)";
+"operation_recording.security.chmod_777" = "Contains permissive permissions (chmod 777).";
+"operation_recording.security.chmod_777_recursive" = "Contains recursive permissive permissions (chmod -R 777).";
+"operation_recording.security.curl_pipe" = "Pipes curl output into another command, which can execute remote code.";
+"operation_recording.security.dd" = "Contains low-level disk write (dd).";
+"operation_recording.security.eval" = "Contains dynamic evaluation (eval).";
+"operation_recording.security.mkfs" = "Contains filesystem formatting (mkfs).";
+"operation_recording.security.mv" = "Contains move/rename commands (mv), which can overwrite files.";
+"operation_recording.security.rm" = "Contains delete commands (rm).";
+"operation_recording.security.rm_r" = "Contains recursive delete (rm -r).";
+"operation_recording.security.rm_rf" = "Contains recursive delete (rm -rf), which may permanently remove files.";
+"operation_recording.security.sudo" = "Contains elevated privileges (sudo).";
+"operation_recording.security.wget_pipe" = "Pipes wget output into another command, which can execute remote code.";
+"operation_recording.security.write_dev" = "Writes directly to a device node under /dev/.";
+"operation_recording.short.clipboard" = "Clipboard";
+"operation_recording.short.compress" = "Compress";
+"operation_recording.short.copy" = "Copy";
+"operation_recording.short.delete" = "Delete";
+"operation_recording.short.extract" = "Extract";
+"operation_recording.short.move" = "Move";
+"operation_recording.short.new_file" = "New file";
+"operation_recording.short.new_folder" = "New folder";
+"operation_recording.short.rename" = "Rename";
+"operation_recording.snippet_saved" = "Snippet saved: %@";
+"operation_recording.step.compress" = "Compress %lld item(s) to %@";
+"operation_recording.step.copy" = "Copy %lld item(s)";
+"operation_recording.step.create_directory" = "Create folder %@";
+"operation_recording.step.create_file" = "Create file %@";
+"operation_recording.step.cut" = "Cut %lld item(s)";
+"operation_recording.step.delete_immediately" = "Delete %lld item(s) immediately";
+"operation_recording.step.drag_copy" = "Drag-copy %lld item(s) to %@";
+"operation_recording.step.drag_move" = "Drag-move %lld item(s) to %@";
+"operation_recording.step.extract" = "Extract %@ to %@";
+"operation_recording.step.paste_copy" = "Paste %lld item(s) to %@";
+"operation_recording.step.paste_move" = "Move %lld item(s) to %@";
+"operation_recording.step.rename" = "Rename to %@";
+"operation_recording.step.trash" = "Move %lld item(s) to Trash";
+"operation_recording.test_script" = "Test";
+"operation_recording.trash_warning" = "Recorded in Trash: generated scripts may not replay correctly outside Trash.";
+"operation_recording.validation.empty" = "Script is empty.";
+"operation_recording.validation.invalid_shell" = "Shell syntax check failed.";
+"operation_recording.validation.passed" = "Script syntax and variables look good.";
+"operation_recording.validation.shell_syntax" = "Shell syntax error: %@";
+"operation_recording.validation.unsupported_variable" = "Unsupported variable: %@";
+"operation_recording.validation.variable_expansion" = "Variable expansion failed: %@";
+"operation_recording.variables_footer" = "When generalization is on, paths may become %p, %d, %n, %b, etc. Edit the preview before saving if needed.";
+"operation_recording.variables_title" = "Snippet Variable Reference";
+"panorama.collapse_folder" = "Collapse folder";
+"panorama.expand_depth.automatic" = "Automatic";
+"panorama.expand_depth.depth2" = "Depth 2";
+"panorama.expand_depth.depth5" = "Depth 5";
+"panorama.expand_depth.unlimited" = "Unlimited";
+"panorama.expand_folder" = "Expand folder";
+"panorama.folder_kind" = "Folder";
+"panorama.item_count %lld" = "%lld items";
+"panorama.loading" = "Loading";
+"pathbar.back" = "Back";
+"pathbar.clear" = "Clear";
+"pathbar.commit" = "Go to path";
+"pathbar.edit" = "Click to edit full path";
+"pathbar.forward" = "Forward";
+"pathbar.history" = "Recent paths";
+"pathbar.no_subdirs" = "No subfolders";
+"pathbar.parent" = "Show parent path";
+"pathbar.select_all" = "Click to select full path";
+"pathbar.subdirs" = "Show subdirectories";
+"permission.automation.message" = "MeoFind needs permission to control Finder to show Trash contents.\n\nIn System Settings → Privacy & Security → Automation, allow MeoFind to control Finder.";
+"permission.automation.open_settings" = "Open System Settings";
+"permission.automation.title" = "Automation Permission Required";
+"permission.fda.detected" = "Full Disk Access detected. Restart the app to finish enabling it.";
+"permission.fda.later" = "Later";
+"permission.fda.message" = "MeoFind needs this permission to browse all files and folders on your system.";
+"permission.fda.not_detected" = "Permission not detected yet. Make sure this app is enabled in System Settings.";
+"permission.fda.open_settings" = "Open System Settings";
+"permission.fda.restart_app" = "Restart App";
+"permission.fda.step1" = "Click Open System Settings below.";
+"permission.fda.step2 %@" = "In Privacy & Security → Full Disk Access, turn on %@.";
+"permission.fda.step3" = "Return to this app and click Restart App to apply the permission.";
+"permission.fda.title" = "Full Disk Access Required";
+"preview.archive.loading_more" = "Loading more entries…";
+"preview.archive.selection_count %lld" = "%lld selected · ⌘-click to multi-select";
+"preview.archive_truncated" = "[Truncated...]";
+"preview.chrome.back_to_folder" = "Back to Folder";
+"preview.chrome.close_preview" = "Close Preview";
+"preview.chrome.close_window" = "Close Window";
+"preview.chrome.collapse" = "Collapse Preview";
+"preview.chrome.detach" = "Open in Detached Window";
+"preview.chrome.dock_back" = "Dock to Sidebar";
+"preview.chrome.expand" = "Expand Preview";
+"preview.chrome.reveal_in_file_list" = "Reveal in File List";
+"preview.close" = "Close Preview";
+"preview.collapse" = "Collapse Preview";
+"preview.detached_placeholder %@" = "%@ is being previewed in a separate window";
+"preview.dock_back" = "Move Back to Sidebar";
+"preview.eml.attachment_size %lld" = "%lld bytes";
+"preview.eml.attachments" = "Attachments";
+"preview.eml.cc" = "Cc";
+"preview.eml.date" = "Date";
+"preview.eml.empty_body" = "No message body";
+"preview.eml.from" = "From";
+"preview.eml.subject" = "Subject";
+"preview.eml.to" = "To";
+"preview.empty_state" = "Select a file to preview";
+"preview.epub.chapter_progress %lld %lld" = "Chapter %lld of %lld";
+"preview.epub.no_chapters" = "No chapters";
+"preview.error_loading" = "Error Loading Preview";
+"preview.expand" = "Expand Preview";
+"preview.focus_window" = "Focus Window";
+"preview.folder_inline.open_directory" = "Double-click to open";
+"preview.folder_inline.preview_file" = "Click to preview · Double-click to open · Option-double-click for detached preview";
+"preview.font.copyright" = "Copyright";
+"preview.font.family" = "Family";
+"preview.font.glyphs" = "Glyphs";
+"preview.font.point_size %lld" = "%lld pt";
+"preview.font.post_script_name" = "PostScript";
+"preview.font.registration_failed" = "Unable to register font for preview";
+"preview.font.samples" = "Samples";
+"preview.font.style" = "Style";
+"preview.font.version" = "Version";
+"preview.image.confirm" = "OK";
+"preview.image.height" = "Height";
+"preview.image.maintain_aspect" = "Maintain Aspect Ratio";
+"preview.image.resize_hint" = "Set output size in pixels. After confirming, click Save Edits to write the file.";
+"preview.image.resize_title" = "Resize Image";
+"preview.image.validation.empty" = "Enter width and height";
+"preview.image.validation.invalid" = "Enter valid pixel values";
+"preview.image.validation.max" = "Each side cannot exceed 65535 pixels";
+"preview.image.validation.positive" = "Width and height must be greater than 0";
+"preview.image.width" = "Width";
+"preview.loading" = "Loading preview...";
+"preview.markdown.mermaid_render_failed" = "Failed to render diagram";
+"preview.markdown.mermaid_rendering" = "Rendering diagram…";
+"preview.model3d.dimensions %.1f %.1f %.1f" = "Size: %.1f × %.1f × %.1f";
+"preview.model3d.triangles %lld" = "Triangles: %lld";
+"preview.model3d.unit_hint" = "STL has no unit metadata; values are relative.";
+"preview.next" = "Next";
+"preview.not_available" = "Preview not available for this file type";
+"preview.previous" = "Previous";
+"preview.reattach.confirm" = "Move Back";
+"preview.reattach.message" = "Moving the preview back will replace the current sidebar preview. Continue?";
+"preview.reattach.title" = "Move Preview Back";
+"preview.save_failed_title" = "Save Failed";
+"preview.session_closed" = "Preview session closed";
+"preview.text_edit.cancel" = "Cancel";
+"preview.text_edit.discard" = "Discard Changes";
+"preview.text_edit.discard_confirm_message %@" = "Unsaved changes to \"%@\" will be lost.";
+"preview.text_edit.discard_confirm_title" = "Discard Changes?";
+"preview.text_edit.dont_save" = "Don't Save";
+"preview.text_edit.edit" = "Edit";
+"preview.text_edit.not_writable" = "File is not writable";
+"preview.text_edit.save" = "Save";
+"preview.text_edit.save_confirm_message %@" = "This will overwrite \"%@\".";
+"preview.text_edit.save_confirm_title" = "Save Changes";
+"preview.text_edit.too_large" = "File is too large to edit in preview";
+"preview.text_edit.unsaved_message %@" = "\"%@\" has unsaved changes.";
+"preview.text_edit.unsaved_title" = "Unsaved Changes";
+"preview.title" = "Preview";
+"preview.toolbar.actual_size" = "Actual Size";
+"preview.toolbar.archive_collapse" = "Collapse to Top Level";
+"preview.toolbar.archive_expand" = "Expand All Levels";
+"preview.toolbar.clear_search" = "Clear Search";
+"preview.toolbar.color_hex %@" = "Color %@";
+"preview.toolbar.color_picker" = "Color Picker (click image to copy Web color)";
+"preview.toolbar.copied_to_clipboard" = "Copied to Clipboard";
+"preview.toolbar.copy_all" = "Copy All";
+"preview.toolbar.copy_image" = "Copy Image";
+"preview.toolbar.copy_manifest" = "Copy Manifest";
+"preview.toolbar.copy_model_info" = "Copy Model Info";
+"preview.toolbar.epub_chapters" = "Chapters";
+"preview.toolbar.epub_next_chapter" = "Next Chapter";
+"preview.toolbar.epub_previous_chapter" = "Previous Chapter";
+"preview.toolbar.extract" = "Extract";
+"preview.toolbar.extract_selected" = "Extract Selected";
+"preview.toolbar.extract_selected_to" = "Extract Selected To…";
+"preview.toolbar.extract_to" = "Extract To…";
+"preview.toolbar.eyedropper" = "Eyedropper";
+"preview.toolbar.fit_page" = "Fit Page";
+"preview.toolbar.fit_width" = "Fit Width";
+"preview.toolbar.fit_window" = "Fit Window";
+"preview.toolbar.flip_horizontal" = "Flip Horizontal";
+"preview.toolbar.flip_vertical" = "Flip Vertical";
+"preview.toolbar.font_size" = "Font Size";
+"preview.toolbar.html_preview" = "HTML Parsed Preview";
+"preview.toolbar.jump_bottom" = "Jump to Bottom";
+"preview.toolbar.jump_to_page" = "Go to Page";
+"preview.toolbar.jump_top" = "Jump to Top";
+"preview.toolbar.markdown_to_preview" = "Switch to Preview Mode";
+"preview.toolbar.markdown_to_source" = "Switch to Source Mode";
+"preview.toolbar.model3d_rotate_down" = "Rotate Down";
+"preview.toolbar.model3d_rotate_up" = "Rotate Up";
+"preview.toolbar.model3d_solid" = "Solid";
+"preview.toolbar.model3d_wireframe" = "Wireframe";
+"preview.toolbar.more_actions" = "More Actions";
+"preview.toolbar.mute" = "Mute";
+"preview.toolbar.next_match" = "Next";
+"preview.toolbar.next_page" = "Next Page";
+"preview.toolbar.open_default_app" = "Open with Default App";
+"preview.toolbar.page_number" = "Page Number";
+"preview.toolbar.pause" = "Pause";
+"preview.toolbar.play" = "Play";
+"preview.toolbar.previous_match" = "Previous";
+"preview.toolbar.previous_page" = "Previous Page";
+"preview.toolbar.refresh_listing" = "Refresh Listing";
+"preview.toolbar.reset" = "Reset";
+"preview.toolbar.reset_view" = "Reset View";
+"preview.toolbar.resize" = "Resize";
+"preview.toolbar.rotate_ccw" = "Rotate Counterclockwise";
+"preview.toolbar.rotate_cw" = "Rotate Clockwise";
+"preview.toolbar.run_script" = "Run";
+"preview.toolbar.save_edits" = "Save Edits";
+"preview.toolbar.search_in_preview" = "Search in Preview";
+"preview.toolbar.search_no_results" = "No results";
+"preview.toolbar.search_prompt" = "Search";
+"preview.toolbar.source_mode" = "Source Mode";
+"preview.toolbar.undo" = "Undo Last Step";
+"preview.toolbar.unmute" = "Unmute";
+"preview.toolbar.word_document_to_formatted" = "Switch to Formatted Preview";
+"preview.toolbar.word_document_to_text" = "Switch to Plain Text";
+"preview.toolbar.wrap_disable" = "Disable Word Wrap";
+"preview.toolbar.wrap_enable" = "Enable Word Wrap";
+"preview.toolbar.zoom" = "Zoom";
+"preview.toolbar.zoom_in" = "Zoom In";
+"preview.toolbar.zoom_in_font" = "Increase Font Size";
+"preview.toolbar.zoom_in_overall" = "Zoom In (Overall)";
+"preview.toolbar.zoom_out" = "Zoom Out";
+"preview.toolbar.zoom_out_font" = "Decrease Font Size";
+"preview.toolbar.zoom_out_overall" = "Zoom Out (Overall)";
+"preview.toolbar.zoom_scale" = "Zoom Level";
+"remote_server.address_placeholder" = "smb://server.example.com/share";
+"remote_server.address_prompt" = "Server Address";
+"remote_server.connect" = "Connect";
+"remote_server.connect_server_menu" = "Connect to Server…";
+"remote_server.connecting" = "Connecting…";
+"remote_server.disconnected_from_server" = "Disconnected from the server";
+"remote_server.error.ambiguous_new_volumes" = "Multiple new volumes were mounted. Opened the first one.";
+"remote_server.error.invalid_url" = "Unrecognized server address. Use smb://, ftp://, nfs://, or https://.";
+"remote_server.error.mount_failed %@" = "Could not connect to the server: %@";
+"remote_server.error.sftp_deferred" = "SFTP will be supported in a future release. Use SMB, or mount with sshfs first.";
+"remote_server.error.timeout" = "Connection timed out. Check the network or server availability.";
+"remote_server.error.unsupported_protocol %@" = "The %@ protocol is not supported.";
+"remote_server.ftp_security_notice" = "FTP transfers data in plain text. Use SMB for sensitive files.";
+"remote_server.recent_title" = "Recent Connections";
+"remote_server.remove_from_recent" = "Remove from Recent";
+"remote_server.sheet.title" = "Connect to Server";
+"remote_server.supported_protocols" = "Supported: SMB · NFS · WebDAV · FTP";
+"search.close_quick_search" = "Close Quick Search";
+"search.content_cancelled" = "Cancelled";
+"search.content_find_in_folder" = "Find in Folder";
+"search.content_next_match" = "Next Match";
+"search.content_no_results" = "No matches found";
+"search.content_progress" = "Scanned %lld/%lld files · %lld matches";
+"search.content_prompt" = "Search in folder…";
+"search.content_searching" = "Searching… %lld matches";
+"search.content_summary.elapsed" = "%.1fs";
+"search.content_summary.files" = "%lld files";
+"search.content_summary.matches" = "%lld matches";
+"search.content_summary.position" = "%lld/%lld";
+"search.content_truncated" = "Truncated";
+"search.filter.case_sensitive" = "Case sensitive";
+"search.filter.exclude" = "Exclude";
+"search.filter.exclude_placeholder" = "node_modules/**";
+"search.filter.include" = "Include";
+"search.filter.include_placeholder" = "*.swift *.md";
+"search.filter.reset" = "Reset";
+"search.filter.subdirectories" = "Include subfolders";
+"search.filter.title" = "Filter";
+"search.focus" = "Focus Search";
+"search.mode.content" = "Content";
+"search.mode.filename" = "Filename";
+"search.prompt" = "Search files";
+"search.quick_search" = "Quick Search";
+"settings.auto_show_output" = "Auto-show Output Panel on Shell Run";
+"settings.blank_action.parent" = "Go to parent folder";
+"settings.blank_action.terminal" = "Open Terminal here";
+"settings.blank_double_click" = "Double-click on blank area";
+"settings.confirm_destructive" = "Confirm Destructive Commands";
+"settings.default_image_viewer.current" = "Current Default";
+"settings.default_image_viewer.footer" = "Opens images in the detached preview window, sized to fit the screen.";
+"settings.default_image_viewer.restart_hint" = "Log out and back in, or restart your Mac, for changes to take effect everywhere.";
+"settings.default_image_viewer.restore_preview" = "Restore Preview";
+"settings.default_image_viewer.restore_success" = "Preview is now the default image viewer.";
+"settings.default_image_viewer.set" = "Set as Default Image Viewer";
+"settings.default_image_viewer.set_success" = "MeoFind is now the default image viewer. Double-clicking an image opens the detached preview window.";
+"settings.default_image_viewer.title" = "Default Image Viewer";
+"settings.default_viewer.current" = "Current Default";
+"settings.default_viewer.restart_hint" = "Log out and back in, or restart your Mac, for changes to take effect everywhere.";
+"settings.default_viewer.restore_finder" = "Restore Finder";
+"settings.default_viewer.restore_success" = "Finder is now the default folder viewer. Log out and back in (or restart) for the change to take effect everywhere.";
+"settings.default_viewer.set" = "Set as Default Folder Viewer";
+"settings.default_viewer.set_success" = "MeoFind is now the default folder viewer. Log out and back in (or restart) for the change to take effect everywhere.";
+"settings.default_viewer.title" = "Default Folder Viewer";
+"settings.file_list.row_hover_highlight" = "Highlight file list row on hover";
+"settings.general.interface_language" = "Interface Language";
+"settings.general.interface_language_footer" = "Applies immediately to most of the app. Restart MeoFind if menu bar items look unchanged.";
+"settings.git.choose" = "Choose…";
+"settings.git.choose_panel_title" = "Choose Git Executable";
+"settings.git.executable" = "Git Executable";
+"settings.git.footer" = "MeoFind uses git for the Git panel. If git is not in a standard location, choose the executable manually. Install via Xcode Command Line Tools (xcode-select --install) or Homebrew (brew install git).";
+"settings.git.invalid_executable" = "The selected file is not a valid git executable.";
+"settings.git.not_found" = "Git was not found. Install it or choose the executable path above.";
+"settings.git.reset" = "Auto Detect";
+"settings.git.title" = "Git";
+"settings.git.version" = "Version";
+"settings.job_concurrency_limit %lld" = "Job Concurrency Limit: %lld";
+"settings.menu_item" = "Settings…";
+"settings.pin_recent_snippets" = "Pin Recently Executed";
+"settings.preview.add_rule" = "Add Rule…";
+"settings.preview.add_rule_title" = "Add Preview Rule";
+"settings.preview.archive_double_click" = "Double-click archives (default app mode)";
+"settings.preview.archive_double_click.extract" = "Extract here";
+"settings.preview.archive_double_click.preview" = "Open in detached preview";
+"settings.preview.builtin_catalog" = "Built-in Preview Types (Read-only)";
+"settings.preview.code_line_numbers" = "Code Preview";
+"settings.preview.code_line_numbers.footer" = "When enabled, line numbers appear to the left of code in the sidebar preview panel.";
+"settings.preview.code_line_numbers.toggle" = "Show line numbers in code preview";
+"settings.preview.custom_types" = "Custom File Types";
+"settings.preview.customize" = "Customize";
+"settings.preview.detached_browse" = "Browse in Detached Window";
+"settings.preview.detached_browse.footer" = "When enabled, the filmstrip and ← → navigation in a detached preview window only switch between files of the same type.";
+"settings.preview.detached_browse.toggle" = "Show only same extension in detached browser strip";
+"settings.preview.disabled" = "Disabled";
+"settings.preview.double_click" = "Double-click previewable files";
+"settings.preview.double_click.default_app" = "Open with default app";
+"settings.preview.double_click.sidebar_preview" = "Preview in sidebar";
+"settings.preview.double_click.standalone_preview" = "Open in detached preview window";
+"settings.preview.edit_rule_title" = "Edit Preview Rule";
+"settings.preview.enabled_toggle" = "Enabled";
+"settings.preview.export_panel_title" = "Export Custom Preview Rules";
+"settings.preview.export_rules" = "Export Rules…";
+"settings.preview.export_success %lld" = "Exported %lld rules.";
+"settings.preview.extensionless_label" = "(no extension)";
+"settings.preview.extensions_field" = "Extensions (comma-separated)";
+"settings.preview.external_multi_image" = "External open for multiple images";
+"settings.preview.external_multi_image.one_window_per_file" = "One window per image";
+"settings.preview.external_multi_image.single_window_with_strip" = "Single window with filmstrip";
+"settings.preview.external_open" = "External open for previewable files";
+"settings.preview.external_open.browser_and_select" = "Open browser window and select file";
+"settings.preview.external_open.standalone_only" = "Detached preview window only";
+"settings.preview.handler_group.current_handler %@" = "Current: %@";
+"settings.preview.handler_group.footer" = "When enabled, Finder double-click opens MeoFind for that file group. You may need to restart MeoFind or log out for macOS to apply changes.";
+"settings.preview.handler_group.image" = "Images";
+"settings.preview.handler_group.image.hint" = "Opens images in the detached preview window, sized to fit the screen.";
+"settings.preview.handler_group.media" = "Audio & video";
+"settings.preview.handler_group.office" = "Office documents";
+"settings.preview.handler_group.pdf" = "PDF";
+"settings.preview.handler_group.restart_hint" = "Restart MeoFind if Finder does not use the new default immediately.";
+"settings.preview.handler_group.restore_success %@" = "Restored system default for %@.";
+"settings.preview.handler_group.set_success %@" = "%@ registered as default.";
+"settings.preview.handler_group.text_and_code" = "Text & code";
+"settings.preview.handler_group.title" = "Register as default app";
+"settings.preview.import.merge" = "Merge";
+"settings.preview.import.replace" = "Replace";
+"settings.preview.import_complete" = "Import complete.";
+"settings.preview.import_export_title" = "Import / Export";
+"settings.preview.import_method_message" = "Merge keeps existing rules and updates matching IDs. Replace clears all existing rules.";
+"settings.preview.import_method_title" = "Import Method";
+"settings.preview.import_panel_title" = "Import Custom Preview Rules";
+"settings.preview.import_rules" = "Import Rules…";
+"settings.preview.mode.archive" = "Archive Listing";
+"settings.preview.mode.archive.detail" = "List ZIP / TAR contents in a tree; supports extract.";
+"settings.preview.mode.html" = "HTML Preview";
+"settings.preview.mode.html.detail" = "Render HTML in WebKit; source view can be toggled.";
+"settings.preview.mode.image" = "Image Preview";
+"settings.preview.mode.image.detail" = "Decode and display as an image when possible.";
+"settings.preview.mode.markdown" = "Markdown Preview";
+"settings.preview.mode.markdown.detail" = "Render Markdown; source view can be toggled in the toolbar.";
+"settings.preview.mode.media" = "Media Preview";
+"settings.preview.mode.media.detail" = "Play audio and video with AVPlayer.";
+"settings.preview.mode.pdf" = "PDF Preview";
+"settings.preview.mode.pdf.detail" = "Display PDF documents with PDFKit.";
+"settings.preview.mode.quicklook" = "QuickLook Preview";
+"settings.preview.mode.quicklook.detail" = "Use macOS QuickLook for formats supported by the system.";
+"settings.preview.mode.text" = "Text Preview";
+"settings.preview.mode.text.detail" = "Display as plain text with syntax highlighting by extension.";
+"settings.preview.no_rules_hint" = "No custom rules yet. Select an unpreviewable file to add one from the preview panel.";
+"settings.preview.open_behavior" = "Double-click & External Open";
+"settings.preview.open_behavior.footer" = "Option-double-click and ⌘Return always open a detached preview window. External open applies when MeoFind is the default app for a file type.";
+"settings.preview.open_in_settings" = "Customize in Settings…";
+"settings.preview.override_builtin" = "Override Built-in";
+"settings.preview.override_builtin_toggle" = "Override built-in preview";
+"settings.preview.preview_as_text" = "Preview as Text";
+"settings.preview.preview_mode" = "Preview Mode";
+"settings.preview.preview_quicklook" = "QuickLook Preview";
+"settings.preview.unavailable_hint" = "Add a custom preview rule for this type, or try QuickLook.";
+"settings.preview.unavailable_title %@" = "Cannot preview %@ files";
+"settings.preview.validation_extensions" = "Enter at least one valid extension.";
+"settings.shortcut.cheat_sheet" = "Feature Cheat Sheet";
+"settings.shortcut.click_to_record" = "Click to record a new shortcut";
+"settings.shortcut.close_detached_preview" = "Close Detached Preview";
+"settings.shortcut.copy_path" = "Copy Full Path";
+"settings.shortcut.global_toggle" = "Show / Hide App";
+"settings.shortcut.global_toggle_enabled" = "Enable global shortcut";
+"settings.shortcut.global_toggle_footer" = "Works from any app. Shows MeoFind when hidden, or hides it when the app is active.";
+"settings.shortcut.new_tab" = "New Tab";
+"settings.shortcut.preview_text_edit" = "Edit Preview Text";
+"settings.shortcut.recording_hint" = "Press the desired key combination. Esc cancels.";
+"settings.shortcut.recording_placeholder" = "Press keys…";
+"settings.shortcut.reset" = "Reset";
+"settings.shortcuts.category.files" = "Files";
+"settings.shortcuts.category.global" = "Global";
+"settings.shortcuts.category.navigation" = "Navigation";
+"settings.shortcuts.category.output" = "Output";
+"settings.shortcuts.category.panels" = "Panels";
+"settings.shortcuts.category.preview" = "Preview";
+"settings.shortcuts.category.system" = "System";
+"settings.snippets.display.minimal" = "Minimal";
+"settings.snippets.display.standard" = "Standard";
+"settings.snippets.display_mode" = "Panel display mode";
+"settings.snippets.output_color.dark" = "Dark";
+"settings.snippets.output_color.gray" = "Gray";
+"settings.snippets.output_color.light" = "Light";
+"settings.snippets.output_color_scheme" = "Output panel color scheme";
+"settings.snippets.recording_generalize_paths" = "Generalize paths by default";
+"settings.snippets.recording_section" = "Operation Recording";
+"settings.snippets.recording_section_footer" = "Defaults for the review sheet and recording banner. Snippet execution during recording is not captured.";
+"settings.snippets.recording_show_banner" = "Show recording banner";
+"settings.tab.general" = "General";
+"settings.tab.preview" = "Preview";
+"settings.tab.shortcuts" = "Shortcuts";
+"settings.tab.snippets" = "Snippets";
+"settings.window_snap" = "Enable window snap and linked movement";
+"settings.window_title" = "Settings";
+"sidebar.devices" = "Devices";
+"sidebar.disconnect_device %@" = "Disconnect %@";
+"sidebar.eject_device %@" = "Eject %@";
+"sidebar.eject_failed %@" = "Could not disconnect %@. Close files using this volume and try again.";
+"sidebar.favorites" = "Favorites";
+"sidebar.locations" = "Locations";
+"sidebar.no_devices" = "No devices";
+"sidebar.trash" = "Trash";
+"snippets.ask.continue" = "Continue";
+"snippets.ask.for_snippet %@" = "For snippet: %@";
+"snippets.ask.form_title" = "Enter parameters";
+"snippets.badge.directory" = "Dir";
+"snippets.badge.file" = "File";
+"snippets.badge.path" = "Path";
+"snippets.badge.single" = "1 item";
+"snippets.builtin.copy_path" = "Copy Path";
+"snippets.builtin.finder_info" = "Show Finder Info";
+"snippets.builtin.list_directory" = "List Directory";
+"snippets.builtin.open_default" = "Open with Default App";
+"snippets.builtin.open_pdf" = "Open PDF (Preview)";
+"snippets.builtin.open_terminal" = "Open in Terminal";
+"snippets.builtin.show_attributes" = "Show Attributes";
+"snippets.confirm.destructive_message" = "This Snippet may delete or move files. Continue?";
+"snippets.confirm.destructive_title" = "Dangerous Command";
+"snippets.confirm.proceed" = "Run Anyway";
+"snippets.editor.content" = "Content";
+"snippets.editor.edit_title" = "Edit Snippet";
+"snippets.editor.extensions_placeholder" = "Extensions (comma-separated, e.g. pdf, md)";
+"snippets.editor.insert_variable" = "Insert variable at cursor";
+"snippets.editor.interpreter" = "Interpreter";
+"snippets.editor.name" = "Name";
+"snippets.editor.new_title" = "New Snippet";
+"snippets.editor.paths_placeholder" = "File paths (one per line)";
+"snippets.editor.scope" = "Scope";
+"snippets.editor.script_type" = "Script Type";
+"snippets.editor.section_execution" = "Execution";
+"snippets.editor.section_general" = "General";
+"snippets.editor.section_scope" = "Scope";
+"snippets.editor.section_script" = "Script";
+"snippets.editor.subtitle" = "Configure scope, execution, and script content.";
+"snippets.editor.terminal_hint" = "Runs in Terminal or similar; output is not shown in the in-app panel";
+"snippets.editor.use_system_terminal" = "Use System Terminal";
+"snippets.import.rename_suffix" = "(imported)";
+"snippets.import.rename_suffix %lld" = "(imported %lld)";
+"snippets.output.cancelled" = "Cancelled";
+"snippets.output.clear" = "Clear";
+"snippets.output.close_all" = "Close All";
+"snippets.output.close_current" = "Close Tab";
+"snippets.output.close_others" = "Close Others";
+"snippets.output.close_panel" = "Close Output Panel";
+"snippets.output.collapse" = "Collapse Output Panel";
+"snippets.output.collapse_command" = "Collapse";
+"snippets.output.command_failed %lld" = "Command failed with exit code %lld";
+"snippets.output.command_placeholder" = "Expanded command; press Return to rerun";
+"snippets.output.completed_with_exit_code %lld" = "Output received, but exit code is %lld (you can ignore this if the result above looks fine)";
+"snippets.output.copy" = "Copy";
+"snippets.output.empty_hint" = "Run a Snippet to see output here";
+"snippets.output.exit_code %lld" = "Exit code %lld";
+"snippets.output.expand" = "Expand Output Panel";
+"snippets.output.expand_command" = "Show full command";
+"snippets.output.find" = "Find";
+"snippets.output.full_command_title" = "Full command";
+"snippets.output.no_output" = "(no output)";
+"snippets.output.queued" = "Queued";
+"snippets.output.run_command" = "Run";
+"snippets.output.run_history_command" = "Run this command";
+"snippets.output.running" = "Running…";
+"snippets.output.status_banner.dismiss" = "Dismiss";
+"snippets.output.status_banner.hide_details" = "Hide";
+"snippets.output.status_banner.show_details" = "Details";
+"snippets.output.stop" = "Stop";
+"snippets.output.truncated" = "[Output truncated: maximum size reached]";
+"snippets.panel.close" = "Close Snippets";
+"snippets.panel.collapse" = "Collapse Snippets";
+"snippets.panel.execute" = "Run";
+"snippets.panel.execute_in_terminal" = "Run in Terminal";
+"snippets.panel.expand" = "Expand Snippets";
+"snippets.panel.export_all" = "Export All…";
+"snippets.panel.export_single" = "Export This Snippet";
+"snippets.panel.import" = "Import…";
+"snippets.panel.import_button" = "Import";
+"snippets.panel.import_conflict_message %lld" = "%lld snippets conflict with existing items";
+"snippets.panel.import_conflict_title" = "Import Conflict";
+"snippets.panel.import_done_message %lld %lld" = "Imported %lld, skipped %lld";
+"snippets.panel.import_done_title" = "Import Complete";
+"snippets.panel.import_export" = "Import / Export";
+"snippets.panel.import_failed_title" = "Import Failed";
+"snippets.panel.import_strategy_label" = "Resolution";
+"snippets.panel.new" = "New";
+"snippets.panel.no_match" = "No snippets match the current context";
+"snippets.panel.no_results" = "No search results";
+"snippets.panel.search_prompt" = "Search name or script content…";
+"snippets.scope.anytime" = "Always";
+"snippets.scope.anytime.desc" = "Always shown in the snippet list, whether or not anything is selected.";
+"snippets.scope.directories_only" = "Directories Only";
+"snippets.scope.directories_only.desc" = "Shown only when every selected item is a folder.";
+"snippets.scope.file_extensions" = "Specific Extensions";
+"snippets.scope.file_extensions.desc" = "Shown when a selected file's extension matches the list configured below (e.g. pdf, jpg).";
+"snippets.scope.files_only" = "Files Only";
+"snippets.scope.files_only.desc" = "Shown only when every selected item is a file (not a folder).";
+"snippets.scope.global" = "When Items Selected";
+"snippets.scope.global.desc" = "Shown when one or more files or folders are selected.";
+"snippets.scope.single_selection" = "Single Selection";
+"snippets.scope.single_selection.desc" = "Shown only when exactly one item is selected. Use this for snippets with %p and other single-selection variables.";
+"snippets.scope.specific_files" = "Specific Files";
+"snippets.scope.specific_files.desc" = "Shown when a selected item's absolute path matches one of the paths configured below.";
+"snippets.strategy.overwrite" = "Overwrite";
+"snippets.strategy.rename" = "Rename";
+"snippets.strategy.skip" = "Skip";
+"snippets.title" = "Snippets";
+"snippets.variable.ask" = "Prompt the user at run time; the text inside braces is the input title";
+"snippets.variable.ask_named" = "Named user input; same id is asked once and reused";
+"snippets.variable.b" = "File name without extension (basename)";
+"snippets.variable.capital_f" = "All selected files, space-separated";
+"snippets.variable.capital_n" = "Number of selected items";
+"snippets.variable.capital_p" = "All selected item paths, space-separated";
+"snippets.variable.capital_q" = "Each selected path shell-quoted, space-separated";
+"snippets.variable.d" = "Current browsing directory (cwd)";
+"snippets.variable.date" = "ISO8601 timestamp at run time";
+"snippets.variable.e" = "File extension without dot, lowercase (e.g. pdf)";
+"snippets.variable.f" = "Selected file path (single file, not a folder)";
+"snippets.variable.h" = "User home directory path";
+"snippets.variable.n" = "Selected item file name including extension (e.g. report.pdf)";
+"snippets.variable.p" = "Selected item path (single selection)";
+"snippets.variable.q" = "Shell single-quoted path for %p (safe for spaces)";
+"snippets.variable.u" = "Short user name";
+"snippets.variable.uuid" = "New UUID generated on each run";
+"snippets.variable.w" = "Current directory name (last path component)";
+"snippets.variable_help.column_description" = "Description";
+"snippets.variable_help.column_token" = "Variable";
+"snippets.variable_help.footer" = "Click a variable chip below to insert it at the cursor. Hover for a short description.";
+"snippets.variable_help.show_reference" = "Show Snippet variable reference";
+"sort.date_newest" = "Date (Newest First)";
+"sort.date_oldest" = "Date (Oldest First)";
+"sort.name_ascending" = "Name (A to Z)";
+"sort.name_descending" = "Name (Z to A)";
+"sort.size_largest" = "Size (Largest First)";
+"sort.size_smallest" = "Size (Smallest First)";
+"toolbar.auto_folder_size" = "Calculate Folder Sizes (Slower)";
+"toolbar.browse_settings" = "Browse Settings";
+"toolbar.customize" = "Customize Toolbar…";
+"toolbar.customize.add_open_app" = "Add Toolbar Item…";
+"toolbar.customize.cancel" = "Cancel";
+"toolbar.customize.done" = "Done";
+"toolbar.customize.hint" = "Drag items into the toolbar to add them. Drag items out to remove them.";
+"toolbar.customize.reset" = "Restore Defaults";
+"toolbar.customize.title" = "Customize Toolbar";
+"toolbar.delete" = "Delete";
+"toolbar.error.app_missing" = "Application “%@” could not be found. Reconfigure it in Customize Toolbar.";
+"toolbar.error.app_missing_title" = "Application Not Found";
+"toolbar.error.no_selection" = "Select one or more items first";
+"toolbar.hide_hidden_files" = "Hide Hidden Files";
+"toolbar.hide_left_panel" = "Hide Left Panel";
+"toolbar.hide_tab_bar" = "Hide Tab Bar";
+"toolbar.list_view" = "List View";
+"toolbar.new_file" = "New File";
+"toolbar.new_folder" = "New Folder";
+"toolbar.new_tab" = "New Tab";
+"toolbar.new_window" = "New Window";
+"toolbar.open_app.add" = "Add";
+"toolbar.open_app.choose" = "Choose…";
+"toolbar.open_app.choose_prompt" = "Choose an application";
+"toolbar.open_app.edit" = "Edit Toolbar Item…";
+"toolbar.open_app.edit_title" = "Edit Toolbar Item";
+"toolbar.open_app.name" = "Name";
+"toolbar.open_app.save" = "Save";
+"toolbar.open_app.selection_current_folder" = "Pass current folder";
+"toolbar.open_app.selection_optional" = "Pass selection when available";
+"toolbar.open_app.selection_policy" = "Selection Policy";
+"toolbar.open_app.selection_policy_help" = "Require selection: at least one item must be selected. Pass when available: passes selected items if any, otherwise launches the app without files. Current folder: always passes the folder you are browsing.";
+"toolbar.open_app.selection_require" = "Require selected items";
+"toolbar.open_app.title" = "Add Toolbar Item";
+"toolbar.open_app.tooltip" = "Open with %@";
+"toolbar.open_app.use_app_icon" = "Use application icon";
+"toolbar.panorama.collapse_all" = "Collapse All Folders";
+"toolbar.panorama.expand_all" = "Expand All Folders";
+"toolbar.panorama.expand_depth" = "Expand Depth";
+"toolbar.panorama.layout_grid" = "Standard Grid";
+"toolbar.panorama.layout_panorama" = "Subfolder Panorama";
+"toolbar.panorama_mode" = "Panorama View";
+"toolbar.record_operations" = "Record operations to create a Snippet";
+"toolbar.record_operations_active" = "Recording — click to stop";
+"toolbar.show_all_tabs" = "Show All Tabs";
+"toolbar.show_hidden_files" = "Show Hidden Files";
+"toolbar.show_left_panel" = "Show Left Panel";
+"toolbar.show_tab_bar" = "Show Tab Bar";
+"toolbar.sort" = "Sort";
+"toolbar.tab_bar.cannot_hide_multiple" = "Multiple tabs are open; the tab bar cannot be hidden";
+"toolbar.tab_bar.unavailable" = "Tab bar is not available in this window";
+"toolbar.thumbnail_size" = "Icon Size";
+"toolbar.thumbnail_view" = "Icon View";
+"toolbar.use_icon_preview" = "Use Icon Preview";
+"toolbar.view_picker" = "View";

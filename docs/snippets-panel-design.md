@@ -656,6 +656,7 @@ Job 标签标题优先显示 `snippetName`，悬停展示完整 `displayCommand`
 | `%clipboard` | 当前剪贴板字符串 | 需剪贴板读权限 |
 | `%date` | ISO8601 本地时间 | `2026-06-17T10:00:00` |
 | `%uuid` | 每次执行生成新 UUID | 批量唯一命名 |
+| `%ask{提示}` / `%ask[id]{提示}` | **执行前向用户询问**；提示作输入项标题；多参数一张表单 | 详见 [snippets-user-input-design.md](./snippets-user-input-design.md) |
 
 **转义规则**：
 
@@ -692,13 +693,16 @@ struct SnippetExecutionContext {
 enum SnippetExpander {
     static func expand(
         _ template: String,
-        context: SnippetExecutionContext
+        context: SnippetExecutionContext,
+        scriptType: SnippetScriptType = .shell,
+        askValues: [String: String] = [:]
     ) throws -> String
 }
 ```
 
+- 含 `%ask` 时先由 `SnippetAskParser` / 表单收集输入，再传入 `askValues`（见 [snippets-user-input-design.md](./snippets-user-input-design.md)）
 - 未知占位符原样保留或警告（首版原样保留）
-- 展开失败抛 `SnippetExpansionError`，由 `SnippetExecutor` 转为输出面板错误信息
+- 展开失败抛 `SnippetExpansionError` / `SnippetAskParseError`，由 `SnippetExecutor` 转为输出面板错误信息
 
 ---
 

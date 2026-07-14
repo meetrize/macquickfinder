@@ -73,12 +73,34 @@ final class SnippetExecutor: ObservableObject {
         useSystemTerminal: Bool,
         layout: ExplorerWindowLayoutState? = nil
     ) {
+        let askParameters: [SnippetAskParameter]
+        do {
+            askParameters = try SnippetAskParser.uniqueParameters(in: snippet.content)
+        } catch {
+            reportExpansionError(error, snippet: snippet, layout: layout)
+            return
+        }
+
+        let askValues: [String: String]
+        if askParameters.isEmpty {
+            askValues = [:]
+        } else {
+            guard let collected = SnippetAskInputPanel.collect(
+                parameters: askParameters,
+                snippetName: snippet.name
+            ) else {
+                return
+            }
+            askValues = collected
+        }
+
         let expanded: String
         do {
             expanded = try SnippetExpander.expand(
                 snippet.content,
                 context: context,
-                scriptType: snippet.scriptType
+                scriptType: snippet.scriptType,
+                askValues: askValues
             )
         } catch {
             reportExpansionError(error, snippet: snippet, layout: layout)

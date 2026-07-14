@@ -2029,6 +2029,57 @@
         }
       }
     },
+    "error.snippet_ask.empty_prompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask parameter prompt cannot be empty (%ask{})"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户输入参数的提示不能为空（%ask{}）"
+          }
+        }
+      }
+    },
+    "error.snippet_ask.unclosed_brace": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unclosed %ask{…} brace in snippet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Snippet 中存在未闭合的 %ask{…}"
+          }
+        }
+      }
+    },
+    "error.snippet_ask.invalid_id %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid ask id \"%@\" (use letters, digits, underscore)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无效的 ask id「%@」（仅允许字母、数字、下划线）"
+          }
+        }
+      }
+    },
     "error.snippet_import.empty_content": {
       "extractionState": "manual",
       "localizations": {
@@ -9333,6 +9384,61 @@
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "New UUID generated on each run" } },
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "每次执行生成的新 UUID" } }
+      }
+    },
+    "snippets.variable.ask": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prompt the user at run time; the text inside braces is the input title"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行时弹出输入框；花括号内文案作为输入项标题"
+          }
+        }
+      }
+    },
+    "snippets.variable.ask_named": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Named user input; same id is asked once and reused"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命名用户输入；相同 id 只询问一次并复用"
+          }
+        }
+      }
+    },
+    "snippets.ask.form_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Enter parameters" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "填写参数" } }
+      }
+    },
+    "snippets.ask.continue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Continue" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "继续" } }
+      }
+    },
+    "snippets.ask.for_snippet %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "For snippet: %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "用于：%@" } }
       }
     },
     "snippets.variable_help.show_reference": {
