@@ -48,6 +48,10 @@ struct ToolbarItemFrameReporter: NSViewRepresentable {
     func updateNSView(_ nsView: FrameReportingView, context: Context) {
         nsView.itemID = itemID
         nsView.reportFrame()
+        // 新拖入项首帧 bounds 可能为 0，下一帧再报一次。
+        DispatchQueue.main.async {
+            nsView.reportFrame()
+        }
     }
 
     static func dismantleNSView(_ nsView: FrameReportingView, coordinator: ()) {
@@ -62,6 +66,9 @@ struct ToolbarItemFrameReporter: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             reportFrame()
+            DispatchQueue.main.async { [weak self] in
+                self?.reportFrame()
+            }
         }
 
         override func layout() {

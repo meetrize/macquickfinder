@@ -121,6 +121,7 @@ struct ExplorerDynamicToolbar<SearchContent: View>: ToolbarContent {
                     environment: resolvedEnvironment
                 )
             }
+            .accessibilityIdentifier(ToolbarItemIdentity.accessibilityIdentifier(for: entry.id))
             .overlay {
                 ToolbarItemFrameReporter(itemID: entry.id)
                     .frame(
@@ -129,12 +130,39 @@ struct ExplorerDynamicToolbar<SearchContent: View>: ToolbarContent {
                     )
                     .allowsHitTesting(false)
             }
+            // 不依赖 FrameRegistry 命中：新拖入项右键也应随时可删。
+            .contextMenu {
+                customizingContextMenu(for: entry)
+            }
         } else {
             ExplorerToolbarItemView(
                 entry: entry,
                 layout: activeLayout,
                 environment: resolvedEnvironment
             )
+        }
+    }
+
+    @ViewBuilder
+    private func customizingContextMenu(for entry: ToolbarVisibleEntry) -> some View {
+        switch entry.kind {
+        case .openShortcut:
+            if let shortcut = activeLayout.customShortcut(for: entry.id) {
+                Button(L10n.Action.delete, role: .destructive) {
+                    store.deleteCustomOpenShortcut(id: shortcut.id)
+                }
+            }
+        case .openApp:
+            if let action = activeLayout.customAction(for: entry.id) {
+                Button(L10n.Toolbar.openAppEdit) {
+                    environment.editOpenApp(action)
+                }
+                Button(L10n.Action.delete, role: .destructive) {
+                    store.deleteCustomOpenApp(id: action.id)
+                }
+            }
+        case .builtin:
+            EmptyView()
         }
     }
 }

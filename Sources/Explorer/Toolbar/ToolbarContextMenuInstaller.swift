@@ -121,6 +121,7 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
                 at: event.locationInWindow,
                 in: window
             ) else {
+                // 放行给 SwiftUI chip 上的 .contextMenu（新拖入项 Frame 可能尚未就绪）。
                 return event
             }
 
