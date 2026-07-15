@@ -31,6 +31,9 @@ struct PreviewSessionInteractionModifiers: ViewModifier {
                             await MainActor.run {
                                 session.image.performEdit {
                                     session.image.resizeTargetSize = CGSize(width: width, height: height)
+                                    session.image.cropRectNormalized = nil
+                                    session.image.isCropping = false
+                                    session.image.cropDraftNormalized = nil
                                 }
                                 session.image.zoomScale = 1.0
                                 session.image.zoomAction = .fit

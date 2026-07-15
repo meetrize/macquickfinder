@@ -650,6 +650,7 @@
 "preview.reattach.confirm" = "Move Back";
 "preview.reattach.message" = "Moving the preview back will replace the current sidebar preview. Continue?";
 "preview.reattach.title" = "Move Preview Back";
+"preview.save.overwrite_confirm" = "This will overwrite “%@”. Rotation, flip, crop, and resize will be written together. Animated GIFs may become a still image after saving.";
 "preview.save_failed_title" = "Save Failed";
 "preview.session_closed" = "Preview session closed";
 "preview.text_edit.cancel" = "Cancel";
@@ -667,6 +668,7 @@
 "preview.text_edit.unsaved_title" = "Unsaved Changes";
 "preview.title" = "Preview";
 "preview.toolbar.actual_size" = "Actual Size";
+"preview.toolbar.apply_crop" = "Apply Crop";
 "preview.toolbar.archive_collapse" = "Collapse to Top Level";
 "preview.toolbar.archive_expand" = "Expand All Levels";
 "preview.toolbar.clear_search" = "Clear Search";
@@ -677,6 +679,7 @@
 "preview.toolbar.copy_image" = "Copy Image";
 "preview.toolbar.copy_manifest" = "Copy Manifest";
 "preview.toolbar.copy_model_info" = "Copy Model Info";
+"preview.toolbar.crop" = "Crop";
 "preview.toolbar.epub_chapters" = "Chapters";
 "preview.toolbar.epub_next_chapter" = "Next Chapter";
 "preview.toolbar.epub_previous_chapter" = "Previous Chapter";

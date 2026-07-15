@@ -19159,6 +19159,57 @@
           }
         }
       }
+    },
+    "preview.toolbar.crop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crop"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剪裁"
+          }
+        }
+      }
+    },
+    "preview.toolbar.apply_crop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply Crop"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用剪裁"
+          }
+        }
+      }
+    },
+    "preview.save.overwrite_confirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This will overwrite “%@”. Rotation, flip, crop, and resize will be written together. Animated GIFs may become a still image after saving."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将覆盖原文件「%@」。旋转、翻转、剪裁与尺寸调整会一并写入。GIF 动图保存后可能变为静态图。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

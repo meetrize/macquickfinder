@@ -65,9 +65,11 @@ extension PreviewSession {
                 id: "image-rotate-left",
                 title: L10n.Preview.Toolbar.rotateCCW,
                 systemImage: "rotate.left",
+                isDisabled: image.isCropping,
                 action: { [self] in
                     performImageEdit { [self] in
                         self.image.rotationQuarterTurns = (self.image.rotationQuarterTurns + 3) % 4
+                        self.image.cropRectNormalized = nil
                     }
                 }
             ),
@@ -75,9 +77,11 @@ extension PreviewSession {
                 id: "image-rotate-right",
                 title: L10n.Preview.Toolbar.rotateCW,
                 systemImage: "rotate.right",
+                isDisabled: image.isCropping,
                 action: { [self] in
                     performImageEdit { [self] in
                         self.image.rotationQuarterTurns = (self.image.rotationQuarterTurns + 1) % 4
+                        self.image.cropRectNormalized = nil
                     }
                 }
             ),
@@ -85,9 +89,11 @@ extension PreviewSession {
                 id: "image-flip-horizontal",
                 title: L10n.Preview.Toolbar.flipHorizontal,
                 systemImage: "arrow.left.and.right.righttriangle.left.righttriangle.right",
+                isDisabled: image.isCropping,
                 action: { [self] in
                     performImageEdit { [self] in
                         self.image.flipHorizontal.toggle()
+                        self.image.cropRectNormalized = nil
                     }
                 }
             ),
@@ -95,9 +101,30 @@ extension PreviewSession {
                 id: "image-flip-vertical",
                 title: L10n.Preview.Toolbar.flipVertical,
                 systemImage: "arrow.up.and.down.righttriangle.up.righttriangle.down",
+                isDisabled: image.isCropping,
                 action: { [self] in
                     performImageEdit { [self] in
                         self.image.flipVertical.toggle()
+                        self.image.cropRectNormalized = nil
+                    }
+                }
+            ),
+            previewToolbarIconItem(
+                id: "image-crop",
+                title: image.isCropping ? L10n.Preview.Toolbar.applyCrop : L10n.Preview.Toolbar.crop,
+                systemImage: image.isCropping ? "checkmark.rectangle" : "crop",
+                isDisabled: image.sourcePixelSize.width <= 0 || image.sourcePixelSize.height <= 0,
+                action: { [self] in
+                    if self.image.isCropping {
+                        // applyCropDraft 内部已 pushUndo；此处只负责升到全分辨率。
+                        Task { [self] in
+                            await self.upgradeImageToFullResolutionIfNeeded()
+                            await MainActor.run {
+                                self.image.applyCropDraft()
+                            }
+                        }
+                    } else {
+                        self.image.beginCropping()
                     }
                 }
             ),
@@ -118,8 +145,14 @@ extension PreviewSession {
                 id: "image-resize",
                 title: L10n.Preview.Toolbar.resize,
                 systemImage: "rectangle.and.arrow.up.right.and.arrow.down.left",
-                isDisabled: image.sourcePixelSize.width <= 0 || image.sourcePixelSize.height <= 0,
-                action: { [self] in image.showResizeSheet = true }
+                isDisabled: image.isCropping
+                    || image.sourcePixelSize.width <= 0
+                    || image.sourcePixelSize.height <= 0,
+                action: { [self] in
+                    self.image.isCropping = false
+                    self.image.cropDraftNormalized = nil
+                    self.image.showResizeSheet = true
+                }
             ),
             previewToolbarIconItem(
                 id: "image-save",

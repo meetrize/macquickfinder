@@ -1037,6 +1037,15 @@ enum L10n {
         static var saveFailedTitle: String { ModuleLocalization.localized("preview.save_failed_title", bundle: .module) }
         static var archiveTruncated: String { ModuleLocalization.localized("preview.archive_truncated", bundle: .module) }
 
+        enum Save {
+            static func overwriteConfirm(_ fileName: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.save.overwrite_confirm", bundle: .module),
+                    fileName
+                )
+            }
+        }
+
         enum TextEdit {
             static var edit: String { ModuleLocalization.localized("preview.text_edit.edit", bundle: .module) }
             static var save: String { ModuleLocalization.localized("preview.text_edit.save", bundle: .module) }
@@ -1243,6 +1252,8 @@ enum L10n {
             static var undo: String { ModuleLocalization.localized("preview.toolbar.undo", bundle: .module) }
             static var resetView: String { ModuleLocalization.localized("preview.toolbar.reset_view", bundle: .module) }
             static var resize: String { ModuleLocalization.localized("preview.toolbar.resize", bundle: .module) }
+            static var crop: String { ModuleLocalization.localized("preview.toolbar.crop", bundle: .module) }
+            static var applyCrop: String { ModuleLocalization.localized("preview.toolbar.apply_crop", bundle: .module) }
             static var saveEdits: String { ModuleLocalization.localized("preview.toolbar.save_edits", bundle: .module) }
             static var copyModelInfo: String { ModuleLocalization.localized("preview.toolbar.copy_model_info", bundle: .module) }
             static var model3dWireframe: String { ModuleLocalization.localized("preview.toolbar.model3d_wireframe", bundle: .module) }

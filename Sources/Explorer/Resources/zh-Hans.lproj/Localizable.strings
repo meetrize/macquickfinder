@@ -650,6 +650,7 @@
 "preview.reattach.confirm" = "收回";
 "preview.reattach.message" = "收回将替换侧栏当前预览。是否继续？";
 "preview.reattach.title" = "收回预览";
+"preview.save.overwrite_confirm" = "将覆盖原文件「%@」。旋转、翻转、剪裁与尺寸调整会一并写入。GIF 动图保存后可能变为静态图。";
 "preview.save_failed_title" = "保存失败";
 "preview.session_closed" = "预览会话已关闭";
 "preview.text_edit.cancel" = "取消";
@@ -667,6 +668,7 @@
 "preview.text_edit.unsaved_title" = "未保存的修改";
 "preview.title" = "预览";
 "preview.toolbar.actual_size" = "原始大小";
+"preview.toolbar.apply_crop" = "应用剪裁";
 "preview.toolbar.archive_collapse" = "折叠到第一层";
 "preview.toolbar.archive_expand" = "展开到全部层级";
 "preview.toolbar.clear_search" = "清除搜索";
@@ -677,6 +679,7 @@
 "preview.toolbar.copy_image" = "复制图片";
 "preview.toolbar.copy_manifest" = "复制清单";
 "preview.toolbar.copy_model_info" = "复制模型信息";
+"preview.toolbar.crop" = "剪裁";
 "preview.toolbar.epub_chapters" = "章节";
 "preview.toolbar.epub_next_chapter" = "下一章";
 "preview.toolbar.epub_previous_chapter" = "上一章";

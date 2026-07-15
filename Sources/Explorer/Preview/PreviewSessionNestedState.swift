@@ -27,6 +27,12 @@ final class PreviewSessionImageState: ObservableObject {
     @Published var displayContainerSize: CGSize = .zero
     @Published var displayScreenScale: CGFloat = 2.0
     @Published var showResizeSheet = false
+    /// 是否处于剪裁交互中（矩形为 cropDraftNormalized）。
+    @Published var isCropping = false
+    /// 剪裁模式中的草稿框（方向变换后的图像归一化坐标，原点左上）。
+    @Published var cropDraftNormalized: CGRect?
+    /// 已应用、待保存的剪裁框。
+    @Published var cropRectNormalized: CGRect?
     @Published var editUndoStack: [ImageEditSnapshot] = []
     @Published var editUndoClearNonce = 0
 
@@ -35,6 +41,11 @@ final class PreviewSessionImageState: ObservableObject {
             || flipHorizontal
             || flipVertical
             || hasResizeEdit
+            || cropRectNormalized != nil
+    }
+
+    var hasCropEdit: Bool {
+        cropRectNormalized != nil
     }
 
     var hasResizeEdit: Bool {
@@ -87,6 +98,7 @@ final class PreviewSessionImageState: ObservableObject {
         eyedropperActive = false
         pickedWebColor = nil
         resizeTargetSize = nil
+        clearCropInteractionAndEdit()
         sourcePixelSize = .zero
         decodedMaxPixelSize = 0
         editUndoStack.removeAll()
@@ -103,6 +115,7 @@ final class PreviewSessionImageState: ObservableObject {
         eyedropperActive = false
         pickedWebColor = nil
         resizeTargetSize = nil
+        clearCropInteractionAndEdit()
         decodedMaxPixelSize = 0
         displayContainerSize = .zero
     }
@@ -115,6 +128,32 @@ final class PreviewSessionImageState: ObservableObject {
             flipHorizontal = false
             flipVertical = false
             resizeTargetSize = nil
+            clearCropInteractionAndEdit()
+        }
+    }
+
+    func clearCropInteractionAndEdit() {
+        isCropping = false
+        cropDraftNormalized = nil
+        cropRectNormalized = nil
+    }
+
+    func beginCropping() {
+        eyedropperActive = false
+        isCropping = true
+        cropDraftNormalized = ImagePreviewTransformApplier.clampedNormalizedCropRect(
+            cropRectNormalized ?? CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
+        )
+    }
+
+    func applyCropDraft() {
+        guard isCropping, let draft = cropDraftNormalized else { return }
+        performEdit {
+            cropRectNormalized = ImagePreviewTransformApplier.clampedNormalizedCropRect(draft)
+            isCropping = false
+            cropDraftNormalized = nil
+            // 剪裁与尺寸调整叠加语义复杂；MVP 应用剪裁时清掉 resize。
+            resizeTargetSize = nil
         }
     }
 
@@ -125,7 +164,8 @@ final class PreviewSessionImageState: ObservableObject {
                 flipHorizontal: flipHorizontal,
                 flipVertical: flipVertical,
                 resizeTargetSize: resizeTargetSize,
-                zoomScale: zoomScale
+                zoomScale: zoomScale,
+                cropRectNormalized: cropRectNormalized
             )
         )
         if editUndoStack.count > 100 {
@@ -145,6 +185,9 @@ final class PreviewSessionImageState: ObservableObject {
         flipVertical = snapshot.flipVertical
         resizeTargetSize = snapshot.resizeTargetSize
         zoomScale = snapshot.zoomScale
+        cropRectNormalized = snapshot.cropRectNormalized
+        isCropping = false
+        cropDraftNormalized = nil
     }
 
     func clearEditUndoStack() {

@@ -88,6 +88,45 @@ enum ImagePreviewTransformApplier {
         return NSImage(cgImage: output, size: NSSize(width: outWidth, height: outHeight))
     }
 
+    static func clampedNormalizedCropRect(_ rect: CGRect) -> CGRect {
+        let minSide: CGFloat = 0.05
+        var x = min(max(rect.origin.x, 0), 1)
+        var y = min(max(rect.origin.y, 0), 1)
+        var w = min(max(rect.size.width, minSide), 1)
+        var h = min(max(rect.size.height, minSide), 1)
+        if x + w > 1 { x = max(0, 1 - w) }
+        if y + h > 1 { y = max(0, 1 - h) }
+        w = min(w, 1 - x)
+        h = min(h, 1 - y)
+        return CGRect(x: x, y: y, width: max(w, minSide), height: max(h, minSide))
+    }
+
+    /// `normalizedRect`：方向变换后的图像坐标系，原点左上，范围 0...1。
+    static func crop(_ image: NSImage, normalizedRect: CGRect) -> NSImage? {
+        let clamped = clampedNormalizedCropRect(normalizedRect)
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        guard width > 0, height > 0 else { return nil }
+
+        let pixelX = Int((clamped.minX * CGFloat(width)).rounded(.down))
+        let pixelYFromTop = Int((clamped.minY * CGFloat(height)).rounded(.down))
+        let pixelW = max(1, Int((clamped.width * CGFloat(width)).rounded(.up)))
+        let pixelH = max(1, Int((clamped.height * CGFloat(height)).rounded(.up)))
+        let clampedX = min(max(pixelX, 0), width - 1)
+        let clampedYFromTop = min(max(pixelYFromTop, 0), height - 1)
+        let clampedW = min(pixelW, width - clampedX)
+        let clampedH = min(pixelH, height - clampedYFromTop)
+        // CGImage 原点在左下。
+        let cgY = height - clampedYFromTop - clampedH
+        let cropRect = CGRect(x: clampedX, y: cgY, width: clampedW, height: clampedH)
+        guard let cropped = cgImage.cropping(to: cropRect) else { return nil }
+        return NSImage(cgImage: cropped, size: NSSize(width: clampedW, height: clampedH))
+    }
+
     static func resize(_ image: NSImage, to targetSize: CGSize) -> NSImage? {
         let width = Int(targetSize.width.rounded())
         let height = Int(targetSize.height.rounded())

@@ -7,4 +7,6 @@ struct ImageEditSnapshot: Equatable {
     var flipVertical: Bool
     var resizeTargetSize: CGSize?
     var zoomScale: CGFloat
+    /// 已应用的剪裁（方向变换后的图像归一化坐标系，原点左上）。
+    var cropRectNormalized: CGRect?
 }

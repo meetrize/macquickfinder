@@ -56,7 +56,8 @@ final class PreviewSessionTests: XCTestCase {
                 flipHorizontal: false,
                 flipVertical: false,
                 resizeTargetSize: nil,
-                zoomScale: 1.0
+                zoomScale: 1.0,
+                cropRectNormalized: nil
             ),
         ]
 

@@ -163,7 +163,10 @@ struct FileContentView: View {
                     flipVertical: $session.image.flipVertical,
                     resizeTargetSize: $session.image.resizeTargetSize,
                     eyedropperActive: $session.image.eyedropperActive,
-                    pickedWebColor: $session.image.pickedWebColor
+                    pickedWebColor: $session.image.pickedWebColor,
+                    isCropping: $session.image.isCropping,
+                    cropDraftNormalized: $session.image.cropDraftNormalized,
+                    cropRectNormalized: $session.image.cropRectNormalized
                 )
                 .id(imageResizePreviewIdentity)
             } else if let pdfDoc = session.content.pdfDocument {

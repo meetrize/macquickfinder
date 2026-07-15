@@ -78,15 +78,16 @@ extension PreviewSession {
             return Int(target.width.rounded()) != Int(orientedSize.width.rounded())
                 || Int(target.height.rounded()) != Int(orientedSize.height.rounded())
         }()
-        guard hasTransformEdits || hasResizeEdit else { return }
+        let hasCropEdit = image.cropRectNormalized != nil
+        guard hasTransformEdits || hasResizeEdit || hasCropEdit else { return }
 
         let confirmed = await MainActor.run { () -> Bool in
             let alert = NSAlert()
-            alert.messageText = "保存编辑结果"
-            alert.informativeText = "将覆盖原文件「\(item.name)」。旋转、翻转与尺寸调整会一并写入。GIF 动图保存后可能变为静态图。"
+            alert.messageText = L10n.Preview.Toolbar.saveEdits
+            alert.informativeText = L10n.Preview.Save.overwriteConfirm(item.name)
             alert.alertStyle = .warning
-            alert.addButton(withTitle: "保存")
-            alert.addButton(withTitle: "取消")
+            alert.addButton(withTitle: L10n.Action.save)
+            alert.addButton(withTitle: L10n.Action.cancel)
             return alert.runModal() == .alertFirstButtonReturn
         }
         guard confirmed else { return }
@@ -95,6 +96,7 @@ extension PreviewSession {
         let flipH = image.flipHorizontal
         let flipV = image.flipVertical
         let resizeTarget = image.resizeTargetSize
+        let cropRect = image.cropRectNormalized
         let url = item.url
         let itemID = item.id
 
@@ -108,16 +110,23 @@ extension PreviewSession {
                 return .failure(ImagePreviewSaveError.unableToEncode)
             }
 
+            if let cropRect {
+                guard let cropped = ImagePreviewTransformApplier.crop(
+                    transformed,
+                    normalizedRect: cropRect
+                ) else {
+                    return .failure(ImagePreviewSaveError.unableToEncode)
+                }
+                transformed = cropped
+            }
+
             if let resizeTarget {
-                let oriented = ImagePreviewTransformApplier.orientedPixelSize(
-                    of: sourceImage,
-                    rotationQuarterTurns: rotation
-                )
+                let baseSize = ImagePreviewTransformApplier.pixelSize(of: transformed)
                 let targetWidth = Int(resizeTarget.width.rounded())
                 let targetHeight = Int(resizeTarget.height.rounded())
-                let orientedWidth = Int(oriented.width.rounded())
-                let orientedHeight = Int(oriented.height.rounded())
-                if targetWidth != orientedWidth || targetHeight != orientedHeight {
+                let baseWidth = Int(baseSize.width.rounded())
+                let baseHeight = Int(baseSize.height.rounded())
+                if targetWidth != baseWidth || targetHeight != baseHeight {
                     guard let resized = ImagePreviewTransformApplier.resize(
                         transformed,
                         to: CGSize(width: targetWidth, height: targetHeight)
@@ -143,6 +152,7 @@ extension PreviewSession {
             image.flipHorizontal = false
             image.flipVertical = false
             image.resizeTargetSize = nil
+            image.clearCropInteractionAndEdit()
             image.zoomScale = 1.0
             image.zoomAction = .fit
             content.imageSaveErrorMessage = nil

@@ -13,10 +13,13 @@ struct ImagePreviewContent: View {
     @Binding var resizeTargetSize: CGSize?
     @Binding var eyedropperActive: Bool
     @Binding var pickedWebColor: String?
-    
+    @Binding var isCropping: Bool
+    @Binding var cropDraftNormalized: CGRect?
+    @Binding var cropRectNormalized: CGRect?
+
     @State private var panOffset: CGSize = .zero
     @GestureState private var dragTranslation: CGSize = .zero
-    
+
     var body: some View {
         GeometryReader { geometry in
             let containerSize = geometry.size
@@ -48,15 +51,23 @@ struct ImagePreviewContent: View {
                 containerSize: containerSize,
                 displaySize: layoutDisplaySize
             )
-            
+
             ZStack {
-                Image(nsImage: image)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaleEffect(x: flipHorizontal ? -1 : 1, y: flipVertical ? -1 : 1)
-                    .rotationEffect(.degrees(Double(rotationQuarterTurns) * 90))
-                    .frame(width: imageDisplaySize.width, height: imageDisplaySize.height)
-                    .offset(x: currentOffset.width, y: currentOffset.height)
+                ZStack {
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaleEffect(x: flipHorizontal ? -1 : 1, y: flipVertical ? -1 : 1)
+                        .rotationEffect(.degrees(Double(rotationQuarterTurns) * 90))
+                        .frame(width: imageDisplaySize.width, height: imageDisplaySize.height)
+
+                    // 剪裁框覆盖在「方向变换后的布局尺寸」上，与保存管线坐标系一致。
+                    if isCropping || cropRectNormalized != nil {
+                        cropOverlayLayer
+                            .frame(width: layoutDisplaySize.width, height: layoutDisplaySize.height)
+                    }
+                }
+                .offset(x: currentOffset.width, y: currentOffset.height)
             }
             .frame(width: containerSize.width, height: containerSize.height)
             .clipped()
@@ -118,6 +129,29 @@ struct ImagePreviewContent: View {
     }
 
     @ViewBuilder
+    private var cropOverlayLayer: some View {
+        if isCropping {
+            ImageCropOverlayView(
+                normalizedRect: Binding(
+                    get: {
+                        cropDraftNormalized
+                            ?? cropRectNormalized
+                            ?? CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8)
+                    },
+                    set: { cropDraftNormalized = $0 }
+                ),
+                isInteractive: true
+            )
+        } else if let cropRectNormalized {
+            ImageCropOverlayView(
+                normalizedRect: .constant(cropRectNormalized),
+                isInteractive: false
+            )
+            .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder
     private func imagePreviewContextMenu() -> some View {
         Button {
             ImagePreviewContextActions.openMarkup(for: fileURL)
@@ -167,6 +201,11 @@ struct ImagePreviewContent: View {
         imageDisplaySize: CGSize,
         layoutDisplaySize: CGSize
     ) -> some Gesture {
+        if isCropping {
+            // 剪裁模式下平移交给剪裁框手势，避免抢占。
+            return AnyGesture(DragGesture(minimumDistance: 1_000_000))
+        }
+
         if eyedropperActive {
             return AnyGesture(
                 DragGesture(minimumDistance: 0)
