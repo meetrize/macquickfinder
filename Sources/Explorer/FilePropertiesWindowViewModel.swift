@@ -13,7 +13,7 @@ final class FilePropertiesWindowViewModel: ObservableObject {
     let items: [FileItem]
 
     let isMixedTags: Bool
-    let isMixedComment: Bool
+    @Published private(set) var isMixedComment: Bool
 
     @Published var tags: [String]
     @Published var comment: String
@@ -55,6 +55,21 @@ final class FilePropertiesWindowViewModel: ObservableObject {
 
         let firstComment = items.first?.finderComment ?? ""
         self.isMixedComment = items.contains { $0.finderComment != firstComment } && items.count > 1
+
+        // 列表热路径不再预读注释；属性窗口打开时按需补齐。
+        if items.contains(where: { $0.finderComment.isEmpty }) {
+            Task { await self.loadFinderCommentsIfNeeded() }
+        }
+    }
+
+    private func loadFinderCommentsIfNeeded() async {
+        let urls = items.map(\.url)
+        let comments = await FinderCommentEnricher.loadComments(for: urls)
+        guard !comments.isEmpty else { return }
+        let resolved = items.map { comments[$0.id] ?? $0.finderComment }
+        guard let first = resolved.first else { return }
+        comment = first
+        isMixedComment = resolved.contains { $0 != first } && resolved.count > 1
     }
 
     func tagTintColor(for tag: String) -> Color {

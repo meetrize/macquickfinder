@@ -77,11 +77,13 @@ enum DirectoryListingLoader {
         for fileURL in urls {
             try onEachURL?(fileURL)
             let prefetchedValues = try? fileURL.resourceValues(forKeys: keys)
+            // 列举热路径不读 Finder 注释（MDItem/xattr）；注释列可见时再后台补齐。
             guard let item = TrashLoader.fileItem(
                 from: fileURL,
                 propertyKeys: keys,
                 prefetchedValues: prefetchedValues,
-                skipExtendedMetadata: false
+                skipExtendedMetadata: false,
+                includeFinderComment: false
             ) else {
                 continue
             }

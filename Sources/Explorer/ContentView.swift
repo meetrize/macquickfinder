@@ -217,12 +217,9 @@ struct ContentView: View {
     @State private var isPathBarTextMode = false
     @State private var liveLeftPanelDragWidth: CGFloat?
     @StateObject private var externalFolderOpenCenter = ExternalFolderOpenCenter.shared
-    @ObservedObject private var outputPanelTextEditing = OutputPanelTextEditingCenter.shared
     /// 不使用 `@ObservedObject`：工具栏草稿拖拽不应重绘整个 ContentView。
     /// 工具栏/自定义面板/右键菜单各自观察 store。
     private let toolbarStore = ToolbarCustomizationStore.shared
-    @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
-    @ObservedObject private var shortcutSettings = ShortcutSettingsStore.shared
     @ObservedObject private var windowTabCenter = ExplorerWindowTabCenter.shared
     @ObservedObject private var detachCoordinator = PreviewDetachCoordinator.shared
     @State private var explorerTabBarState = ExplorerTabBarState.unavailable
@@ -230,8 +227,9 @@ struct ContentView: View {
     @State private var pendingInlineRenamePath: String?
     @State private var showConnectServerSheet = false
     @State private var transientNoticeMessage: String?
-    @ObservedObject private var pasteboardAvailability = PasteboardPasteAvailability.shared
-    @ObservedObject private var pasteOperationCenter = PasteOperationCenter.shared
+    @State private var isOutputPanelEditing = false
+    /// 右键菜单构建时按需读取，不订阅全局粘贴板变更以免整树刷新。
+    private let pasteboardAvailability = PasteboardPasteAvailability.shared
     @StateObject private var operationRecorder = OperationRecorder()
     @State private var operationRecordingCloseGuard = OperationRecordingWindowCloseGuard()
     @State private var operationRecordingReview: OperationRecordingReviewContext?
@@ -262,8 +260,9 @@ struct ContentView: View {
         activeBarField != nil || isFileListRenaming
     }
 
+    /// 菜单/文本编辑监视用；输出面板编辑态经 `$isActive` 同步到本地 State。
     private var isAnyTextFieldEditing: Bool {
-        isTextFieldEditing || outputPanelTextEditing.isActive
+        isTextFieldEditing || isOutputPanelEditing
     }
     
     private var fileListViewMode: FileListViewMode {
@@ -504,10 +503,19 @@ struct ContentView: View {
         .onChange(of: path) { newPath in
             guard let hostWindow else { return }
             ExplorerWindowTabCenter.shared.registerWindow(hostWindow, path: newPath, sceneKind: windowSceneKind)
-            gitStatusStore.scheduleRefresh(cwd: newPath)
+            scheduleGitRefreshIfPanelVisible(cwd: newPath)
+            updateGitWorkspaceFSEventsMonitoring()
+        }
+        .onChange(of: layout.showGit) { isVisible in
+            if isVisible {
+                scheduleGitRefreshIfPanelVisible(cwd: path)
+            } else {
+                gitStatusStore.cancelScheduledRefresh()
+            }
             updateGitWorkspaceFSEventsMonitoring()
         }
         .onReceive(NotificationCenter.default.publisher(for: .gitWorkingTreeMayHaveChanged)) { notification in
+            guard layout.showGit else { return }
             guard let changedPath = notification.userInfo?[GitWorkingTreeRefreshCenter.pathUserInfoKey] as? String,
                   let currentRoot = GitRepositoryDetector.findRepoRoot(from: path),
                   let changedRoot = GitRepositoryDetector.findRepoRoot(from: changedPath),
@@ -551,7 +559,7 @@ struct ContentView: View {
             
             // 初始化时做一次自愈：持久化宽度可能越界。
             layout.healLeftPanelSidebarWidth()
-            gitStatusStore.scheduleRefresh(cwd: path)
+            scheduleGitRefreshIfPanelVisible(cwd: path)
             if let initialPath {
                 path = initialPath
                 pendingExternalSelectionPath = initialSelectionPath.map {
@@ -600,26 +608,28 @@ struct ContentView: View {
             lastHandledOpenRequestGeneration = generation
             applyExternalOpenRequestIfNeeded()
         }
+        .onReceive(OutputPanelTextEditingCenter.shared.$isActive) { isActive in
+            isOutputPanelEditing = isActive
+        }
         .onChange(of: isLoading) { loading in
             guard !loading else { return }
             _ = applyExternalSelectionImmediatelyIfPossible()
         }
-        .onChange(of: connectServerCenter.presentSheetToken) { _ in
-            guard hostWindow == NSApp.keyWindow else { return }
-            showConnectServerSheet = true
+        .onChange(of: fileListPreferences.configuration.visible.contains(.comment)) { isVisible in
+            guard isVisible else { return }
+            scheduleFinderCommentEnrichment(for: items, generation: loadGeneration)
+        }
+        .connectServerSheet(
+            isPresented: $showConnectServerSheet,
+            hostWindow: hostWindow
+        ) { mountURL in
+            NetworkVolumePrewarmer.touchPath(mountURL.path)
+            path = mountURL.path
+            ConnectServerCenter.shared.requestDevicesRefresh()
         }
         .onReceive(NotificationCenter.default.publisher(for: .commandPaletteToggleRequested)) { _ in
             guard hostWindow == NSApp.keyWindow else { return }
             toggleCommandPalette()
-        }
-        .sheet(isPresented: $showConnectServerSheet) {
-            ConnectServerSheet(
-                initialAddress: RecentServersStore.shared.bookmarks.first?.urlString ?? ""
-            ) { mountURL in
-                NetworkVolumePrewarmer.touchPath(mountURL.path)
-                path = mountURL.path
-                ConnectServerCenter.shared.requestDevicesRefresh()
-            }
         }
         .sheet(item: $operationRecordingReview) { context in
             OperationRecordingReviewSheet(context: context) { snippet in
@@ -715,24 +725,8 @@ struct ContentView: View {
             handleRevealInHostFromDetachedPreview(event)
         }
         .overlay(alignment: .bottom) {
-            VStack(spacing: 8) {
-                if let pasteProgress = pasteOperationCenter.activeProgress {
-                    pasteProgressBanner(pasteProgress)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                if let transientNoticeMessage {
-                    Text(transientNoticeMessage)
-                        .font(.callout)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .padding(.bottom, 12)
+            PasteProgressBannerOverlay(transientNoticeMessage: transientNoticeMessage)
         }
-        .animation(.easeInOut(duration: 0.2), value: transientNoticeMessage)
-        .animation(.easeInOut(duration: 0.2), value: pasteOperationCenter.activeProgress)
         .overlay {
             if isCommandPalettePresented, let commandPaletteSession {
                 CommandPaletteOverlay(
@@ -1027,34 +1021,16 @@ struct ContentView: View {
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
 
-            LocalShortcutMonitor(
-                binding: ShortcutBinding(keyCode: 45, modifiers: .command),
-                isEnabled: !isAnyTextFieldEditing
-            ) {
-                openNewExplorerWindow()
-            }
-            .frame(width: 0, height: 0)
-            .accessibilityHidden(true)
-
-            LocalShortcutMonitor(
-                binding: shortcutSettings.newTabBinding,
-                isEnabled: !isAnyTextFieldEditing
-            ) {
-                openNewExplorerTab()
-            }
-            .frame(width: 0, height: 0)
-            .accessibilityHidden(true)
-
-            LocalShortcutMonitor(
-                binding: shortcutSettings.copyPathBinding,
-                isEnabled: !isAnyTextFieldEditing
-            ) {
-                let selected = selectedItems
-                guard !selected.isEmpty else { return }
-                FileOperations.copyPaths(selected)
-            }
-            .frame(width: 0, height: 0)
-            .accessibilityHidden(true)
+            ContentViewLocalShortcutMonitors(
+                isBarOrRenameEditing: isTextFieldEditing,
+                onNewWindow: { openNewExplorerWindow() },
+                onNewTab: { openNewExplorerTab() },
+                onCopyPaths: {
+                    let selected = selectedItems
+                    guard !selected.isEmpty else { return }
+                    FileOperations.copyPaths(selected)
+                }
+            )
 
             Button(L10n.CommandPalette.menuTitle) {
                 toggleCommandPalette()
@@ -1360,9 +1336,8 @@ struct ContentView: View {
         let listingOptions = DirectoryListingOptions.forPath(currentPath)
         let isNetworkListing = listingOptions.lightweightMetadata
 
-        // 立刻进入目标目录：清空旧列表并显示加载占位，不等待后台列举完成。
+        // 保留旧列表直至新结果就绪，避免大目录切换时空白闪烁；选中先清空以防误操作旧项。
         isLoading = true
-        items = []
         selection.removeAll()
         let shouldOwnSharedDirectorySession = ownsSharedDirectorySession
         if shouldOwnSharedDirectorySession {
@@ -1403,25 +1378,14 @@ struct ContentView: View {
 
                 await MainActor.run {
                     guard currentGeneration == loadGeneration else { return }
-                    items = loadedItems
-                    isLoading = false
+                    applyLoadedListing(
+                        loadedItems,
+                        currentPath: currentPath,
+                        currentGeneration: currentGeneration,
+                        preservedSelection: preservedSelection,
+                        shouldPreserveSelection: shouldPreserveSelection
+                    )
                     didApplyItems = true
-                    fileListFocusToken &+= 1
-                    applyPendingExternalSelectionIfNeeded(
-                        loadedItems: loadedItems,
-                        for: currentPath
-                    )
-                    applyPendingInlineRenameIfNeeded(
-                        loadedItems: loadedItems,
-                        for: currentPath
-                    )
-                    if pendingExternalSelectionPath == nil, pendingInlineRenamePath == nil {
-                        restoreSelectionAfterListingLoad(
-                            preservedSelection,
-                            loadedItems: loadedItems,
-                            shouldPreserve: shouldPreserveSelection
-                        )
-                    }
                 }
 
                 if shouldOwnSharedDirectorySession {
@@ -1490,25 +1454,14 @@ struct ContentView: View {
             
             await MainActor.run {
                 guard currentGeneration == loadGeneration else { return }
-                items = loadedItems
-                isLoading = false
+                applyLoadedListing(
+                    loadedItems,
+                    currentPath: currentPath,
+                    currentGeneration: currentGeneration,
+                    preservedSelection: preservedSelection,
+                    shouldPreserveSelection: shouldPreserveSelection
+                )
                 didApplyItems = true
-                fileListFocusToken &+= 1
-                applyPendingExternalSelectionIfNeeded(
-                    loadedItems: loadedItems,
-                    for: currentPath
-                )
-                applyPendingInlineRenameIfNeeded(
-                    loadedItems: loadedItems,
-                    for: currentPath
-                )
-                if pendingExternalSelectionPath == nil, pendingInlineRenamePath == nil {
-                    restoreSelectionAfterListingLoad(
-                        preservedSelection,
-                        loadedItems: loadedItems,
-                        shouldPreserve: shouldPreserveSelection
-                    )
-                }
             }
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
@@ -1531,6 +1484,50 @@ struct ContentView: View {
                     showHiddenFiles: shouldShowHiddenFiles
                 )
                 updateGitWorkspaceFSEventsMonitoring(for: currentPath)
+            }
+        }
+    }
+
+    @MainActor
+    private func applyLoadedListing(
+        _ loadedItems: [FileItem],
+        currentPath: String,
+        currentGeneration: UInt,
+        preservedSelection: Set<FileItem.ID>,
+        shouldPreserveSelection: Bool
+    ) {
+        items = loadedItems
+        isLoading = false
+        fileListFocusToken &+= 1
+        applyPendingExternalSelectionIfNeeded(
+            loadedItems: loadedItems,
+            for: currentPath
+        )
+        applyPendingInlineRenameIfNeeded(
+            loadedItems: loadedItems,
+            for: currentPath
+        )
+        if pendingExternalSelectionPath == nil, pendingInlineRenamePath == nil {
+            restoreSelectionAfterListingLoad(
+                preservedSelection,
+                loadedItems: loadedItems,
+                shouldPreserve: shouldPreserveSelection
+            )
+        }
+        scheduleFinderCommentEnrichment(for: loadedItems, generation: currentGeneration)
+    }
+
+    @MainActor
+    private func scheduleFinderCommentEnrichment(for loadedItems: [FileItem], generation: UInt) {
+        guard fileListPreferences.configuration.visible.contains(.comment) else { return }
+        guard !loadedItems.isEmpty else { return }
+        let urls = loadedItems.map(\.url)
+        Task {
+            let comments = await FinderCommentEnricher.loadComments(for: urls)
+            await MainActor.run {
+                guard generation == loadGeneration else { return }
+                guard fileListPreferences.configuration.visible.contains(.comment) else { return }
+                items = FinderCommentEnricher.enrich(items, with: comments)
             }
         }
     }
@@ -1562,26 +1559,6 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
-    private func pasteProgressBanner(_ progress: PasteOperationCenter.ActiveProgress) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(progress.message)
-                .font(.callout)
-                .lineLimit(2)
-            if progress.showsDeterminateProgress, let fraction = progress.progressFraction {
-                ProgressView(value: fraction)
-                    .progressViewStyle(.linear)
-            } else {
-                ProgressView()
-                    .progressViewStyle(.linear)
-            }
-        }
-        .frame(maxWidth: 420, alignment: .leading)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-    
     private func updateDirectoryFSEventsMonitoring(
         directoryPath: String,
         folderPaths: [String],
@@ -1743,8 +1720,17 @@ struct ContentView: View {
         updateGitWorkspaceFSEventsMonitoring()
     }
     
+    private func scheduleGitRefreshIfPanelVisible(cwd: String) {
+        guard layout.showGit else { return }
+        gitStatusStore.scheduleRefresh(cwd: cwd)
+    }
+
     private func updateGitWorkspaceFSEventsMonitoring(for directoryPath: String? = nil) {
         guard ownsSharedDirectorySession else { return }
+        guard layout.showGit else {
+            GitWorkspaceFSEventsMonitor.shared.stop()
+            return
+        }
         let directoryPath = directoryPath ?? path
         guard !TrashLoader.isTrashPath(directoryPath) else {
             GitWorkspaceFSEventsMonitor.shared.stop()
@@ -1845,6 +1831,14 @@ struct ContentView: View {
         if item.isParentDirectoryEntry {
             navigateUp()
             return
+        }
+        // 加载中仍展示旧列表时，忽略不属于当前目录的点击。
+        if isLoading, !item.isParentDirectoryEntry {
+            let parent = ExternalSelectionPathMatcher.standardizedPath(
+                item.url.deletingLastPathComponent().path
+            )
+            let current = ExternalSelectionPathMatcher.standardizedPath(path)
+            if parent != current { return }
         }
 
         let doubleClickAction = PreviewDoubleClickAction(rawValue: previewDoubleClickActionRaw)

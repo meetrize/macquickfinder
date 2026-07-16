@@ -107,20 +107,30 @@ struct FileListView: View {
     var body: some View {
         FileListPanelLayout {
             Group {
-                if isLoading {
+                if isLoading && items.isEmpty {
                     FileListLoadingPlaceholderView(
                         viewMode: viewMode,
                         thumbnailCellSize: thumbnailCellSize
                     )
                 } else {
-                    switch viewMode {
-                    case .list:
-                        fileTable
-                    case .thumbnail:
-                        if panoramaActive {
-                            panoramaTree
-                        } else {
-                            fileThumbnailGrid
+                    ZStack(alignment: .top) {
+                        switch viewMode {
+                        case .list:
+                            fileTable
+                        case .thumbnail:
+                            if panoramaActive {
+                                panoramaTree
+                            } else {
+                                fileThumbnailGrid
+                            }
+                        }
+                        if isLoading {
+                            ProgressView()
+                                .controlSize(.small)
+                                .padding(8)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .padding(.top, 8)
+                                .allowsHitTesting(false)
                         }
                     }
                 }

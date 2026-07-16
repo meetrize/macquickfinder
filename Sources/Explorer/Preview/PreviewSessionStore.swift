@@ -83,19 +83,26 @@ final class PreviewSessionStore: ObservableObject {
     }
 
     /// 系统内存压力：取消预取与进行中的加载；非 key 的 detached 会话释放已解码内容。
-    func respondToMemoryPressure() {
+    /// - Parameter clearInline: critical 时连内联预览也释放已解码内容。
+    func respondToMemoryPressure(clearInline: Bool = false) {
         let keyWindow = NSApp.keyWindow
         for session in sessions.values {
             session.browseContentPrefetcher.cancel()
             session.cancelLoad()
-            if shouldClearLoadedContent(for: session, keyWindow: keyWindow) {
+            if shouldClearLoadedContent(for: session, keyWindow: keyWindow, clearInline: clearInline) {
                 session.clearLoadedContent()
             }
         }
     }
 
-    private func shouldClearLoadedContent(for session: PreviewSession, keyWindow: NSWindow?) -> Bool {
-        guard session.location.isDetached else { return false }
+    private func shouldClearLoadedContent(
+        for session: PreviewSession,
+        keyWindow: NSWindow?,
+        clearInline: Bool
+    ) -> Bool {
+        if !session.location.isDetached {
+            return clearInline
+        }
         let title = session.browseTarget.name
         guard let window = NSApp.windows.first(where: { $0.isVisible && $0.title == title }) else {
             return true

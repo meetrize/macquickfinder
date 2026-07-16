@@ -39,6 +39,8 @@ private final class QLConcurrencyGate {
 /// 缩略图生成：Quick Look 为主，系统图标为占位与回退。
 public final class ThumbnailGenerator {
     public static let shared = ThumbnailGenerator()
+    public static let defaultMemoryBudgetBytes = ThumbnailCache.defaultMaxTotalCost
+    public static let criticalMemoryBudgetBytes = ThumbnailCache.criticalMaxTotalCost
 
     public enum Delivery {
         case thumbnail(NSImage)
@@ -122,6 +124,15 @@ public final class ThumbnailGenerator {
     /// 仅清空内存 LRU；目录切换时调用，磁盘缓存保留供快速回填。
     public func clearMemoryCache() {
         cache.clearMemory()
+    }
+
+    /// 内存压力时下调 LRU 预算（字节），并立即淘汰超限项。
+    public func setMemoryBudget(_ bytes: Int) {
+        cache.setMemoryBudget(bytes)
+    }
+
+    public func restoreDefaultMemoryBudget() {
+        cache.restoreDefaultMemoryBudget()
     }
 
     /// 将磁盘缩略图缓存裁剪到预算内（内存压力等场景）。

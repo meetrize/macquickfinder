@@ -12,10 +12,14 @@ struct GitPathBarChip: View {
 
     private var label: String? {
         guard let snapshot = gitStatusStore.snapshot else {
+            // 面板未打开时不预刷 git status；仓库内仍显示可点入口。
             guard isInRepository else { return nil }
-            return gitStatusStore.isRefreshing ? "…" : nil
+            if gitStatusStore.isRefreshing { return "…" }
+            return "Git"
         }
-        guard snapshotBelongsToCurrentRepository(snapshot) else { return nil }
+        guard snapshotBelongsToCurrentRepository(snapshot) else {
+            return isInRepository ? "Git" : nil
+        }
         return GitStatusPresentation.chipLabel(snapshot: snapshot)
     }
 

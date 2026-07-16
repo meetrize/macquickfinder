@@ -157,7 +157,8 @@ enum TrashLoader {
         from fileURL: URL,
         propertyKeys: Set<URLResourceKey>,
         prefetchedValues: URLResourceValues? = nil,
-        skipExtendedMetadata: Bool = false
+        skipExtendedMetadata: Bool = false,
+        includeFinderComment: Bool = false
     ) -> FileItem? {
         let resourceValues = prefetchedValues ?? (try? fileURL.resourceValues(forKeys: propertyKeys))
         let isDirectory = resourceValues?.isDirectory ?? false
@@ -165,6 +166,7 @@ enum TrashLoader {
         let creationDate = resourceValues?.creationDate ?? modDate
         let size = Int64(resourceValues?.fileSize ?? 0)
         let isHidden = resourceValues?.isHidden ?? fileURL.lastPathComponent.hasPrefix(".")
+        let shouldReadComment = includeFinderComment && !skipExtendedMetadata
 
         return FileItem(
             id: fileURL.path,
@@ -179,7 +181,7 @@ enum TrashLoader {
             sizeDisplay: isDirectory ? "--" : FileItemFormatters.formatSize(size),
             dateDisplay: FileItemFormatters.formatDate(modDate),
             creationDateDisplay: FileItemFormatters.formatDate(creationDate),
-            finderComment: skipExtendedMetadata ? "" : FileItem.finderComment(for: fileURL),
+            finderComment: shouldReadComment ? FileItem.finderComment(for: fileURL) : "",
             tags: skipExtendedMetadata ? [] : (resourceValues?.tagNames ?? [])
         )
     }

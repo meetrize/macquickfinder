@@ -230,6 +230,22 @@ final class DirectoryMetadataServiceTests: XCTestCase {
         try await waitUntil { harness.recorder.records.count == 2 }
     }
 
+    func testSchedulingPausedDropsNewWorkUntilResumed() async throws {
+        let harness = makeHarness()
+        let path = try makeTemporaryDirectoryPath()
+
+        await harness.service.setSchedulingPaused(true)
+        await harness.service.schedule(paths: [path], showHiddenFiles: false)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertTrue(harness.recorder.records.isEmpty)
+        XCTAssertEqual(harness.counter.value, 0)
+
+        await harness.service.setSchedulingPaused(false)
+        await harness.service.schedule(paths: [path], showHiddenFiles: false)
+        try await waitUntil { harness.recorder.records.count == 1 }
+        XCTAssertEqual(harness.counter.value, 1)
+    }
+
     private func makeHarness(
         maxConcurrent: Int = 2,
         scheduleEnabled: @escaping @Sendable () -> Bool = { true },

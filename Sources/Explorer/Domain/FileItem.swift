@@ -89,6 +89,25 @@ struct FileItem: Identifiable, Hashable {
             tags: []
         )
     }
+
+    func withFinderComment(_ comment: String) -> FileItem {
+        FileItem(
+            id: id,
+            url: url,
+            name: name,
+            isDirectory: isDirectory,
+            modificationDate: modificationDate,
+            creationDate: creationDate,
+            size: size,
+            isHidden: isHidden,
+            fileType: fileType,
+            sizeDisplay: sizeDisplay,
+            dateDisplay: dateDisplay,
+            creationDateDisplay: creationDateDisplay,
+            finderComment: comment,
+            tags: tags
+        )
+    }
     
     static func fileType(for name: String, isDirectory: Bool) -> String {
         if isDirectory {

@@ -26,6 +26,12 @@ enum DirectoryMetadataScheduler {
         await DirectoryItemCountService.shared.trimCache(retainingAtMost: 50)
     }
 
+    /// critical 压力下暂停元数据队列；warning 或会话重置后恢复。
+    static func setSchedulingPaused(_ paused: Bool) async {
+        await DirectorySizeService.shared.setSchedulingPaused(paused)
+        await DirectoryItemCountService.shared.setSchedulingPaused(paused)
+    }
+
     static func invalidate(paths: [String]) async {
         guard !paths.isEmpty else { return }
         await DirectorySizeService.shared.invalidate(paths: paths)
@@ -59,23 +65,16 @@ enum DirectoryMetadataScheduler {
         )
     }
 
+    /// 列举完成后不再全量调度元数据；目录大小 / 子项数量改由可见区
+    /// `scheduleVisibleMetadata` 驱动，避免大目录 I/O 风暴。
     static func scheduleAfterListingLoad(
         folderPaths: [String],
         showHiddenFiles: Bool,
         includeSizes: Bool
     ) async {
-        if includeSizes {
-            await scheduleDirectorySizes(
-                paths: folderPaths,
-                showHiddenFiles: showHiddenFiles,
-                priority: .normal
-            )
-        }
-        await scheduleDirectoryItemCounts(
-            paths: folderPaths,
-            showHiddenFiles: showHiddenFiles,
-            priority: .normal
-        )
+        _ = folderPaths
+        _ = showHiddenFiles
+        _ = includeSizes
     }
 
     static func scheduleVisibleMetadata(

@@ -58,7 +58,9 @@ final class ThumbnailCache {
     private let lock = NSLock()
     
     private let maxEntryCount = 500
-    private let maxTotalCost = 80 * 1024 * 1024
+    static let defaultMaxTotalCost = 80 * 1024 * 1024
+    static let criticalMaxTotalCost = 32 * 1024 * 1024
+    private var maxTotalCost = ThumbnailCache.defaultMaxTotalCost
     
     /// 仅查内存 LRU，主线程安全且不做磁盘 I/O。
     func memoryEntry(for key: Key) -> Entry? {
@@ -117,6 +119,18 @@ final class ThumbnailCache {
         accessOrder.removeAll()
         totalCost = 0
         lock.unlock()
+    }
+
+    /// 调整内存 LRU 预算并立即按新上限淘汰。
+    func setMemoryBudget(_ bytes: Int) {
+        lock.lock()
+        maxTotalCost = max(1, bytes)
+        evictIfNeededLocked()
+        lock.unlock()
+    }
+
+    func restoreDefaultMemoryBudget() {
+        setMemoryBudget(Self.defaultMaxTotalCost)
     }
     
     /// 清空内存与磁盘缓存（设置项「清除缩略图缓存」等场景使用）。

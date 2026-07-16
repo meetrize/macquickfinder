@@ -7,11 +7,13 @@
 | 领域 | 现有机制 |
 |------|----------|
 | 列表渲染 | `NSTableView` / `NSCollectionView` 虚拟化，只渲染可见行 |
-| 目录切换 | `loadGeneration` 取消过期任务，避免竞态 |
-| 缩略图 | 内存 LRU（500 条 / **80MB 共享单例**）、磁盘缓存、QL 并发限制（4）、仅加载可见区、分批 8 张 |
-| 目录元数据 | Actor 队列 + 有界缓存 + 路径切换时 `resetSession` |
-| 预览 | `cancelLoad()`、`clearLoadedContent()`、预取有上限 |
+| 目录切换 | `loadGeneration` 取消过期任务；保留旧列表直至新结果就绪 |
+| 目录列举 | `Task.detached`；本地跳过 Finder 注释（按需补齐）；网络卷 lightweight |
+| 缩略图 | 内存 LRU（500 条 / **80MB 共享单例**，critical 可降至 32MB）、磁盘缓存、QL 并发限制（4）、仅加载可见区 |
+| 目录元数据 | Actor 队列 + 有界缓存；**可见区优先**调度；压力下可暂停 |
+| 预览 | `cancelLoad()`、`clearLoadedContent()`、预取有上限；critical 可清内联 |
 | 脚本输出 | `JobStore` 最多保留 50 条 |
+| Git | 仅面板可见时刷新 status / 仓库 FSEvents |
 
 ---
 
@@ -97,6 +99,37 @@
 | Phase 7 | 预览胶片条内存压力 + 修复测试编译 | 低 | ✅ 已完成 |
 | Phase 8 | 共享缩略图 LRU + 预览 ImageIO 降采样 + 会话内存压力裁剪 | 低 | ✅ 已完成 |
 | Phase 9 | 侧栏关闭释放 inline session + 动态预览像素预算 | 低 | ✅ 已完成 |
+| Phase 10 | 列举跳过 Finder 注释 + 保留旧列表 + 可见区元数据 | 低 | ✅ 已完成 |
+| Phase 11 | 内存压力分档（warning/critical）+ 暂停元数据队列 | 低 | ✅ 已完成 |
+| Phase 12 | Git 面板可见才刷新 + ContentView 观察者下沉 + 取消启动 Mermaid 预热 | 低 | ✅ 已完成 |
+
+### Phase 10 实施摘要
+
+1. **DirectoryListingLoader / TrashLoader**：本地列举默认 `includeFinderComment: false`，热路径不再调用 `MDItem`/`getxattr`；标签仍从预取 `tagNamesKey` 读取。
+2. **FinderCommentEnricher**：注释列可见或属性窗口打开时后台补齐；按 `loadGeneration` 丢弃过期结果。
+3. **ContentView.loadItems**：路径切换不再立刻 `items = []`；`FileListView` 在已有条目时保留旧列表并显示轻量 ProgressView。
+4. **DirectoryMetadataScheduler.scheduleAfterListingLoad**：改为空操作；目录大小 / 子项数量仅由可见区 `scheduleVisibleMetadata` 驱动。
+
+### Phase 11 实施摘要
+
+1. **AppMemoryPressure**：区分 `.warning` / `.critical`；critical 将缩略图 LRU 预算降至 32MB、取消在途 QL、暂停元数据调度，约 15s 后恢复默认预算。
+2. **PreviewSessionStore.respondToMemoryPressure(clearInline:)**：critical 时内联预览也释放已解码内容。
+3. **DirectoryMetadataService.setSchedulingPaused**：压力期间丢弃新调度并取消在途任务；`resetSession` 自动恢复。
+
+### Phase 12 实施摘要
+
+1. **Git**：仅 `layout.showGit == true` 时 `scheduleRefresh` / 仓库 FSEvents；路径栏 chip 在无 snapshot 时显示 “Git” 入口。
+2. **ContentView 观察者下沉**：粘贴进度、连接服务器 Sheet、本地快捷键监视拆到子视图；粘贴板可用性改为按需读取。
+3. **启动**：移除 `applicationDidFinishLaunching` 中 2s 后 Mermaid JS 预热；首次 Markdown 预览时再加载。
+
+### Phase 10–12 Instruments 手动验收清单
+
+在 **Release** 构建下执行：
+
+1. **Time Profiler**：进入含 1000+ 文件的本地目录；采样中不应再出现 `FileItem.finderComment` / `MDItemCreate` 于列举热路径。
+2. **进目录体感**：连续切换 10 个目录时不应先闪空白列表（可短暂保留旧列表 + 顶部小 ProgressView）。
+3. **Git**：Git 面板关闭时路径切换不应拉起 `git status`；打开面板后再刷新。
+4. **内存压力**：模拟 critical pressure 后缩略图 LRU 应明显下降，滚动列表仍可交互；约 15s 后预算恢复。
 
 ### Phase 8 实施摘要
 
@@ -136,6 +169,10 @@ flowchart TD
     E --> F[Phase 6: 磁盘 LRU + 元数据 trim + 预览释放]
     F --> G[Phase 7: 胶片条内存压力 + 测试修复]
     G --> H[Phase 8: 共享 LRU + 预览降采样 + 会话裁剪]
+    H --> I[Phase 9: 侧栏释放 + 动态像素预算]
+    I --> J[Phase 10: 跳过注释 + 保留列表 + 可见元数据]
+    J --> K[Phase 11: 压力分档 + 暂停元数据]
+    K --> L[Phase 12: Git 懒刷新 + 观察者下沉]
 ```
 
 ### Phase 6 实施摘要

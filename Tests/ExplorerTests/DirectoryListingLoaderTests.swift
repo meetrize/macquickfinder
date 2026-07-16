@@ -68,6 +68,59 @@ final class DirectoryListingLoaderTests: XCTestCase {
         XCTAssertTrue(item.tags.isEmpty)
     }
 
+    func testLocalListingSkipsFinderCommentByDefault() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let fileURL = directory.appendingPathComponent("commented.txt")
+        try Data("hello".utf8).write(to: fileURL)
+        try FinderMetadataWriter.setFinderComment(for: fileURL, comment: "phase10-test-comment")
+
+        let items = try DirectoryListingLoader.loadFileItems(
+            at: directory.path,
+            showHiddenFiles: false
+        )
+        let item = try XCTUnwrap(items.first { $0.name == "commented.txt" })
+        XCTAssertEqual(item.finderComment, "", "列举热路径不应同步读 Finder 注释")
+
+        let keys = DirectoryListingLoader.propertyKeys(lightweight: false)
+        let values = try fileURL.resourceValues(forKeys: keys)
+        let withComment = try XCTUnwrap(
+            TrashLoader.fileItem(
+                from: fileURL,
+                propertyKeys: keys,
+                prefetchedValues: values,
+                includeFinderComment: true
+            )
+        )
+        XCTAssertEqual(withComment.finderComment, "phase10-test-comment")
+    }
+
+    func testFinderCommentEnricherMergesNonEmptyComments() {
+        let url = URL(fileURLWithPath: "/tmp/enrich-a.txt")
+        let item = FileItem(
+            id: url.path,
+            url: url,
+            name: "enrich-a.txt",
+            isDirectory: false,
+            modificationDate: .distantPast,
+            creationDate: .distantPast,
+            size: 1,
+            isHidden: false,
+            fileType: "txt",
+            sizeDisplay: "1 B",
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
+        )
+        let enriched = FinderCommentEnricher.enrich(
+            [item],
+            with: [url.path: "hello"]
+        )
+        XCTAssertEqual(enriched.first?.finderComment, "hello")
+    }
+
     func testDirectoryListingOptionsForPathUsesNetworkVolumeFilter() {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         XCTAssertFalse(DirectoryListingOptions.forPath(home).lightweightMetadata)

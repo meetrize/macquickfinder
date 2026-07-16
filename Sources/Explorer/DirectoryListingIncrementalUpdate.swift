@@ -21,7 +21,8 @@ enum DirectoryListingIncrementalUpdate {
                 from: fileURL,
                 propertyKeys: keys,
                 prefetchedValues: prefetchedValues,
-                skipExtendedMetadata: options.lightweightMetadata
+                skipExtendedMetadata: options.lightweightMetadata,
+                includeFinderComment: false
             ) else {
                 continue
             }

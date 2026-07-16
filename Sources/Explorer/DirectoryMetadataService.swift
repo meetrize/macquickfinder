@@ -70,6 +70,7 @@ actor DirectoryMetadataService<Entry: Sendable> {
     private var queue: [DirectoryMetadataWorkItem] = []
     private var runningTasks: [String: Task<Void, Never>] = [:]
     private var runningCount = 0
+    private var schedulingPaused = false
 
     init(configuration: DirectoryMetadataServiceConfiguration<Entry>) {
         self.configuration = configuration
@@ -77,6 +78,7 @@ actor DirectoryMetadataService<Entry: Sendable> {
 
     func resetSession(generation: UInt) {
         activeGeneration = generation
+        schedulingPaused = false
         queue.removeAll()
         for task in runningTasks.values {
             task.cancel()
@@ -86,6 +88,21 @@ actor DirectoryMetadataService<Entry: Sendable> {
         if let retention = configuration.sessionResetCacheRetention {
             trimCacheTo(maxEntries: retention)
         }
+    }
+
+    /// 内存压力 critical 时暂停调度并取消在途任务；`resetSession` 或显式恢复后继续。
+    func setSchedulingPaused(_ paused: Bool) {
+        schedulingPaused = paused
+        guard paused else {
+            processQueue()
+            return
+        }
+        queue.removeAll()
+        for task in runningTasks.values {
+            task.cancel()
+        }
+        runningTasks.removeAll()
+        runningCount = 0
     }
 
     /// 内存压力等场景下裁剪 Actor 内缓存。
@@ -106,6 +123,7 @@ actor DirectoryMetadataService<Entry: Sendable> {
         showHiddenFiles: Bool,
         priority: DirectoryMetadataSchedulePriority = .normal
     ) {
+        guard !schedulingPaused else { return }
         guard configuration.scheduleEnabled() else { return }
 
         let generation = activeGeneration
