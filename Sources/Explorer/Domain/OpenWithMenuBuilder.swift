@@ -29,9 +29,13 @@ enum OpenWithMenuBuilder {
             options.append(makeOption(appURL: defaultApp, isDefault: true, workspace: workspace))
         }
 
-        let sortedApps = uniqueApps
-            .filter { $0 != defaultApp }
-            .sorted { appDisplayName($0).localizedStandardCompare(appDisplayName($1)) == .orderedAscending }
+        let nonDefaultApps = uniqueApps.filter { $0 != defaultApp }
+        let recentPaths = OpenWithRecentsStore.recentAppPaths(forFileURL: primaryFileURL)
+        let sortedApps = OpenWithRecentsStore.sortAppURLsByRecents(
+            nonDefaultApps,
+            recentPaths: recentPaths,
+            displayName: appDisplayName
+        )
 
         for appURL in sortedApps.prefix(10) {
             options.append(makeOption(appURL: appURL, isDefault: false, workspace: workspace))
@@ -115,7 +119,8 @@ enum OpenWithMenuBuilder {
     }
 
     static func open(fileURLs: [URL], withApplicationAt appURL: URL) {
-        guard !fileURLs.isEmpty else { return }
+        guard let primary = fileURLs.first else { return }
+        OpenWithRecentsStore.record(appURL: appURL, forFileURL: primary)
         let configuration = NSWorkspace.OpenConfiguration()
         NSWorkspace.shared.open(fileURLs, withApplicationAt: appURL, configuration: configuration)
     }

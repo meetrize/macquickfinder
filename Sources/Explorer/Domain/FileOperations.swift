@@ -515,13 +515,15 @@ enum FileOperations {
 
         guard panel.runModal() == .OK, let appURL = panel.url else { return }
 
+        OpenWithRecentsStore.record(appURL: appURL, forFileURL: url)
         let configuration = NSWorkspace.OpenConfiguration()
         NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: configuration)
     }
 
     static func openWithApplication(_ items: [FileItem], appURL: URL) {
         let urls = items.filter { !$0.isDirectory }.map(\.url)
-        guard !urls.isEmpty else { return }
+        guard let primary = urls.first else { return }
+        OpenWithRecentsStore.record(appURL: appURL, forFileURL: primary)
         let configuration = NSWorkspace.OpenConfiguration()
         NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: configuration)
     }

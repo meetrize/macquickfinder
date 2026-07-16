@@ -116,6 +116,11 @@ enum AppPreferences {
         static let recentBookmarks = "remoteServer.recentBookmarks"
     }
 
+    /// 「打开方式」最近使用记录（按文件扩展名分桶）。
+    enum OpenWith {
+        static let recentsByType = "openWith.recentsByType"
+    }
+
     /// 操作录制偏好。
     enum OperationRecording {
         static let generalizePaths = "operationRecording.generalizePaths"
