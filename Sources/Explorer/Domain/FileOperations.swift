@@ -625,6 +625,29 @@ enum FileOperations {
             FilePropertiesWindowController.show(items: items)
         }
     }
+
+    /// Opens Finder's Get Info (显示简介) windows for the given items via AppleScript.
+    static func showFinderInfo(_ items: [FileItem]) {
+        let urls = items
+            .map(\.url)
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard !urls.isEmpty else { return }
+
+        Task { @MainActor in
+            guard await FinderAutomationPermission.ensureAccess() else { return }
+
+            var scriptLines = ["tell application \"Finder\""]
+            for url in urls {
+                let escaped = appleScriptEscapedPath(url.path)
+                scriptLines.append(
+                    "    open information window of (POSIX file \"\(escaped)\" as alias)"
+                )
+            }
+            scriptLines.append("    activate")
+            scriptLines.append("end tell")
+            _ = runFinderAppleScript(scriptLines.joined(separator: "\n"))
+        }
+    }
     
     private static func buildInfoText(for item: FileItem) -> String {
         var lines: [String] = []

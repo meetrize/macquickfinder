@@ -2081,6 +2081,7 @@ struct ContentView: View {
                 FileListTableController.shared?.beginRename(itemID: item.id)
             },
             showInfo: FileOperations.showInfo,
+            showFinderInfo: FileOperations.showFinderInfo,
             canPaste: { destPath in
                 pasteboardAvailability.canPaste(to: URL(fileURLWithPath: destPath))
             },

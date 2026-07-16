@@ -55,6 +55,7 @@ enum L10n {
         static var copyFilename: String { ModuleLocalization.localized("action.copy_filename", bundle: .module) }
         static var copyPaths: String { ModuleLocalization.localized("action.copy_paths", bundle: .module) }
         static var showInfo: String { ModuleLocalization.localized("action.show_info", bundle: .module) }
+        static var showFinderInfo: String { ModuleLocalization.localized("action.show_finder_info", bundle: .module) }
         static var services: String { ModuleLocalization.localized("action.services", bundle: .module) }
         static var openTerminalHere: String { ModuleLocalization.localized("action.open_terminal_here", bundle: .module) }
         static var extract: String { ModuleLocalization.localized("action.extract", bundle: .module) }

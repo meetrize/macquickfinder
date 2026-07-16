@@ -142,6 +142,13 @@ enum FileListRowContextMenuBuilder {
         FileServicesMenuSupport.appendToMenu(menu, fileURLs: fileURLs)
         
         menu.addItem(menuItem(title: L10n.Action.showInfo) { actions.showInfo(fileSelection) })
+        menu.addItem(menuItem(
+            title: L10n.Action.showFinderInfo,
+            keyEquivalent: "i",
+            modifierMask: [.command]
+        ) {
+            actions.showFinderInfo(fileSelection)
+        })
         return menu
     }
 

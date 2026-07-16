@@ -19244,6 +19244,23 @@
           }
         }
       }
+    },
+    "action.show_finder_info": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get Info in Finder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示简介"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

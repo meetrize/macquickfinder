@@ -32,6 +32,7 @@
 "action.rename" = "Rename";
 "action.save" = "Save";
 "action.services" = "Services";
+"action.show_finder_info" = "Get Info in Finder";
 "action.show_info" = "Get Info";
 "alert.confirm_delete.multiple %lld" = "Delete %lld items?";
 "alert.confirm_delete.single %@" = "Delete \"%@\"?";

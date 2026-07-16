@@ -14,6 +14,7 @@ struct FileContextActions {
     var delete: ([FileItem]) -> Void = { _ in }
     var rename: (FileItem) -> Void = { _ in }
     var showInfo: ([FileItem]) -> Void = { _ in }
+    var showFinderInfo: ([FileItem]) -> Void = { _ in }
     var canPaste: (String) -> Bool = { _ in false }
     var paste: (String) -> Void = { _ in }
     var isFavorited: (FileItem) -> Bool = { _ in false }
