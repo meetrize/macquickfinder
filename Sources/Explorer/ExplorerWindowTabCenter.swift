@@ -91,6 +91,16 @@ final class ExplorerWindowTabCenter: ObservableObject {
         pendingMainTabNavigations.removeValue(forKey: ObjectIdentifier(window))
     }
 
+    /// 新建标签的窗口尚未挂载时，预读待导航目标，避免先加载首页再跳转。
+    func peekPendingNewTabNavigation() -> PendingMainTabNavigation? {
+        guard let pending = pendingNewTab else { return nil }
+        return PendingMainTabNavigation(path: pending.path, selectionPath: pending.selectionPath)
+    }
+
+    var hasRegisteredWindows: Bool {
+        !windowPaths.isEmpty
+    }
+
     /// 在当前窗口组中新建标签页（与标签栏「+」一致：同场景、同路径、直接合并）。
     func openNewTab(path: String, selectionPath: String? = nil, from sourceWindow: NSWindow?) {
         let anchor = sourceWindow ?? NSApp.keyWindow

@@ -679,9 +679,11 @@ struct ExplorerApp: App {
         WindowGroup(id: ExplorerWindowScene.main) {
             FullDiskAccessGate {
                 ContentView(windowSceneKind: .main)
+                    // 文件打开由 AppDelegate → ExternalOpenRouter 处理；勿用 allowing:"*"，
+                    // 否则外部 Reveal 会再弹一个主窗口，与现有窗叠成两个 tab。
                     .handlesExternalEvents(
                         preferring: Set(arrayLiteral: "meofind-main"),
-                        allowing: Set(arrayLiteral: "*")
+                        allowing: Set(arrayLiteral: "meofind-main")
                     )
             }
             .frame(minWidth: 267, minHeight: 200)
@@ -917,29 +919,79 @@ final class ExternalFolderOpenCenter: ObservableObject {
             return
         }
         recordHandledRequest(resolvedRequest)
-        if !isSessionEstablished {
-            markLaunchedFromExternalEvent()
-        }
-
-        targetRequest = resolvedRequest
-        pendingRequest = resolvedRequest
 
         let app = NSApplication.shared
         app.unhide(nil)
         app.activate(ignoringOtherApps: true)
-        bringExplorerWindowsToFront()
 
-        openRequestGeneration &+= 1
-
-        if !isSessionEstablished {
-            DuplicateExplorerWindowCloser.scheduleCoalesce(keeping: resolvedRequest)
+        // 已有浏览窗：只投递给 frontmost 标签（原地导航），禁止 openNewTab / 全标签广播，
+        // 避免第三方 Reveal 时多出一个空白 tab，也不改其它标签路径。
+        if let anchor = preferredExplorerAnchorWindow() {
+            deliverOpenRequestToFrontmostTab(resolvedRequest, anchor: anchor)
+            return
         }
+
+        if isSessionEstablished {
+            openFolderWindow?(resolvedRequest)
+            return
+        }
+
+        markLaunchedFromExternalEvent()
+        targetRequest = resolvedRequest
+        pendingRequest = resolvedRequest
+        bringExplorerWindowsToFront()
+        openRequestGeneration &+= 1
+        DuplicateExplorerWindowCloser.scheduleCoalesce(keeping: resolvedRequest)
     }
 
+    /// 仅由 frontmost 浏览标签消费；消费后清除 sticky `targetRequest`。
     func consumePendingRequest() -> OpenRequest? {
         let request = pendingRequest
         pendingRequest = nil
+        if request != nil {
+            targetRequest = nil
+        }
         return request
+    }
+
+    /// 供测试重置进程内状态。
+    func resetForTesting() {
+        isSessionEstablished = false
+        launchedFromExternalEvent = false
+        targetRequest = nil
+        pendingRequest = nil
+        openRequestGeneration = 0
+        recentlyHandledRequestKeys.removeAll()
+    }
+
+    private func deliverOpenRequestToFrontmostTab(_ request: OpenRequest, anchor: NSWindow) {
+        anchor.makeKeyAndOrderFront(nil)
+        // 不写入 sticky targetRequest，避免后续新建标签误用。
+        pendingRequest = request
+        targetRequest = nil
+        openRequestGeneration &+= 1
+    }
+
+    private func preferredExplorerAnchorWindow() -> NSWindow? {
+        let browserCandidates = NSApplication.shared.windows.filter { window in
+            guard !window.isMiniaturized, window.canBecomeKey else { return false }
+            // 独立预览等禁止标签的窗不作为 Reveal 目标。
+            guard window.tabbingMode != .disallowed else { return false }
+            let kind = ExplorerWindowTabCenter.shared.sceneKind(for: window)
+            return kind == .main || kind == .folder
+        }
+        // 优先已注册宿主窗；注册尚未完成时回退到可见候选，避免再 openFolderWindow 叠出第二窗。
+        let registered = browserCandidates.filter {
+            ExplorerWindowTabCenter.shared.path(for: $0) != nil
+        }
+        let candidates = registered.isEmpty
+            ? browserCandidates.filter { $0.isVisible || $0.isKeyWindow }
+            : registered
+        guard !candidates.isEmpty else { return nil }
+        if let key = NSApp.keyWindow, candidates.contains(where: { $0 === key }) {
+            return key
+        }
+        return candidates.first
     }
 
     func requestOpenInNewWindow(directoryPath: String) {

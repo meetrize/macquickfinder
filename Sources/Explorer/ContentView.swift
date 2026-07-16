@@ -122,6 +122,7 @@ extension ContentView {
     }
 
     private func applyPendingExternalNavigationForNewTab(_ navigation: ExplorerWindowTabCenter.PendingMainTabNavigation) {
+        didConsumeLaunchNavigation = true
         pendingExternalSelectionPath = navigation.selectionPath.map {
             ExternalSelectionPathMatcher.standardizedPath($0)
         }
@@ -135,10 +136,34 @@ extension ContentView {
     }
 
     func applyExternalOpenRequestIfNeeded() {
-        guard windowSceneKind == .main else { return }
-        guard let request = externalFolderOpenCenter.targetRequest else { return }
-        guard hostWindow != nil else { return }
+        guard windowSceneKind == .main || windowSceneKind == .folder else { return }
+        // 仅 key 窗消费 pending，避免多标签同时跳到同一目录。
+        guard let hostWindow, hostWindow.isKeyWindow else { return }
+        guard let request = externalFolderOpenCenter.consumePendingRequest() else { return }
+        didConsumeLaunchNavigation = true
         applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
+    }
+
+    /// 是否由本窗接管进程级目录会话（FSEvents / 元数据 / Git 监视）。
+    var ownsSharedDirectorySession: Bool {
+        if let hostWindow {
+            return hostWindow.isKeyWindow
+        }
+        return !ExplorerWindowTabCenter.shared.hasRegisteredWindows
+    }
+
+    /// 标签切换为 key 时接管共享目录监视，不重置列表。
+    func claimSharedDirectorySessionIfNeeded() {
+        guard ownsSharedDirectorySession else { return }
+        guard !isLoading, !items.isEmpty else { return }
+        let folderPaths = items.filter(\.isDirectory).map(\.id)
+        updateDirectoryFSEventsMonitoring(
+            directoryPath: path,
+            folderPaths: folderPaths,
+            showHiddenFiles: showHiddenFiles
+        )
+        updateGitWorkspaceFSEventsMonitoring(for: path)
+        rescheduleDirectorySizesIfNeeded()
     }
 
     private func applyLaunchNavigation(_ request: ExternalFolderOpenCenter.OpenRequest) {
@@ -212,6 +237,7 @@ struct ContentView: View {
     @State private var operationRecordingReview: OperationRecordingReviewContext?
     @State private var showDiscardRecordingConfirm = false
     @State private var lastHandledOpenRequestGeneration: UInt = 0
+    @State private var didConsumeLaunchNavigation = false
     @State private var isCommandPalettePresented = false
     @State private var commandPaletteSession: CommandPaletteSession?
     @StateObject private var contentSearchSession = DirectoryContentSearchSession()
@@ -458,7 +484,10 @@ struct ContentView: View {
             ExplorerWindowTabCenter.shared.handleExplorerWindowDidAppear(window)
             PreviewHostWindowRegistry.shared.register(hostWindowID: previewHostWindowID, window: window)
             syncExplorerTabBarState()
-            applyExternalOpenRequestIfNeeded()
+            if window.isKeyWindow {
+                applyExternalOpenRequestIfNeeded()
+                claimSharedDirectorySessionIfNeeded()
+            }
             _ = applyExternalSelectionImmediatelyIfPossible()
             OperationRecordingHub.register(operationRecorder)
             operationRecordingCloseGuard.attach(
@@ -498,6 +527,7 @@ struct ContentView: View {
             guard let keyWindow = notification.object as? NSWindow,
                   keyWindow == hostWindow else { return }
             OperationRecordingHub.register(operationRecorder)
+            claimSharedDirectorySessionIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             guard let closingWindow = notification.object as? NSWindow,
@@ -529,9 +559,16 @@ struct ContentView: View {
                 }
                 loadItems()
             } else if windowSceneKind == .main {
-                let launchRequest = externalFolderOpenCenter.consumePendingRequest()
-                    ?? externalFolderOpenCenter.targetRequest
-                if let launchRequest {
+                if didConsumeLaunchNavigation {
+                    if items.isEmpty, !isLoading {
+                        loadItems()
+                    }
+                } else if let pendingTab = ExplorerWindowTabCenter.shared.peekPendingNewTabNavigation() {
+                    // 新建标签：直接落到目标目录，避免先加载首页再跳转。
+                    didConsumeLaunchNavigation = true
+                    applyPendingExternalNavigationForNewTab(pendingTab)
+                } else if let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
+                    didConsumeLaunchNavigation = true
                     applyLaunchNavigation(launchRequest)
                 } else {
                     path = restoredLaunchPath()
@@ -546,7 +583,6 @@ struct ContentView: View {
             syncExplorerTabBarState()
             externalFolderOpenCenter.markSessionEstablished()
             lastHandledOpenRequestGeneration = externalFolderOpenCenter.openRequestGeneration
-            applyExternalOpenRequestIfNeeded()
             if let hostWindow {
                 ExplorerWindowTabCenter.shared.registerWindow(
                     hostWindow,
@@ -1328,7 +1364,10 @@ struct ContentView: View {
         isLoading = true
         items = []
         selection.removeAll()
-        directoryMetadataOverlay.beginSession(generation: currentGeneration)
+        let shouldOwnSharedDirectorySession = ownsSharedDirectorySession
+        if shouldOwnSharedDirectorySession {
+            directoryMetadataOverlay.beginSession(generation: currentGeneration)
+        }
 
         if isNetworkListing {
             NetworkVolumePrewarmer.touchPath(currentPath)
@@ -1385,42 +1424,46 @@ struct ContentView: View {
                     }
                 }
 
-                await MainActor.run {
-                    DirectoryFSEventsMonitor.shared.stop()
-                }
-                if !invalidatingPaths.isEmpty {
-                    await DirectoryMetadataScheduler.invalidate(paths: invalidatingPaths)
-                }
-                await DirectoryMetadataScheduler.resetSession(generation: currentGeneration)
+                if shouldOwnSharedDirectorySession {
+                    await MainActor.run {
+                        DirectoryFSEventsMonitor.shared.stop()
+                    }
+                    if !invalidatingPaths.isEmpty {
+                        await DirectoryMetadataScheduler.invalidate(paths: invalidatingPaths)
+                    }
+                    await DirectoryMetadataScheduler.resetSession(generation: currentGeneration)
 
-                let folderPaths = loadedItems
-                    .filter(\.isDirectory)
-                    .map(\.id)
-                await DirectoryMetadataScheduler.scheduleAfterListingLoad(
-                    folderPaths: folderPaths,
-                    showHiddenFiles: shouldShowHiddenFiles,
-                    includeSizes: false
-                )
-                await MainActor.run {
-                    guard currentGeneration == loadGeneration else { return }
-                    updateDirectoryFSEventsMonitoring(
-                        directoryPath: currentPath,
+                    let folderPaths = loadedItems
+                        .filter(\.isDirectory)
+                        .map(\.id)
+                    await DirectoryMetadataScheduler.scheduleAfterListingLoad(
                         folderPaths: folderPaths,
-                        showHiddenFiles: shouldShowHiddenFiles
+                        showHiddenFiles: shouldShowHiddenFiles,
+                        includeSizes: false
                     )
-                    updateGitWorkspaceFSEventsMonitoring(for: currentPath)
+                    await MainActor.run {
+                        guard currentGeneration == loadGeneration else { return }
+                        updateDirectoryFSEventsMonitoring(
+                            directoryPath: currentPath,
+                            folderPaths: folderPaths,
+                            showHiddenFiles: shouldShowHiddenFiles
+                        )
+                        updateGitWorkspaceFSEventsMonitoring(for: currentPath)
+                    }
                 }
                 return
             }
             
-            await MainActor.run {
-                DirectoryFSEventsMonitor.shared.stop()
+            if shouldOwnSharedDirectorySession {
+                await MainActor.run {
+                    DirectoryFSEventsMonitor.shared.stop()
+                }
+                
+                if !invalidatingPaths.isEmpty {
+                    await DirectoryMetadataScheduler.invalidate(paths: invalidatingPaths)
+                }
+                await DirectoryMetadataScheduler.resetSession(generation: currentGeneration)
             }
-            
-            if !invalidatingPaths.isEmpty {
-                await DirectoryMetadataScheduler.invalidate(paths: invalidatingPaths)
-            }
-            await DirectoryMetadataScheduler.resetSession(generation: currentGeneration)
             
             var loadedItems: [FileItem] = []
             
@@ -1469,6 +1512,7 @@ struct ContentView: View {
             }
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
+            guard shouldOwnSharedDirectorySession else { return }
             
             let folderPaths = loadedItems
                 .filter(\.isDirectory)
@@ -1543,6 +1587,7 @@ struct ContentView: View {
         folderPaths: [String],
         showHiddenFiles: Bool
     ) {
+        guard ownsSharedDirectorySession else { return }
         guard !TrashLoader.isTrashPath(directoryPath) else {
             DirectoryFSEventsMonitor.shared.stop()
             return
@@ -1699,6 +1744,7 @@ struct ContentView: View {
     }
     
     private func updateGitWorkspaceFSEventsMonitoring(for directoryPath: String? = nil) {
+        guard ownsSharedDirectorySession else { return }
         let directoryPath = directoryPath ?? path
         guard !TrashLoader.isTrashPath(directoryPath) else {
             GitWorkspaceFSEventsMonitor.shared.stop()
