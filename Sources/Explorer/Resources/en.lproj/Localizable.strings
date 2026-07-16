@@ -1089,6 +1089,7 @@
 "toolbar.error.shortcut_missing_title" = "Item Missing";
 "toolbar.hide_hidden_files" = "Hide Hidden Files";
 "toolbar.hide_left_panel" = "Hide Left Panel";
+"toolbar.hide_right_panel" = "Hide Right Panel";
 "toolbar.hide_tab_bar" = "Hide Tab Bar";
 "toolbar.list_view" = "List View";
 "toolbar.new_file" = "New File";
@@ -1122,6 +1123,7 @@
 "toolbar.show_all_tabs" = "Show All Tabs";
 "toolbar.show_hidden_files" = "Show Hidden Files";
 "toolbar.show_left_panel" = "Show Left Panel";
+"toolbar.show_right_panel" = "Show Right Panel";
 "toolbar.show_tab_bar" = "Show Tab Bar";
 "toolbar.sort" = "Sort";
 "toolbar.tab_bar.cannot_hide_multiple" = "Multiple tabs are open; the tab bar cannot be hidden";

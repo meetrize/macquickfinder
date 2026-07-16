@@ -19,7 +19,7 @@ enum GitRepositoryDetector {
     }
 
     private static func normalizedExistingPath(_ path: String, fileManager: FileManager) -> String {
-        var candidate = (path as NSString).standardizingPath
+        let candidate = (path as NSString).standardizingPath
         var isDirectory: ObjCBool = false
         if fileManager.fileExists(atPath: candidate, isDirectory: &isDirectory), isDirectory.boolValue {
             return candidate

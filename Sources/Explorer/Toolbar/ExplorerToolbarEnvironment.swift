@@ -47,6 +47,8 @@ enum ToolbarBuiltinDispatcher {
         switch id {
         case .leftPanel:
             environment.toggleLeftPanelVisibility()
+        case .rightPanel:
+            environment.layout.toggleRightPanel()
         case .newWindow:
             environment.openNewWindow()
         case .newTab:

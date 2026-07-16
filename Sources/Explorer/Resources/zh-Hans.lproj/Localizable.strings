@@ -1089,6 +1089,7 @@
 "toolbar.error.shortcut_missing_title" = "项目不存在";
 "toolbar.hide_hidden_files" = "不显示隐藏文件";
 "toolbar.hide_left_panel" = "隐藏左侧面板";
+"toolbar.hide_right_panel" = "隐藏右侧面板";
 "toolbar.hide_tab_bar" = "隐藏标签栏";
 "toolbar.list_view" = "列表视图";
 "toolbar.new_file" = "新建文件";
@@ -1122,6 +1123,7 @@
 "toolbar.show_all_tabs" = "显示所有标签页";
 "toolbar.show_hidden_files" = "显示隐藏文件";
 "toolbar.show_left_panel" = "显示左侧面板";
+"toolbar.show_right_panel" = "显示右侧面板";
 "toolbar.show_tab_bar" = "显示标签栏";
 "toolbar.sort" = "排序";
 "toolbar.tab_bar.cannot_hide_multiple" = "已打开多个标签页，无法隐藏标签栏";

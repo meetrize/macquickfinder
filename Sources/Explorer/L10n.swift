@@ -538,6 +538,8 @@ enum L10n {
     enum Toolbar {
         static var showLeftPanel: String { ModuleLocalization.localized("toolbar.show_left_panel", bundle: .module) }
         static var hideLeftPanel: String { ModuleLocalization.localized("toolbar.hide_left_panel", bundle: .module) }
+        static var showRightPanel: String { ModuleLocalization.localized("toolbar.show_right_panel", bundle: .module) }
+        static var hideRightPanel: String { ModuleLocalization.localized("toolbar.hide_right_panel", bundle: .module) }
         static var newWindow: String { ModuleLocalization.localized("toolbar.new_window", bundle: .module) }
         static var newTab: String { ModuleLocalization.localized("toolbar.new_tab", bundle: .module) }
         static var showAllTabs: String { ModuleLocalization.localized("toolbar.show_all_tabs", bundle: .module) }

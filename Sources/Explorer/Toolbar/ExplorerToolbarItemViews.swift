@@ -342,6 +342,10 @@ struct ExplorerToolbarItemView: View {
             return environment.leftPanelMode == .hidden
                 ? L10n.Toolbar.showLeftPanel
                 : L10n.Toolbar.hideLeftPanel
+        case .rightPanel:
+            return environment.layout.isRightPanelVisible
+                ? L10n.Toolbar.hideRightPanel
+                : L10n.Toolbar.showRightPanel
         case .newWindow:
             return L10n.Toolbar.newWindow
         case .newTab:
@@ -436,6 +440,8 @@ extension ToolbarBuiltinID {
         switch self {
         case .leftPanel:
             return .panelLeft
+        case .rightPanel:
+            return .panelRight
         case .newWindow:
             return .appWindow
         case .newTab:

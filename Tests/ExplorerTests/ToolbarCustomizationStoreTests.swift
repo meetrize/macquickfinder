@@ -37,6 +37,7 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
                 ToolbarBuiltinID.newFolder.rawValue,
                 ToolbarBuiltinID.delete.rawValue,
                 ToolbarBuiltinID.leftPanel.rawValue,
+                ToolbarBuiltinID.rightPanel.rawValue,
             ]
         )
 

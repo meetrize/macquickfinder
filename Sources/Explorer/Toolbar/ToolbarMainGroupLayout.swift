@@ -30,7 +30,7 @@ enum ToolbarMainGroup: Int, CaseIterable {
             return ToolbarMainGroup.viewModes.rawValue
         case .recordOperations, .toggleHiddenFiles, .sortMenu, .browseSettingsMenu:
             return ToolbarMainGroup.utilities.rawValue
-        case .leftPanel, .thumbnailSizeSlider:
+        case .leftPanel, .rightPanel, .thumbnailSizeSlider:
             return nil
         }
     }

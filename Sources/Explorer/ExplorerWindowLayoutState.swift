@@ -261,8 +261,12 @@ final class ExplorerWindowLayoutState: ObservableObject {
         setLeftPanelMode(.hidden)
     }
 
+    var isRightPanelVisible: Bool {
+        showPreview || showSnippets || showGit
+    }
+
     func toggleRightPanel() {
-        if showPreview || showSnippets || showGit {
+        if isRightPanelVisible {
             showPreview = false
             showSnippets = false
             showGit = false

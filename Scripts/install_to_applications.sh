@@ -27,7 +27,9 @@ fi
 
 run_sudo() {
     if [[ -n "${SUDO_PASSWORD:-}" ]]; then
-        echo "$SUDO_PASSWORD" | sudo -S -p '' "$@"
+        # 用 here-string 提供密码，避免 `echo | sudo -S` 在凭据已缓存时
+        # 把密码行泄漏给子进程 stdin（sqlite3 会当成 SQL 解析）。
+        sudo -S -p '' "$@" <<< "${SUDO_PASSWORD}"
     else
         sudo "$@"
     fi
@@ -86,23 +88,37 @@ open_full_disk_access_settings() {
 grant_full_disk_access() {
     local client="$1"
     local client_type="$2"
-    local now
+    local now client_sql sql
     now="$(date +%s)"
+    # SQL 单引号转义
+    client_sql="${client//\'/\'\'}"
 
     if [[ ! -f "$TCC_DB" ]]; then
         echo "警告: 未找到 TCC 数据库 $TCC_DB"
         return 1
     fi
 
-    run_sudo sqlite3 "$TCC_DB" <<SQL
-INSERT OR REPLACE INTO access
+    # SQL 必须走参数而非 stdin：stdin 可能被 sudo 密码占用/泄漏。
+    # 列名按较新 macOS TCC.db（indirect_object_code_identity；非旧版 _code_id）。
+    sql="INSERT OR REPLACE INTO access
   (service, client, client_type, auth_value, auth_reason, auth_version,
    csreq, policy_id, indirect_object_identifier_type, indirect_object_identifier,
-   indirect_object_code_id, flags, last_modified)
+   indirect_object_code_identity, flags, last_modified)
 VALUES
-  ('$TCC_SERVICE', '$client', $client_type, 2, 4, 1,
-   NULL, NULL, 0, 'UNUSED', NULL, 0, $now);
-SQL
+  ('${TCC_SERVICE}', '${client_sql}', ${client_type}, 2, 4, 1,
+   NULL, NULL, 0, 'UNUSED', NULL, 0, ${now});"
+
+    # 关闭 stdin，防止缓存凭据时密码 here-string 残留被 sqlite3 继续读入。
+    local err
+    if err="$(run_sudo sqlite3 "$TCC_DB" "$sql" < /dev/null 2>&1)"; then
+        return 0
+    fi
+    # 只读 / SIP 保护是新版 macOS 常态，不把 sqlite 噪音打满终端。
+    if [[ "$err" == *"readonly database"* ]] || [[ "$err" == *"authorization denied"* ]]; then
+        return 1
+    fi
+    echo "    sqlite3: $err" >&2
+    return 1
 }
 
 echo "==> 尝试授予「完全磁盘访问权限」"
@@ -111,14 +127,14 @@ if grant_full_disk_access "$BUNDLE_ID" 0; then
     echo "    已写入 Bundle ID: $BUNDLE_ID"
     FDA_OK=true
 else
-    echo "    Bundle ID 写入失败"
+    echo "    Bundle ID 写入失败（可能受 SIP 保护）"
 fi
 
 if grant_full_disk_access "$DEST_APP" 1; then
     echo "    已写入应用路径: $DEST_APP"
     FDA_OK=true
 else
-    echo "    应用路径写入失败"
+    echo "    应用路径写入失败（可能受 SIP 保护）"
 fi
 
 if $FDA_OK; then

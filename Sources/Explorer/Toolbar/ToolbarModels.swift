@@ -88,6 +88,7 @@ struct ToolbarDragPayload: Codable, Equatable {
 
 enum ToolbarBuiltinID: String, Codable, CaseIterable, Identifiable {
     case leftPanel
+    case rightPanel
     case newWindow
     case newTab
     case showAllTabs
@@ -234,6 +235,7 @@ struct ToolbarLayoutConfig: Codable, Equatable {
             (.newFolder, .leading),
             (.delete, .leading),
             (.leftPanel, .leading),
+            (.rightPanel, .leading),
             (.newWindow, .main),
             (.newTab, .main),
             (.showAllTabs, .main),

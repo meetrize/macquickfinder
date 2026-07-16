@@ -218,6 +218,9 @@ private enum LucideSVG {
     static let panelLeft = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
 """)
+    static let panelRight = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg>
+""")
     static let braces = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg>
 """)
@@ -267,6 +270,7 @@ struct LucideIcon: View {
     var isRecording: Bool = false
 
     static let panelLeft = LucideIcon(svgData: LucideSVG.panelLeft)
+    static let panelRight = LucideIcon(svgData: LucideSVG.panelRight)
     static let panelTop = LucideIcon(svgData: LucideSVG.panelTop)
 
     static func panelTop(isActive: Bool = false) -> LucideIcon {
