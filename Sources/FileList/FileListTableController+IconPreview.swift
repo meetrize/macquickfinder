@@ -51,17 +51,27 @@ extension FileListTableController {
         }
     }
 
+    func invalidatePendingIconPreviewLoads() {
+        iconPreviewLoadGeneration &+= 1
+        visibleIconPreviewLoadWorkItem?.cancel()
+        visibleIconPreviewLoadWorkItem = nil
+    }
+
     func scheduleVisibleIconPreviewLoad() {
         guard useIconPreview else { return }
+        iconPreviewLoadGeneration &+= 1
+        let generation = iconPreviewLoadGeneration
         visibleIconPreviewLoadWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            self?.loadVisibleIconPreviews()
+            guard let self, generation == self.iconPreviewLoadGeneration else { return }
+            self.loadVisibleIconPreviews(generation: generation)
         }
         visibleIconPreviewLoadWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: work)
     }
 
-    private func loadVisibleIconPreviews() {
+    private func loadVisibleIconPreviews(generation: Int) {
+        guard generation == iconPreviewLoadGeneration else { return }
         guard useIconPreview, let tableView else { return }
         guard let nameColumnIndex = tableView.tableColumns.firstIndex(where: {
             FileListColumnID.from(column: $0) == .name
@@ -70,29 +80,43 @@ extension FileListTableController {
         let visible = tableView.rows(in: tableView.visibleRect)
         guard visible.length > 0 else { return }
 
+        let tableRowCount = tableView.numberOfRows
         var rows: [(Int, FileListRow)] = []
         rows.reserveCapacity(visible.length)
         for row in visible.location..<(visible.location + visible.length) {
-            guard row >= 0, row < displayRows.count else { continue }
+            guard row >= 0, row < displayRows.count, row < tableRowCount else { continue }
             let item = displayRows[row]
             guard !item.isParentDirectoryEntry else { continue }
             rows.append((row, item))
         }
-        loadIconPreviewBatch(rows: rows, nameColumnIndex: nameColumnIndex, startIndex: 0)
+        loadIconPreviewBatch(
+            rows: rows,
+            nameColumnIndex: nameColumnIndex,
+            startIndex: 0,
+            generation: generation
+        )
     }
 
     private func loadIconPreviewBatch(
         rows: [(Int, FileListRow)],
         nameColumnIndex: Int,
-        startIndex: Int
+        startIndex: Int,
+        generation: Int
     ) {
+        guard generation == iconPreviewLoadGeneration else { return }
         guard useIconPreview, let tableView else { return }
+        guard nameColumnIndex >= 0, nameColumnIndex < tableView.numberOfColumns else { return }
+
         let end = min(startIndex + Self.visibleIconPreviewBatchSize, rows.count)
         let cellSize = Self.listIconPreviewCellSize
         let screenScale = tableView.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        let tableRowCount = tableView.numberOfRows
 
         for index in startIndex..<end {
             let (row, item) = rows[index]
+            // 「在 Finder 显示」等外部导航会在分批间隙 reload；越界 row 会让 AppKit 抛异常崩溃。
+            guard row >= 0, row < tableRowCount, row < displayRows.count else { continue }
+            guard displayRows[row].id == item.id else { continue }
             guard let cell = tableView.view(
                 atColumn: nameColumnIndex,
                 row: row,
@@ -128,7 +152,12 @@ extension FileListTableController {
 
         guard end < rows.count else { return }
         DispatchQueue.main.async { [weak self] in
-            self?.loadIconPreviewBatch(rows: rows, nameColumnIndex: nameColumnIndex, startIndex: end)
+            self?.loadIconPreviewBatch(
+                rows: rows,
+                nameColumnIndex: nameColumnIndex,
+                startIndex: end,
+                generation: generation
+            )
         }
     }
 

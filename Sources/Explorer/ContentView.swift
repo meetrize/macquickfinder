@@ -1594,6 +1594,9 @@ struct ContentView: View {
     }
 
     private func applyIncrementalListingPatch(_ patch: DirectoryListingIncrementalPatcher.Patch) {
+        // 全量 loadItems 进行中时丢弃增量补丁，避免与导航竞态把父目录条目合并进子目录列表。
+        guard !isLoading else { return }
+
         let removed = Set(patch.removedPaths)
         if !removed.isEmpty {
             items = DirectoryListingIncrementalUpdate.merge(
@@ -1609,6 +1612,7 @@ struct ContentView: View {
 
         let urls = patch.addedPaths.map { URL(fileURLWithPath: $0) }
         let currentPath = path
+        let listingGeneration = loadGeneration
         let shouldShowHiddenFiles = showHiddenFiles
         let listingOptions = DirectoryListingOptions.forPath(currentPath)
         let sort = FileListPreferencesStore.shared.sort
@@ -1624,6 +1628,9 @@ struct ContentView: View {
 
             await MainActor.run {
                 guard !addedItems.isEmpty else { return }
+                guard listingGeneration == loadGeneration,
+                      pathsReferToSameDirectory(currentPath, path),
+                      !isLoading else { return }
                 items = DirectoryListingIncrementalUpdate.merge(
                     adding: addedItems,
                     removing: [],
@@ -2191,6 +2198,7 @@ struct ContentView: View {
         guard !urls.isEmpty else { return }
 
         let currentPath = path
+        let listingGeneration = loadGeneration
         let shouldShowHiddenFiles = showHiddenFiles
         let listingOptions = DirectoryListingOptions.forPath(currentPath)
         let sort = FileListPreferencesStore.shared.sort
@@ -2205,6 +2213,8 @@ struct ContentView: View {
             }.value
 
             await MainActor.run {
+                guard pathsReferToSameDirectory(currentPath, path),
+                      listingGeneration == loadGeneration else { return }
                 guard !addedItems.isEmpty else {
                     loadItems()
                     return
@@ -2245,7 +2255,8 @@ struct ContentView: View {
                     try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: false)
                     OperationRecordingHub.record(.createDirectory(url: folderURL))
                     GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: folderURL.path)
-                    loadItems()
+                    // 增量插入 + 抑制 FSEvents 回声，避免「刚创建就双击进入」时与全量 reload 叠车。
+                    insertListingItems(at: [folderURL], inlineRenamePath: nil)
                 } catch {
                     let errorAlert = NSAlert(error: error)
                     errorAlert.runModal()
@@ -2272,8 +2283,7 @@ struct ContentView: View {
         }
         OperationRecordingHub.record(.createFile(url: fileURL))
         GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: fileURL.path)
-        pendingInlineRenamePath = fileURL.path
-        loadItems()
+        insertListingItems(at: [fileURL], inlineRenamePath: fileURL.path)
     }
 }
 private struct LeadingResizeDivider: NSViewRepresentable {

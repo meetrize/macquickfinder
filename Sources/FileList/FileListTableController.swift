@@ -38,6 +38,8 @@ public final class FileListTableController: FileListContentController {
     var useIconPreview = false
     let thumbnailGenerator = ThumbnailGenerator.shared
     var visibleIconPreviewLoadWorkItem: DispatchWorkItem?
+    /// 列表刷新时递增，作废尚未跑完的分批图标预览，避免用过期行号访问 NSTableView。
+    var iconPreviewLoadGeneration = 0
 
     let userResizing = NSTableColumn.ResizingOptions(rawValue: 1 << 1)
 
@@ -142,6 +144,9 @@ public final class FileListTableController: FileListContentController {
                 directoryItemCount: nil
             )
         )
+        if plan.listingChanged || plan.orderChanged || plan.searchChanged {
+            invalidatePendingIconPreviewLoads()
+        }
         if plan.listingChanged {
             thumbnailGenerator.cancelInFlightRequests()
             thumbnailGenerator.clearMemoryCache()
