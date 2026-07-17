@@ -586,6 +586,10 @@ enum L10n {
         static var openAppSave: String { ModuleLocalization.localized("toolbar.open_app.save", bundle: .module) }
         static var openAppEdit: String { ModuleLocalization.localized("toolbar.open_app.edit", bundle: .module) }
         static var openAppEditTitle: String { ModuleLocalization.localized("toolbar.open_app.edit_title", bundle: .module) }
+        static var changeIcon: String { ModuleLocalization.localized("toolbar.change_icon", bundle: .module) }
+        static var changeIconChoose: String { ModuleLocalization.localized("toolbar.change_icon.choose", bundle: .module) }
+        static var changeIconPrompt: String { ModuleLocalization.localized("toolbar.change_icon.prompt", bundle: .module) }
+        static var resetIcon: String { ModuleLocalization.localized("toolbar.reset_icon", bundle: .module) }
         static var openAppSelectionPolicy: String { ModuleLocalization.localized("toolbar.open_app.selection_policy", bundle: .module) }
         static var openAppSelectionRequire: String { ModuleLocalization.localized("toolbar.open_app.selection_require", bundle: .module) }
         static var openAppSelectionOptional: String { ModuleLocalization.localized("toolbar.open_app.selection_optional", bundle: .module) }

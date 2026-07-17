@@ -955,6 +955,18 @@ struct ContentView: View {
                 },
                 onDeleteOpenShortcut: { action in
                     toolbarStore.deleteCustomOpenShortcut(id: action.id)
+                },
+                onChangeOpenAppIcon: { action in
+                    toolbarStore.changeCustomOpenAppIcon(id: action.id)
+                },
+                onChangeOpenShortcutIcon: { action in
+                    toolbarStore.changeCustomOpenShortcutIcon(id: action.id)
+                },
+                onResetOpenAppIcon: { action in
+                    toolbarStore.clearCustomOpenAppIcon(id: action.id)
+                },
+                onResetOpenShortcutIcon: { action in
+                    toolbarStore.clearCustomOpenShortcutIcon(id: action.id)
                 }
             )
             .frame(width: 0, height: 0)

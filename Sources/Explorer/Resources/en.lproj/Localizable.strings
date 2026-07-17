@@ -1075,6 +1075,9 @@
 "sort.size_smallest" = "Size (Smallest First)";
 "toolbar.auto_folder_size" = "Calculate Folder Sizes (Slower)";
 "toolbar.browse_settings" = "Browse Settings";
+"toolbar.change_icon" = "Change Icon…";
+"toolbar.change_icon.choose" = "Choose";
+"toolbar.change_icon.prompt" = "Choose an image or icon file for this toolbar button";
 "toolbar.customize" = "Customize Toolbar…";
 "toolbar.customize.add_open_app" = "Add Toolbar Item…";
 "toolbar.customize.cancel" = "Cancel";
@@ -1120,6 +1123,7 @@
 "toolbar.panorama_mode" = "Panorama View";
 "toolbar.record_operations" = "Record operations to create a Snippet";
 "toolbar.record_operations_active" = "Recording — click to stop";
+"toolbar.reset_icon" = "Reset Icon";
 "toolbar.shortcut.remove" = "Remove Button";
 "toolbar.show_all_tabs" = "Show All Tabs";
 "toolbar.show_hidden_files" = "Show Hidden Files";

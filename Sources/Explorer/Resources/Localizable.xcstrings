@@ -12479,6 +12479,57 @@
         }
       }
     },
+    "toolbar.change_icon": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change Icon…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更换图标…"
+          }
+        }
+      }
+    },
+    "toolbar.change_icon.choose": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择"
+          }
+        }
+      }
+    },
+    "toolbar.change_icon.prompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an image or icon file for this toolbar button"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择用作此工具栏按钮的图片或图标文件"
+          }
+        }
+      }
+    },
     "toolbar.customize": {
       "extractionState": "manual",
       "localizations": {
@@ -13359,6 +13410,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在录制 — 点击停止"
+          }
+        }
+      }
+    },
+    "toolbar.reset_icon": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Icon"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复默认图标"
           }
         }
       }

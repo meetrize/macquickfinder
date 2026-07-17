@@ -4,10 +4,12 @@ import SwiftUI
 
 struct ToolbarAppIconView: View {
     let applicationPath: String
+    var customIconPath: String? = nil
     var size: CGFloat = ExplorerToolbarMetrics.iconSize
 
     var body: some View {
-        let image = NSWorkspace.shared.icon(forFile: applicationPath)
+        let image = ToolbarCustomIconSupport.nsImage(at: customIconPath)
+            ?? NSWorkspace.shared.icon(forFile: applicationPath)
         Image(nsImage: image)
             .resizable()
             .aspectRatio(contentMode: .fit)
@@ -29,7 +31,12 @@ struct ToolbarItemChipLabel: View {
                 }
             case .openApp:
                 if let action = layout.customAction(for: entry.id) {
-                    if action.useApplicationIcon {
+                    if let custom = ToolbarCustomIconSupport.nsImage(at: action.customIconPath) {
+                        Image(nsImage: custom)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: ExplorerToolbarMetrics.iconSize, height: ExplorerToolbarMetrics.iconSize)
+                    } else if action.useApplicationIcon {
                         ToolbarAppIconView(applicationPath: action.applicationPath)
                     } else {
                         LucideIcon.appWindow
@@ -37,7 +44,12 @@ struct ToolbarItemChipLabel: View {
                 }
             case .openShortcut:
                 if let action = layout.customShortcut(for: entry.id) {
-                    if action.useFileIcon {
+                    if let custom = ToolbarCustomIconSupport.nsImage(at: action.customIconPath) {
+                        Image(nsImage: custom)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: ExplorerToolbarMetrics.iconSize, height: ExplorerToolbarMetrics.iconSize)
+                    } else if action.useFileIcon {
                         ToolbarAppIconView(applicationPath: action.path)
                     } else {
                         LucideIcon.filePlus
@@ -241,7 +253,12 @@ struct ExplorerToolbarItemView: View {
             Button {
                 environment.performOpenApp(action)
             } label: {
-                if action.useApplicationIcon {
+                if ToolbarCustomIconSupport.nsImage(at: action.customIconPath) != nil {
+                    ToolbarAppIconView(
+                        applicationPath: action.applicationPath,
+                        customIconPath: action.customIconPath
+                    )
+                } else if action.useApplicationIcon {
                     ToolbarAppIconView(applicationPath: action.applicationPath)
                 } else {
                     LucideIcon.appWindow
@@ -251,6 +268,14 @@ struct ExplorerToolbarItemView: View {
             .disabled(environment.isCustomizing || isOpenAppDisabled(action))
             .instantHoverTooltip(openAppTooltip(action))
             .contextMenu {
+                Button(L10n.Toolbar.changeIcon) {
+                    ToolbarCustomizationStore.shared.changeCustomOpenAppIcon(id: action.id)
+                }
+                if action.customIconPath != nil {
+                    Button(L10n.Toolbar.resetIcon) {
+                        ToolbarCustomizationStore.shared.clearCustomOpenAppIcon(id: action.id)
+                    }
+                }
                 Button(L10n.Toolbar.openAppEdit) {
                     environment.editOpenApp(action)
                 }
@@ -264,7 +289,12 @@ struct ExplorerToolbarItemView: View {
             Button {
                 environment.performOpenShortcut(action)
             } label: {
-                if action.useFileIcon {
+                if ToolbarCustomIconSupport.nsImage(at: action.customIconPath) != nil {
+                    ToolbarAppIconView(
+                        applicationPath: action.path,
+                        customIconPath: action.customIconPath
+                    )
+                } else if action.useFileIcon {
                     ToolbarAppIconView(applicationPath: action.path)
                 } else {
                     LucideIcon.filePlus
@@ -273,6 +303,16 @@ struct ExplorerToolbarItemView: View {
             .buttonStyle(ExplorerToolbarPlainButtonStyle())
             .disabled(environment.isCustomizing)
             .instantHoverTooltip(action.displayName)
+            .contextMenu {
+                Button(L10n.Toolbar.changeIcon) {
+                    ToolbarCustomizationStore.shared.changeCustomOpenShortcutIcon(id: action.id)
+                }
+                if action.customIconPath != nil {
+                    Button(L10n.Toolbar.resetIcon) {
+                        ToolbarCustomizationStore.shared.clearCustomOpenShortcutIcon(id: action.id)
+                    }
+                }
+            }
         }
     }
 

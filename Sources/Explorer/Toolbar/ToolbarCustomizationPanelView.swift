@@ -93,6 +93,14 @@ struct ToolbarCustomizationPanelView: View {
         .help(paletteHelp(ref))
         .contextMenu {
             if let action = customOpenAppAction(for: ref) {
+                Button(L10n.Toolbar.changeIcon) {
+                    store.changeCustomOpenAppIcon(id: action.id)
+                }
+                if action.customIconPath != nil {
+                    Button(L10n.Toolbar.resetIcon) {
+                        store.clearCustomOpenAppIcon(id: action.id)
+                    }
+                }
                 Button(L10n.Toolbar.openAppEdit) {
                     presentOpenAppEditor(action)
                 }
@@ -101,6 +109,14 @@ struct ToolbarCustomizationPanelView: View {
                 }
             }
             if let shortcut = customOpenShortcutAction(for: ref) {
+                Button(L10n.Toolbar.changeIcon) {
+                    store.changeCustomOpenShortcutIcon(id: shortcut.id)
+                }
+                if shortcut.customIconPath != nil {
+                    Button(L10n.Toolbar.resetIcon) {
+                        store.clearCustomOpenShortcutIcon(id: shortcut.id)
+                    }
+                }
                 Button(L10n.Action.delete, role: .destructive) {
                     store.deleteCustomOpenShortcut(id: shortcut.id)
                 }

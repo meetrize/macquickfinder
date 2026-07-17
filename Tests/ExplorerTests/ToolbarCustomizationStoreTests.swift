@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import Explorer
 
@@ -391,5 +392,62 @@ final class OpenAppExecutorTests: XCTestCase {
         """.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(CustomOpenAppAction.self, from: json)
         XCTAssertEqual(decoded.selectionPolicy, .requireSelection)
+        XCTAssertNil(decoded.customIconPath)
+    }
+
+    func testCustomIconPathRoundTripAndImport() throws {
+        let store = ToolbarCustomizationStore.shared
+        store.loadIfNeeded()
+
+        let action = CustomOpenAppAction(
+            displayName: "Icon App",
+            applicationPath: "/Applications/Safari.app"
+        )
+        store.addCustomOpenApp(action)
+
+        let pngURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("toolbar-icon-\(UUID().uuidString).png")
+        let image = NSImage(size: NSSize(width: 32, height: 32))
+        image.lockFocus()
+        NSColor.red.setFill()
+        NSRect(x: 0, y: 0, width: 32, height: 32).fill()
+        image.unlockFocus()
+        let tiff = try XCTUnwrap(image.tiffRepresentation)
+        let rep = try XCTUnwrap(NSBitmapImageRep(data: tiff))
+        let png = try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+        try png.write(to: pngURL)
+        defer { try? FileManager.default.removeItem(at: pngURL) }
+
+        let imported = try XCTUnwrap(
+            ToolbarCustomIconSupport.importIcon(from: pngURL, forItemID: action.id)
+        )
+        var config = store.workingLayout
+        let index = try XCTUnwrap(config.customOpenApps.firstIndex(where: { $0.id == action.id }))
+        config.customOpenApps[index].customIconPath = imported
+        store.workingLayout = config
+
+        XCTAssertEqual(store.workingLayout.customOpenApps[index].customIconPath, imported)
+        XCTAssertNotNil(ToolbarCustomIconSupport.nsImage(at: imported))
+
+        store.clearCustomOpenAppIcon(id: action.id)
+        XCTAssertNil(store.workingLayout.customOpenApps.first { $0.id == action.id }?.customIconPath)
+        XCTAssertNil(ToolbarCustomIconSupport.nsImage(at: imported))
+
+        store.deleteCustomOpenApp(id: action.id)
+    }
+
+    func testCustomOpenShortcutDecodesMissingCustomIconPath() throws {
+        let json = """
+        {
+          "id": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+          "displayName": "Notes",
+          "path": "/tmp/notes.txt",
+          "targetKind": "file",
+          "useFileIcon": true,
+          "enabled": true
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(CustomOpenShortcutAction.self, from: json)
+        XCTAssertNil(decoded.customIconPath)
     }
 }

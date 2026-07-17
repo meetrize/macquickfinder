@@ -28,6 +28,8 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Toolbar.openAppSelectionPolicy, "toolbar.open_app.selection_policy")
         XCTAssertNotEqual(L10n.Toolbar.openAppSelectionCurrentFolder, "toolbar.open_app.selection_current_folder")
         XCTAssertNotEqual(L10n.Toolbar.openAppEdit, "toolbar.open_app.edit")
+        XCTAssertNotEqual(L10n.Toolbar.changeIcon, "toolbar.change_icon")
+        XCTAssertNotEqual(L10n.Toolbar.resetIcon, "toolbar.reset_icon")
         XCTAssertNotEqual(L10n.Toolbar.newWindow, "toolbar.new_window")
         XCTAssertNotEqual(L10n.Toolbar.newFile, "toolbar.new_file")
         XCTAssertNotEqual(L10n.Toolbar.showLeftPanel, "toolbar.show_left_panel")

@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 /// 在窗口 unified toolbar 区域拦截右键：
-/// - 正常模式：弹出「自定义工具栏…」
-/// - 自定义模式：在自定义打开应用 / 快捷方式图标上弹出编辑或删除
+/// - 正常模式：自定义项可更换图标；空白处弹出「自定义工具栏…」
+/// - 自定义模式：在自定义打开应用 / 快捷方式图标上弹出编辑、更换图标或删除
 struct ToolbarContextMenuInstaller: NSViewRepresentable {
     @Binding var hostWindow: NSWindow?
     @ObservedObject var store: ToolbarCustomizationStore
@@ -11,6 +11,10 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
     let onEditOpenApp: (CustomOpenAppAction) -> Void
     let onDeleteOpenApp: (CustomOpenAppAction) -> Void
     let onDeleteOpenShortcut: (CustomOpenShortcutAction) -> Void
+    let onChangeOpenAppIcon: (CustomOpenAppAction) -> Void
+    let onChangeOpenShortcutIcon: (CustomOpenShortcutAction) -> Void
+    let onResetOpenAppIcon: (CustomOpenAppAction) -> Void
+    let onResetOpenShortcutIcon: (CustomOpenShortcutAction) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -18,7 +22,11 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             onCustomize: onCustomize,
             onEditOpenApp: onEditOpenApp,
             onDeleteOpenApp: onDeleteOpenApp,
-            onDeleteOpenShortcut: onDeleteOpenShortcut
+            onDeleteOpenShortcut: onDeleteOpenShortcut,
+            onChangeOpenAppIcon: onChangeOpenAppIcon,
+            onChangeOpenShortcutIcon: onChangeOpenShortcutIcon,
+            onResetOpenAppIcon: onResetOpenAppIcon,
+            onResetOpenShortcutIcon: onResetOpenShortcutIcon
         )
     }
 
@@ -38,6 +46,10 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         context.coordinator.onEditOpenApp = onEditOpenApp
         context.coordinator.onDeleteOpenApp = onDeleteOpenApp
         context.coordinator.onDeleteOpenShortcut = onDeleteOpenShortcut
+        context.coordinator.onChangeOpenAppIcon = onChangeOpenAppIcon
+        context.coordinator.onChangeOpenShortcutIcon = onChangeOpenShortcutIcon
+        context.coordinator.onResetOpenAppIcon = onResetOpenAppIcon
+        context.coordinator.onResetOpenShortcutIcon = onResetOpenShortcutIcon
         context.coordinator.syncMonitor(targetWindow: hostWindow ?? nsView.window)
     }
 
@@ -53,6 +65,10 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
         var onEditOpenApp: (CustomOpenAppAction) -> Void
         var onDeleteOpenApp: (CustomOpenAppAction) -> Void
         var onDeleteOpenShortcut: (CustomOpenShortcutAction) -> Void
+        var onChangeOpenAppIcon: (CustomOpenAppAction) -> Void
+        var onChangeOpenShortcutIcon: (CustomOpenShortcutAction) -> Void
+        var onResetOpenAppIcon: (CustomOpenAppAction) -> Void
+        var onResetOpenShortcutIcon: (CustomOpenShortcutAction) -> Void
         private var monitor: Any?
         private weak var monitoredWindow: NSWindow?
 
@@ -61,13 +77,21 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             onCustomize: @escaping () -> Void,
             onEditOpenApp: @escaping (CustomOpenAppAction) -> Void,
             onDeleteOpenApp: @escaping (CustomOpenAppAction) -> Void,
-            onDeleteOpenShortcut: @escaping (CustomOpenShortcutAction) -> Void
+            onDeleteOpenShortcut: @escaping (CustomOpenShortcutAction) -> Void,
+            onChangeOpenAppIcon: @escaping (CustomOpenAppAction) -> Void,
+            onChangeOpenShortcutIcon: @escaping (CustomOpenShortcutAction) -> Void,
+            onResetOpenAppIcon: @escaping (CustomOpenAppAction) -> Void,
+            onResetOpenShortcutIcon: @escaping (CustomOpenShortcutAction) -> Void
         ) {
             self.store = store
             self.onCustomize = onCustomize
             self.onEditOpenApp = onEditOpenApp
             self.onDeleteOpenApp = onDeleteOpenApp
             self.onDeleteOpenShortcut = onDeleteOpenShortcut
+            self.onChangeOpenAppIcon = onChangeOpenAppIcon
+            self.onChangeOpenShortcutIcon = onChangeOpenShortcutIcon
+            self.onResetOpenAppIcon = onResetOpenAppIcon
+            self.onResetOpenShortcutIcon = onResetOpenShortcutIcon
         }
 
         func syncMonitor(targetWindow: NSWindow?) {
@@ -102,6 +126,14 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
                 return handleCustomizingRightClick(event, in: window)
             }
 
+            if let itemID = ToolbarContextMenuHitTesting.toolbarItemID(
+                at: event.locationInWindow,
+                in: window
+            ), let menu = makeNormalModeCustomItemMenu(for: itemID) {
+                popUp(menu, for: event, in: window)
+                return nil
+            }
+
             let menu = NSMenu()
             let item = NSMenuItem(
                 title: L10n.Toolbar.customize,
@@ -112,6 +144,59 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             menu.addItem(item)
 
             popUp(menu, for: event, in: window)
+            return nil
+        }
+
+        private func makeNormalModeCustomItemMenu(for itemID: String) -> NSMenu? {
+            let layout = store.workingLayout
+            if let action = layout.customAction(for: itemID) {
+                let menu = NSMenu()
+                appendChangeIconItems(
+                    to: menu,
+                    uuidString: action.id.uuidString,
+                    hasCustomIcon: action.customIconPath != nil,
+                    changeSelector: #selector(handleChangeOpenAppIconItem(_:)),
+                    resetSelector: #selector(handleResetOpenAppIconItem(_:))
+                )
+                let editItem = NSMenuItem(
+                    title: L10n.Toolbar.openAppEdit,
+                    action: #selector(handleEditOpenAppItem(_:)),
+                    keyEquivalent: ""
+                )
+                editItem.target = self
+                editItem.representedObject = action.id.uuidString
+                menu.addItem(editItem)
+                menu.addItem(.separator())
+                let customizeItem = NSMenuItem(
+                    title: L10n.Toolbar.customize,
+                    action: #selector(handleCustomizeMenuItem),
+                    keyEquivalent: ""
+                )
+                customizeItem.target = self
+                menu.addItem(customizeItem)
+                return menu
+            }
+
+            if let shortcut = layout.customShortcut(for: itemID) {
+                let menu = NSMenu()
+                appendChangeIconItems(
+                    to: menu,
+                    uuidString: shortcut.id.uuidString,
+                    hasCustomIcon: shortcut.customIconPath != nil,
+                    changeSelector: #selector(handleChangeOpenShortcutIconItem(_:)),
+                    resetSelector: #selector(handleResetOpenShortcutIconItem(_:))
+                )
+                menu.addItem(.separator())
+                let customizeItem = NSMenuItem(
+                    title: L10n.Toolbar.customize,
+                    action: #selector(handleCustomizeMenuItem),
+                    keyEquivalent: ""
+                )
+                customizeItem.target = self
+                menu.addItem(customizeItem)
+                return menu
+            }
+
             return nil
         }
 
@@ -127,6 +212,13 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
 
             if let action = workingLayout.customAction(for: itemID) {
                 let menu = NSMenu()
+                appendChangeIconItems(
+                    to: menu,
+                    uuidString: action.id.uuidString,
+                    hasCustomIcon: action.customIconPath != nil,
+                    changeSelector: #selector(handleChangeOpenAppIconItem(_:)),
+                    resetSelector: #selector(handleResetOpenAppIconItem(_:))
+                )
                 let editItem = NSMenuItem(
                     title: L10n.Toolbar.openAppEdit,
                     action: #selector(handleEditOpenAppItem(_:)),
@@ -151,6 +243,13 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
 
             if let shortcut = workingLayout.customShortcut(for: itemID) {
                 let menu = NSMenu()
+                appendChangeIconItems(
+                    to: menu,
+                    uuidString: shortcut.id.uuidString,
+                    hasCustomIcon: shortcut.customIconPath != nil,
+                    changeSelector: #selector(handleChangeOpenShortcutIconItem(_:)),
+                    resetSelector: #selector(handleResetOpenShortcutIconItem(_:))
+                )
                 let deleteItem = NSMenuItem(
                     title: L10n.Action.delete,
                     action: #selector(handleDeleteOpenShortcutItem(_:)),
@@ -165,6 +264,34 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
             }
 
             return event
+        }
+
+        private func appendChangeIconItems(
+            to menu: NSMenu,
+            uuidString: String,
+            hasCustomIcon: Bool,
+            changeSelector: Selector,
+            resetSelector: Selector
+        ) {
+            let changeItem = NSMenuItem(
+                title: L10n.Toolbar.changeIcon,
+                action: changeSelector,
+                keyEquivalent: ""
+            )
+            changeItem.target = self
+            changeItem.representedObject = uuidString
+            menu.addItem(changeItem)
+
+            if hasCustomIcon {
+                let resetItem = NSMenuItem(
+                    title: L10n.Toolbar.resetIcon,
+                    action: resetSelector,
+                    keyEquivalent: ""
+                )
+                resetItem.target = self
+                resetItem.representedObject = uuidString
+                menu.addItem(resetItem)
+            }
         }
 
         private func popUp(_ menu: NSMenu, for event: NSEvent, in window: NSWindow) {
@@ -204,6 +331,42 @@ struct ToolbarContextMenuInstaller: NSViewRepresentable {
                 return
             }
             onDeleteOpenShortcut(action)
+        }
+
+        @objc private func handleChangeOpenAppIconItem(_ sender: NSMenuItem) {
+            guard let rawID = sender.representedObject as? String,
+                  let actionID = UUID(uuidString: rawID),
+                  let action = store.workingLayout.customOpenApps.first(where: { $0.id == actionID }) else {
+                return
+            }
+            onChangeOpenAppIcon(action)
+        }
+
+        @objc private func handleChangeOpenShortcutIconItem(_ sender: NSMenuItem) {
+            guard let rawID = sender.representedObject as? String,
+                  let actionID = UUID(uuidString: rawID),
+                  let action = store.workingLayout.customOpenShortcuts.first(where: { $0.id == actionID }) else {
+                return
+            }
+            onChangeOpenShortcutIcon(action)
+        }
+
+        @objc private func handleResetOpenAppIconItem(_ sender: NSMenuItem) {
+            guard let rawID = sender.representedObject as? String,
+                  let actionID = UUID(uuidString: rawID),
+                  let action = store.workingLayout.customOpenApps.first(where: { $0.id == actionID }) else {
+                return
+            }
+            onResetOpenAppIcon(action)
+        }
+
+        @objc private func handleResetOpenShortcutIconItem(_ sender: NSMenuItem) {
+            guard let rawID = sender.representedObject as? String,
+                  let actionID = UUID(uuidString: rawID),
+                  let action = store.workingLayout.customOpenShortcuts.first(where: { $0.id == actionID }) else {
+                return
+            }
+            onResetOpenShortcutIcon(action)
         }
 
         deinit {

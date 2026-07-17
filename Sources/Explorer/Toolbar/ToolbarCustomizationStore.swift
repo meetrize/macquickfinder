@@ -89,6 +89,9 @@ final class ToolbarCustomizationStore: ObservableObject {
 
     func deleteCustomOpenApp(id: UUID) {
         var config = workingLayout
+        if let action = config.customOpenApps.first(where: { $0.id == id }) {
+            ToolbarCustomIconSupport.removeIconFile(at: action.customIconPath)
+        }
         let itemID = ToolbarItemIdentity.customItemID(id)
         config.customOpenApps.removeAll { $0.id == id }
         config.removeVisible(itemID: itemID)
@@ -97,9 +100,50 @@ final class ToolbarCustomizationStore: ObservableObject {
 
     func deleteCustomOpenShortcut(id: UUID) {
         var config = workingLayout
+        if let action = config.customOpenShortcuts.first(where: { $0.id == id }) {
+            ToolbarCustomIconSupport.removeIconFile(at: action.customIconPath)
+        }
         let itemID = ToolbarItemIdentity.shortcutItemID(id)
         config.customOpenShortcuts.removeAll { $0.id == id }
         config.removeVisible(itemID: itemID)
+        workingLayout = config
+    }
+
+    /// 从磁盘选择图片并设为自定义打开应用项的图标。
+    @discardableResult
+    func changeCustomOpenAppIcon(id: UUID) -> Bool {
+        guard let path = ToolbarCustomIconSupport.pickAndImportIcon(forItemID: id) else { return false }
+        var config = workingLayout
+        guard let index = config.customOpenApps.firstIndex(where: { $0.id == id }) else { return false }
+        config.customOpenApps[index].customIconPath = path
+        workingLayout = config
+        return true
+    }
+
+    /// 从磁盘选择图片并设为快捷方式项的图标。
+    @discardableResult
+    func changeCustomOpenShortcutIcon(id: UUID) -> Bool {
+        guard let path = ToolbarCustomIconSupport.pickAndImportIcon(forItemID: id) else { return false }
+        var config = workingLayout
+        guard let index = config.customOpenShortcuts.firstIndex(where: { $0.id == id }) else { return false }
+        config.customOpenShortcuts[index].customIconPath = path
+        workingLayout = config
+        return true
+    }
+
+    func clearCustomOpenAppIcon(id: UUID) {
+        var config = workingLayout
+        guard let index = config.customOpenApps.firstIndex(where: { $0.id == id }) else { return }
+        ToolbarCustomIconSupport.removeIconFile(at: config.customOpenApps[index].customIconPath)
+        config.customOpenApps[index].customIconPath = nil
+        workingLayout = config
+    }
+
+    func clearCustomOpenShortcutIcon(id: UUID) {
+        var config = workingLayout
+        guard let index = config.customOpenShortcuts.firstIndex(where: { $0.id == id }) else { return }
+        ToolbarCustomIconSupport.removeIconFile(at: config.customOpenShortcuts[index].customIconPath)
+        config.customOpenShortcuts[index].customIconPath = nil
         workingLayout = config
     }
 

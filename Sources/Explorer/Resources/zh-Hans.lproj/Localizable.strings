@@ -1075,6 +1075,9 @@
 "sort.size_smallest" = "大小 (最小优先)";
 "toolbar.auto_folder_size" = "自动计算文件夹大小（较慢）";
 "toolbar.browse_settings" = "浏览设置";
+"toolbar.change_icon" = "更换图标…";
+"toolbar.change_icon.choose" = "选择";
+"toolbar.change_icon.prompt" = "选择用作此工具栏按钮的图片或图标文件";
 "toolbar.customize" = "自定义工具栏…";
 "toolbar.customize.add_open_app" = "添加工具栏项…";
 "toolbar.customize.cancel" = "取消";
@@ -1120,6 +1123,7 @@
 "toolbar.panorama_mode" = "全景视图";
 "toolbar.record_operations" = "录制操作用于生成 Snippet";
 "toolbar.record_operations_active" = "正在录制 — 点击停止";
+"toolbar.reset_icon" = "恢复默认图标";
 "toolbar.shortcut.remove" = "移除按钮";
 "toolbar.show_all_tabs" = "显示所有标签页";
 "toolbar.show_hidden_files" = "显示隐藏文件";

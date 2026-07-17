@@ -140,6 +140,15 @@ struct ExplorerDynamicToolbar<SearchContent: View>: ToolbarContent {
                 layout: activeLayout,
                 environment: resolvedEnvironment
             )
+            .accessibilityIdentifier(ToolbarItemIdentity.accessibilityIdentifier(for: entry.id))
+            .overlay {
+                ToolbarItemFrameReporter(itemID: entry.id)
+                    .frame(
+                        width: ExplorerToolbarMetrics.iconHitSize,
+                        height: ExplorerToolbarMetrics.iconHitSize
+                    )
+                    .allowsHitTesting(false)
+            }
         }
     }
 
@@ -148,12 +157,28 @@ struct ExplorerDynamicToolbar<SearchContent: View>: ToolbarContent {
         switch entry.kind {
         case .openShortcut:
             if let shortcut = activeLayout.customShortcut(for: entry.id) {
+                Button(L10n.Toolbar.changeIcon) {
+                    store.changeCustomOpenShortcutIcon(id: shortcut.id)
+                }
+                if shortcut.customIconPath != nil {
+                    Button(L10n.Toolbar.resetIcon) {
+                        store.clearCustomOpenShortcutIcon(id: shortcut.id)
+                    }
+                }
                 Button(L10n.Action.delete, role: .destructive) {
                     store.deleteCustomOpenShortcut(id: shortcut.id)
                 }
             }
         case .openApp:
             if let action = activeLayout.customAction(for: entry.id) {
+                Button(L10n.Toolbar.changeIcon) {
+                    store.changeCustomOpenAppIcon(id: action.id)
+                }
+                if action.customIconPath != nil {
+                    Button(L10n.Toolbar.resetIcon) {
+                        store.clearCustomOpenAppIcon(id: action.id)
+                    }
+                }
                 Button(L10n.Toolbar.openAppEdit) {
                     environment.editOpenApp(action)
                 }

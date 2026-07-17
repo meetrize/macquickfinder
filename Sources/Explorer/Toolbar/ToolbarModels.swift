@@ -26,6 +26,8 @@ struct CustomOpenShortcutAction: Codable, Identifiable, Equatable {
     var path: String
     var targetKind: ShortcutTargetKind
     var useFileIcon: Bool
+    /// 用户自选图标副本路径（Application Support）；优先于 `useFileIcon`。
+    var customIconPath: String?
     var enabled: Bool
 
     init(
@@ -34,6 +36,7 @@ struct CustomOpenShortcutAction: Codable, Identifiable, Equatable {
         path: String,
         targetKind: ShortcutTargetKind,
         useFileIcon: Bool = true,
+        customIconPath: String? = nil,
         enabled: Bool = true
     ) {
         self.id = id
@@ -41,7 +44,19 @@ struct CustomOpenShortcutAction: Codable, Identifiable, Equatable {
         self.path = path
         self.targetKind = targetKind
         self.useFileIcon = useFileIcon
+        self.customIconPath = customIconPath
         self.enabled = enabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        path = try container.decode(String.self, forKey: .path)
+        targetKind = try container.decode(ShortcutTargetKind.self, forKey: .targetKind)
+        useFileIcon = try container.decodeIfPresent(Bool.self, forKey: .useFileIcon) ?? true
+        customIconPath = try container.decodeIfPresent(String.self, forKey: .customIconPath)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
     }
 
     static func make(from url: URL) -> CustomOpenShortcutAction {
@@ -138,6 +153,8 @@ struct CustomOpenAppAction: Codable, Identifiable, Equatable {
     var deliveryMode: OpenAppDeliveryMode
     var argumentsTemplate: String?
     var useApplicationIcon: Bool
+    /// 用户自选图标副本路径（Application Support）；优先于 `useApplicationIcon`。
+    var customIconPath: String?
     var selectionPolicy: OpenAppSelectionPolicy
     var enabled: Bool
 
@@ -149,6 +166,7 @@ struct CustomOpenAppAction: Codable, Identifiable, Equatable {
         deliveryMode: OpenAppDeliveryMode = .openFiles,
         argumentsTemplate: String? = nil,
         useApplicationIcon: Bool = true,
+        customIconPath: String? = nil,
         selectionPolicy: OpenAppSelectionPolicy = .requireSelection,
         enabled: Bool = true
     ) {
@@ -159,6 +177,7 @@ struct CustomOpenAppAction: Codable, Identifiable, Equatable {
         self.deliveryMode = deliveryMode
         self.argumentsTemplate = argumentsTemplate
         self.useApplicationIcon = useApplicationIcon
+        self.customIconPath = customIconPath
         self.selectionPolicy = selectionPolicy
         self.enabled = enabled
     }
@@ -172,6 +191,7 @@ struct CustomOpenAppAction: Codable, Identifiable, Equatable {
         deliveryMode = try container.decodeIfPresent(OpenAppDeliveryMode.self, forKey: .deliveryMode) ?? .openFiles
         argumentsTemplate = try container.decodeIfPresent(String.self, forKey: .argumentsTemplate)
         useApplicationIcon = try container.decodeIfPresent(Bool.self, forKey: .useApplicationIcon) ?? true
+        customIconPath = try container.decodeIfPresent(String.self, forKey: .customIconPath)
         selectionPolicy = try container.decodeIfPresent(OpenAppSelectionPolicy.self, forKey: .selectionPolicy) ?? .requireSelection
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
     }
