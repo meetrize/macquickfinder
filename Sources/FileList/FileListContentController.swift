@@ -21,6 +21,8 @@ public class FileListContentController: NSObject {
     var mouseDownLocation: NSPoint?
     var mouseDownEvent: NSEvent?
     var mouseDownCanStartFileDrag = false
+    /// mouseDown 处理完成后的选中快照，供拖拽使用，避免拖起前选中被收成单项。
+    var mouseDownDragSelectionIDs: Set<String> = []
     var dragSessionActive = false
     var blankMouseDownEvent: NSEvent?
     var blankDragSelecting = false
@@ -237,6 +239,7 @@ public class FileListContentController: NSObject {
         blankMouseDownEvent = nil
         blankDragSelecting = false
         mouseDownCanStartFileDrag = false
+        mouseDownDragSelectionIDs = []
     }
 
     func noteDragSessionEnded(performingDrop: Bool) {
@@ -245,6 +248,7 @@ public class FileListContentController: NSObject {
         mouseDownLocation = nil
         mouseDownEvent = nil
         mouseDownCanStartFileDrag = false
+        mouseDownDragSelectionIDs = []
         if performingDrop {
             DispatchQueue.main.async { [weak self] in
                 self?.interaction.onDragEnded()

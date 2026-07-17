@@ -78,6 +78,7 @@ extension FileListThumbnailController {
     
     func didHandleItemMouseDown(_ event: NSEvent) {
         mouseDownEvent = event
+        mouseDownDragSelectionIDs = effectiveSelectionIDs()
     }
     
     func handleBlankMouseDown(_ event: NSEvent) {
@@ -88,6 +89,7 @@ extension FileListThumbnailController {
         mouseDownLocation = nil
         mouseDownEvent = nil
         mouseDownCanStartFileDrag = false
+        mouseDownDragSelectionIDs = []
         dragSessionActive = false
         pendingRenameIndexPath = nil
         
@@ -119,6 +121,7 @@ extension FileListThumbnailController {
         mouseDownIndexPath = nil
         mouseDownLocation = nil
         mouseDownCanStartFileDrag = false
+        mouseDownDragSelectionIDs = []
         flushPendingDirectorySizeRefreshIfNeeded()
         flushPendingDirectoryItemCountRefreshIfNeeded()
     }
@@ -176,14 +179,14 @@ extension FileListThumbnailController {
             }
         }
         
-        dragSessionActive = true
-        beginDrag(
+        let started = beginDrag(
             for: displayRows[indexPath.item],
             indexPath: indexPath,
             startEvent: startEvent,
             dragEvent: event
         )
-        return true
+        dragSessionActive = started
+        return started
     }
     
     private func handleBlankRubberBandDrag(_ event: NSEvent) -> Bool {

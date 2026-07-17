@@ -50,33 +50,24 @@ enum FileListDragDropSupport {
         guard !dragged.isEmpty else { return nil }
 
         let activeDragURLs = dragged.map { URL(fileURLWithPath: $0.iconPath) }
-        let ghostRow = dragged.first(where: { $0.id == row.id }) ?? dragged[0]
-        let showLabel = dragged.count == 1 || dragged.contains(where: { $0.id == row.id })
-        let ghost = FileListDragSupport.makeDragGhost(
-            for: ghostRow.iconPath,
-            name: ghostRow.name,
-            showLabel: showLabel
+        let items = FileListInteractionCoordinator.makeDraggingItems(
+            for: row,
+            in: displayRows,
+            selection: selection,
+            mousePoint: ghostAnchorInView
         )
-        let frame = FileListDragSupport.draggingFrame(
-            at: ghostAnchorInView,
-            ghostSize: ghost.size,
-            index: 0,
-            showLabel: showLabel
-        )
+        guard !items.isEmpty else { return nil }
 
         FileListContentInteractionNotifier.notifyDidBegin()
-        guard FileListExternalFileDrag.start(
+        guard let session = FileListExternalFileDrag.start(
             on: view,
-            image: ghost.image,
-            draggingFrame: frame,
-            mouseLocation: ghostAnchorInView,
+            items: items,
             startEvent: startEvent,
-            urls: activeDragURLs,
             source: source
         ) else {
             return nil
         }
-        return FileDragSession(session: nil, activeDragURLs: activeDragURLs)
+        return FileDragSession(session: session, activeDragURLs: activeDragURLs)
     }
 
     // MARK: - Drop destination

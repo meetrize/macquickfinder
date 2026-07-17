@@ -240,6 +240,7 @@ public final class FileListTableController: FileListContentController {
         mouseDownRow = -1
         mouseDownLocation = nil
         mouseDownCanStartFileDrag = false
+        mouseDownDragSelectionIDs = []
         blankDragSelecting = false
         flushPendingDirectorySizeRefreshIfNeeded()
     }

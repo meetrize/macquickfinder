@@ -2,25 +2,35 @@ import AppKit
 import Foundation
 
 extension FileListThumbnailController {
-    func beginDrag(for row: FileListRow, indexPath: IndexPath, startEvent: NSEvent, dragEvent: NSEvent) {
-        guard let collectionView else { return }
+    @discardableResult
+    func beginDrag(for row: FileListRow, indexPath: IndexPath, startEvent: NSEvent, dragEvent: NSEvent) -> Bool {
+        guard let collectionView else { return false }
 
         resetDragDropSessionState()
 
         let ghostAnchor = collectionView.convert(dragEvent.locationInWindow, from: nil)
+        let selection = dragSelectionIDs(for: row)
         guard let dragSession = FileListDragDropSupport.beginFileDrag(
             on: collectionView,
             row: row,
             displayRows: displayRows,
-            selection: effectiveSelectionIDs(),
+            selection: selection,
             startEvent: startEvent,
             ghostAnchorInView: ghostAnchor,
             source: self
-        ) else { return }
+        ) else { return false }
 
         activeDragURLs = dragSession.activeDragURLs
         activeDraggingSession = dragSession.session
         _ = indexPath
+        return true
+    }
+
+    private func dragSelectionIDs(for row: FileListRow) -> Set<String> {
+        if mouseDownDragSelectionIDs.contains(row.id), mouseDownDragSelectionIDs.count > 1 {
+            return mouseDownDragSelectionIDs
+        }
+        return effectiveSelectionIDs()
     }
 
     func setDropHighlight(indexPath: IndexPath?) {

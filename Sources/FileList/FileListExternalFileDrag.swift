@@ -26,7 +26,7 @@ enum FileListExternalFileDrag {
         }
     }
 
-    /// 构建 Finder 同款文件拖放剪贴板。
+    /// 构建文件拖放剪贴板（仅 file URL，避免与 `NSFilenamesPboardType` 并存导致目标双计）。
     static func preparePasteboard(urls: [URL]) -> NSPasteboard {
         let pasteboard = NSPasteboard(name: .drag)
         write(to: pasteboard, urls: urls)
@@ -37,11 +37,28 @@ enum FileListExternalFileDrag {
         let standardized = urls.map(\.standardizedFileURL)
         guard !standardized.isEmpty else { return }
         pasteboard.clearContents()
-        // 仅写入 file URL 对象；勿再附带 NSFilenamesPboardType，否则浏览器/聊天窗口会各读一份同文件。
         _ = pasteboard.writeObjects(standardized as [NSURL])
     }
 
-    /// 优先使用 Finder 同款 `dragImage:`。
+    /// 启动文件拖放。每个 URL 对应一个 `NSDraggingItem`，多选时目标才能收到全部文件。
+    /// 不走旧版 `dragImage:`（返回 void，误当成 Bool 会跳过会话）。
+    @discardableResult
+    static func start(
+        on view: NSView,
+        items: [NSDraggingItem],
+        startEvent: NSEvent,
+        source: NSDraggingSource
+    ) -> NSDraggingSession? {
+        guard !items.isEmpty else { return nil }
+        let session = view.beginDraggingSession(with: items, event: startEvent, source: source)
+        session.animatesToStartingPositionsOnCancelOrFail = true
+        if items.count > 1 {
+            session.draggingFormation = .pile
+        }
+        return session
+    }
+
+    /// 便捷入口：按 URL 列表生成拖放项（每项一个 file URL）。
     @discardableResult
     static func start(
         on view: NSView,
@@ -51,81 +68,23 @@ enum FileListExternalFileDrag {
         startEvent: NSEvent,
         urls: [URL],
         source: NSDraggingSource
-    ) -> Bool {
-        let pasteboard = preparePasteboard(urls: urls)
-        // dragImage 的 viewLocation 为图像左上角；draggingFrame 为 AppKit 左下角坐标系下的几何包围框。
-        let dragImageLocation = NSPoint(
-            x: draggingFrame.origin.x,
-            y: draggingFrame.origin.y + draggingFrame.height
-        )
-        let dragImageOffset = NSSize(
-            width: mouseLocation.x - dragImageLocation.x,
-            height: mouseLocation.y - dragImageLocation.y
-        )
-        if performLegacyDragImage(
-            on: view,
-            image: image,
-            at: dragImageLocation,
-            offset: dragImageOffset,
-            event: startEvent,
-            pasteboard: pasteboard,
-            source: source
-        ) {
-            return true
-        }
-        return startWithDraggingSession(
-            on: view,
-            image: image,
-            frame: draggingFrame,
-            startEvent: startEvent,
-            urls: urls,
-            source: source
-        )
-    }
-
-    private static func performLegacyDragImage(
-        on view: NSView,
-        image: NSImage,
-        at location: NSPoint,
-        offset: NSSize,
-        event: NSEvent,
-        pasteboard: NSPasteboard,
-        source: NSDraggingSource
-    ) -> Bool {
-        let selector = NSSelectorFromString("dragImage:at:offset:event:pasteboard:source:slideBack:")
-        guard view.responds(to: selector) else { return false }
-        typealias IMP = @convention(c) (
-            AnyObject, Selector, NSImage, NSPoint, NSSize, NSEvent, NSPasteboard, Any, Bool
-        ) -> Bool
-        let imp = unsafeBitCast(view.method(for: selector), to: IMP.self)
-        return imp(view, selector, image, location, offset, event, pasteboard, source, true)
-    }
-
-    private static func startWithDraggingSession(
-        on view: NSView,
-        image: NSImage,
-        frame: NSRect,
-        startEvent: NSEvent,
-        urls: [URL],
-        source: NSDraggingSource
-    ) -> Bool {
+    ) -> NSDraggingSession? {
+        _ = mouseLocation
         let standardized = urls.map(\.standardizedFileURL)
-        guard !standardized.isEmpty else { return false }
+        guard !standardized.isEmpty else { return nil }
 
-        let items = standardized.enumerated().map { index, url in
+        let items = standardized.enumerated().map { index, url -> NSDraggingItem in
             let item = NSDraggingItem(pasteboardWriter: url as NSURL)
             let stackOffset = CGFloat(index * 6)
             let itemFrame = NSRect(
-                x: frame.origin.x + stackOffset,
-                y: frame.origin.y - stackOffset,
-                width: frame.width,
-                height: frame.height
+                x: draggingFrame.origin.x + stackOffset,
+                y: draggingFrame.origin.y - stackOffset,
+                width: draggingFrame.width,
+                height: draggingFrame.height
             )
             item.setDraggingFrame(itemFrame, contents: index == 0 ? image : nil)
             return item
         }
-        let session = view.beginDraggingSession(with: items, event: startEvent, source: source)
-        session.animatesToStartingPositionsOnCancelOrFail = true
-        return true
+        return start(on: view, items: items, startEvent: startEvent, source: source)
     }
 }

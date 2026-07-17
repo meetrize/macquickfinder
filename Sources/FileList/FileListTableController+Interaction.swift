@@ -82,7 +82,16 @@ extension FileListTableController {
             return
         }
         if let tableView, row >= 0, row < displayRows.count {
-            mouseDownCanStartFileDrag = isFileDragStartPoint(pointInTable, row: row, in: tableView)
+            // 多选且点在已选中行上：整行可拖（与 Finder 一致）；否则仅图标/文件名区可拖。
+            let selection = effectiveSelectionIDs()
+            let rowID = displayRows[row].id
+            let canDragWholeSelectedRow =
+                selection.count > 1
+                && selection.contains(rowID)
+                && tableView.selectedRowIndexes.contains(row)
+            mouseDownCanStartFileDrag =
+                canDragWholeSelectedRow
+                || isFileDragStartPoint(pointInTable, row: row, in: tableView)
         } else {
             mouseDownCanStartFileDrag = false
         }
@@ -135,6 +144,7 @@ extension FileListTableController {
         if mouseDownHandledByDisclosureToggle { return }
         _ = row
         mouseDownEvent = event
+        mouseDownDragSelectionIDs = effectiveSelectionIDs()
     }
     
     func handleBlankMouseDown(_ event: NSEvent) {
@@ -142,6 +152,7 @@ extension FileListTableController {
         mouseDownEvent = nil
         mouseDownLocation = nil
         mouseDownRow = -1
+        mouseDownDragSelectionIDs = []
         dragSessionActive = false
         
         blankMouseDownEvent = event
@@ -245,9 +256,14 @@ extension FileListTableController {
             }
         }
 
-        dragSessionActive = true
-        beginDrag(for: displayRows[row], rowIndex: row, startEvent: startEvent, dragEvent: event)
-        return true
+        let started = beginDrag(
+            for: displayRows[row],
+            rowIndex: row,
+            startEvent: startEvent,
+            dragEvent: event
+        )
+        dragSessionActive = started
+        return started
     }
 
     func handleKeyDown(_ event: NSEvent) -> Bool {

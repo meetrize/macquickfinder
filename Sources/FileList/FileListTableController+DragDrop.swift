@@ -4,19 +4,29 @@ import Foundation
 // MARK: - Drag source
 
 extension FileListTableController {
-    func beginDrag(for row: FileListRow, rowIndex: Int, startEvent: NSEvent, dragEvent: NSEvent) {
-        guard let tableView else { return }
+    func beginDrag(for row: FileListRow, rowIndex: Int, startEvent: NSEvent, dragEvent: NSEvent) -> Bool {
+        guard let tableView else { return false }
         let ghostAnchor = tableView.convert(dragEvent.locationInWindow, from: nil)
-        _ = FileListDragDropSupport.beginFileDrag(
+        let selection = dragSelectionIDs(for: row)
+        let started = FileListDragDropSupport.beginFileDrag(
             on: tableView,
             row: row,
             displayRows: displayRows,
-            selection: effectiveSelectionIDs(),
+            selection: selection,
             startEvent: startEvent,
             ghostAnchorInView: ghostAnchor,
             source: self
-        )
+        ) != nil
         _ = rowIndex
+        return started
+    }
+
+    /// 优先使用 mouseDown 时的多选快照；若点中行已在快照中则拖全部，否则回退到当前选中。
+    private func dragSelectionIDs(for row: FileListRow) -> Set<String> {
+        if mouseDownDragSelectionIDs.contains(row.id), mouseDownDragSelectionIDs.count > 1 {
+            return mouseDownDragSelectionIDs
+        }
+        return effectiveSelectionIDs()
     }
 }
 

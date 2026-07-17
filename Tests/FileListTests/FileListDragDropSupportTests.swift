@@ -130,6 +130,54 @@ final class FileListDragDropSupportTests: XCTestCase {
         XCTAssertEqual(modernCount + legacyCount, 1)
     }
 
+    func testPreparePasteboardWritesAllMultiFileURLs() {
+        let urls = [
+            URL(fileURLWithPath: "/tmp/a.txt"),
+            URL(fileURLWithPath: "/tmp/b.txt"),
+        ]
+        let pasteboard = FileListExternalFileDrag.preparePasteboard(urls: urls)
+
+        let modernPaths = ((pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL]) ?? []).map(\.path).sorted()
+        let legacyCount = (pasteboard.propertyList(
+            forType: FileListExternalFileDrag.legacyFilenamesType
+        ) as? [String])?.count ?? 0
+
+        XCTAssertEqual(modernPaths, ["/tmp/a.txt", "/tmp/b.txt"])
+        XCTAssertEqual(legacyCount, 0)
+    }
+
+    func testMakeDraggingItemsCreatesOneItemPerSelectedFile() {
+        let rows = [
+            makeDirectoryRow(id: "/tmp/a", name: "a"),
+            makeDirectoryRow(id: "/tmp/b", name: "b"),
+            makeDirectoryRow(id: "/tmp/c", name: "c"),
+        ]
+        let items = FileListInteractionCoordinator.makeDraggingItems(
+            for: rows[1],
+            in: rows,
+            selection: ["/tmp/a", "/tmp/b"],
+            mousePoint: NSPoint(x: 40, y: 40)
+        )
+        XCTAssertEqual(items.count, 2)
+    }
+
+    func testDraggedRowsReturnsAllSelectedWhenClickedRowIsSelected() {
+        let rows = [
+            makeDirectoryRow(id: "/tmp/a", name: "a"),
+            makeDirectoryRow(id: "/tmp/b", name: "b"),
+            makeDirectoryRow(id: "/tmp/c", name: "c"),
+        ]
+        let dragged = FileListDragSupport.draggedRows(
+            for: rows[1],
+            in: rows,
+            selection: ["/tmp/a", "/tmp/b"]
+        )
+        XCTAssertEqual(dragged.map(\.id), ["/tmp/a", "/tmp/b"])
+    }
+
     func testPerformAcceptedDropUsesExplicitCopyFlag() {
         var performed: (String, [URL], Bool)?
         let interaction = FileListTableInteraction(
