@@ -178,6 +178,14 @@ struct FileListView: View {
             resetTreeState(keepExpanded: false)
             syncPanoramaLifecycle(forceReset: true)
         }
+        .onChange(of: focusToken) { _ in
+            // 全量 listing 刷新后丢弃展开子目录缓存，并重新拉取，避免子树幽灵条目。
+            let expanded = expandedDirectoryIDs
+            resetTreeState(keepExpanded: true)
+            for directoryID in expanded {
+                loadChildren(for: directoryID)
+            }
+        }
         .onChange(of: showHiddenFiles) { _ in
             resetTreeState(keepExpanded: true)
             syncPanoramaLifecycle(forceReset: true)

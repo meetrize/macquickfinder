@@ -7,21 +7,15 @@ public enum DirectoryListingFSEventsPolicy {
         directoryPath: String
     ) -> Bool {
         guard !eventPaths.isEmpty, !directoryPath.isEmpty else { return false }
-        let directory = normalizedPath(directoryPath)
+        let directory = DirectoryListingPathNormalization.canonicalPath(directoryPath)
         for eventPath in eventPaths {
-            let normalizedEvent = normalizedPath(eventPath)
+            let normalizedEvent = DirectoryListingPathNormalization.canonicalPath(eventPath)
             if normalizedEvent == directory { return true }
-            let parent = normalizedPath((eventPath as NSString).deletingLastPathComponent)
+            let parent = DirectoryListingPathNormalization.canonicalPath(
+                (eventPath as NSString).deletingLastPathComponent
+            )
             if parent == directory { return true }
         }
         return false
-    }
-    
-    private static func normalizedPath(_ path: String) -> String {
-        var result = path
-        while result.count > 1, result.hasSuffix("/") {
-            result.removeLast()
-        }
-        return result
     }
 }

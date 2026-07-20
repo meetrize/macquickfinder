@@ -37,11 +37,21 @@ enum DirectoryListingIncrementalUpdate {
         into existing: [FileItem],
         sort: FileListSortState
     ) -> [FileItem] {
-        var byID = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
-        for id in removedIDs {
-            byID.removeValue(forKey: id)
+        let removedKeys = Set(removedIDs.map(DirectoryListingPathNormalization.canonicalPath))
+        var byID: [String: FileItem] = [:]
+        byID.reserveCapacity(existing.count + added.count)
+        for item in existing {
+            let key = DirectoryListingPathNormalization.canonicalPath(item.id)
+            if removedKeys.contains(key) { continue }
+            byID[item.id] = item
         }
         for item in added {
+            let key = DirectoryListingPathNormalization.canonicalPath(item.id)
+            if let staleID = byID.keys.first(where: {
+                $0 != item.id && DirectoryListingPathNormalization.canonicalPath($0) == key
+            }) {
+                byID.removeValue(forKey: staleID)
+            }
             byID[item.id] = item
         }
         let rows = byID.values.map { FileListRow(item: $0) }

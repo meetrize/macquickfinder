@@ -16,6 +16,7 @@ final class DirectoryFSEventsMonitor {
     private var pendingListingRefresh = false
     private var listingRefreshWorkItem: DispatchWorkItem?
     private var suppressListingRefreshUntil: Date?
+    private var suppressEndedWorkItem: DispatchWorkItem?
     
     private var pendingAffectedPaths: Set<String> = []
     private var sizeInvalidateWorkItem: DispatchWorkItem?
@@ -30,7 +31,10 @@ final class DirectoryFSEventsMonitor {
         onListingPatch: @escaping (DirectoryListingIncrementalPatcher.Patch) -> Void,
         onListingRefresh: @escaping () -> Void
     ) {
-        stop()
+        // 重启会话时保留「需要全量 reload」意图，避免新建文件夹触发的 restart 吞掉待处理删除/移动。
+        let shouldReplayPendingRefresh = pendingListingRefresh
+        stopWatcherPreservingListingIntent()
+        
         guard !directoryPath.isEmpty else { return }
         guard DirectorySizeVolumeFilter.shouldAutoCalculate(path: directoryPath) else { return }
         
@@ -47,6 +51,10 @@ final class DirectoryFSEventsMonitor {
             }
         }
         watcher?.start(path: directoryPath)
+        
+        if shouldReplayPendingRefresh {
+            scheduleListingRefresh(force: true)
+        }
     }
     
     func stop() {
@@ -54,6 +62,8 @@ final class DirectoryFSEventsMonitor {
         listingRefreshWorkItem = nil
         pendingListingRefresh = false
         suppressListingRefreshUntil = nil
+        suppressEndedWorkItem?.cancel()
+        suppressEndedWorkItem = nil
         onListingPatch = nil
         onListingRefresh = nil
         
@@ -68,7 +78,7 @@ final class DirectoryFSEventsMonitor {
         autoCalculateDirectorySizes = false
     }
     
-    /// 用户主动刷新目录（如粘贴后的 `loadItems`）期间抑制 FSEvents 触发的重复全量 reload。
+    /// 用户主动刷新目录（如粘贴后的增量插入）期间，仅抑制「纯新增」回声，不丢弃删除/移动。
     func noteUserInitiatedListingRefresh(suppressFor duration: TimeInterval = 0.8) {
         let until = Date().addingTimeInterval(duration)
         if let existing = suppressListingRefreshUntil {
@@ -76,9 +86,10 @@ final class DirectoryFSEventsMonitor {
         } else {
             suppressListingRefreshUntil = until
         }
+        scheduleSuppressEndFlush(at: suppressListingRefreshUntil!)
     }
 
-    private func shouldSuppressListingRefresh() -> Bool {
+    private func shouldSuppressAdditiveListingUpdates() -> Bool {
         guard let until = suppressListingRefreshUntil else { return false }
         if Date() < until { return true }
         suppressListingRefreshUntil = nil
@@ -95,14 +106,14 @@ final class DirectoryFSEventsMonitor {
         case .noListingChange:
             break
         case .patch(let patch):
-            guard !shouldSuppressListingRefresh() else { break }
-            onListingPatch?(patch)
+            deliverPatch(patch)
         case .requiresFullReload:
             if DirectoryListingFSEventsPolicy.listingAffectedByEvents(
                 eventPaths: events.map(\.path),
                 directoryPath: watchedDirectoryPath
             ) {
-                scheduleListingRefresh()
+                // 删除/移走/重命名常表现为 Renamed → 全量 reload，禁止被粘贴抑制窗吞掉。
+                scheduleListingRefresh(force: true)
             }
         }
         
@@ -115,9 +126,21 @@ final class DirectoryFSEventsMonitor {
         pendingAffectedPaths.formUnion(affected)
         scheduleSizeInvalidation()
     }
+
+    private func deliverPatch(_ patch: DirectoryListingIncrementalPatcher.Patch) {
+        guard !patch.isEmpty else { return }
+        // 抑制窗只挡「纯新增」（粘贴回声）；带 removed 的补丁始终投递。
+        if shouldSuppressAdditiveListingUpdates(), patch.removedPaths.isEmpty {
+            return
+        }
+        onListingPatch?(patch)
+    }
     
-    private func scheduleListingRefresh() {
-        guard !shouldSuppressListingRefresh() else { return }
+    private func scheduleListingRefresh(force: Bool = false) {
+        if !force, shouldSuppressAdditiveListingUpdates() {
+            pendingListingRefresh = true
+            return
+        }
         pendingListingRefresh = true
         listingRefreshWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
@@ -132,6 +155,39 @@ final class DirectoryFSEventsMonitor {
         pendingListingRefresh = false
         listingRefreshWorkItem = nil
         onListingRefresh?()
+    }
+
+    private func scheduleSuppressEndFlush(at until: Date) {
+        suppressEndedWorkItem?.cancel()
+        let delay = max(0, until.timeIntervalSinceNow) + 0.05
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.suppressListingRefreshUntil = nil
+            if self.pendingListingRefresh {
+                self.scheduleListingRefresh(force: true)
+            }
+        }
+        suppressEndedWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    /// 停止 watcher，但保留 pending 全量 reload 与抑制窗（供 updateSession 重放）。
+    private func stopWatcherPreservingListingIntent() {
+        listingRefreshWorkItem?.cancel()
+        listingRefreshWorkItem = nil
+        // pendingListingRefresh 有意保留
+        onListingPatch = nil
+        onListingRefresh = nil
+        
+        sizeInvalidateWorkItem?.cancel()
+        sizeInvalidateWorkItem = nil
+        pendingAffectedPaths.removeAll()
+        
+        watcher?.stop()
+        watcher = nil
+        listedFolderPaths.removeAll()
+        watchedDirectoryPath = nil
+        autoCalculateDirectorySizes = false
     }
     
     private func scheduleSizeInvalidation() {

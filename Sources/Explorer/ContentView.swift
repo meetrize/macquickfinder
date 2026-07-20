@@ -81,10 +81,30 @@ extension ContentView {
             showHiddenFiles: showHiddenFiles,
             options: listingOptions
         ).first else {
+            // 文件已删除/移走：从列表剔除，避免元数据刷新路径留下幽灵行。
+            let removed = Set(
+                items
+                    .map(\.id)
+                    .filter {
+                        DirectoryListingPathNormalization.canonicalPath($0) ==
+                            DirectoryListingPathNormalization.canonicalPath(standardizedPath)
+                    }
+            )
+            guard !removed.isEmpty else { return }
+            items = DirectoryListingIncrementalUpdate.merge(
+                adding: [],
+                removing: removed,
+                into: items,
+                sort: FileListPreferencesStore.shared.sort
+            )
+            selection.subtract(removed)
             return
         }
 
-        guard items.contains(where: { $0.id == refreshed.id }) else { return }
+        guard items.contains(where: {
+            DirectoryListingPathNormalization.canonicalPath($0.id) ==
+                DirectoryListingPathNormalization.canonicalPath(refreshed.id)
+        }) else { return }
         items = DirectoryListingIncrementalUpdate.merge(
             adding: [refreshed],
             removing: [],
@@ -152,7 +172,7 @@ extension ContentView {
         return !ExplorerWindowTabCenter.shared.hasRegisteredWindows
     }
 
-    /// 标签切换为 key 时接管共享目录监视，不重置列表。
+    /// 标签切换为 key 时接管共享目录监视；若曾失去 key，则全量对账补上后台期间的外部删改。
     func claimSharedDirectorySessionIfNeeded() {
         guard ownsSharedDirectorySession else { return }
         guard !isLoading, !items.isEmpty else { return }
@@ -164,6 +184,14 @@ extension ContentView {
         )
         updateGitWorkspaceFSEventsMonitoring(for: path)
         rescheduleDirectorySizesIfNeeded()
+        if needsListingReconcileOnClaim {
+            needsListingReconcileOnClaim = false
+            loadItems()
+        }
+    }
+
+    func noteDirectorySessionResigned() {
+        needsListingReconcileOnClaim = true
     }
 
     private func applyLaunchNavigation(_ request: ExternalFolderOpenCenter.OpenRequest) {
@@ -198,6 +226,8 @@ struct ContentView: View {
     private let directoryMetadataOverlay = DirectoryMetadataOverlay.shared
     @State private var isSyncingSortFromPreferences = false
     @State private var isLoading = false
+    @State private var pendingListingReloadAfterLoad = false
+    @State private var needsListingReconcileOnClaim = false
     @State private var searchText = ""
     @State private var quickSearchText = ""
     @State private var isQuickSearchVisible = false
@@ -536,6 +566,11 @@ struct ContentView: View {
                   keyWindow == hostWindow else { return }
             OperationRecordingHub.register(operationRecorder)
             claimSharedDirectorySessionIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { notification in
+            guard let resigned = notification.object as? NSWindow,
+                  resigned == hostWindow else { return }
+            noteDirectorySessionResigned()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             guard let closingWindow = notification.object as? NSWindow,
@@ -1527,6 +1562,13 @@ struct ContentView: View {
             )
         }
         scheduleFinderCommentEnrichment(for: loadedItems, generation: currentGeneration)
+        if pendingListingReloadAfterLoad {
+            pendingListingReloadAfterLoad = false
+            // 延后一拍，避免与当前 apply 重入；补上 loading 窗口内被丢弃的 FSEvents。
+            DispatchQueue.main.async {
+                loadItems()
+            }
+        }
     }
 
     @MainActor
@@ -1589,13 +1631,35 @@ struct ContentView: View {
             onListingPatch: { patch in
                 applyIncrementalListingPatch(patch)
             },
-            onListingRefresh: { loadItems() }
+            onListingRefresh: {
+                if isLoading {
+                    pendingListingReloadAfterLoad = true
+                } else {
+                    loadItems()
+                }
+            }
         )
     }
 
     private func applyIncrementalListingPatch(_ patch: DirectoryListingIncrementalPatcher.Patch) {
-        // 全量 loadItems 进行中时丢弃增量补丁，避免与导航竞态把父目录条目合并进子目录列表。
-        guard !isLoading else { return }
+        // 全量 loadItems 进行中：记标记，结束后再对账；删除仍可对当前 items 乐观剔除（绝对路径唯一）。
+        if isLoading {
+            pendingListingReloadAfterLoad = true
+            if !patch.removedPaths.isEmpty {
+                let removed = Set(patch.removedPaths)
+                let removedKeys = Set(removed.map(DirectoryListingPathNormalization.canonicalPath))
+                items = DirectoryListingIncrementalUpdate.merge(
+                    adding: [],
+                    removing: removed,
+                    into: items,
+                    sort: FileListPreferencesStore.shared.sort
+                )
+                selection = Set(selection.filter {
+                    !removedKeys.contains(DirectoryListingPathNormalization.canonicalPath($0))
+                })
+            }
+            return
+        }
 
         let removed = Set(patch.removedPaths)
         if !removed.isEmpty {
@@ -1605,7 +1669,10 @@ struct ContentView: View {
                 into: items,
                 sort: FileListPreferencesStore.shared.sort
             )
-            selection.subtract(removed)
+            let removedKeys = Set(removed.map(DirectoryListingPathNormalization.canonicalPath))
+            selection = Set(selection.filter {
+                !removedKeys.contains(DirectoryListingPathNormalization.canonicalPath($0))
+            })
         }
 
         guard !patch.addedPaths.isEmpty else { return }
@@ -1987,14 +2054,26 @@ struct ContentView: View {
         let items = deletableSelectedItems
         guard !items.isEmpty else { return }
         let paths = items.map(\.id)
+        let removedKeys = Set(paths.map(DirectoryListingPathNormalization.canonicalPath))
+        let applyOptimisticRemoval = {
+            self.items = DirectoryListingIncrementalUpdate.merge(
+                adding: [],
+                removing: Set(paths),
+                into: self.items,
+                sort: FileListPreferencesStore.shared.sort
+            )
+            self.selection = Set(self.selection.filter {
+                !removedKeys.contains(DirectoryListingPathNormalization.canonicalPath($0))
+            })
+        }
         if TrashLoader.isTrashPath(path) {
             FileOperations.deleteImmediately(items) {
-                selection.removeAll()
+                applyOptimisticRemoval()
                 loadItems(invalidatingPaths: paths)
             }
         } else {
             FileOperations.delete(items) {
-                selection.removeAll()
+                applyOptimisticRemoval()
                 loadItems(invalidatingPaths: paths)
             }
         }

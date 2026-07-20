@@ -26,19 +26,21 @@ public enum DirectoryListingIncrementalPatcher {
         guard !events.isEmpty, !directoryPath.isEmpty else { return .noListingChange }
         guard events.count <= maxIncrementalEventCount else { return .requiresFullReload }
 
-        let directory = normalizedPath(directoryPath)
+        let directory = DirectoryListingPathNormalization.canonicalPath(directoryPath)
         var added: [String] = []
         var removed: [String] = []
         var requiresReload = false
 
         for event in events {
-            let normalizedEvent = normalizedPath(event.path)
+            let normalizedEvent = DirectoryListingPathNormalization.canonicalPath(event.path)
             if normalizedEvent == directory {
                 requiresReload = true
                 continue
             }
 
-            let parent = normalizedPath((event.path as NSString).deletingLastPathComponent)
+            let parent = DirectoryListingPathNormalization.canonicalPath(
+                (event.path as NSString).deletingLastPathComponent
+            )
             guard parent == directory else { continue }
 
             if event.isRenamed {
@@ -72,13 +74,5 @@ public enum DirectoryListingIncrementalPatcher {
             return .noListingChange
         }
         return .patch(patch)
-    }
-
-    private static func normalizedPath(_ path: String) -> String {
-        var result = path
-        while result.count > 1, result.hasSuffix("/") {
-            result.removeLast()
-        }
-        return result
     }
 }
