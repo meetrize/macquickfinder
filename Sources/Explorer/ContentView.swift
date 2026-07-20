@@ -25,7 +25,9 @@ extension ContentView {
         pendingExternalSelectionPath = target.selectionPath.map {
             ExternalSelectionPathMatcher.standardizedPath($0)
         }
-        if path == target.directoryPath {
+        let targetDirectory = ExternalSelectionPathMatcher.standardizedPath(target.directoryPath)
+        let currentDirectory = ExternalSelectionPathMatcher.standardizedPath(path)
+        if currentDirectory == targetDirectory {
             if applyExternalSelectionImmediatelyIfPossible() {
                 return
             }
@@ -883,7 +885,7 @@ struct ContentView: View {
                     showHiddenFiles: showHiddenFiles,
                     historyEntries: pathNavigation.recentEntries(currentPath: path),
                     onSelectHistory: navigateToHistoryPath,
-                    onSubmit: { loadItems() }
+                    onCommitNavigation: applyExternalNavigationTarget
                 )
 
                 GitPathBarChip(

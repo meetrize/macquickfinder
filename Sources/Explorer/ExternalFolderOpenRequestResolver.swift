@@ -15,6 +15,35 @@ enum ExternalFolderOpenRequestResolver {
         return nil
     }
 
+    /// 路径栏文本：废纸篓别名、引号、`file://`、`~` 展开后按目录/文件解析。
+    /// 文件路径 → 父目录 + 待选中项；目录路径 → 仅目录。
+    static func resolve(fromPathText text: String) -> ResolvedRequest? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if TrashLoader.isTrashInput(trimmed) {
+            return ResolvedRequest(directoryPath: TrashLoader.userTrashPath, selectionPath: nil)
+        }
+
+        let cleaned = stripWrappingQuotes(trimmed)
+        if cleaned.lowercased().hasPrefix("file:"), let url = URL(string: cleaned) {
+            return resolveSingle(url)
+        }
+
+        let expanded = (cleaned as NSString).expandingTildeInPath
+        return resolveSingle(URL(fileURLWithPath: expanded))
+    }
+
+    private static func stripWrappingQuotes(_ text: String) -> String {
+        guard text.count >= 2 else { return text }
+        if (text.hasPrefix("\"") && text.hasSuffix("\""))
+            || (text.hasPrefix("'") && text.hasSuffix("'")) {
+            return String(text.dropFirst().dropLast())
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return text
+    }
+
     private static func resolveSingle(_ url: URL) -> ResolvedRequest? {
         let standardized = url.standardizedFileURL
         var isDirectory: ObjCBool = false

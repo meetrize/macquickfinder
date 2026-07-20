@@ -51,4 +51,32 @@ final class ExternalFolderOpenRequestResolverTests: XCTestCase {
         )
         XCTAssertEqual(resolved?.selectionPath, missingFile.standardizedFileURL.path)
     }
+
+    func testResolvePathTextSelectsFileAndOpensParent() throws {
+        let file = temporaryDirectory.appendingPathComponent("deck.pptx")
+        try Data("pptx".utf8).write(to: file)
+
+        let resolved = ExternalFolderOpenRequestResolver.resolve(fromPathText: file.path)
+
+        XCTAssertEqual(resolved?.directoryPath, temporaryDirectory.standardizedFileURL.path)
+        XCTAssertEqual(resolved?.selectionPath, file.standardizedFileURL.path)
+    }
+
+    func testResolvePathTextStripsQuotesAndExpandsTildeForDirectory() throws {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let resolved = ExternalFolderOpenRequestResolver.resolve(fromPathText: "\"~/\"")
+
+        XCTAssertEqual(resolved?.directoryPath, (home as NSString).standardizingPath)
+        XCTAssertNil(resolved?.selectionPath)
+    }
+
+    func testResolvePathTextOpensDirectory() throws {
+        let folder = temporaryDirectory.appendingPathComponent("docs", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+
+        let resolved = ExternalFolderOpenRequestResolver.resolve(fromPathText: "  \(folder.path)  ")
+
+        XCTAssertEqual(resolved?.directoryPath, folder.standardizedFileURL.path)
+        XCTAssertNil(resolved?.selectionPath)
+    }
 }

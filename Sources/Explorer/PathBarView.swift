@@ -1228,7 +1228,8 @@ struct PathBarView: View {
     var showHiddenFiles: Bool
     var historyEntries: [String] = []
     var onSelectHistory: ((String) -> Void)?
-    var onSubmit: () -> Void
+    /// 回车或点击跳转：目录进入对应路径；文件则进入父目录并选中该文件。
+    var onCommitNavigation: (ExternalNavigationTarget) -> Void
     
     @State private var mode: PathBarMode = .breadcrumb
     @State private var editingText = ""
@@ -1265,28 +1266,45 @@ struct PathBarView: View {
         if showsHistoryMenu {
             inset += pathBarHistoryButtonWidth
         }
-        if pendingNavigablePath != nil {
+        if pendingNavigationTarget != nil {
             inset += 24
         }
         return inset
     }
 
-    private var pendingNavigablePath: String? {
+    private var pendingNavigationTarget: ExternalNavigationTarget? {
         guard mode == .text else { return nil }
         let raw = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return nil }
-
-        let expanded = (raw as NSString).expandingTildeInPath
-        let standardized = (expanded as NSString).standardizingPath
-        let current = (path as NSString).standardizingPath
-        guard standardized != current else { return nil }
-
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: standardized, isDirectory: &isDir),
-              isDir.boolValue else {
+        guard let resolved = ExternalFolderOpenRequestResolver.resolve(fromPathText: raw) else {
             return nil
         }
-        return standardized
+
+        let current = (path as NSString).standardizingPath
+        let directory = (resolved.directoryPath as NSString).standardizingPath
+        var isDirectory: ObjCBool = false
+        if let selectionPath = resolved.selectionPath {
+            let fileExists = FileManager.default.fileExists(atPath: selectionPath)
+            let parentExists = FileManager.default.fileExists(
+                atPath: directory,
+                isDirectory: &isDirectory
+            ) && isDirectory.boolValue
+            guard fileExists || parentExists else { return nil }
+            return ExternalNavigationTarget(
+                directoryPath: resolved.directoryPath,
+                selectionPath: selectionPath
+            )
+        }
+
+        guard directory != current else { return nil }
+        guard FileManager.default.fileExists(atPath: directory, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            return nil
+        }
+        return ExternalNavigationTarget(
+            directoryPath: resolved.directoryPath,
+            selectionPath: nil
+        )
     }
     
     var body: some View {
@@ -1335,9 +1353,9 @@ struct PathBarView: View {
             }
         }
         .overlay(alignment: .trailing) {
-            if let targetPath = pendingNavigablePath {
-                PathBarNavigateButton(targetPath: targetPath) { target in
-                    navigateToPendingPath(target)
+            if let target = pendingNavigationTarget {
+                PathBarNavigateButton(targetPath: target.selectionPath ?? target.directoryPath) { _ in
+                    navigateToPendingTarget(target)
                 }
                 .frame(width: 24, height: fieldHeight)
                 .padding(.trailing, showsHistoryMenu ? pathBarHistoryButtonWidth + 2 : 2)
@@ -1465,14 +1483,16 @@ struct PathBarView: View {
             BarTextFieldFocusRegistry.clearPendingSelectAll(in: window)
         }
         let newValue = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !newValue.isEmpty {
-            if TrashLoader.isTrashInput(newValue) {
-                path = TrashLoader.userTrashPath
-            } else {
-                path = newValue
-            }
+        if !newValue.isEmpty,
+           let resolved = ExternalFolderOpenRequestResolver.resolve(fromPathText: newValue) {
+            editingText = resolved.directoryPath
+            onCommitNavigation(
+                ExternalNavigationTarget(
+                    directoryPath: resolved.directoryPath,
+                    selectionPath: resolved.selectionPath
+                )
+            )
         }
-        onSubmit()
         if let window = resolvedHostWindow {
             BarTextFieldFocusRegistry.endEditing(.path, in: window)
             activeField = BarTextFieldFocusRegistry.currentEditingField(in: window)
@@ -1482,14 +1502,14 @@ struct PathBarView: View {
         mode = .breadcrumb
     }
 
-    private func navigateToPendingPath(_ targetPath: String) {
+    private func navigateToPendingTarget(_ target: ExternalNavigationTarget) {
         committedViaSubmit = true
         historyBrowsing.reset()
         if let window = resolvedHostWindow {
             BarTextFieldFocusRegistry.clearPendingSelectAll(in: window)
         }
-        path = targetPath
-        editingText = targetPath
+        editingText = target.directoryPath
+        onCommitNavigation(target)
         isTextMode = false
         if let window = resolvedHostWindow {
             BarTextFieldFocusRegistry.endEditing(.path, in: window)
