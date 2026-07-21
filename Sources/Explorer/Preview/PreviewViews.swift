@@ -90,6 +90,10 @@ struct FilePreviewView: View {
         .onAppear {
             previewSelection = selection
         }
+        .onChange(of: directoryPath) { _ in
+            // 换目录时同步清空，避免「空 selection 保留预览」把上个目录文件粘住。
+            previewSelection = selection
+        }
         .onChange(of: selection) { newSelection in
             handleSelectionChange(to: newSelection)
         }
@@ -97,6 +101,12 @@ struct FilePreviewView: View {
 
     private func handleSelectionChange(to newSelection: Set<FileItem.ID>) {
         guard newSelection != previewSelection else { return }
+        // 失去 key 后对账会 `loadItems` 并短暂 `selection.removeAll()`；若同步清空
+        // previewSelection，内联 PreviewSession 会 onDisappear 被拆掉，预览变空白。
+        // 内容搜索选中子目录文件时，旧逻辑也无法从当前 listing 恢复选中。
+        if newSelection.isEmpty {
+            return
+        }
         let previousSelection = previewSelection
         Task { @MainActor in
             if let session = PreviewSessionStore.shared.inlineSessionWithUnsavedTextEdits(

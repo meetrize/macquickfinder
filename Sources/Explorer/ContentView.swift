@@ -120,13 +120,11 @@ extension ContentView {
         loadedItems: [FileItem],
         shouldPreserve: Bool
     ) {
-        guard shouldPreserve, !preservedSelection.isEmpty else { return }
-        let restored = preservedSelection.filter { id in
-            loadedItems.contains(where: { $0.id == id })
-        }
-        if !restored.isEmpty {
-            selection = restored
-        }
+        guard shouldPreserve else { return }
+        selection = ListingSelectionRestorer.restoredIDs(
+            preserved: preservedSelection,
+            loadedItems: loadedItems
+        )
     }
 
     func applyPendingInlineRenameIfNeeded(loadedItems: [FileItem], for directoryPath: String) {
@@ -188,7 +186,8 @@ extension ContentView {
         rescheduleDirectorySizesIfNeeded()
         if needsListingReconcileOnClaim {
             needsListingReconcileOnClaim = false
-            loadItems()
+            // 对账重载勿清 selection：内容搜索预览依赖选中，清空会拆掉内联 PreviewSession。
+            loadItems(clearingSelection: false)
         }
     }
 
@@ -1375,7 +1374,10 @@ struct ContentView: View {
         min(max(width, minPreviewPanelWidth), max(maxWidth, minPreviewPanelWidth))
     }
     
-    private func loadItems(invalidatingPaths: [String] = []) {
+    private func loadItems(
+        invalidatingPaths: [String] = [],
+        clearingSelection: Bool = true
+    ) {
         loadGeneration += 1
         let currentGeneration = loadGeneration
         let currentPath = path
@@ -1385,9 +1387,12 @@ struct ContentView: View {
         let listingOptions = DirectoryListingOptions.forPath(currentPath)
         let isNetworkListing = listingOptions.lightweightMetadata
 
-        // 保留旧列表直至新结果就绪，避免大目录切换时空白闪烁；选中先清空以防误操作旧项。
+        // 保留旧列表直至新结果就绪，避免大目录切换时空白闪烁。
+        // 换目录等场景清空选中以防误操作旧项；key 窗对账重载则保留，避免预览被拆掉。
         isLoading = true
-        selection.removeAll()
+        if clearingSelection {
+            selection.removeAll()
+        }
         let shouldOwnSharedDirectorySession = ownsSharedDirectorySession
         if shouldOwnSharedDirectorySession {
             directoryMetadataOverlay.beginSession(generation: currentGeneration)
