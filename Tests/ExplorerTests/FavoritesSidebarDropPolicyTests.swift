@@ -52,6 +52,74 @@ final class FavoritesSidebarDropPolicyTests: XCTestCase {
         )
     }
 
+    func testShouldTreatAsDropOntoFavoriteRowPrefersInsertEdgesWhenAddable() {
+        // 可收藏目录：边缘不走移入，保留插入横线。
+        XCTAssertFalse(
+            FavoritesSidebarDropPolicy.shouldTreatAsDropOntoFavoriteRow(
+                hasAddableDirectories: true,
+                isOntoRowCenter: false,
+                canDropOntoRow: true
+            )
+        )
+        XCTAssertTrue(
+            FavoritesSidebarDropPolicy.shouldTreatAsDropOntoFavoriteRow(
+                hasAddableDirectories: true,
+                isOntoRowCenter: true,
+                canDropOntoRow: true
+            )
+        )
+        // 仅文件：可移入时整行有效。
+        XCTAssertTrue(
+            FavoritesSidebarDropPolicy.shouldTreatAsDropOntoFavoriteRow(
+                hasAddableDirectories: false,
+                isOntoRowCenter: false,
+                canDropOntoRow: true
+            )
+        )
+        // 不可移入：仅中央作无效反馈。
+        XCTAssertFalse(
+            FavoritesSidebarDropPolicy.shouldTreatAsDropOntoFavoriteRow(
+                hasAddableDirectories: false,
+                isOntoRowCenter: false,
+                canDropOntoRow: false
+            )
+        )
+        XCTAssertTrue(
+            FavoritesSidebarDropPolicy.shouldTreatAsDropOntoFavoriteRow(
+                hasAddableDirectories: false,
+                isOntoRowCenter: true,
+                canDropOntoRow: false
+            )
+        )
+    }
+
+    func testFilterAddableDirectoryURLsExcludesBundlesAndFavorites() throws {
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FavoritesDropPolicy-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempRoot) }
+
+        let folder = tempRoot.appendingPathComponent("Notes", isDirectory: true)
+        let app = tempRoot.appendingPathComponent("Demo.app", isDirectory: true)
+        let framework = tempRoot.appendingPathComponent("Foo.framework", isDirectory: true)
+        let file = tempRoot.appendingPathComponent("readme.txt")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: framework, withIntermediateDirectories: true)
+        try "hi".write(to: file, atomically: true, encoding: .utf8)
+
+        let alreadyFavorite = tempRoot.appendingPathComponent("Pinned", isDirectory: true)
+        try FileManager.default.createDirectory(at: alreadyFavorite, withIntermediateDirectories: true)
+
+        let filtered = FavoritesSidebarDropPolicy.filterAddableDirectoryURLs(
+            [folder, app, framework, file, alreadyFavorite]
+        ) { path in
+            path == alreadyFavorite.path
+        }
+
+        XCTAssertEqual(filtered.map(\.path), [folder.path])
+    }
+
     func testCanDropOntoFavoriteRejectsInvalidMoves() {
         XCTAssertFalse(
             FavoritesSidebarDropPolicy.canDropOntoFavorite(

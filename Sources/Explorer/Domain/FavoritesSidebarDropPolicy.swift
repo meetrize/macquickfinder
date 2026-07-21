@@ -26,6 +26,23 @@ enum FavoritesSidebarDropPolicy {
         return relativeY >= edgeBand && relativeY <= rowHeight - edgeBand
     }
 
+    /// 是否把当前落点当作「移入该收藏行」（否则走插入收藏位）。
+    /// - 拖入可收藏目录时：仅行中央为移入，上下边缘留给插入横线。
+    /// - 仅拖文件/不可收藏项时：可移入则整行有效，便于落点；否则中央仅作无效反馈。
+    static func shouldTreatAsDropOntoFavoriteRow(
+        hasAddableDirectories: Bool,
+        isOntoRowCenter: Bool,
+        canDropOntoRow: Bool
+    ) -> Bool {
+        if hasAddableDirectories {
+            return isOntoRowCenter
+        }
+        if canDropOntoRow {
+            return true
+        }
+        return isOntoRowCenter
+    }
+
     static func canDropOntoFavorite(destinationPath: String, sourcePaths: [String]) -> Bool {
         FavoritePathNormalization.moveBlockReason(moving: sourcePaths, to: destinationPath) == nil
     }
@@ -35,14 +52,8 @@ enum FavoritesSidebarDropPolicy {
         isAlreadyFavorite: (String) -> Bool
     ) -> [URL] {
         urls.filter { url in
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-                  isDirectory.boolValue,
-                  !FileListApplicationBundle.isBundle(path: url.path),
-                  !isAlreadyFavorite(url.path) else {
-                return false
-            }
-            return true
+            FileListApplicationBundle.isFavoriteableDirectory(path: url.path)
+                && !isAlreadyFavorite(url.path)
         }
     }
 

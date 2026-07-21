@@ -376,7 +376,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         return []
     }
     
-    /// 移入收藏目录：可移入时整行有效；否则仅中央区域用于无效目标的视觉反馈。
+    /// 移入收藏目录 vs 插入收藏位：可收藏目录时边缘留给插入横线；仅拖文件时整行可移入。
     private func shouldDropFilesOntoFavoriteRow(
         _ location: NSPoint,
         row: Int,
@@ -385,11 +385,12 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     ) -> Bool {
         let rowRect = tableView.rect(ofRow: row)
         guard rowRect.contains(location) else { return false }
-        
-        if canDropOntoRow(row, urls: urls) {
-            return true
-        }
-        return isDropOntoRowCenter(location, row: row, in: tableView)
+
+        return FavoritesSidebarDropPolicy.shouldTreatAsDropOntoFavoriteRow(
+            hasAddableDirectories: !addableFavoriteDirectoryURLs(from: urls).isEmpty,
+            isOntoRowCenter: isDropOntoRowCenter(location, row: row, in: tableView),
+            canDropOntoRow: canDropOntoRow(row, urls: urls)
+        )
     }
     
     private func isDropOntoRowCenter(_ location: NSPoint, row: Int, in tableView: NSTableView) -> Bool {

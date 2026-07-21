@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import FileList
 
 enum FavoriteKind: String, Codable, Equatable {
     case home
@@ -153,7 +154,8 @@ final class FavoritesStore: ObservableObject {
 
     func addDirectory(at path: String, insertBefore: Int? = nil) {
         let normalized = FavoritePathNormalization.standardize(path)
-        guard !contains(path: normalized) else { return }
+        guard FileListApplicationBundle.isFavoriteableDirectory(path: normalized),
+              !contains(path: normalized) else { return }
         let name = (normalized as NSString).lastPathComponent
         let item = FavoriteItem(path: normalized, kind: .custom, customName: name, icon: "folder")
         if let insertBefore {

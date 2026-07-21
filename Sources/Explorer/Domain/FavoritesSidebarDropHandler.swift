@@ -17,11 +17,10 @@ enum FavoritesSidebarDropHandler {
         if let insertBefore {
             var nextInsertIndex = insertBefore
             for url in urls {
-                var isDirectory: ObjCBool = false
-                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+                guard FileManager.default.fileExists(atPath: url.path) else {
                     continue
                 }
-                if isDirectory.boolValue, !FileListApplicationBundle.isBundle(path: url.path) {
+                if FileListApplicationBundle.isFavoriteableDirectory(path: url.path) {
                     let previousCount = favoritesStore.items.count
                     favoritesStore.addDirectory(at: url.path, insertBefore: nextInsertIndex)
                     if favoritesStore.items.count > previousCount {
@@ -33,8 +32,7 @@ enum FavoritesSidebarDropHandler {
             }
         } else {
             for url in urls {
-                var isDirectory: ObjCBool = false
-                guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+                guard FileManager.default.fileExists(atPath: url.path) else {
                     continue
                 }
                 filesToMove.append(url)

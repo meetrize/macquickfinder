@@ -85,7 +85,9 @@ enum FileListRowContextMenuBuilder {
             if !item.isDirectory {
                 menu.addItem(openWithMenuItem(primaryItem: item, selectedItems: fileSelection, actions: actions))
             }
-            if item.isDirectory, !actions.isFavorited(item) {
+            if item.isDirectory,
+               !item.isApplicationBundle,
+               !actions.isFavorited(item) {
                 menu.addItem(menuItem(title: L10n.Action.addFavorite) { actions.addToFavorites(item) })
             }
             menu.addItem(.separator())
