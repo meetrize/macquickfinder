@@ -36,11 +36,12 @@ struct DirectoryContentSearchResultsView: View {
         .focusable()
         .focused($isResultsFocused)
         .onAppear {
+            // 结果出现时不自动抢焦点，否则首字输入后顶栏搜索框会失焦。
             DirectoryContentSearchKeyboardPriority.setResultsNavigationActive(true)
-            isResultsFocused = true
         }
         .onDisappear {
             DirectoryContentSearchKeyboardPriority.setResultsNavigationActive(false)
+            isResultsFocused = false
         }
         .background {
             DirectoryContentSearchKeyboardMonitor(
@@ -93,6 +94,7 @@ struct DirectoryContentSearchResultsView: View {
                             },
                             onSelectMatch: { match in
                                 session.selectedMatchID = match.id
+                                isResultsFocused = true
                                 onSelectMatch(match)
                             }
                         )
