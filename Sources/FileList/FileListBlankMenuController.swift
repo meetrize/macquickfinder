@@ -33,7 +33,11 @@ public final class FileListBlankMenuController: NSObject {
         
         if actions.isInTrash {
             menu.addItem(.separator())
-            menu.addItem(makeItem(title: L10n.Action.emptyTrash, action: .emptyTrash, enabled: true))
+            menu.addItem(makeItem(
+                title: L10n.Action.emptyTrash,
+                action: .emptyTrash,
+                enabled: actions.canEmptyTrash
+            ))
             return menu
         }
         

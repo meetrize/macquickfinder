@@ -371,7 +371,7 @@ enum CommandPaletteRegistry {
             keywords: ["trash", "empty", "清空", "废纸篓"],
             shortcutDisplay: nil,
             priority: 58,
-            isEnabled: { $0.blankMenuActions.isInTrash },
+            isEnabled: { $0.blankMenuActions.isInTrash && $0.blankMenuActions.canEmptyTrash },
             perform: { $0.blankMenuActions.emptyTrash() }
         ),
         CommandPaletteDefinition(

@@ -20,6 +20,7 @@ struct FileContextActions {
     var isFavorited: (FileItem) -> Bool = { _ in false }
     var addToFavorites: (FileItem) -> Void = { _ in }
     var isInTrash: Bool = false
+    var canEmptyTrash: Bool = false
     var emptyTrash: () -> Void = {}
     var putBack: ([FileItem]) -> Void = { _ in }
     var deleteImmediately: ([FileItem]) -> Void = { _ in }

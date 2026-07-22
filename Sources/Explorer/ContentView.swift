@@ -2134,6 +2134,7 @@ struct ContentView: View {
             newFile: createNewFile,
             openTerminal: { TerminalHelper.open(at: path) },
             isInTrash: inTrash,
+            canEmptyTrash: inTrash && items.contains { !$0.isParentDirectoryEntry },
             showRefresh: isNetworkVolume,
             refresh: { loadItems() },
             emptyTrash: {
@@ -2196,6 +2197,7 @@ struct ContentView: View {
             isFavorited: { FavoritesStore.shared.contains(path: $0.url.path) },
             addToFavorites: { FavoritesStore.shared.addDirectory(at: $0.url.path) },
             isInTrash: TrashLoader.isTrashPath(path),
+            canEmptyTrash: TrashLoader.isTrashPath(path) && items.contains { !$0.isParentDirectoryEntry },
             emptyTrash: {
                 FileOperations.emptyTrash {
                     selection.removeAll()

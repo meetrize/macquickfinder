@@ -177,7 +177,22 @@ enum FileOperations {
         }
     }
     
+    private static let emptyTrashLock = NSLock()
+    private static var isEmptyingTrash = false
+
     static func emptyTrash(completion: @escaping () -> Void) {
+        emptyTrashLock.lock()
+        let busy = isEmptyingTrash
+        emptyTrashLock.unlock()
+        guard !busy else { return }
+
+        // 已空：直接成功，避免 Finder「empty trash」对空废纸篓报错。
+        if !TrashLoader.hasContents() {
+            TrashRestoreStore.removeAllRecords()
+            completion()
+            return
+        }
+
         let alert = NSAlert()
         alert.messageText = L10n.Alert.emptyTrashTitle
         alert.informativeText = L10n.Alert.emptyTrashMessage
@@ -185,18 +200,135 @@ enum FileOperations {
         let emptyButton = alert.addButton(withTitle: L10n.Action.emptyTrash)
         alert.addButton(withTitle: L10n.Action.cancel)
         alert.window.initialFirstResponder = emptyButton
-        
+
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        
+
+        emptyTrashLock.lock()
+        if isEmptyingTrash {
+            emptyTrashLock.unlock()
+            return
+        }
+        isEmptyingTrash = true
+        emptyTrashLock.unlock()
+
+        Task.detached(priority: .userInitiated) {
+            let outcome = performEmptyTrash()
+            await MainActor.run {
+                emptyTrashLock.lock()
+                isEmptyingTrash = false
+                emptyTrashLock.unlock()
+
+                switch outcome {
+                case .success:
+                    TrashRestoreStore.removeAllRecords()
+                    completion()
+                case .failure(let message):
+                    let errorAlert = NSAlert()
+                    errorAlert.messageText = L10n.Alert.operationFailed
+                    errorAlert.informativeText = message
+                    errorAlert.alertStyle = .warning
+                    errorAlert.runModal()
+                }
+            }
+        }
+    }
+
+    private enum EmptyTrashOutcome {
+        case success
+        case failure(String)
+    }
+
+    /// 优先 FileManager 清倒（不堵主线程）；残留项再走 Finder。空废纸篓一律视为成功。
+    private static func performEmptyTrash() -> EmptyTrashOutcome {
+        _ = TrashLoader.removeContentsWithFileManager()
+        if !TrashLoader.hasContents() {
+            return .success
+        }
+
+        switch runFinderEmptyTrash() {
+        case .success:
+            return .success
+        case .alreadyEmpty:
+            return .success
+        case .failure(let message):
+            if !TrashLoader.hasContents() {
+                return .success
+            }
+            return .failure(message)
+        }
+    }
+
+    private enum FinderEmptyTrashResult {
+        case success
+        case alreadyEmpty
+        case failure(String)
+    }
+
+    private static func runFinderEmptyTrash() -> FinderEmptyTrashResult {
+        // 空废纸篓时 Finder 的 `empty trash` 会抛错；先判断 count 再执行。
         let script = """
         tell application "Finder"
-            empty trash
+            try
+                if (count of items in the trash) is 0 then return "already_empty"
+                empty the trash
+                return "ok"
+            on error errMsg number errNum
+                try
+                    if (count of items in the trash) is 0 then return "already_empty"
+                end try
+                error errMsg number errNum
+            end try
         end tell
         """
-        if runFinderAppleScript(script) {
-            TrashRestoreStore.removeAllRecords()
-            completion()
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.standardOutput = stdout
+        process.standardError = stderr
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return .failure(error.localizedDescription)
         }
+
+        let output = String(data: stdout.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let errOutput = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        if process.terminationStatus == 0 {
+            if output.contains("already_empty") {
+                return .alreadyEmpty
+            }
+            return .success
+        }
+
+        // 仅识别脚本显式返回 / 明确「已空」文案；泛化「无法完成此操作」留给上层按 hasContents 判定。
+        if isBenignEmptyTrashFailure(output: output, errorOutput: errOutput) {
+            return .alreadyEmpty
+        }
+
+        let message = errOutput.isEmpty
+            ? (output.isEmpty ? L10n.Alert.operationFailed : output)
+            : errOutput
+        return .failure(message)
+    }
+
+    static func isBenignEmptyTrashFailure(output: String, errorOutput: String) -> Bool {
+        let combined = (output + "\n" + errorOutput).lowercased()
+        let markers = [
+            "already_empty",
+            "the trash is empty",
+            "trash is empty",
+            "废纸篓为空",
+            "废纸篓是空的"
+        ]
+        return markers.contains { combined.contains($0.lowercased()) }
     }
     
     static func putBack(_ items: [FileItem], completion: @escaping () -> Void) {

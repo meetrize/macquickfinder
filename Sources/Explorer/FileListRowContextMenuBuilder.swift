@@ -49,7 +49,12 @@ enum FileListRowContextMenuBuilder {
                 actions.deleteImmediately(selectedItems)
             })
             menu.addItem(.separator())
-            menu.addItem(menuItem(title: L10n.Action.emptyTrash, destructive: true) { actions.emptyTrash() })
+            let emptyItem = menuItem(
+                title: L10n.Action.emptyTrash,
+                destructive: true
+            ) { actions.emptyTrash() }
+            emptyItem.isEnabled = actions.canEmptyTrash
+            menu.addItem(emptyItem)
             return menu
         }
         

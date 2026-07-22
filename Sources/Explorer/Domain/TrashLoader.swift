@@ -103,6 +103,63 @@ enum TrashLoader {
         }
         return items
     }
+
+    /// 快速判断废纸篓是否仍有可清倒内容（跳过 `.DS_Store`）。
+    static func hasContents(in trashURLs: [URL]? = nil) -> Bool {
+        let urls = trashURLs ?? trashDirectoryURLs()
+        for trashURL in urls {
+            guard let children = try? FileManager.default.contentsOfDirectory(
+                at: trashURL,
+                includingPropertiesForKeys: nil,
+                options: []
+            ) else { continue }
+            if children.contains(where: { $0.lastPathComponent != ".DS_Store" }) {
+                return true
+            }
+        }
+        return false
+    }
+
+    struct EmptyTrashFileSystemResult: Equatable {
+        var removedCount: Int
+        var failedURLs: [URL]
+    }
+
+    /// 直接用 FileManager 删除各废纸篓目录内容，避免主线程阻塞在 Finder AppleScript。
+    static func removeContentsWithFileManager(in trashURLs: [URL]? = nil) -> EmptyTrashFileSystemResult {
+        let urls = trashURLs ?? trashDirectoryURLs()
+        var removedCount = 0
+        var failedURLs: [URL] = []
+        let fileManager = FileManager.default
+
+        for trashURL in urls {
+            let children: [URL]
+            do {
+                children = try fileManager.contentsOfDirectory(
+                    at: trashURL,
+                    includingPropertiesForKeys: nil,
+                    options: []
+                )
+            } catch {
+                continue
+            }
+
+            for child in children {
+                if child.lastPathComponent == ".DS_Store" {
+                    try? fileManager.removeItem(at: child)
+                    continue
+                }
+                do {
+                    try fileManager.removeItem(at: child)
+                    removedCount += 1
+                } catch {
+                    failedURLs.append(child)
+                }
+            }
+        }
+
+        return EmptyTrashFileSystemResult(removedCount: removedCount, failedURLs: failedURLs)
+    }
     
     private static func loadItemsFromFilesystem(showHiddenFiles: Bool) -> [FileItem] {
         let propertyKeys: Set<URLResourceKey> = [
