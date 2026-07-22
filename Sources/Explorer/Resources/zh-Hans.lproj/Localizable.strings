@@ -727,6 +727,8 @@
 "preview.toolbar.search_no_results" = "无结果";
 "preview.toolbar.search_prompt" = "搜索";
 "preview.toolbar.source_mode" = "源码模式";
+"preview.toolbar.spreadsheet_to_quicklook" = "切换为 QuickLook 预览";
+"preview.toolbar.spreadsheet_to_text" = "切换为纯文本预览";
 "preview.toolbar.undo" = "撤销上一步";
 "preview.toolbar.unmute" = "取消静音";
 "preview.toolbar.word_document_to_formatted" = "切换为格式化预览";

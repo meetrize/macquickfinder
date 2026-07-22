@@ -222,6 +222,11 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Preview.Toolbar.wordDocumentToText, "preview.toolbar.word_document_to_text")
     }
 
+    func testSpreadsheetPreviewToolbarStringsResolve() {
+        XCTAssertNotEqual(L10n.Preview.Toolbar.spreadsheetToQuickLook, "preview.toolbar.spreadsheet_to_quicklook")
+        XCTAssertNotEqual(L10n.Preview.Toolbar.spreadsheetToText, "preview.toolbar.spreadsheet_to_text")
+    }
+
     func testMarkdownMermaidPreviewStringsResolve() {
         XCTAssertNotEqual(L10n.Preview.Markdown.mermaidRendering, "preview.markdown.mermaid_rendering")
         XCTAssertNotEqual(L10n.Preview.Markdown.mermaidRenderFailed, "preview.markdown.mermaid_render_failed")

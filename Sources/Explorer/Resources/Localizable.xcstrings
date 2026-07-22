@@ -6563,6 +6563,40 @@
         }
       }
     },
+    "preview.toolbar.spreadsheet_to_quicklook": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to QuickLook Preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换为 QuickLook 预览"
+          }
+        }
+      }
+    },
+    "preview.toolbar.spreadsheet_to_text": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to Plain Text"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换为纯文本预览"
+          }
+        }
+      }
+    },
     "preview.toolbar.undo": {
       "extractionState": "manual",
       "localizations": {

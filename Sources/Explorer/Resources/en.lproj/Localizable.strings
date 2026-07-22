@@ -727,6 +727,8 @@
 "preview.toolbar.search_no_results" = "No results";
 "preview.toolbar.search_prompt" = "Search";
 "preview.toolbar.source_mode" = "Source Mode";
+"preview.toolbar.spreadsheet_to_quicklook" = "Switch to QuickLook Preview";
+"preview.toolbar.spreadsheet_to_text" = "Switch to Plain Text";
 "preview.toolbar.undo" = "Undo Last Step";
 "preview.toolbar.unmute" = "Unmute";
 "preview.toolbar.word_document_to_formatted" = "Switch to Formatted Preview";
