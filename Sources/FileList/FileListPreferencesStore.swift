@@ -19,6 +19,7 @@ public final class FileListPreferencesStore: ObservableObject {
     }
     
     private let defaults: UserDefaults
+    private var pendingSaveWorkItem: DispatchWorkItem?
     
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -27,8 +28,9 @@ public final class FileListPreferencesStore: ObservableObject {
     }
     
     public func save() {
-        guard let data = preferences.encoded() else { return }
-        defaults.set(data, forKey: FileListStorageKeys.preferences)
+        pendingSaveWorkItem?.cancel()
+        pendingSaveWorkItem = nil
+        persistPreferences()
     }
     
     public func updateColumns(_ columns: FileListColumnConfiguration) {
@@ -41,7 +43,8 @@ public final class FileListPreferencesStore: ObservableObject {
     public func updateSort(_ sort: FileListSortState) {
         guard preferences.sort != sort else { return }
         preferences = FileListPreferences(columns: preferences.columns, sort: sort)
-        save()
+        // 表头连点时合并写盘，避免每次切换都同步 UserDefaults。
+        scheduleDebouncedSave()
     }
     
     public func replacePreferences(_ newPreferences: FileListPreferences) {
@@ -49,6 +52,22 @@ public final class FileListPreferencesStore: ObservableObject {
         guard preferences != normalized else { return }
         preferences = normalized
         save()
+    }
+
+    private func persistPreferences() {
+        guard let data = preferences.encoded() else { return }
+        defaults.set(data, forKey: FileListStorageKeys.preferences)
+    }
+
+    private func scheduleDebouncedSave() {
+        pendingSaveWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingSaveWorkItem = nil
+            self.persistPreferences()
+        }
+        pendingSaveWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
     }
     
     public func resetColumnsToDefaultIfNeeded() {

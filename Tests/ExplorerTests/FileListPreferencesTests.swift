@@ -139,6 +139,7 @@ final class FileListPreferencesTests: XCTestCase {
         
         let store = FileListPreferencesStore(defaults: defaults)
         store.updateSort(FileListSortState(column: .size, ascending: false))
+        store.save()
         
         let reloaded = FileListPreferencesStore(defaults: defaults)
         XCTAssertEqual(reloaded.sort.column, .size)

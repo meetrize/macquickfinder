@@ -316,14 +316,20 @@ public final class FileListTableController: FileListContentController {
             sort.column = columnID
             sort.ascending = FileListSortEngine.defaultAscending(for: columnID)
         }
-        preferencesStore.updateSort(sort)
 
+        // 先完成本地排序与表头指示，再异步 publish 偏好。
+        // 避免 @Published 同步触发整窗 SwiftUI 重建，拖慢点击响应。
+        let previousRows = displayRows
         displayRows = FileListSortEngine.sorted(sourceRows, by: sort)
         FileListTableAnimations.performWithoutAnimation {
-            tableView?.reloadData()
+            reloadDataPreservingVisibleRowAnchor(previousRows: previousRows)
             updateSortIndicators(for: sort)
         }
         syncSelectionToTable()
+
+        DispatchQueue.main.async {
+            preferencesStore.updateSort(sort)
+        }
     }
 
     func updateSortIndicators(for sort: FileListSortState) {

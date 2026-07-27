@@ -223,7 +223,7 @@ struct ContentView: View {
     @State private var items: [FileItem] = []
     @State private var selection: Set<FileItem.ID> = []
     @State private var sortOrder: SortOrder = .nameAscending
-    @ObservedObject private var fileListPreferences = FileListPreferencesStore.shared
+    private let fileListPreferences = FileListPreferencesStore.shared
     private let directoryMetadataOverlay = DirectoryMetadataOverlay.shared
     @State private var isSyncingSortFromPreferences = false
     @State private var isLoading = false
@@ -651,7 +651,11 @@ struct ContentView: View {
             guard !loading else { return }
             _ = applyExternalSelectionImmediatelyIfPossible()
         }
-        .onChange(of: fileListPreferences.configuration.visible.contains(.comment)) { isVisible in
+        .onReceive(
+            fileListPreferences.$preferences
+                .map { $0.columns.visible.contains(.comment) }
+                .removeDuplicates()
+        ) { isVisible in
             guard isVisible else { return }
             scheduleFinderCommentEnrichment(for: items, generation: loadGeneration)
         }
@@ -728,7 +732,7 @@ struct ContentView: View {
             guard !isSyncingSortFromPreferences else { return }
             fileListPreferences.updateSort(FileListSortState(sortOrder: newOrder))
         }
-        .onChange(of: fileListPreferences.preferences.sort) { newSort in
+        .onReceive(fileListPreferences.$preferences.map(\.sort).removeDuplicates()) { newSort in
             guard let mapped = newSort.explorerSortOrder else { return }
             guard mapped != sortOrder else { return }
             isSyncingSortFromPreferences = true

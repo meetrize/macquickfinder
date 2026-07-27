@@ -35,7 +35,7 @@ struct FileListView: View {
     let onNavigateBack: () -> Void
     let onNavigateToDirectory: (String) -> Void
     
-    @ObservedObject private var preferencesStore = FileListPreferencesStore.shared
+    private let preferencesStore = FileListPreferencesStore.shared
     @StateObject private var panoramaController = PanoramaTreeController()
     @State private var isCurrentDirectoryDropTargeted = false
     @State private var isQuickSearchFieldFocused = false
@@ -211,7 +211,9 @@ struct FileListView: View {
         .onChange(of: isLoading) { _ in
             syncPanoramaLifecycle(forceReset: false)
         }
-        .onChange(of: preferencesStore.preferences.sort) { _ in
+        .onReceive(preferencesStore.$preferences.map(\.sort).removeDuplicates()) { _ in
+            // 列表模式下 shutdown 全景是空转开销；仅全景激活时才响应排序变化。
+            guard panoramaActive else { return }
             syncPanoramaLifecycle(forceReset: true)
         }
         .onAppear {
