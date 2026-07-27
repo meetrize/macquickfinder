@@ -1189,20 +1189,14 @@ private enum PathSubdirectoryCache {
         parentPath: String,
         showHiddenFiles: Bool
     ) -> [PathSubdirectory] {
-        let parentURL = URL(fileURLWithPath: parentPath, isDirectory: true)
-        let propertyKeys: [URLResourceKey] = [.isDirectoryKey]
-        let options: FileManager.DirectoryEnumerationOptions = showHiddenFiles
-            ? [.skipsPackageDescendants]
-            : [.skipsHiddenFiles, .skipsPackageDescendants]
-        
-        guard let urls = try? FileManager.default.contentsOfDirectory(
-            at: parentURL,
-            includingPropertiesForKeys: propertyKeys,
-            options: options
+        // 走 DirectoryListingLoader，使 /Applications 与 Finder 一样合并系统应用。
+        guard let urls = try? DirectoryListingLoader.contentsOfDirectory(
+            at: parentPath,
+            showHiddenFiles: showHiddenFiles
         ) else {
             return []
         }
-        
+
         var subdirectories: [PathSubdirectory] = []
         subdirectories.reserveCapacity(urls.count)
         for url in urls {
@@ -1213,7 +1207,7 @@ private enum PathSubdirectoryCache {
                 PathSubdirectory(id: resolvedPath, name: url.lastPathComponent, path: resolvedPath)
             )
         }
-        
+
         return subdirectories.sorted {
             $0.name.localizedStandardCompare($1.name) == .orderedAscending
         }

@@ -45,10 +45,28 @@ enum DirectoryListingLoader {
         options: DirectoryListingOptions = DirectoryListingOptions()
     ) throws -> [URL] {
         let keys = propertyKeys(lightweight: options.lightweightMetadata)
-        return try FileManager.default.contentsOfDirectory(
+        let enumeration = enumerationOptions(showHiddenFiles: showHiddenFiles)
+        let primary = try FileManager.default.contentsOfDirectory(
             at: URL(fileURLWithPath: path),
             includingPropertiesForKeys: Array(keys),
-            options: enumerationOptions(showHiddenFiles: showHiddenFiles)
+            options: enumeration
+        )
+        let supplementalPaths = ApplicationsDirectoryMerge.supplementalPaths(for: path)
+        guard !supplementalPaths.isEmpty else { return primary }
+
+        var supplementalGroups: [[URL]] = []
+        supplementalGroups.reserveCapacity(supplementalPaths.count)
+        for supplementalPath in supplementalPaths {
+            let urls = (try? FileManager.default.contentsOfDirectory(
+                at: URL(fileURLWithPath: supplementalPath),
+                includingPropertiesForKeys: Array(keys),
+                options: enumeration
+            )) ?? []
+            supplementalGroups.append(urls)
+        }
+        return ApplicationsDirectoryMerge.mergeURLs(
+            primary: primary,
+            supplementalGroups: supplementalGroups
         )
     }
 
