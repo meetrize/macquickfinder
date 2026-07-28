@@ -81,7 +81,8 @@ extension FileListTableController: NSTableViewDataSource, NSTableViewDelegate {
         syncSelectionFromTable()
         refreshVisibleRowContentClip()
         refreshVisibleNameLabels()
-        refreshRowHoverHighlightFromCurrentMouseLocation()
+        // 选中同步常发生在 reload / layout 中；延后刷新悬停，避免 rowView(atRow:) 重入崩溃。
+        scheduleRefreshRowHoverHighlightFromCurrentMouseLocation()
     }
 
     public func tableView(

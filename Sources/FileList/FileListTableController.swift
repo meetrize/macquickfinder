@@ -165,6 +165,7 @@ public final class FileListTableController: FileListContentController {
 
         if plan.displayUnchanged {
             if iconPreviewChanged {
+                invalidateRowHoverHighlightState()
                 FileListTableAnimations.performWithoutAnimation {
                     tableView?.reloadData()
                 }
@@ -178,6 +179,10 @@ public final class FileListTableController: FileListContentController {
         }
 
         let sort = preferencesStore.sort
+        if iconPreviewChanged || plan.orderChanged || plan.searchChanged || plan.listingChanged {
+            // reload / 选中同步前丢掉悬停行号，避免 selectionDidChange 用旧 index 取 rowView 崩溃。
+            invalidateRowHoverHighlightState()
+        }
         if iconPreviewChanged {
             lastFillLayoutRowCount = -1
             FileListTableAnimations.performWithoutAnimation {
@@ -300,8 +305,10 @@ public final class FileListTableController: FileListContentController {
         guard let tableView else { return }
         let visible = tableView.rows(in: tableView.visibleRect)
         guard visible.length > 0 else { return }
+        let rowCount = min(displayRows.count, tableView.numberOfRows)
         for row in visible.location..<(visible.location + visible.length) {
-            tableView.rowView(atRow: row, makeIfNecessary: true)?.needsDisplay = true
+            guard row >= 0, row < rowCount else { continue }
+            tableView.rowView(atRow: row, makeIfNecessary: false)?.needsDisplay = true
         }
     }
 
@@ -321,6 +328,7 @@ public final class FileListTableController: FileListContentController {
         // 避免 @Published 同步触发整窗 SwiftUI 重建，拖慢点击响应。
         let previousRows = displayRows
         displayRows = FileListSortEngine.sorted(sourceRows, by: sort)
+        invalidateRowHoverHighlightState()
         FileListTableAnimations.performWithoutAnimation {
             reloadDataPreservingVisibleRowAnchor(previousRows: previousRows)
             updateSortIndicators(for: sort)

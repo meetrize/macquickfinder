@@ -21,7 +21,7 @@ extension FileListTableController {
             return
         }
         let row = tableView.row(at: point)
-        let hoveredRow = (row >= 0 && row < displayRows.count) ? row : nil
+        let hoveredRow = isValidHoverRow(row, in: tableView) ? row : nil
         setRowHoverHighlight(hoveredRow, in: tableView)
     }
 
@@ -39,8 +39,20 @@ extension FileListTableController {
         updateRowHover(at: point, in: tableView)
     }
 
+    /// 选中变更 / layout 同步路径里不要立刻碰 `rowView(atRow:)`，否则可能触发 AppKit 越界异常。
+    func scheduleRefreshRowHoverHighlightFromCurrentMouseLocation() {
+        DispatchQueue.main.async { [weak self] in
+            self?.refreshRowHoverHighlightFromCurrentMouseLocation()
+        }
+    }
+
     func clearRowHoverHighlight() {
         setRowHoverHighlight(nil)
+    }
+
+    /// 列表 reload / 行数变化前丢弃悬停行号，避免用过期 index 访问 NSTableView。
+    func invalidateRowHoverHighlightState() {
+        hoverHighlightRow = nil
     }
 
     private func setRowHoverHighlight(_ row: Int?) {
@@ -52,15 +64,16 @@ extension FileListTableController {
     }
 
     private func setRowHoverHighlight(_ row: Int?, in tableView: NSTableView) {
-        guard hoverHighlightRow != row else { return }
+        let safeRow = row.flatMap { isValidHoverRow($0, in: tableView) ? $0 : nil }
+        guard hoverHighlightRow != safeRow else { return }
         let previous = hoverHighlightRow
-        hoverHighlightRow = row
+        hoverHighlightRow = safeRow
 
         if let previous {
             applyRowHoverHighlight(false, row: previous, in: tableView)
         }
-        if let row {
-            applyRowHoverHighlight(true, row: row, in: tableView)
+        if let safeRow {
+            applyRowHoverHighlight(true, row: safeRow, in: tableView)
         }
     }
 
@@ -71,7 +84,15 @@ extension FileListTableController {
         rowView.isHoverHighlighted = isHovered
     }
 
+    private func isValidHoverRow(_ row: Int, in tableView: NSTableView) -> Bool {
+        row >= 0
+            && row < displayRows.count
+            && row < tableView.numberOfRows
+    }
+
     private func applyRowHoverHighlight(_ highlighted: Bool, row: Int, in tableView: NSTableView) {
+        // `rowView(atRow:)` 在越界时会抛 ObjC 异常并直接崩进程，必须先校验 numberOfRows。
+        guard isValidHoverRow(row, in: tableView) else { return }
         guard let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? FileListRowView else {
             return
         }
