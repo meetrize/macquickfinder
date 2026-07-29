@@ -84,7 +84,7 @@ private enum PreviewToolbarSearchFieldMetrics {
     static let horizontalPadding: CGFloat = 8
     /// 固定总宽：输入前后保持一致，不因匹配控件出现而撑开。
     static let width: CGFloat = 220
-    static let matchStatusWidth: CGFloat = 38
+    static let matchStatusWidth: CGFloat = 52
     static let navButtonsWidth: CGFloat = 36
     static let clearButtonWidth: CGFloat = 14
 }
@@ -101,6 +101,9 @@ struct PreviewTextSearchToolbarControls: View {
     private var matchCount: Int { session.text.searchMatchCount }
     private var hasMatches: Bool { matchCount > 0 }
     private var currentDisplayIndex: Int { session.text.searchCurrentIndex + 1 }
+    private var isPreviewContentTruncated: Bool {
+        PreviewTextEditEligibility.isContentTruncated(session.content.textContent)
+    }
 
     private var matchStatusLabel: String {
         guard hasQuery else { return "" }
@@ -108,6 +111,20 @@ struct PreviewTextSearchToolbarControls: View {
             return matchCount > 1
                 ? "\(currentDisplayIndex)/\(matchCount)"
                 : "\(matchCount)"
+        }
+        if isPreviewContentTruncated {
+            return L10n.Preview.Toolbar.searchTruncated
+        }
+        return L10n.Preview.Toolbar.searchNoResults
+    }
+
+    private var matchStatusTooltip: String {
+        guard hasQuery else { return L10n.Preview.Toolbar.searchInPreview }
+        if hasMatches {
+            return L10n.Preview.Toolbar.searchInPreview
+        }
+        if isPreviewContentTruncated {
+            return L10n.Preview.Toolbar.searchTruncatedHint
         }
         return L10n.Preview.Toolbar.searchNoResults
     }
@@ -151,13 +168,7 @@ struct PreviewTextSearchToolbarControls: View {
                 .lineLimit(1)
                 .frame(width: PreviewToolbarSearchFieldMetrics.matchStatusWidth, alignment: .trailing)
                 .opacity(hasQuery ? 1 : 0)
-                .instantHoverTooltip(
-                    hasQuery
-                        ? (hasMatches
-                            ? L10n.Preview.Toolbar.searchInPreview
-                            : L10n.Preview.Toolbar.searchNoResults)
-                        : L10n.Preview.Toolbar.searchInPreview
-                )
+                .instantHoverTooltip(matchStatusTooltip)
 
             HStack(spacing: 0) {
                 PreviewFocuslessIconButton(

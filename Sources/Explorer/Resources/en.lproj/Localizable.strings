@@ -726,6 +726,8 @@
 "preview.toolbar.search_in_preview" = "Search in Preview";
 "preview.toolbar.search_no_results" = "No results";
 "preview.toolbar.search_prompt" = "Search";
+"preview.toolbar.search_truncated" = "Truncated";
+"preview.toolbar.search_truncated_hint" = "Preview is truncated; search only covers loaded content";
 "preview.toolbar.source_mode" = "Source Mode";
 "preview.toolbar.spreadsheet_to_quicklook" = "Switch to QuickLook Preview";
 "preview.toolbar.spreadsheet_to_text" = "Switch to Plain Text";

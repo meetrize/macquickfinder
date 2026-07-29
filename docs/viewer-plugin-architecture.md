@@ -741,7 +741,7 @@ enum MarkdownRenderer {
 }
 ```
 
-大文件策略：与内置文本一致，首屏最多解析前 20,000 字符，超出追加 `[Content truncated...]`。
+大文件策略：与内置文本一致，首屏最多解析前 60,000 字符，超出追加 `[Content truncated...]`。
 
 ### 8.5 源码视图
 

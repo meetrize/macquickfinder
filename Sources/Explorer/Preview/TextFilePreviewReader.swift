@@ -1,7 +1,7 @@
 import Foundation
 
 enum TextFilePreviewReader {
-    static let maxCharacters = 20_000
+    static let maxCharacters = 60_000
     static let truncationMarker = "\n\n[Content truncated...]"
 
     static func readPreview(from url: URL) throws -> String {

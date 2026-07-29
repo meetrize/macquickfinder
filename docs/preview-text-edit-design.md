@@ -15,14 +15,14 @@
   → FileContentView.task(id: contentLoadTaskID)
   → PreviewSession.beginLoadTask
   → PreviewContentLoader.loadText
-  → TextFilePreviewReader.readPreview（上限 20_000 字符，超出截断）
+  → TextFilePreviewReader.readPreview（上限 60_000 字符，超出截断）
   → TextFilePreview（NSTextView，isEditable = false）
   → TextSyntaxHighlighter 异步全量高亮（>18k 字符 / >1200 行跳过高亮）
 ```
 
 | 组件 | 职责 | 关键约束 |
 |------|------|----------|
-| `TextFilePreviewReader` | 读取文本 | `maxCharacters = 20_000`，超出追加 `[Content truncated...]` |
+| `TextFilePreviewReader` | 读取文本 | `maxCharacters = 60_000`，超出追加 `[Content truncated...]` |
 | `TextFilePreview` | 只读展示 | `PreviewCodeTextView`，支持选区、复制、搜索高亮 |
 | `TextSyntaxHighlighter` | 语法着色 | 后台线程生成 `NSAttributedString`，主线程**整段替换** `textStorage` |
 | `PreviewSessionTextState` | 工具栏状态 | 换行、搜索、Markdown/HTML 模式切换 |

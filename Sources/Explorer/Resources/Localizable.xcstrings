@@ -6274,6 +6274,40 @@
         }
       }
     },
+    "preview.toolbar.search_truncated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Truncated"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已截断"
+          }
+        }
+      }
+    },
+    "preview.toolbar.search_truncated_hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview is truncated; search only covers loaded content"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览内容已截断，搜索仅覆盖已加载部分"
+          }
+        }
+      }
+    },
     "preview.toolbar.next_page": {
       "extractionState": "manual",
       "localizations": {

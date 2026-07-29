@@ -726,6 +726,8 @@
 "preview.toolbar.search_in_preview" = "在预览中搜索";
 "preview.toolbar.search_no_results" = "无结果";
 "preview.toolbar.search_prompt" = "搜索";
+"preview.toolbar.search_truncated" = "已截断";
+"preview.toolbar.search_truncated_hint" = "预览内容已截断，搜索仅覆盖已加载部分";
 "preview.toolbar.source_mode" = "源码模式";
 "preview.toolbar.spreadsheet_to_quicklook" = "切换为 QuickLook 预览";
 "preview.toolbar.spreadsheet_to_text" = "切换为纯文本预览";

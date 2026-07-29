@@ -112,6 +112,8 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Preview.Toolbar.previousMatch, "preview.toolbar.previous_match")
         XCTAssertNotEqual(L10n.Preview.Toolbar.clearSearch, "preview.toolbar.clear_search")
         XCTAssertNotEqual(L10n.Preview.Toolbar.searchNoResults, "preview.toolbar.search_no_results")
+        XCTAssertNotEqual(L10n.Preview.Toolbar.searchTruncated, "preview.toolbar.search_truncated")
+        XCTAssertNotEqual(L10n.Preview.Toolbar.searchTruncatedHint, "preview.toolbar.search_truncated_hint")
         XCTAssertNotEqual(L10n.Search.modeFilename, "search.mode.filename")
         XCTAssertNotEqual(L10n.Search.modeContent, "search.mode.content")
         XCTAssertNotEqual(L10n.Search.contentPrompt, "search.content_prompt")

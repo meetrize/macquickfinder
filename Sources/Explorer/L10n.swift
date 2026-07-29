@@ -1233,6 +1233,8 @@ enum L10n {
             static var previousMatch: String { ModuleLocalization.localized("preview.toolbar.previous_match", bundle: .module) }
             static var clearSearch: String { ModuleLocalization.localized("preview.toolbar.clear_search", bundle: .module) }
             static var searchNoResults: String { ModuleLocalization.localized("preview.toolbar.search_no_results", bundle: .module) }
+            static var searchTruncated: String { ModuleLocalization.localized("preview.toolbar.search_truncated", bundle: .module) }
+            static var searchTruncatedHint: String { ModuleLocalization.localized("preview.toolbar.search_truncated_hint", bundle: .module) }
             static var reset: String { ModuleLocalization.localized("preview.toolbar.reset", bundle: .module) }
             static var pageNumber: String { ModuleLocalization.localized("preview.toolbar.page_number", bundle: .module) }
             static var jumpToPage: String { ModuleLocalization.localized("preview.toolbar.jump_to_page", bundle: .module) }
