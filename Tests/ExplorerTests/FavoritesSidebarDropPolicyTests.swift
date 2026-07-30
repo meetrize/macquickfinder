@@ -231,4 +231,48 @@ final class FavoritesSidebarDropPolicyTests: XCTestCase {
         XCTAssertEqual(FavoritesSidebarDropPolicy.clampedInsertIndex(2, itemCount: 4), 2)
         XCTAssertEqual(FavoritesSidebarDropPolicy.clampedInsertIndex(99, itemCount: 4), 4)
     }
+
+    func testShouldPrepareDropAcceptsReorderWithoutFileURLs() {
+        // 回归：prepare 若只认 file URL，收藏夹上下拖动重排永远无法松手生效。
+        XCTAssertTrue(
+            FavoritesSidebarDropPolicy.shouldPrepareDrop(
+                isReorderDrag: true,
+                hasFileURLs: false,
+                pendingInsertBeforeIndex: 2,
+                canDropOntoEffectiveRow: false
+            )
+        )
+        XCTAssertFalse(
+            FavoritesSidebarDropPolicy.shouldPrepareDrop(
+                isReorderDrag: true,
+                hasFileURLs: false,
+                pendingInsertBeforeIndex: -1,
+                canDropOntoEffectiveRow: false
+            )
+        )
+        XCTAssertFalse(
+            FavoritesSidebarDropPolicy.shouldPrepareDrop(
+                isReorderDrag: false,
+                hasFileURLs: false,
+                pendingInsertBeforeIndex: 1,
+                canDropOntoEffectiveRow: true
+            )
+        )
+        XCTAssertTrue(
+            FavoritesSidebarDropPolicy.shouldPrepareDrop(
+                isReorderDrag: false,
+                hasFileURLs: true,
+                pendingInsertBeforeIndex: 1,
+                canDropOntoEffectiveRow: false
+            )
+        )
+        XCTAssertTrue(
+            FavoritesSidebarDropPolicy.shouldPrepareDrop(
+                isReorderDrag: false,
+                hasFileURLs: true,
+                pendingInsertBeforeIndex: -1,
+                canDropOntoEffectiveRow: true
+            )
+        )
+    }
 }

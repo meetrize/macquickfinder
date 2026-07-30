@@ -72,4 +72,20 @@ enum FavoritesSidebarDropPolicy {
     ) -> Bool {
         FavoritePathNormalization.pathsRepresentSameLocation(draggedPath, targetPath)
     }
+
+    /// `prepareForDragOperation` 是否应接受当前拖放。
+    /// 收藏夹行重排只带自定义 pasteboard 类型、没有 file URL；若此处误拒，AppKit 不会调用 `performDragOperation`。
+    static func shouldPrepareDrop(
+        isReorderDrag: Bool,
+        hasFileURLs: Bool,
+        pendingInsertBeforeIndex: Int,
+        canDropOntoEffectiveRow: Bool
+    ) -> Bool {
+        if isReorderDrag {
+            return pendingInsertBeforeIndex >= 0
+        }
+        guard hasFileURLs else { return false }
+        if pendingInsertBeforeIndex >= 0 { return true }
+        return canDropOntoEffectiveRow
+    }
 }

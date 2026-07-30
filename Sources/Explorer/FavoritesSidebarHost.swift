@@ -411,13 +411,28 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         )
     }
     
-    func prepareForFileDrop(_ info: NSDraggingInfo) -> Bool {
-        _ = draggingUpdated(info)
+    /// 接受放下前校验：收藏夹重排与文件拖入均需通过，否则 AppKit 不会调用 `performDragOperation`。
+    func prepareForDrop(_ info: NSDraggingInfo) -> Bool {
+        let operation = draggingUpdated(info)
+        guard operation != [] else { return false }
+        
+        let isReorder = isReorderDrag(info.draggingPasteboard)
         let urls = FileDragDrop.fileURLs(from: info.draggingPasteboard)
-        guard !urls.isEmpty else { return false }
-        if pendingInsertBeforeIndex >= 0 { return true }
-        guard let row = effectiveFileDropRow() else { return false }
-        return canDropOntoRow(row, urls: urls)
+        let canDropOntoEffectiveRow: Bool = {
+            guard let row = effectiveFileDropRow() else { return false }
+            return canDropOntoRow(row, urls: urls)
+        }()
+        return FavoritesSidebarDropPolicy.shouldPrepareDrop(
+            isReorderDrag: isReorder,
+            hasFileURLs: !urls.isEmpty,
+            pendingInsertBeforeIndex: pendingInsertBeforeIndex,
+            canDropOntoEffectiveRow: canDropOntoEffectiveRow
+        )
+    }
+    
+    /// 兼容旧调用名。
+    func prepareForFileDrop(_ info: NSDraggingInfo) -> Bool {
+        prepareForDrop(info)
     }
     
     /// 解析当前应移入的收藏行；`pendingDropRow` 被放下时的最后一次 `draggingUpdated` 清掉时回退到 `lastValidFileDropRow`。
@@ -1080,7 +1095,7 @@ final class FavoritesTableView: NSTableView {
     }
     
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        controller?.prepareForFileDrop(sender) ?? false
+        controller?.prepareForDrop(sender) ?? false
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
