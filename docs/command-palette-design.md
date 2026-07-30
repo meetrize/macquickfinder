@@ -231,7 +231,7 @@ enum CommandPaletteRegistry {
 
 | ID | 说明 |
 |----|------|
-| `view_list` / `view_thumbnail` / `view_panorama` | 切换视图模式 |
+| `view_list` / `view_thumbnail` | 切换视图模式 |
 | `toggle_hidden_files` | 显示/隐藏隐藏文件 |
 | `customize_toolbar` | 打开工具栏自定义 |
 

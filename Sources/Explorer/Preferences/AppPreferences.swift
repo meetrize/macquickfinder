@@ -8,14 +8,14 @@ enum AppPreferences {
         static let preferences = FileListStorageKeys.preferences
         static let legacyColumns = FileListStorageKeys.legacyColumns
         static let viewMode = FileListStorageKeys.viewMode
-        static let thumbnailLayoutMode = FileListStorageKeys.thumbnailLayoutMode
         static let thumbnailCellSize = FileListStorageKeys.thumbnailCellSize
         static let rowHoverHighlight = FileListStorageKeys.rowHoverHighlight
     }
 
-    /// 子目录全景缩略图偏好。
-    enum Panorama {
-        static let expandDepthPolicy = "explorer.panorama.expandDepthPolicy"
+    /// 进程会话恢复（崩溃后安全启动）。
+    enum Session {
+        /// 上次进程是否正常退出；为 false 表示可能崩溃/强杀。
+        static let exitedCleanly = "explorer.session.exitedCleanly"
     }
 
     /// 窗口与面板布局。

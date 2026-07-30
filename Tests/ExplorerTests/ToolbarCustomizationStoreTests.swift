@@ -54,7 +54,7 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
         )
         XCTAssertEqual(
             mainIDs[mainIDs.firstIndex(of: ToolbarBuiltinID.thumbnailView.rawValue)! + 1],
-            ToolbarBuiltinID.panoramaView.rawValue
+            ToolbarBuiltinID.recordOperations.rawValue
         )
 
         let trailingIDs = layout.items(in: .trailing).map(\.id)

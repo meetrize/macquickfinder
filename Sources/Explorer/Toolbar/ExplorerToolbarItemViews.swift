@@ -328,7 +328,7 @@ struct ExplorerToolbarItemView: View {
     }
 
     private var browseSettingsMenuActions: [ExplorerToolbarMenuAction] {
-        var actions: [ExplorerToolbarMenuAction] = [
+        [
             ExplorerToolbarMenuAction(
                 title: L10n.Toolbar.autoFolderSize,
                 isOn: environment.autoCalculateDirectorySizes,
@@ -340,36 +340,6 @@ struct ExplorerToolbarItemView: View {
                 handler: environment.toggleUseIconPreview
             ),
         ]
-
-        guard environment.fileListViewMode == .thumbnail,
-              environment.layout.thumbnailLayoutMode == .panorama else {
-            return actions
-        }
-
-        actions.append(
-            ExplorerToolbarMenuAction(
-                title: L10n.Toolbar.panoramaExpandAll,
-                handler: { PanoramaTreeControllerBridge.controller?.expandAll() }
-            )
-        )
-        actions.append(
-            ExplorerToolbarMenuAction(
-                title: L10n.Toolbar.panoramaCollapseAll,
-                handler: { PanoramaTreeControllerBridge.controller?.collapseAll() }
-            )
-        )
-
-        for policy in PanoramaExpandDepthPolicy.allCases {
-            actions.append(
-                ExplorerToolbarMenuAction(
-                    title: "\(L10n.Toolbar.panoramaExpandDepth): \(policy.displayName)",
-                    isSelected: environment.layout.panoramaExpandDepthPolicy == policy,
-                    handler: { environment.layout.setPanoramaExpandDepthPolicy(policy) }
-                )
-            )
-        }
-
-        return actions
     }
 
     private func iconForBuiltin(_ builtin: ToolbarBuiltinID) -> LucideIcon {
@@ -430,8 +400,6 @@ struct ExplorerToolbarItemView: View {
             return L10n.Toolbar.listView
         case .thumbnailView:
             return L10n.Toolbar.thumbnailView
-        case .panoramaView:
-            return L10n.Toolbar.panoramaMode
         default:
             return nil
         }
@@ -511,15 +479,7 @@ extension ToolbarBuiltinID {
         case .listView:
             return .list(isActive: environment.fileListViewMode == .list)
         case .thumbnailView:
-            return .layoutGrid(
-                isActive: environment.fileListViewMode == .thumbnail
-                    && environment.layout.thumbnailLayoutMode == .grid
-            )
-        case .panoramaView:
-            return .folderTree(
-                isActive: environment.fileListViewMode == .thumbnail
-                    && environment.layout.thumbnailLayoutMode == .panorama
-            )
+            return .layoutGrid(isActive: environment.fileListViewMode == .thumbnail)
         case .thumbnailSizeSlider, .sortMenu, .browseSettingsMenu:
             return .settings
         }

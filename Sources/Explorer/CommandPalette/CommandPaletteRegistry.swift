@@ -419,16 +419,6 @@ enum CommandPaletteRegistry {
             perform: { ToolbarBuiltinDispatcher.perform(.thumbnailView, environment: $0.toolbarEnvironment) }
         ),
         CommandPaletteDefinition(
-            id: "view_panorama",
-            title: { _ in L10n.Toolbar.panoramaMode },
-            category: L10n.Help.sectionTitle("navigation"),
-            keywords: ["panorama", "全景"],
-            shortcutDisplay: nil,
-            priority: 53,
-            isEnabled: { _ in true },
-            perform: { ToolbarBuiltinDispatcher.perform(.panoramaView, environment: $0.toolbarEnvironment) }
-        ),
-        CommandPaletteDefinition(
             id: "toggle_hidden_files",
             title: { context in
                 context.showHiddenFiles ? L10n.Toolbar.hideHiddenFiles : L10n.Toolbar.showHiddenFiles

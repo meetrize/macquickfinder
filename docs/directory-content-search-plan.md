@@ -389,7 +389,7 @@ flowchart TD
 - [ ] `FileListTableInteraction` 增加 `isContentSearchActive: Bool`
 - [ ] `handleQuickSearchKeys`：若 active，直接 return false（不消费字母键）
 - [ ] ContentView 传入：`searchMode == .content && !contentQuery.isEmpty`
-- [ ] 内容搜索时列表不可见，但缩略图/panorama 切换路径需一致
+- [ ] 内容搜索时列表不可见，但缩略图切换路径需一致
 
 **验收**：
 
