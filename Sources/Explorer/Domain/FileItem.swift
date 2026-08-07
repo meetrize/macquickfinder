@@ -8,6 +8,8 @@ enum SortOrder: String, CaseIterable, Identifiable {
     case nameDescending = "Name (Z to A)"
     case dateNewest = "Date (Newest First)"
     case dateOldest = "Date (Oldest First)"
+    case dateAddedNewest = "Date Added (Newest First)"
+    case dateAddedOldest = "Date Added (Oldest First)"
     case sizeSmallest = "Size (Smallest First)"
     case sizeLargest = "Size (Largest First)"
     
@@ -19,6 +21,8 @@ enum SortOrder: String, CaseIterable, Identifiable {
         case .nameDescending: return L10n.Sort.nameDescending
         case .dateNewest: return L10n.Sort.dateNewest
         case .dateOldest: return L10n.Sort.dateOldest
+        case .dateAddedNewest: return L10n.Sort.dateAddedNewest
+        case .dateAddedOldest: return L10n.Sort.dateAddedOldest
         case .sizeSmallest: return L10n.Sort.sizeSmallest
         case .sizeLargest: return L10n.Sort.sizeLargest
         }
@@ -58,14 +62,52 @@ struct FileItem: Identifiable, Hashable {
     let isDirectory: Bool
     let modificationDate: Date
     let creationDate: Date
+    let addedToDirectoryDate: Date
     let size: Int64
     let isHidden: Bool
     let fileType: String
     let sizeDisplay: String
     let dateDisplay: String
     let creationDateDisplay: String
+    let addedDateDisplay: String
     let finderComment: String
     let tags: [String]
+    
+    init(
+        id: String,
+        url: URL,
+        name: String,
+        isDirectory: Bool,
+        modificationDate: Date,
+        creationDate: Date,
+        size: Int64,
+        isHidden: Bool,
+        fileType: String,
+        sizeDisplay: String,
+        dateDisplay: String,
+        creationDateDisplay: String,
+        finderComment: String,
+        tags: [String],
+        addedToDirectoryDate: Date = .distantPast,
+        addedDateDisplay: String = ""
+    ) {
+        self.id = id
+        self.url = url
+        self.name = name
+        self.isDirectory = isDirectory
+        self.modificationDate = modificationDate
+        self.creationDate = creationDate
+        self.addedToDirectoryDate = addedToDirectoryDate
+        self.size = size
+        self.isHidden = isHidden
+        self.fileType = fileType
+        self.sizeDisplay = sizeDisplay
+        self.dateDisplay = dateDisplay
+        self.creationDateDisplay = creationDateDisplay
+        self.addedDateDisplay = addedDateDisplay
+        self.finderComment = finderComment
+        self.tags = tags
+    }
     
     var isParentDirectoryEntry: Bool {
         id == Self.parentDirectoryID
@@ -105,7 +147,9 @@ struct FileItem: Identifiable, Hashable {
             dateDisplay: dateDisplay,
             creationDateDisplay: creationDateDisplay,
             finderComment: comment,
-            tags: tags
+            tags: tags,
+            addedToDirectoryDate: addedToDirectoryDate,
+            addedDateDisplay: addedDateDisplay
         )
     }
     

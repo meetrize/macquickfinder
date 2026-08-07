@@ -9,6 +9,7 @@ final class FileListSortEngineTests: XCTestCase {
         fileType: String = "txt",
         size: Int64 = 0,
         date: Date = .distantPast,
+        addedDate: Date = .distantPast,
         isParent: Bool = false
     ) -> FileListRow {
         FileListRow(
@@ -19,6 +20,7 @@ final class FileListSortEngineTests: XCTestCase {
             dateDisplay: "",
             size: size,
             modificationDate: date,
+            addedToDirectoryDate: addedDate,
             isDirectory: false,
             isHidden: false,
             isParentDirectoryEntry: isParent,
@@ -88,5 +90,38 @@ final class FileListSortEngineTests: XCTestCase {
         )
         
         XCTAssertEqual(sorted.map(\.fileType), ["txt", "zip"])
+    }
+    
+    func testSortByDateAddedNewestFirst() {
+        let older = Date(timeIntervalSince1970: 100)
+        let newer = Date(timeIntervalSince1970: 200)
+        let rows = [
+            row(id: "old", name: "old", addedDate: older),
+            row(id: "new", name: "new", addedDate: newer)
+        ]
+        
+        let sorted = FileListSortEngine.sorted(
+            rows,
+            by: FileListSortState(column: .dateAdded, ascending: false)
+        )
+        
+        XCTAssertEqual(sorted.map(\.id), ["new", "old"])
+        XCTAssertFalse(FileListSortEngine.defaultAscending(for: .dateAdded))
+    }
+    
+    func testSortByDateAddedOldestFirst() {
+        let older = Date(timeIntervalSince1970: 100)
+        let newer = Date(timeIntervalSince1970: 200)
+        let rows = [
+            row(id: "new", name: "new", addedDate: newer),
+            row(id: "old", name: "old", addedDate: older)
+        ]
+        
+        let sorted = FileListSortEngine.sorted(
+            rows,
+            by: FileListSortState(column: .dateAdded, ascending: true)
+        )
+        
+        XCTAssertEqual(sorted.map(\.id), ["old", "new"])
     }
 }

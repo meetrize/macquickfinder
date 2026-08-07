@@ -8,6 +8,7 @@ enum L10n {
         static var size: String { ModuleLocalization.localized("column.size", bundle: .module) }
         static var dateModified: String { ModuleLocalization.localized("column.date_modified", bundle: .module) }
         static var dateCreated: String { ModuleLocalization.localized("column.date_created", bundle: .module) }
+        static var dateAdded: String { ModuleLocalization.localized("column.date_added", bundle: .module) }
         static var comment: String { ModuleLocalization.localized("column.comment", bundle: .module) }
         static var tags: String { ModuleLocalization.localized("column.tags", bundle: .module) }
         static var moveLeft: String { ModuleLocalization.localized("column.move_left", bundle: .module) }

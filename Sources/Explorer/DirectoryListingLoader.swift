@@ -28,6 +28,7 @@ enum DirectoryListingLoader {
         ]
         if !lightweight {
             keys.insert(.creationDateKey)
+            keys.insert(.addedToDirectoryDateKey)
             keys.insert(.tagNamesKey)
         }
         return keys

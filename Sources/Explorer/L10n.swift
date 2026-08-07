@@ -911,6 +911,8 @@ enum L10n {
         static var nameDescending: String { ModuleLocalization.localized("sort.name_descending", bundle: .module) }
         static var dateNewest: String { ModuleLocalization.localized("sort.date_newest", bundle: .module) }
         static var dateOldest: String { ModuleLocalization.localized("sort.date_oldest", bundle: .module) }
+        static var dateAddedNewest: String { ModuleLocalization.localized("sort.date_added_newest", bundle: .module) }
+        static var dateAddedOldest: String { ModuleLocalization.localized("sort.date_added_oldest", bundle: .module) }
         static var sizeSmallest: String { ModuleLocalization.localized("sort.size_smallest", bundle: .module) }
         static var sizeLargest: String { ModuleLocalization.localized("sort.size_largest", bundle: .module) }
     }

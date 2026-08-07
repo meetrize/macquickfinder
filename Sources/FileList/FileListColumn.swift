@@ -7,6 +7,7 @@ public enum FileListColumnID: String, CaseIterable, Codable, Identifiable, Hasha
     case size
     case dateModified
     case dateCreated
+    case dateAdded
     case comment
     case tags
     
@@ -20,6 +21,7 @@ public enum FileListColumnID: String, CaseIterable, Codable, Identifiable, Hasha
         case .size: return L10n.Column.size
         case .dateModified: return L10n.Column.dateModified
         case .dateCreated: return L10n.Column.dateCreated
+        case .dateAdded: return L10n.Column.dateAdded
         case .comment: return L10n.Column.comment
         case .tags: return L10n.Column.tags
         }
@@ -42,6 +44,7 @@ public enum FileListColumnID: String, CaseIterable, Codable, Identifiable, Hasha
         case .size: return ["Size", "大小"]
         case .dateModified: return ["Date Modified", "修改日期", "修改时间"]
         case .dateCreated: return ["Date Created", "创建日期", "创建时间"]
+        case .dateAdded: return ["Date Added", "添加日期"]
         case .comment: return ["Comment", "注释", "备注"]
         case .tags: return ["Tags", "标签"]
         }
@@ -64,7 +67,9 @@ public enum FileListColumnID: String, CaseIterable, Codable, Identifiable, Hasha
     }
     
     /// 可在表头右键菜单中显示/隐藏、调整顺序的列（不含名称列）
-    public static let menuToggleableCases: [FileListColumnID] = [.type, .size, .dateModified, .dateCreated, .comment, .tags]
+    public static let menuToggleableCases: [FileListColumnID] = [
+        .type, .size, .dateModified, .dateCreated, .dateAdded, .comment, .tags
+    ]
     
     public var isMenuToggleable: Bool {
         Self.menuToggleableCases.contains(self)
@@ -77,6 +82,7 @@ public enum FileListColumnID: String, CaseIterable, Codable, Identifiable, Hasha
         case .size: return 80
         case .dateModified: return 150
         case .dateCreated: return 150
+        case .dateAdded: return 150
         case .comment: return 140
         case .tags: return 140
         }
@@ -89,6 +95,7 @@ public enum FileListColumnID: String, CaseIterable, Codable, Identifiable, Hasha
         case .size: return 100
         case .dateModified: return 180
         case .dateCreated: return 180
+        case .dateAdded: return 180
         case .comment: return 200
         case .tags: return 180
         }
@@ -101,6 +108,7 @@ public enum FileListColumnID: String, CaseIterable, Codable, Identifiable, Hasha
         case .size: return 280
         case .dateModified: return 520
         case .dateCreated: return 520
+        case .dateAdded: return 520
         case .comment: return 640
         case .tags: return 520
         }

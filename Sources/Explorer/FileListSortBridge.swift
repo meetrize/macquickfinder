@@ -11,6 +11,10 @@ extension FileListSortState {
             self.init(column: .dateModified, ascending: false)
         case .dateOldest:
             self.init(column: .dateModified, ascending: true)
+        case .dateAddedNewest:
+            self.init(column: .dateAdded, ascending: false)
+        case .dateAddedOldest:
+            self.init(column: .dateAdded, ascending: true)
         case .sizeSmallest:
             self.init(column: .size, ascending: true)
         case .sizeLargest:
@@ -24,6 +28,8 @@ extension FileListSortState {
             return ascending ? .nameAscending : .nameDescending
         case .dateModified:
             return ascending ? .dateOldest : .dateNewest
+        case .dateAdded:
+            return ascending ? .dateAddedOldest : .dateAddedNewest
         case .size:
             return ascending ? .sizeSmallest : .sizeLargest
         case .type:

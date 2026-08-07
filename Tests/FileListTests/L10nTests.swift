@@ -12,6 +12,7 @@ final class FileListL10nTests: XCTestCase {
         XCTAssertFalse(L10n.Column.name.isEmpty)
         XCTAssertFalse(L10n.Action.newFolder.isEmpty)
         XCTAssertNotEqual(L10n.Column.name, "column.name")
+        XCTAssertNotEqual(L10n.Column.dateAdded, "column.date_added")
     }
 
     func testFileListEnglishStringsMatchCatalog() {
@@ -32,6 +33,10 @@ final class FileListL10nTests: XCTestCase {
         XCTAssertEqual(
             zhBundle.localizedString(forKey: "column.name", value: nil, table: nil),
             "名称"
+        )
+        XCTAssertEqual(
+            zhBundle.localizedString(forKey: "column.date_added", value: nil, table: nil),
+            "添加日期"
         )
     }
 

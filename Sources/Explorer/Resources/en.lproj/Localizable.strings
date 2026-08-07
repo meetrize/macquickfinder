@@ -1062,6 +1062,8 @@
 "snippets.variable_help.column_token" = "Variable";
 "snippets.variable_help.footer" = "Click a variable chip below to insert it at the cursor. Hover for a short description.";
 "snippets.variable_help.show_reference" = "Show Snippet variable reference";
+"sort.date_added_newest" = "Date Added (Newest First)";
+"sort.date_added_oldest" = "Date Added (Oldest First)";
 "sort.date_newest" = "Date (Newest First)";
 "sort.date_oldest" = "Date (Oldest First)";
 "sort.name_ascending" = "Name (A to Z)";

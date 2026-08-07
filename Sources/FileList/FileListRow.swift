@@ -13,11 +13,13 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
     public let childCountDisplay: String?
     public let dateDisplay: String
     public let creationDateDisplay: String
+    public let addedDateDisplay: String
     public let comment: String
     public let tagsDisplay: String
     public let size: Int64
     public let modificationDate: Date
     public let creationDate: Date
+    public let addedToDirectoryDate: Date
     public let isDirectory: Bool
     public let isHidden: Bool
     public let isParentDirectoryEntry: Bool
@@ -44,11 +46,13 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         childCountDisplay: String? = nil,
         dateDisplay: String,
         creationDateDisplay: String = "",
+        addedDateDisplay: String = "",
         comment: String = "",
         tagsDisplay: String = "",
         size: Int64,
         modificationDate: Date,
         creationDate: Date = .distantPast,
+        addedToDirectoryDate: Date = .distantPast,
         isDirectory: Bool,
         isHidden: Bool,
         isParentDirectoryEntry: Bool,
@@ -67,11 +71,13 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
         self.childCountDisplay = childCountDisplay
         self.dateDisplay = dateDisplay
         self.creationDateDisplay = creationDateDisplay
+        self.addedDateDisplay = addedDateDisplay
         self.comment = comment
         self.tagsDisplay = tagsDisplay
         self.size = size
         self.modificationDate = modificationDate
         self.creationDate = creationDate
+        self.addedToDirectoryDate = addedToDirectoryDate
         self.isDirectory = isDirectory
         self.isHidden = isHidden
         self.isParentDirectoryEntry = isParentDirectoryEntry
@@ -92,10 +98,12 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             && childCountDisplay == other.childCountDisplay
             && dateDisplay == other.dateDisplay
             && creationDateDisplay == other.creationDateDisplay
+            && addedDateDisplay == other.addedDateDisplay
             && comment == other.comment
             && tagsDisplay == other.tagsDisplay
             && modificationDate == other.modificationDate
             && creationDate == other.creationDate
+            && addedToDirectoryDate == other.addedToDirectoryDate
             && isDirectory == other.isDirectory
             && isHidden == other.isHidden
             && isParentDirectoryEntry == other.isParentDirectoryEntry
@@ -118,11 +126,13 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             childCountDisplay: childCountDisplay,
             dateDisplay: dateDisplay,
             creationDateDisplay: creationDateDisplay,
+            addedDateDisplay: addedDateDisplay,
             comment: comment,
             tagsDisplay: tagsDisplay,
             size: info.sortableSize,
             modificationDate: modificationDate,
             creationDate: creationDate,
+            addedToDirectoryDate: addedToDirectoryDate,
             isDirectory: isDirectory,
             isHidden: isHidden,
             isParentDirectoryEntry: isParentDirectoryEntry,
@@ -149,11 +159,13 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
                 childCountDisplay: nil,
                 dateDisplay: dateDisplay,
                 creationDateDisplay: creationDateDisplay,
+                addedDateDisplay: addedDateDisplay,
                 comment: comment,
                 tagsDisplay: tagsDisplay,
                 size: size,
                 modificationDate: modificationDate,
                 creationDate: creationDate,
+                addedToDirectoryDate: addedToDirectoryDate,
                 isDirectory: isDirectory,
                 isHidden: isHidden,
                 isParentDirectoryEntry: isParentDirectoryEntry,
@@ -175,11 +187,13 @@ public struct FileListRow: Equatable, Sendable, Identifiable {
             childCountDisplay: info.text,
             dateDisplay: dateDisplay,
             creationDateDisplay: creationDateDisplay,
+            addedDateDisplay: addedDateDisplay,
             comment: comment,
             tagsDisplay: tagsDisplay,
             size: size,
             modificationDate: modificationDate,
             creationDate: creationDate,
+            addedToDirectoryDate: addedToDirectoryDate,
             isDirectory: isDirectory,
             isHidden: isHidden,
             isParentDirectoryEntry: isParentDirectoryEntry,

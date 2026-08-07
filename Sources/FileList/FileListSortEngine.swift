@@ -82,7 +82,7 @@ public enum FileListSortEngine {
         switch column {
         case .name, .type, .size, .comment, .tags:
             return true
-        case .dateModified, .dateCreated:
+        case .dateModified, .dateCreated, .dateAdded:
             return false
         }
     }
@@ -109,6 +109,8 @@ public enum FileListSortEngine {
             return lhs.modificationDate < rhs.modificationDate
         case .dateCreated:
             return lhs.creationDate < rhs.creationDate
+        case .dateAdded:
+            return lhs.addedToDirectoryDate < rhs.addedToDirectoryDate
         case .comment:
             return lhs.comment.localizedStandardCompare(rhs.comment) == .orderedAscending
         case .tags:

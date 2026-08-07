@@ -9,6 +9,7 @@
 "action.paste" = "Paste";
 "action.refresh" = "Refresh";
 "column.comment" = "Comment";
+"column.date_added" = "Date Added";
 "column.date_created" = "Date Created";
 "column.date_modified" = "Date Modified";
 "column.move_left" = "Move Left";

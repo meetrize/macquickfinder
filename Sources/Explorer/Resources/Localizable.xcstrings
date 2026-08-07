@@ -12377,6 +12377,40 @@
         }
       }
     },
+    "sort.date_added_newest": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date Added (Newest First)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加日期（最新优先）"
+          }
+        }
+      }
+    },
+    "sort.date_added_oldest": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date Added (Oldest First)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加日期（最旧优先）"
+          }
+        }
+      }
+    },
     "sort.name_ascending": {
       "extractionState": "manual",
       "localizations": {

@@ -45,6 +45,8 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.File.pasteProgress(2, 5), "file.paste_progress")
         XCTAssertNotEqual(L10n.File.pasteProgressWithName(2, 5, "demo.txt"), "file.paste_progress_with_name")
         XCTAssertNotEqual(L10n.Toolbar.sort, "toolbar.sort")
+        XCTAssertNotEqual(L10n.Sort.dateAddedNewest, "sort.date_added_newest")
+        XCTAssertNotEqual(L10n.Sort.dateAddedOldest, "sort.date_added_oldest")
         XCTAssertNotEqual(L10n.Toolbar.showHiddenFiles, "toolbar.show_hidden_files")
         XCTAssertNotEqual(L10n.Toolbar.hideHiddenFiles, "toolbar.hide_hidden_files")
         XCTAssertNotEqual(L10n.Toolbar.recordOperationsActive, "toolbar.record_operations_active")

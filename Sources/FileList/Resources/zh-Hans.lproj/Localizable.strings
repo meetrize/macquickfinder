@@ -9,6 +9,7 @@
 "action.paste" = "粘贴";
 "action.refresh" = "刷新";
 "column.comment" = "注释";
+"column.date_added" = "添加日期";
 "column.date_created" = "创建日期";
 "column.date_modified" = "修改日期";
 "column.move_left" = "左移";

@@ -164,7 +164,7 @@ enum TrashLoader {
     private static func loadItemsFromFilesystem(showHiddenFiles: Bool) -> [FileItem] {
         let propertyKeys: Set<URLResourceKey> = [
             .isDirectoryKey, .contentModificationDateKey, .creationDateKey,
-            .fileSizeKey, .isHiddenKey, .tagNamesKey
+            .addedToDirectoryDateKey, .fileSizeKey, .isHiddenKey, .tagNamesKey
         ]
         var itemsByPath: [String: FileItem] = [:]
         
@@ -221,6 +221,9 @@ enum TrashLoader {
         let isDirectory = resourceValues?.isDirectory ?? false
         let modDate = resourceValues?.contentModificationDate ?? Date.distantPast
         let creationDate = resourceValues?.creationDate ?? modDate
+        let addedDate = resourceValues?.addedToDirectoryDate
+        let addedToDirectoryDate = addedDate ?? .distantPast
+        let addedDateDisplay = addedDate.map(FileItemFormatters.formatDate) ?? ""
         let size = Int64(resourceValues?.fileSize ?? 0)
         let isHidden = resourceValues?.isHidden ?? fileURL.lastPathComponent.hasPrefix(".")
         let shouldReadComment = includeFinderComment && !skipExtendedMetadata
@@ -239,7 +242,9 @@ enum TrashLoader {
             dateDisplay: FileItemFormatters.formatDate(modDate),
             creationDateDisplay: FileItemFormatters.formatDate(creationDate),
             finderComment: shouldReadComment ? FileItem.finderComment(for: fileURL) : "",
-            tags: skipExtendedMetadata ? [] : (resourceValues?.tagNames ?? [])
+            tags: skipExtendedMetadata ? [] : (resourceValues?.tagNames ?? []),
+            addedToDirectoryDate: addedToDirectoryDate,
+            addedDateDisplay: addedDateDisplay
         )
     }
 }

@@ -43,7 +43,14 @@ final class DirectoryListingLoaderTests: XCTestCase {
         let lightweight = DirectoryListingLoader.propertyKeys(lightweight: true)
         XCTAssertFalse(lightweight.contains(.tagNamesKey))
         XCTAssertFalse(lightweight.contains(.creationDateKey))
+        XCTAssertFalse(lightweight.contains(.addedToDirectoryDateKey))
         XCTAssertTrue(lightweight.contains(.fileSizeKey))
+    }
+
+    func testFullPropertyKeysIncludeAddedToDirectoryDate() {
+        let full = DirectoryListingLoader.propertyKeys(lightweight: false)
+        XCTAssertTrue(full.contains(.addedToDirectoryDateKey))
+        XCTAssertTrue(full.contains(.creationDateKey))
     }
 
     func testLightweightFileItemSkipsFinderComment() throws {

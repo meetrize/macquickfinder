@@ -71,7 +71,9 @@ enum NetworkDirectoryListingLoader {
             dateDisplay: FileItemFormatters.formatDate(modificationDate),
             creationDateDisplay: FileItemFormatters.formatDate(modificationDate),
             finderComment: item.finderComment,
-            tags: item.tags
+            tags: item.tags,
+            addedToDirectoryDate: .distantPast,
+            addedDateDisplay: ""
         )
     }
 
@@ -94,7 +96,9 @@ enum NetworkDirectoryListingLoader {
             dateDisplay: "--",
             creationDateDisplay: "--",
             finderComment: "",
-            tags: []
+            tags: [],
+            addedToDirectoryDate: .distantPast,
+            addedDateDisplay: ""
         )
     }
 

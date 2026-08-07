@@ -171,6 +171,23 @@
         }
       }
     },
+    "column.date_added": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date Added"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加日期"
+          }
+        }
+      }
+    },
     "column.comment": {
       "extractionState": "manual",
       "localizations": {

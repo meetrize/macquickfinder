@@ -1062,6 +1062,8 @@
 "snippets.variable_help.column_token" = "变量";
 "snippets.variable_help.footer" = "点击下方变量按钮可在光标处插入；悬停可查看简要说明。";
 "snippets.variable_help.show_reference" = "查看 Snippet 变量说明";
+"sort.date_added_newest" = "添加日期（最新优先）";
+"sort.date_added_oldest" = "添加日期（最旧优先）";
 "sort.date_newest" = "日期 (最新优先)";
 "sort.date_oldest" = "日期 (最早优先)";
 "sort.name_ascending" = "名称 (A 到 Z)";
