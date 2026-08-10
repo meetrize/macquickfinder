@@ -36,6 +36,8 @@ public struct FileListTableInteraction {
     public var onCurrentDirectoryDropHighlightChanged: (_ isTargeted: Bool) -> Void
     public var onSpacePreview: () -> Void
     public var onQuickSearchMatchSelected: (_ rowID: String) -> Void
+    /// 当前剪贴板中处于「剪切」态的文件路径（`FileListRow.id`）；复制或清空后为空。
+    public var cutItemIDs: Set<String>
     
     public init(
         searchText: String = "",
@@ -71,7 +73,8 @@ public struct FileListTableInteraction {
         performDrop: @escaping (_ destinationPath: String, _ urls: [URL], _ copy: Bool) -> Void = { _, _, _ in },
         onCurrentDirectoryDropHighlightChanged: @escaping (_ isTargeted: Bool) -> Void = { _ in },
         onSpacePreview: @escaping () -> Void = {},
-        onQuickSearchMatchSelected: @escaping (_ rowID: String) -> Void = { _ in }
+        onQuickSearchMatchSelected: @escaping (_ rowID: String) -> Void = { _ in },
+        cutItemIDs: Set<String> = []
     ) {
         self.searchText = searchText
         self.quickSearchText = quickSearchText
@@ -105,6 +108,7 @@ public struct FileListTableInteraction {
         self.onCurrentDirectoryDropHighlightChanged = onCurrentDirectoryDropHighlightChanged
         self.onSpacePreview = onSpacePreview
         self.onQuickSearchMatchSelected = onQuickSearchMatchSelected
+        self.cutItemIDs = cutItemIDs
     }
 }
 

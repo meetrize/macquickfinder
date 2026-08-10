@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import FileList
 
 /// 剪贴板粘贴可用性缓存：轮询 `changeCount` 并 debounce 刷新，避免 SwiftUI 每帧读盘。
 @MainActor
@@ -9,6 +10,8 @@ final class PasteboardPasteAvailability: ObservableObject {
 
     private(set) var cachedState: FileOperations.PasteboardState?
     private(set) var hasCreatableContent = false
+    /// 当前剪切态文件路径（含 standardized）；非剪切或剪贴板清空时为空。
+    @Published private(set) var cutItemPaths: Set<String> = []
 
     private var debounceWorkItem: DispatchWorkItem?
     private var pollTimer: Timer?
@@ -62,6 +65,15 @@ final class PasteboardPasteAvailability: ObservableObject {
         lastChangeCount = NSPasteboard.general.changeCount
         cachedState = FileOperations.pasteboardState()
         hasCreatableContent = ClipboardFileCreation.contentKind() != nil
+        let nextCutPaths: Set<String>
+        if let state = cachedState, state.isCut {
+            nextCutPaths = FileListCutAppearance.pathSet(from: state.urls)
+        } else {
+            nextCutPaths = []
+        }
+        if nextCutPaths != cutItemPaths {
+            cutItemPaths = nextCutPaths
+        }
         objectWillChange.send()
     }
 

@@ -39,7 +39,8 @@ final class FileListThumbnailItem: NSCollectionViewItem {
         isSelected: Bool,
         highlightText: String,
         placeholderImage: NSImage,
-        cellSize: CGFloat
+        cellSize: CGFloat,
+        isCut: Bool = false
     ) {
         representedRowID = row.id
         cellView?.configure(
@@ -47,7 +48,8 @@ final class FileListThumbnailItem: NSCollectionViewItem {
             isSelected: isSelected,
             highlightText: highlightText,
             placeholderImage: placeholderImage,
-            cellSize: cellSize
+            cellSize: cellSize,
+            isCut: isCut
         )
     }
     
@@ -57,8 +59,12 @@ final class FileListThumbnailItem: NSCollectionViewItem {
         cellView?.applyLoadedImage(image, isThumbnail: isThumbnail, animated: animated)
     }
     
-    func updateSelection(_ isSelected: Bool, highlightText: String, row: FileListRow) {
-        cellView?.updateSelection(isSelected, highlightText: highlightText, row: row)
+    func updateSelection(_ isSelected: Bool, highlightText: String, row: FileListRow, isCut: Bool = false) {
+        cellView?.updateSelection(isSelected, highlightText: highlightText, row: row, isCut: isCut)
+    }
+
+    func applyCutAppearance(isCut: Bool) {
+        cellView?.applyCutAppearance(isCut: isCut)
     }
     
     func refreshRowMetadata(_ row: FileListRow) {

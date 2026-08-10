@@ -34,6 +34,7 @@ struct FileListView: View {
     let onNavigateToDirectory: (String) -> Void
     
     private let preferencesStore = FileListPreferencesStore.shared
+    @ObservedObject private var pasteboardAvailability = PasteboardPasteAvailability.shared
     @State private var isCurrentDirectoryDropTargeted = false
     @State private var isQuickSearchFieldFocused = false
     @State private var quickSearchAutoCloseWorkItem: DispatchWorkItem?
@@ -174,6 +175,10 @@ struct FileListView: View {
             if !newValue.isEmpty {
                 expandingDirectoryIDs.removeAll()
             }
+        }
+        .onChange(of: pasteboardAvailability.cutItemPaths) { _ in
+            FileListTableController.shared?.refreshCutItemAppearance()
+            FileListThumbnailController.shared?.refreshCutItemAppearance()
         }
     }
     
@@ -353,7 +358,8 @@ struct FileListView: View {
             },
             onQuickSearchMatchSelected: { _ in
                 showPreview = true
-            }
+            },
+            cutItemIDs: pasteboardAvailability.cutItemPaths
         )
     }
     

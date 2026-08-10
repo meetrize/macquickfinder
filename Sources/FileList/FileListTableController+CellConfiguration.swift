@@ -204,34 +204,74 @@ extension FileListTableController {
             } else {
                 applyNameLabel(in: cell, item: item, isSelected: isSelected, isEmphasized: isEmphasized)
             }
+            applyCutAppearance(to: cell, item: item, columnID: .name)
         case .type:
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.fileType
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
             cell.textField?.textColor = .secondaryLabelColor
+            applyCutAppearance(to: cell, item: item, columnID: .type)
         case .size:
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.sizeDisplay
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
             cell.textField?.textColor = .secondaryLabelColor
+            applyCutAppearance(to: cell, item: item, columnID: .size)
         case .dateModified:
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.dateDisplay
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
             cell.textField?.textColor = .labelColor
+            applyCutAppearance(to: cell, item: item, columnID: .dateModified)
         case .dateCreated:
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.creationDateDisplay
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
             cell.textField?.textColor = .labelColor
+            applyCutAppearance(to: cell, item: item, columnID: .dateCreated)
         case .dateAdded:
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.addedDateDisplay
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
             cell.textField?.textColor = .labelColor
+            applyCutAppearance(to: cell, item: item, columnID: .dateAdded)
         case .comment:
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.comment
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
             cell.textField?.textColor = .secondaryLabelColor
+            applyCutAppearance(to: cell, item: item, columnID: .comment)
         case .tags:
             cell.textField?.stringValue = item.isParentDirectoryEntry ? "" : item.tagsDisplay
             cell.textField?.font = .systemFont(ofSize: NSFont.systemFontSize)
             cell.textField?.textColor = .secondaryLabelColor
+            applyCutAppearance(to: cell, item: item, columnID: .tags)
+        }
+    }
+
+    func applyCutAppearance(to cell: NSTableCellView, item: FileListRow, columnID: FileListColumnID) {
+        let isCut = !item.isParentDirectoryEntry
+            && FileListCutAppearance.isCutItem(id: item.id, cutItemIDs: interaction.cutItemIDs)
+        let alpha = FileListCutAppearance.alpha(isCut: isCut)
+        if columnID == .name {
+            cell.imageView?.alphaValue = alpha
+            disclosureImageView(in: cell)?.alphaValue = alpha
+            nameLabel(in: cell)?.alphaValue = alpha
+            // 重命名输入框保持清晰可读。
+            renameField(in: cell)?.alphaValue = 1
+        } else {
+            cell.textField?.alphaValue = alpha
+        }
+    }
+
+    /// 剪切态变化时刷新可见行半透明效果（不强制整表 reload）。
+    public func refreshCutItemAppearance() {
+        guard let tableView else { return }
+        let visible = tableView.rows(in: tableView.visibleRect)
+        guard visible.length > 0 else { return }
+        for row in visible.location..<(visible.location + visible.length) {
+            guard row >= 0, row < displayRows.count else { continue }
+            let item = displayRows[row]
+            for column in 0..<tableView.numberOfColumns {
+                guard let cell = tableView.view(atColumn: column, row: row, makeIfNecessary: false) as? NSTableCellView,
+                      let columnID = FileListColumnID.from(column: tableView.tableColumns[column])
+                else { continue }
+                applyCutAppearance(to: cell, item: item, columnID: columnID)
+            }
         }
     }
 

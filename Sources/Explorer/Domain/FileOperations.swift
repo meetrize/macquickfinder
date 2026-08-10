@@ -670,6 +670,7 @@ enum FileOperations {
             forType: finderCopyPasteboardType
         )
         recordOperation(.cut(sources: urls))
+        notifyPasteboardAppearanceChanged()
     }
     
     static func copy(_ items: [FileItem]) {
@@ -678,6 +679,7 @@ enum FileOperations {
         pasteboard.clearContents()
         pasteboard.writeObjects(urls as [NSURL])
         recordOperation(.copy(sources: urls))
+        notifyPasteboardAppearanceChanged()
     }
     
     static func copyFilename(_ item: FileItem) {
@@ -889,6 +891,19 @@ enum FileOperations {
     
     private static func clearCutPasteboard() {
         NSPasteboard.general.clearContents()
+        notifyPasteboardAppearanceChanged()
+    }
+
+    private static func notifyPasteboardAppearanceChanged() {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                PasteboardPasteAvailability.shared.refreshNow()
+            }
+        } else {
+            DispatchQueue.main.async {
+                PasteboardPasteAvailability.shared.refreshNow()
+            }
+        }
     }
 
     private static func recordOperation(_ operation: RecordedOperation) {

@@ -20,6 +20,7 @@ final class FileListThumbnailCellView: NSView {
     private var isDropTarget = false
     private var isHoverHighlighted = false
     private var rowHoverHighlightEnabled = false
+    private var isCutItem = false
     private var imagePresentation: ImagePresentation = .icon
     private var representedRow: FileListRow?
     private var configuredCellSize: CGFloat = FileListThumbnailMetrics.defaultCellSize
@@ -238,11 +239,13 @@ final class FileListThumbnailCellView: NSView {
         isSelected: Bool,
         highlightText: String,
         placeholderImage: NSImage,
-        cellSize: CGFloat
+        cellSize: CGFloat,
+        isCut: Bool = false
     ) {
         representedRow = row
         configuredCellSize = cellSize
         isCellSelected = isSelected
+        isCutItem = isCut
         applyImage(placeholderImage, presentation: .icon, animated: false)
         
         nameLabel.attributedStringValue = FileListTextHighlight.attributedOverlayName(
@@ -260,6 +263,7 @@ final class FileListThumbnailCellView: NSView {
         toolTip = nil
         syncSelectionOverlayVisibility()
         updateAppearanceForCurrentTheme()
+        applyCutAppearance()
         needsLayout = true
     }
     
@@ -272,13 +276,17 @@ final class FileListThumbnailCellView: NSView {
         updateAppearanceForCurrentTheme()
     }
 
-    func updateSelection(_ isSelected: Bool, highlightText: String, row: FileListRow) {
+    func updateSelection(_ isSelected: Bool, highlightText: String, row: FileListRow, isCut: Bool = false) {
         representedRow = row
         isCellSelected = isSelected
+        isCutItem = isCut
         if isSelected {
             isHoverHighlighted = false
         }
-        guard renameField.isHidden else { return }
+        guard renameField.isHidden else {
+            applyCutAppearance()
+            return
+        }
         nameLabel.attributedStringValue = FileListTextHighlight.attributedOverlayName(
             row.name,
             searchText: highlightText,
@@ -288,6 +296,7 @@ final class FileListThumbnailCellView: NSView {
         applyFolderItemCountLabel(for: row)
         syncSelectionOverlayVisibility()
         updateAppearanceForCurrentTheme()
+        applyCutAppearance()
         needsLayout = true
     }
     
@@ -367,7 +376,7 @@ final class FileListThumbnailCellView: NSView {
                 self.imageView.wantsLayer = false
             }
             self.updateImageViewFrame()
-            self.imageView.alphaValue = 1
+            self.applyCutAppearance()
             self.needsLayout = true
         }
         
@@ -378,10 +387,24 @@ final class FileListThumbnailCellView: NSView {
         
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.15
-            self.imageView.animator().alphaValue = 0.82
+            self.imageView.animator().alphaValue = min(0.82, FileListCutAppearance.alpha(isCut: self.isCutItem))
         } completionHandler: {
             updateBlock()
         }
+    }
+
+    func applyCutAppearance(isCut: Bool? = nil) {
+        if let isCut {
+            isCutItem = isCut
+        }
+        let alpha = FileListCutAppearance.alpha(isCut: isCutItem)
+        imageView.alphaValue = alpha
+        nameLabel.alphaValue = alpha
+        sizeLabel.alphaValue = alpha
+        countLabel.alphaValue = alpha
+        renameField.alphaValue = 1
+        // 选中描边保持清晰，不随剪切半透明。
+        selectionOverlay.alphaValue = 1
     }
     
     private func updateImageViewFrame() {

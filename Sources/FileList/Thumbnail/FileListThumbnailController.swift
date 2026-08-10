@@ -418,7 +418,8 @@ public final class FileListThumbnailController: FileListContentController {
             isSelected: isRowSelected(row.id),
             highlightText: highlightText,
             placeholderImage: placeholder,
-            cellSize: cellSize
+            cellSize: cellSize,
+            isCut: isCutItem(row)
         )
         item.setRowHoverHighlightEnabled(rowHoverHighlightEnabled)
         
@@ -468,6 +469,11 @@ public final class FileListThumbnailController: FileListContentController {
     private func isRowSelected(_ rowID: String) -> Bool {
         effectiveSelectionIDs().contains(rowID)
     }
+
+    private func isCutItem(_ row: FileListRow) -> Bool {
+        !row.isParentDirectoryEntry
+            && FileListCutAppearance.isCutItem(id: row.id, cutItemIDs: interaction.cutItemIDs)
+    }
     
     func refreshVisibleItemAppearance() {
         guard let collectionView, !isPerformingCollectionUpdate else { return }
@@ -477,10 +483,27 @@ public final class FileListThumbnailController: FileListContentController {
                   indexPath.item < displayRows.count else { continue }
             let row = displayRows[indexPath.item]
             item.setRowHoverHighlightEnabled(rowHoverHighlightEnabled)
-            item.updateSelection(isRowSelected(row.id), highlightText: highlightText, row: row)
+            item.updateSelection(
+                isRowSelected(row.id),
+                highlightText: highlightText,
+                row: row,
+                isCut: isCutItem(row)
+            )
             if item.representedRowID == row.id {
                 item.refreshRowMetadata(row)
             }
+        }
+    }
+
+    /// 剪切态变化时刷新可见缩略图半透明效果。
+    public func refreshCutItemAppearance() {
+        guard let collectionView else { return }
+        for indexPath in collectionView.indexPathsForVisibleItems() {
+            guard let item = collectionView.item(at: indexPath) as? FileListThumbnailItem,
+                  indexPath.item >= 0,
+                  indexPath.item < displayRows.count else { continue }
+            let row = displayRows[indexPath.item]
+            item.applyCutAppearance(isCut: isCutItem(row))
         }
     }
     
