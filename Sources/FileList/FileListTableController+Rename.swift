@@ -53,9 +53,12 @@ extension FileListTableController: FileListRenameUIAdapter {
 
     func cancelRename() {
         FileListRenamePresenter.cancelRename(adapter: self)
+        applyDeferredListingUpdateAfterRenameIfNeeded()
     }
 
     func commitRename(newName: String) {
+        // 提交后会走文件操作刷新；丢弃推迟的旧 listing，避免用过期路径盖回去。
+        clearDeferredListingUpdateWhileRenaming()
         FileListRenamePresenter.commitRename(newName: newName, adapter: self)
     }
 

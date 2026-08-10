@@ -27,6 +27,8 @@ public final class FileListThumbnailController: FileListContentController {
     var mouseDownIndexPath: IndexPath?
     var pendingRenameIndexPath: IndexPath?
     var pendingRenameItemID: String?
+    /// 重命名进行中收到的最新 listing；改名结束后再应用，避免刷新拆掉输入框或自动提交默认名。
+    private var deferredRowsWhileRenaming: [FileListRow]?
     var dropHighlightIndexPath: IndexPath?
     var pendingDropTargetIndexPath: IndexPath?
     var activeDragURLs: [URL]?
@@ -121,6 +123,14 @@ public final class FileListThumbnailController: FileListContentController {
                 applyGridLayout(to: collectionView, cellSize: normalizedCellSize)
             }
         }
+
+        // 内联改名中：不刷新、不自动提交，等用户回车或主动失焦。
+        if isRenaming {
+            deferredRowsWhileRenaming = rows
+            consumePendingRenameIfNeeded()
+            return
+        }
+        deferredRowsWhileRenaming = nil
         
         let plan = prepareListingUpdate(
             rows: rows,
@@ -132,9 +142,6 @@ public final class FileListThumbnailController: FileListContentController {
         if plan.listingChanged {
             thumbnailGenerator.cancelInFlightRequests()
             thumbnailGenerator.clearMemoryCache()
-            if renamingRowID != nil {
-                cancelRenameIfNeededForDataUpdate()
-            }
         }
         
         guard hasInstalledCollectionView else { return }
@@ -279,12 +286,22 @@ public final class FileListThumbnailController: FileListContentController {
         isPerformingCollectionUpdate = true
         defer { isPerformingCollectionUpdate = false }
         
+        // 改名进行中若仍有排队 reload：推迟 listing，勿动当前输入框。
+        if isRenaming {
+            if let pending = pendingDisplayRows {
+                deferredRowsWhileRenaming = pending
+                pendingDisplayRows = nil
+            }
+            pendingCollectionReloadFull = false
+            pendingScrollToTop = false
+            return
+        }
+
         if let pendingDisplayRows {
             displayRows = pendingDisplayRows
             self.pendingDisplayRows = nil
         }
-        
-        cancelRenameIfNeededForDataUpdate()
+
         if pendingCollectionReloadFull {
             collectionView.reloadData()
         } else {
@@ -306,6 +323,27 @@ public final class FileListThumbnailController: FileListContentController {
         scheduleVisibleThumbnailLoad()
         scheduleVisibleDirectoryPathsNotify(debounce: 0.08)
         consumePendingRenameIfNeeded()
+    }
+
+    func clearDeferredListingUpdateWhileRenaming() {
+        deferredRowsWhileRenaming = nil
+    }
+
+    func applyDeferredListingUpdateAfterRenameIfNeeded() {
+        guard let rows = deferredRowsWhileRenaming else { return }
+        deferredRowsWhileRenaming = nil
+        guard !isRenaming else { return }
+        guard let preferencesStore, let selectionGet, let selectionSet else { return }
+        update(
+            rows: rows,
+            interaction: interaction,
+            selectionGet: selectionGet,
+            selectionSet: selectionSet,
+            preferencesStore: preferencesStore,
+            cellSize: cellSize,
+            preferWorkspaceIcons: preferWorkspaceIcons,
+            rowHoverHighlight: rowHoverHighlightEnabled
+        )
     }
 
     public func scheduleRenameAfterListingUpdate(itemID: String) {

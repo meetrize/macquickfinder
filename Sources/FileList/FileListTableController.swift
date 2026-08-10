@@ -17,6 +17,8 @@ public final class FileListTableController: FileListContentController {
     var pendingRenameRow = -1
     var pendingRenameItemID: String?
     var skipRenameArmOnCurrentMouseUp = false
+    /// 重命名进行中收到的最新 listing；改名结束后再应用，避免刷新拆掉输入框或自动提交默认名。
+    private var deferredRowsWhileRenaming: [FileListRow]?
 
     var columnResizeObserver: NSObjectProtocol?
     var columnMoveObserver: NSObjectProtocol?
@@ -136,6 +138,14 @@ public final class FileListTableController: FileListContentController {
             applyColumnLayout(from: preferencesStore.configuration, full: true)
         }
 
+        // 内联改名中：不刷新、不自动提交，等用户回车或主动失焦。
+        if isRenaming {
+            deferredRowsWhileRenaming = rows
+            consumePendingRenameIfNeeded()
+            return
+        }
+        deferredRowsWhileRenaming = nil
+
         let previousDisplayRows = displayRows
         let plan = prepareListingUpdate(
             rows: rows,
@@ -150,9 +160,6 @@ public final class FileListTableController: FileListContentController {
         if plan.listingChanged {
             thumbnailGenerator.cancelInFlightRequests()
             thumbnailGenerator.clearMemoryCache()
-            if renamingRowID != nil {
-                cancelRenameIfNeededForDataUpdate()
-            }
         }
 
         let newDisplay = plan.sortedDisplayRows
@@ -221,6 +228,27 @@ public final class FileListTableController: FileListContentController {
             scheduleVisibleIconPreviewLoad()
         }
         consumePendingRenameIfNeeded()
+    }
+
+    func clearDeferredListingUpdateWhileRenaming() {
+        deferredRowsWhileRenaming = nil
+    }
+
+    /// Esc 取消改名后补上期间被推迟的 listing，避免列表与磁盘脱节。
+    func applyDeferredListingUpdateAfterRenameIfNeeded() {
+        guard let rows = deferredRowsWhileRenaming else { return }
+        deferredRowsWhileRenaming = nil
+        guard !isRenaming else { return }
+        guard let preferencesStore, let selectionGet, let selectionSet else { return }
+        update(
+            rows: rows,
+            interaction: interaction,
+            selectionGet: selectionGet,
+            selectionSet: selectionSet,
+            preferencesStore: preferencesStore,
+            useIconPreview: useIconPreview,
+            rowHoverHighlight: rowHoverHighlightEnabled
+        )
     }
 
     public func scheduleRenameAfterListingUpdate(itemID: String) {

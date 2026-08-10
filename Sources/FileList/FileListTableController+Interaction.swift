@@ -267,7 +267,17 @@ extension FileListTableController {
     }
 
     func handleKeyDown(_ event: NSEvent) -> Bool {
-        if isRenaming { return false }
+        if isRenaming {
+            if event.keyCode == 36 || event.keyCode == 76 {
+                commitActiveRenameIfPossible()
+                return true
+            }
+            if event.keyCode == 53 {
+                cancelRename()
+                return true
+            }
+            return false
+        }
 
         if event.keyCode == 36 || event.keyCode == 76, let tableView {
             let row = tableView.selectedRow

@@ -20,15 +20,15 @@ extension FileListTableController {
             else { continue }
             let item = displayRows[row]
             if renamingRowID == item.id {
-                applyRenameField(in: cell, item: item)
-            } else {
-                applyNameLabel(
-                    in: cell,
-                    item: item,
-                    isSelected: tableView.selectedRowIndexes.contains(row),
-                    isEmphasized: isEmphasized
-                )
+                // 重命名进行中不要重配输入框，避免打断编辑或覆盖已输入文件名。
+                continue
             }
+            applyNameLabel(
+                in: cell,
+                item: item,
+                isSelected: tableView.selectedRowIndexes.contains(row),
+                isEmphasized: isEmphasized
+            )
         }
     }
 }
@@ -310,8 +310,13 @@ extension FileListTableController {
     func applyRenameField(in cell: NSTableCellView, item: FileListRow) {
         nameLabel(in: cell)?.isHidden = true
         guard let field = renameField(in: cell) else { return }
+        // 仅在刚进入重命名态时写入初始名；可见刷新不得覆盖用户已输入内容，
+        // 否则回车/失焦会按原始名提交并被当成「未改名」取消。
+        let wasHidden = field.isHidden
         field.isHidden = false
-        field.stringValue = item.name
+        if wasHidden {
+            field.stringValue = item.name
+        }
         field.font = item.isDirectory
             ? .boldSystemFont(ofSize: NSFont.systemFontSize)
             : .systemFont(ofSize: NSFont.systemFontSize)

@@ -262,7 +262,17 @@ extension FileListThumbnailController {
     }
     
     func handleKeyDown(_ event: NSEvent) -> Bool {
-        if isRenaming { return true }
+        if isRenaming {
+            if event.keyCode == 36 || event.keyCode == 76 {
+                commitActiveRenameIfPossible()
+                return true
+            }
+            if event.keyCode == 53 {
+                cancelRename()
+                return true
+            }
+            return true
+        }
         
         if handleArrowKeyNavigation(event) { return true }
         

@@ -74,9 +74,11 @@ extension FileListThumbnailController: FileListRenameUIAdapter {
 
     func cancelRename() {
         FileListRenamePresenter.cancelRename(adapter: self)
+        applyDeferredListingUpdateAfterRenameIfNeeded()
     }
 
     func commitRename(newName: String) {
+        clearDeferredListingUpdateWhileRenaming()
         FileListRenamePresenter.commitRename(newName: newName, adapter: self)
     }
 

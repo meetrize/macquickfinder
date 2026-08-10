@@ -58,6 +58,8 @@ enum FileListRenamePresenter {
         }
     }
 
+    /// 切目录等场景：丢弃内联改名（不提交）。
+    /// 列表数据刷新时不要调用此方法，也不要自动 commit；应推迟 reload，等用户回车/主动失焦。
     static func cancelIfNeededForDataUpdate(adapter: FileListRenameUIAdapter) {
         adapter.renameCoordinator.cancelForDataUpdate { editing in
             adapter.renameClearPendingTarget()

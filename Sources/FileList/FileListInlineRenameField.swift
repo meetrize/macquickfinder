@@ -88,18 +88,39 @@ final class FileListInlineRenameField: NSTextField {
         guard maxLayoutWidth > 0 else { return }
         updateLayoutWidth(maxAvailableWidth: maxLayoutWidth)
     }
+
+    override func keyDown(with event: NSEvent) {
+        // 部分场景（IME 结束后、field editor 未走 doCommandBy）回车不会进 delegate，这里兜底提交。
+        if event.keyCode == 36 || event.keyCode == 76 {
+            commitFromKeyboard()
+            return
+        }
+        if event.keyCode == 53 {
+            cancelFromKeyboard()
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    private func commitFromKeyboard() {
+        suppressEndEditingCommit = true
+        onCommit?(stringValue)
+    }
+
+    private func cancelFromKeyboard() {
+        cancelledByEscape = true
+        onCancel?()
+    }
 }
 
 extension FileListInlineRenameField: NSTextFieldDelegate {
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         if commandSelector == #selector(NSResponder.insertNewline(_:)) {
-            suppressEndEditingCommit = true
-            onCommit?(stringValue)
+            commitFromKeyboard()
             return true
         }
         if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
-            cancelledByEscape = true
-            onCancel?()
+            cancelFromKeyboard()
             return true
         }
         return false
