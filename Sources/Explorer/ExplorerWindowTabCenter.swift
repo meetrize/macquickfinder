@@ -22,9 +22,11 @@ final class ExplorerWindowTabCenter: ObservableObject {
         case newWindow
     }
 
-    struct PendingMainTabNavigation: Equatable {
+    struct PendingMainTabNavigation {
         let path: String
         let selectionPath: String?
+        /// 源标签当前目录列表；新标签首屏可直接展示，无需等待磁盘枚举。
+        let itemsSnapshot: [FileItem]?
     }
 
     private struct PendingNewTab {
@@ -32,6 +34,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
         let sceneKind: ExplorerWindowSceneKind
         let path: String
         let selectionPath: String?
+        let itemsSnapshot: [FileItem]?
     }
 
     private struct PendingOpen {
@@ -45,12 +48,17 @@ final class ExplorerWindowTabCenter: ObservableObject {
     private var windowSceneKinds: [ObjectIdentifier: ExplorerWindowSceneKind] = [:]
     /// 主场景新建标签时，新窗口 `ContentView` 在挂载 `hostWindow` 后读取并清除。
     private var pendingMainTabNavigations: [ObjectIdentifier: PendingMainTabNavigation] = [:]
+    /// 已合并为标签、需吞掉随后多余的 orderFront，避免激活/失焦闪动。
+    private var suppressOrderFrontWindowIDs: Set<ObjectIdentifier> = []
+    /// 合并后主动 reveal 时放行 orderFront，避免被自己的拦截吞掉。
+    private var isRevealingMergedTab = false
     @Published private(set) var tabBarRevision: UInt = 0
     private var notificationObservers: [NSObjectProtocol] = []
     private var tabDoubleClickMonitor: Any?
 
     private init() {
         installTabDoubleClickMonitor()
+        NSWindowSnapFrameHook.installIfNeeded()
         let center = NotificationCenter.default
         notificationObservers = [
             center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] _ in
@@ -65,6 +73,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
                     let id = ObjectIdentifier(window)
                     self?.windowPaths.removeValue(forKey: id)
                     self?.windowSceneKinds.removeValue(forKey: id)
+                    // 关闭后标签组可能只剩 1 个：等系统更新完再隐藏标签栏。
+                    self?.scheduleHideTabBarIfSingleTab(relatedTo: window)
                 }
             },
         ]
@@ -94,15 +104,24 @@ final class ExplorerWindowTabCenter: ObservableObject {
     /// 新建标签的窗口尚未挂载时，预读待导航目标，避免先加载首页再跳转。
     func peekPendingNewTabNavigation() -> PendingMainTabNavigation? {
         guard let pending = pendingNewTab else { return nil }
-        return PendingMainTabNavigation(path: pending.path, selectionPath: pending.selectionPath)
+        return PendingMainTabNavigation(
+            path: pending.path,
+            selectionPath: pending.selectionPath,
+            itemsSnapshot: pending.itemsSnapshot
+        )
     }
 
     var hasRegisteredWindows: Bool {
         !windowPaths.isEmpty
     }
 
-    /// 在当前窗口组中新建标签页（与标签栏「+」一致：同场景、同路径、直接合并）。
-    func openNewTab(path: String, selectionPath: String? = nil, from sourceWindow: NSWindow?) {
+    /// 在当前窗口组中新建标签页（工具栏 / ⌘T / 系统标签栏「+」：同场景、同路径、直接合并）。
+    func openNewTab(
+        path: String,
+        selectionPath: String? = nil,
+        itemsSnapshot: [FileItem]? = nil,
+        from sourceWindow: NSWindow?
+    ) {
         let anchor = sourceWindow ?? NSApp.keyWindow
         guard let anchor else { return }
 
@@ -121,7 +140,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
             sourceWindow: anchor,
             sceneKind: sceneKind,
             path: path,
-            selectionPath: selectionPath
+            selectionPath: selectionPath,
+            itemsSnapshot: itemsSnapshot
         )
 
         switch sceneKind {
@@ -138,6 +158,28 @@ final class ExplorerWindowTabCenter: ObservableObject {
         }
     }
 
+    /// 窗口即将 orderFront 时拦截：把 pending 新标签直接合并进锚点窗，避免独立窗闪现。
+    /// - Returns: 已处理则返回 `true`，调用方勿再走普通置前。
+    @discardableResult
+    func interceptOrderFrontIfPendingNewTab(_ window: NSWindow) -> Bool {
+        if isRevealingMergedTab { return false }
+
+        let windowID = ObjectIdentifier(window)
+        if suppressOrderFrontWindowIDs.remove(windowID) != nil {
+            // 已合并：吞掉多余 orderFront；若仍不可见则补一次真正置前（勿再藏窗）。
+            if !window.isVisible || window.alphaValue < 0.999 {
+                revealMergedTabWindow(window)
+            }
+            return true
+        }
+        guard let pending = pendingNewTab else { return false }
+        guard pending.sourceWindow !== window else { return false }
+        guard let anchor = pending.sourceWindow else { return false }
+        guard window.tabbingMode != .disallowed else { return false }
+        mergeNewTabWindow(window, into: anchor, pending: pending)
+        return true
+    }
+
     /// 在 `NSWindow` 挂到视图层级时尽早合并，避免独立窗口闪现。
     func attemptTabMerge(for window: NSWindow) {
         guard let pending = pendingNewTab else { return }
@@ -146,22 +188,116 @@ final class ExplorerWindowTabCenter: ObservableObject {
             pendingNewTab = nil
             return
         }
+        mergeNewTabWindow(window, into: anchor, pending: pending)
+    }
 
+    private func mergeNewTabWindow(_ window: NSWindow, into anchor: NSWindow, pending: PendingNewTab) {
         configureExplorerWindow(window)
+        configureExplorerWindow(anchor)
 
-        if window.isVisible {
-            window.orderOut(nil)
+        // 锁定合并前 frame：系统显示标签栏时常把窗口向下撑高，合并后还原。
+        let preservedFrame = anchor.frame
+        let windowAnimation = window.animationBehavior
+        let anchorAnimation = anchor.animationBehavior
+        window.animationBehavior = .none
+        anchor.animationBehavior = .none
+        defer {
+            window.animationBehavior = windowAnimation
+            anchor.animationBehavior = anchorAnimation
         }
-        anchor.addTabbedWindow(window, ordered: .above)
+
+        // 只用透明隐藏，禁止 orderOut——orderOut 后再 addTabbedWindow 会把整组标签窗藏掉。
+        window.setFrame(preservedFrame, display: false)
+        window.alphaValue = 0
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            context.allowsImplicitAnimation = false
+            anchor.addTabbedWindow(window, ordered: .above)
+        }
+
         if pending.sceneKind == .main {
             pendingMainTabNavigations[ObjectIdentifier(window)] = PendingMainTabNavigation(
                 path: pending.path,
-                selectionPath: pending.selectionPath
+                selectionPath: pending.selectionPath,
+                itemsSnapshot: pending.itemsSnapshot
             )
         }
         pendingNewTab = nil
-        window.makeKeyAndOrderFront(nil)
+        window.alphaValue = 1
+
+        restoreFrameIfNeeded(preservedFrame, forTabGroupOf: anchor)
+
+        if let tabGroup = window.tabGroup ?? anchor.tabGroup {
+            tabGroup.selectedWindow = window
+        }
+
+        // 主动置前一次，保证标签组仍在屏幕上；随后吞掉系统重复的 orderFront。
+        revealMergedTabWindow(window)
+        suppressOrderFrontWindowIDs.insert(ObjectIdentifier(window))
+        let mergedID = ObjectIdentifier(window)
+        DispatchQueue.main.async { [weak self] in
+            self?.suppressOrderFrontWindowIDs.remove(mergedID)
+        }
+
         bumpTabBarRevision()
+    }
+
+    private func revealMergedTabWindow(_ window: NSWindow) {
+        isRevealingMergedTab = true
+        defer { isRevealingMergedTab = false }
+        window.alphaValue = 1
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    /// 系统增删标签栏时可能改 frame；还原为操作前尺寸，窗口不向下长高。
+    private func restoreFrameIfNeeded(_ preservedFrame: NSRect, forTabGroupOf window: NSWindow) {
+        let target = window.tabGroup?.selectedWindow ?? window
+        guard abs(target.frame.width - preservedFrame.width) > 0.5
+            || abs(target.frame.height - preservedFrame.height) > 0.5
+            || abs(target.frame.minX - preservedFrame.minX) > 0.5
+            || abs(target.frame.minY - preservedFrame.minY) > 0.5 else {
+            return
+        }
+        let previous = target.animationBehavior
+        target.animationBehavior = .none
+        target.setFrame(preservedFrame, display: true)
+        target.animationBehavior = previous
+    }
+
+    private func scheduleHideTabBarIfSingleTab(relatedTo closingWindow: NSWindow) {
+        // willClose 时 tabGroup 仍可能含即将关闭的窗，延后到下一轮再数。
+        let closingID = ObjectIdentifier(closingWindow)
+        DispatchQueue.main.async { [weak self] in
+            self?.hideTabBarIfSingleTabRemains(excluding: closingID)
+        }
+    }
+
+    private func hideTabBarIfSingleTabRemains(excluding closingID: ObjectIdentifier) {
+        var seenTabGroups = Set<ObjectIdentifier>()
+        for window in NSApp.windows {
+            guard windowPaths[ObjectIdentifier(window)] != nil || windowSceneKinds[ObjectIdentifier(window)] != nil else {
+                continue
+            }
+            guard window.tabbingMode != .disallowed else { continue }
+            guard let tabGroup = window.tabGroup else {
+                continue
+            }
+            let groupID = ObjectIdentifier(tabGroup)
+            guard seenTabGroups.insert(groupID).inserted else { continue }
+
+            let remaining = tabGroup.windows.filter { ObjectIdentifier($0) != closingID && !$0.isMiniaturized }
+            guard remaining.count <= 1, tabGroup.isTabBarVisible else { continue }
+            guard let survivor = remaining.first ?? tabGroup.windows.first else { continue }
+
+            let preservedFrame = survivor.frame
+            let previous = survivor.animationBehavior
+            survivor.animationBehavior = .none
+            survivor.toggleTabBar(nil)
+            restoreFrameIfNeeded(preservedFrame, forTabGroupOf: survivor)
+            survivor.animationBehavior = previous
+            bumpTabBarRevision()
+        }
     }
 
     /// 从当前 key 窗口打开新的独立 Explorer 窗口（⌘N / 菜单 / 工具栏）。
@@ -278,5 +414,27 @@ final class ExplorerWindowTabCenter: ObservableObject {
         let contentTop = window.contentLayoutRect.maxY
         let tabBarHeight: CGFloat = 32
         return windowPoint.y >= contentTop && windowPoint.y <= contentTop + tabBarHeight
+    }
+}
+
+/// 把 TabCenter revision 观察下沉到叶子，避免 ContentView 整树随标签栏变更重绘。
+struct ExplorerTabBarRevisionObserver: View {
+    @ObservedObject private var center = ExplorerWindowTabCenter.shared
+    let hostWindow: NSWindow?
+    @Binding var state: ExplorerTabBarState
+
+    var body: some View {
+        Color.clear
+            .onAppear(perform: sync)
+            .onChange(of: center.tabBarRevision) { _ in
+                sync()
+            }
+    }
+
+    private func sync() {
+        let newState = ExplorerWindowTabCenter.tabBarState(for: hostWindow)
+        if state != newState {
+            state = newState
+        }
     }
 }

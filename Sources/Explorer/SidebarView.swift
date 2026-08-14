@@ -214,7 +214,12 @@ struct SidebarView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
         }
-        .onAppear(perform: refreshDevices)
+        .onAppear {
+            // 挂载卷枚举会碰磁盘；延后到下一帧，避免拖慢新建标签首屏。
+            DispatchQueue.main.async {
+                refreshDevices()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didMountNotification)) { _ in
             refreshDevices()
         }
@@ -398,7 +403,12 @@ struct SidebarRailView: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 10)
         }
-        .onAppear(perform: refreshDevices)
+        .onAppear {
+            // 挂载卷枚举会碰磁盘；延后到下一帧，避免拖慢新建标签首屏。
+            DispatchQueue.main.async {
+                refreshDevices()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didMountNotification)) { _ in
             refreshDevices()
         }

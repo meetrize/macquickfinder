@@ -1089,7 +1089,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func newWindowForTab(_ sender: Any?) {
         Task { @MainActor in
-            // 系统为「新建标签」预创建的壳窗口；关闭后改走独立新窗口逻辑（与 ⌘N 一致）。
+            // 系统为「新建标签」预创建的壳窗口；关闭后走真正的新标签逻辑（与工具栏 / ⌘T 一致）。
             var anchorWindow = NSApp.keyWindow
             if let tabShell = sender as? NSWindow {
                 if let tabGroup = tabShell.tabGroup {
@@ -1099,7 +1099,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
             }
             let path = ExplorerWindowTabCenter.shared.path(for: anchorWindow)
                 ?? FileManager.default.homeDirectoryForCurrentUser.path
-            ExplorerWindowTabCenter.shared.openNewWindow(path: path, from: anchorWindow)
+            ExplorerWindowTabCenter.shared.openNewTab(path: path, from: anchorWindow)
         }
     }
 

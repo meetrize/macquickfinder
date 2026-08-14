@@ -57,16 +57,25 @@ extension NSWindow {
     }
 
     @objc dynamic func mf_snap_orderFront(_ sender: Any?) {
+        if ExplorerWindowTabCenter.shared.interceptOrderFrontIfPendingNewTab(self) {
+            return
+        }
         mf_snap_orderFront(sender)
         WindowSnapCoordinator.shared.windowOrderedFront(self)
     }
 
     @objc dynamic func mf_snap_makeKeyAndOrderFront(_ sender: Any?) {
+        if ExplorerWindowTabCenter.shared.interceptOrderFrontIfPendingNewTab(self) {
+            return
+        }
         mf_snap_makeKeyAndOrderFront(sender)
         WindowSnapCoordinator.shared.windowOrderedFront(self)
     }
 
     @objc dynamic func mf_snap_orderFrontRegardless() {
+        if ExplorerWindowTabCenter.shared.interceptOrderFrontIfPendingNewTab(self) {
+            return
+        }
         mf_snap_orderFrontRegardless()
         WindowSnapCoordinator.shared.windowOrderedFront(self)
     }

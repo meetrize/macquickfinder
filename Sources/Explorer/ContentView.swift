@@ -146,12 +146,33 @@ extension ContentView {
         pendingExternalSelectionPath = navigation.selectionPath.map {
             ExternalSelectionPathMatcher.standardizedPath($0)
         }
+        if let snapshot = navigation.itemsSnapshot, !snapshot.isEmpty, pathMatchesNewTabTarget(navigation.path) {
+            items = snapshot
+        }
         if path != navigation.path {
             path = navigation.path
             return
         }
-        if !applyExternalSelectionImmediatelyIfPossible(), !isLoading {
-            loadItems()
+        if items.isEmpty {
+            if !applyExternalSelectionImmediatelyIfPossible(), !isLoading {
+                loadItems()
+            }
+            return
+        }
+        _ = applyExternalSelectionImmediatelyIfPossible()
+        scheduleSilentListingReconcileAfterSnapshot()
+    }
+
+    private func pathMatchesNewTabTarget(_ targetPath: String) -> Bool {
+        ExternalSelectionPathMatcher.standardizedPath(path)
+            == ExternalSelectionPathMatcher.standardizedPath(targetPath)
+    }
+
+    private func scheduleSilentListingReconcileAfterSnapshot() {
+        let appearedPath = path
+        DispatchQueue.main.async {
+            guard path == appearedPath else { return }
+            loadItems(clearingSelection: false, showsLoadingIndicator: false)
         }
     }
 
@@ -251,7 +272,7 @@ struct ContentView: View {
     /// 不使用 `@ObservedObject`：工具栏草稿拖拽不应重绘整个 ContentView。
     /// 工具栏/自定义面板/右键菜单各自观察 store。
     private let toolbarStore = ToolbarCustomizationStore.shared
-    @ObservedObject private var windowTabCenter = ExplorerWindowTabCenter.shared
+    /// 不直接 `@ObservedObject` TabCenter：revision 变化会重绘整棵 ContentView，新建标签时整窗闪一下。
     @ObservedObject private var detachCoordinator = PreviewDetachCoordinator.shared
     @State private var explorerTabBarState = ExplorerTabBarState.unavailable
     @State private var pendingExternalSelectionPath: String?
@@ -273,6 +294,12 @@ struct ContentView: View {
     @AppStorage(AppPreferences.Search.mode) private var searchModeRaw = DirectorySearchMode.filename.rawValue
     @State private var contentQuery = ""
     @State private var isContentSearchFilterExpanded = false
+    /// 主场景新建标签时在 init 已写入目标路径，避免先落到首页再跳转。
+    private let bootstrappedFromPendingNewTab: Bool
+    /// 已用源标签列表快照填过首屏；首帧后再静默对账。
+    private let bootstrappedWithListingSnapshot: Bool
+    /// 新建标签首帧先占位右侧栏，下一帧再挂预览/片段/Git，缩短可交互时间。
+    @State private var deferHeavyRightPanels: Bool
     
     init(
         initialPath: String? = nil,
@@ -282,7 +309,44 @@ struct ContentView: View {
         self.initialPath = initialPath
         self.initialSelectionPath = initialSelectionPath
         self.windowSceneKind = windowSceneKind
-        _path = State(initialValue: initialPath ?? FileManager.default.homeDirectoryForCurrentUser.path)
+
+        let pendingTab = ExplorerWindowTabCenter.shared.peekPendingNewTabNavigation()
+        let snapshot = pendingTab?.itemsSnapshot
+
+        if let initialPath {
+            _path = State(initialValue: initialPath)
+            let matchedSnapshot: [FileItem]? = {
+                guard let pendingTab, let snapshot, !snapshot.isEmpty else { return nil }
+                let pending = ExternalSelectionPathMatcher.standardizedPath(pendingTab.path)
+                let initial = ExternalSelectionPathMatcher.standardizedPath(initialPath)
+                return pending == initial ? snapshot : nil
+            }()
+            if let matchedSnapshot {
+                _items = State(initialValue: matchedSnapshot)
+                bootstrappedFromPendingNewTab = true
+                bootstrappedWithListingSnapshot = true
+                _deferHeavyRightPanels = State(initialValue: true)
+            } else {
+                bootstrappedFromPendingNewTab = false
+                bootstrappedWithListingSnapshot = false
+                _deferHeavyRightPanels = State(initialValue: false)
+            }
+        } else if windowSceneKind == .main, let pendingTab {
+            _path = State(initialValue: pendingTab.path)
+            if let snapshot, !snapshot.isEmpty {
+                _items = State(initialValue: snapshot)
+                bootstrappedWithListingSnapshot = true
+            } else {
+                bootstrappedWithListingSnapshot = false
+            }
+            bootstrappedFromPendingNewTab = true
+            _deferHeavyRightPanels = State(initialValue: true)
+        } else {
+            _path = State(initialValue: FileManager.default.homeDirectoryForCurrentUser.path)
+            bootstrappedFromPendingNewTab = false
+            bootstrappedWithListingSnapshot = false
+            _deferHeavyRightPanels = State(initialValue: false)
+        }
     }
     
     private let leftPanelConstants = LeftPanelLayoutConstants()
@@ -436,7 +500,13 @@ struct ContentView: View {
                         explorerBrowserColumn
 
                         if layout.showPreview || layout.showSnippets || layout.showGit {
-                            explorerRightPanelColumn(maxPreviewWidth: maxPreviewWidth)
+                            if deferHeavyRightPanels {
+                                Color.clear
+                                    .frame(width: livePreviewPanelWidth)
+                                    .frame(maxHeight: .infinity)
+                            } else {
+                                explorerRightPanelColumn(maxPreviewWidth: maxPreviewWidth)
+                            }
                         }
                     }
                     .animation(nil, value: livePreviewPanelWidth)
@@ -531,6 +601,11 @@ struct ContentView: View {
                 }
             )
         }
+        .background(
+            ExplorerTabBarRevisionObserver(hostWindow: hostWindow, state: $explorerTabBarState)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        )
         .onChange(of: path) { newPath in
             guard let hostWindow else { return }
             ExplorerWindowTabCenter.shared.registerWindow(hostWindow, path: newPath, sceneKind: windowSceneKind)
@@ -558,9 +633,6 @@ struct ContentView: View {
                 return
             }
             refreshListingItem(at: changedPath)
-        }
-        .onChange(of: windowTabCenter.tabBarRevision) { _ in
-            syncExplorerTabBarState()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
             guard let keyWindow = notification.object as? NSWindow,
@@ -595,22 +667,36 @@ struct ContentView: View {
             
             // 初始化时做一次自愈：持久化宽度可能越界。
             layout.healLeftPanelSidebarWidth()
-            scheduleGitRefreshIfPanelVisible(cwd: path)
             if let initialPath {
                 path = initialPath
                 pendingExternalSelectionPath = initialSelectionPath.map {
                     ExternalSelectionPathMatcher.standardizedPath($0)
                 }
-                loadItems()
+                if bootstrappedWithListingSnapshot, !items.isEmpty {
+                    didConsumeLaunchNavigation = true
+                    scheduleSilentListingReconcileAfterSnapshot()
+                } else {
+                    loadItems()
+                }
             } else if windowSceneKind == .main {
                 if didConsumeLaunchNavigation {
                     if items.isEmpty, !isLoading {
                         loadItems()
+                    } else if bootstrappedWithListingSnapshot, !items.isEmpty {
+                        scheduleSilentListingReconcileAfterSnapshot()
                     }
                 } else if let pendingTab = ExplorerWindowTabCenter.shared.peekPendingNewTabNavigation() {
                     // 新建标签：直接落到目标目录，避免先加载首页再跳转。
                     didConsumeLaunchNavigation = true
                     applyPendingExternalNavigationForNewTab(pendingTab)
+                } else if bootstrappedFromPendingNewTab {
+                    // merge 可能已清掉 pending；路径/快照已在 init 预填。
+                    didConsumeLaunchNavigation = true
+                    if items.isEmpty {
+                        if !isLoading { loadItems() }
+                    } else {
+                        scheduleSilentListingReconcileAfterSnapshot()
+                    }
                 } else if let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
                     didConsumeLaunchNavigation = true
                     applyLaunchNavigation(launchRequest)
@@ -623,7 +709,6 @@ struct ContentView: View {
                 loadItems()
             }
             lastRecordedPath = path
-            layout.recordLastOpenedPath(path)
             syncExplorerTabBarState()
             externalFolderOpenCenter.markSessionEstablished()
             lastHandledOpenRequestGeneration = externalFolderOpenCenter.openRequestGeneration
@@ -633,6 +718,16 @@ struct ContentView: View {
                     path: path,
                     sceneKind: windowSceneKind
                 )
+            }
+            // 非首屏关键：延后到下一帧，让标签合并与目录列表先动起来。
+            let appearedPath = path
+            let shouldRevealRightPanels = deferHeavyRightPanels
+            DispatchQueue.main.async {
+                layout.recordLastOpenedPath(appearedPath)
+                scheduleGitRefreshIfPanelVisible(cwd: appearedPath)
+                if shouldRevealRightPanels {
+                    deferHeavyRightPanels = false
+                }
             }
         }
         .onDisappear {
@@ -1176,7 +1271,13 @@ struct ContentView: View {
     }
 
     private func openNewExplorerTab() {
-        ExplorerWindowTabCenter.shared.openNewTab(path: path, from: hostWindow)
+        // 超大目录复制快照会卡住主线程；宁可回退到异步枚举。
+        let snapshot = items.count <= 8_000 ? items : nil
+        ExplorerWindowTabCenter.shared.openNewTab(
+            path: path,
+            itemsSnapshot: snapshot,
+            from: hostWindow
+        )
     }
 
     private func showAllExplorerTabs() {
@@ -1189,7 +1290,10 @@ struct ContentView: View {
     }
 
     private func syncExplorerTabBarState() {
-        explorerTabBarState = ExplorerWindowTabCenter.tabBarState(for: hostWindow)
+        let newState = ExplorerWindowTabCenter.tabBarState(for: hostWindow)
+        if explorerTabBarState != newState {
+            explorerTabBarState = newState
+        }
     }
 
     private var toolbarEnvironment: ExplorerToolbarEnvironment {
@@ -1378,7 +1482,8 @@ struct ContentView: View {
     
     private func loadItems(
         invalidatingPaths: [String] = [],
-        clearingSelection: Bool = true
+        clearingSelection: Bool = true,
+        showsLoadingIndicator: Bool = true
     ) {
         loadGeneration += 1
         let currentGeneration = loadGeneration
@@ -1391,7 +1496,9 @@ struct ContentView: View {
 
         // 保留旧列表直至新结果就绪，避免大目录切换时空白闪烁。
         // 换目录等场景清空选中以防误操作旧项；key 窗对账重载则保留，避免预览被拆掉。
-        isLoading = true
+        if showsLoadingIndicator || items.isEmpty {
+            isLoading = true
+        }
         if clearingSelection {
             selection.removeAll()
         }
