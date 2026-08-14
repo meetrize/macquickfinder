@@ -1075,6 +1075,9 @@
 "toolbar.change_icon" = "Change Icon…";
 "toolbar.change_icon.choose" = "Choose";
 "toolbar.change_icon.prompt" = "Choose an image or icon file for this toolbar button";
+"toolbar.close_other_tabs" = "Close Other Tabs";
+"toolbar.close_tab" = "Close Tab";
+"toolbar.close_tabs_to_the_right" = "Close Tabs to the Right";
 "toolbar.customize" = "Customize Toolbar…";
 "toolbar.customize.add_open_app" = "Add Toolbar Item…";
 "toolbar.customize.cancel" = "Cancel";
@@ -1093,6 +1096,7 @@
 "toolbar.hide_right_panel" = "Hide Right Panel";
 "toolbar.hide_tab_bar" = "Hide Tab Bar";
 "toolbar.list_view" = "List View";
+"toolbar.move_tab_to_new_window" = "Move Tab to New Window";
 "toolbar.new_file" = "New File";
 "toolbar.new_folder" = "New Folder";
 "toolbar.new_tab" = "New Tab";

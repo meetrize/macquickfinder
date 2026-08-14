@@ -387,6 +387,8 @@ enum ToolbarContextMenuHitTesting {
 
     static func isToolbarClick(_ event: NSEvent, in window: NSWindow) -> Bool {
         if isWindowControlClick(event, in: window) { return false }
+        // 标签栏与 unified 标题栏重叠；上半段标签会被误判成工具栏「自定义…」。
+        if ExplorerTabBarHitTesting.isTabBarClick(event, in: window) { return false }
         if window.toolbar?.isVisible == false { return false }
 
         if let hitView = hitView(at: event.locationInWindow, in: window),

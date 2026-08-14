@@ -58,9 +58,11 @@ final class ExplorerWindowTabCenter: ObservableObject {
     @Published private(set) var tabBarRevision: UInt = 0
     private var notificationObservers: [NSObjectProtocol] = []
     private var tabDoubleClickMonitor: Any?
+    private var tabRightClickMonitor: Any?
 
     private init() {
         installTabDoubleClickMonitor()
+        installTabRightClickMonitor()
         NSWindowSnapFrameHook.installIfNeeded()
         let center = NotificationCenter.default
         notificationObservers = [
@@ -445,9 +447,22 @@ final class ExplorerWindowTabCenter: ObservableObject {
         tabDoubleClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
             guard event.clickCount == 2 else { return event }
             guard let window = event.window else { return event }
+            guard ExplorerTabBarHitTesting.isTabBarClick(event, in: window) else { return event }
             guard Self.isRegisteredExplorerWindow(window) else { return event }
-            guard Self.isMouseInTabBar(window, screenLocation: NSEvent.mouseLocation) else { return event }
             window.close()
+            return nil
+        }
+    }
+
+    private func installTabRightClickMonitor() {
+        guard tabRightClickMonitor == nil else { return }
+        tabRightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { event in
+            guard let window = event.window else { return event }
+            guard ExplorerTabBarHitTesting.isTabBarClick(event, in: window) else { return event }
+
+            // 切换选中会取消系统右键菜单；统一弹出对齐系统的完整菜单。
+            let target = ExplorerTabBarHitTesting.activateTabUnderMouse(event: event, in: window)
+            ExplorerTabBarHitTesting.popUpTabContextMenu(for: target, event: event)
             return nil
         }
     }
@@ -460,19 +475,265 @@ final class ExplorerWindowTabCenter: ObservableObject {
             return false
         }
         return shared.windowPaths[ObjectIdentifier(window)] != nil
+            || shared.windowSceneKinds[ObjectIdentifier(window)] != nil
+    }
+}
+
+/// 系统标签栏命中检测：与 unified 工具栏区域重叠，需从工具栏右键逻辑中排除。
+enum ExplorerTabBarHitTesting {
+    private static let tabBarMarkers = [
+        "NSTabBar",
+        "NSThemeTabBar",
+        "NSTabButton",
+        "NSThemeTabBarButton",
+        "TabButton",
+    ]
+
+    static func isTabBarClick(_ event: NSEvent, in window: NSWindow) -> Bool {
+        guard window.tabbingMode != .disallowed else { return false }
+        guard let tabGroup = window.tabGroup, tabGroup.isTabBarVisible, tabGroup.windows.count > 1 else {
+            return false
+        }
+
+        if let hitView = hitView(at: event.locationInWindow, in: window),
+           isInsideTabBar(hitView) {
+            return true
+        }
+        return isInTabBarGeometry(event, in: window)
     }
 
-    /// 标签栏位于内容区正上方的一条窄带内。
-    private static func isMouseInTabBar(_ window: NSWindow, screenLocation: NSPoint) -> Bool {
+    @discardableResult
+    static func activateTabUnderMouse(event: NSEvent, in window: NSWindow) -> NSWindow {
+        guard let tabGroup = window.tabGroup, tabGroup.windows.count > 1 else {
+            if !window.isKeyWindow {
+                window.makeKeyAndOrderFront(nil)
+            }
+            return window
+        }
+
+        let target = tabWindowUnderMouse(event: event, in: window) ?? window
+        if tabGroup.selectedWindow !== target {
+            tabGroup.selectedWindow = target
+        }
+        if !target.isKeyWindow {
+            target.makeKeyAndOrderFront(nil)
+        }
+        return target
+    }
+
+    static func tabWindowUnderMouse(event: NSEvent, in window: NSWindow) -> NSWindow? {
+        tabWindow(at: event, in: window)
+    }
+
+    /// 对齐系统标签栏右键菜单：
+    /// 关闭标签页 / 关闭其他 / 关闭右侧 / 移到新窗口 / 显示所有标签页。
+    static func popUpTabContextMenu(for window: NSWindow, event: NSEvent) {
+        let target = TabBarContextMenuTarget.shared
+        target.window = window
+
+        let tabs = window.tabGroup?.windows ?? [window]
+        let index = tabs.firstIndex(where: { $0 === window }) ?? 0
+        let tabsToRightCount = max(0, tabs.count - index - 1)
+
+        let menu = NSMenu()
+        let closeItem = NSMenuItem(
+            title: L10n.Toolbar.closeTab,
+            action: #selector(TabBarContextMenuTarget.closeTab(_:)),
+            keyEquivalent: ""
+        )
+        closeItem.target = target
+        menu.addItem(closeItem)
+
+        let closeOthersItem = NSMenuItem(
+            title: L10n.Toolbar.closeOtherTabs,
+            action: #selector(TabBarContextMenuTarget.closeOtherTabs(_:)),
+            keyEquivalent: ""
+        )
+        closeOthersItem.target = target
+        closeOthersItem.isEnabled = tabs.count > 1
+        menu.addItem(closeOthersItem)
+
+        let closeRightItem = NSMenuItem(
+            title: L10n.Toolbar.closeTabsToTheRight,
+            action: #selector(TabBarContextMenuTarget.closeTabsToTheRight(_:)),
+            keyEquivalent: ""
+        )
+        closeRightItem.target = target
+        closeRightItem.isEnabled = tabsToRightCount > 0
+        menu.addItem(closeRightItem)
+
+        let moveItem = NSMenuItem(
+            title: L10n.Toolbar.moveTabToNewWindow,
+            action: #selector(TabBarContextMenuTarget.moveTabToNewWindow(_:)),
+            keyEquivalent: ""
+        )
+        moveItem.target = target
+        moveItem.isEnabled = tabs.count > 1
+        menu.addItem(moveItem)
+
+        let showAllItem = NSMenuItem(
+            title: L10n.Toolbar.showAllTabs,
+            action: #selector(TabBarContextMenuTarget.showAllTabs(_:)),
+            keyEquivalent: ""
+        )
+        showAllItem.target = target
+        showAllItem.isEnabled = tabs.count > 1
+        menu.addItem(showAllItem)
+
+        DispatchQueue.main.async {
+            guard let view = window.contentView?.superview ?? window.contentView else { return }
+            let screenPoint = NSEvent.mouseLocation
+            let windowPoint = window.convertPoint(fromScreen: screenPoint)
+            let viewPoint = view.convert(windowPoint, from: nil)
+            menu.popUp(positioning: nil, at: viewPoint, in: view)
+        }
+    }
+
+    private static func tabWindow(at event: NSEvent, in window: NSWindow) -> NSWindow? {
+        guard let tabGroup = window.tabGroup else { return nil }
+        let tabs = tabGroup.windows
+        guard tabs.count > 1 else { return nil }
+        guard let index = tabButtonIndex(at: event.locationInWindow, in: window),
+              tabs.indices.contains(index) else {
+            return nil
+        }
+        return tabs[index]
+    }
+
+    private static func tabButtonIndex(at locationInWindow: NSPoint, in window: NSWindow) -> Int? {
+        guard let tabBar = findTabBar(in: window) else { return nil }
+        let buttons = tabButtons(in: tabBar)
+            .sorted { $0.frame.minX < $1.frame.minX }
+        guard !buttons.isEmpty else { return nil }
+
+        for (index, button) in buttons.enumerated() {
+            let point = button.convert(locationInWindow, from: nil)
+            if button.bounds.contains(point) {
+                return index
+            }
+        }
+        return nil
+    }
+
+    private static func findTabBar(in window: NSWindow) -> NSView? {
+        guard let root = window.contentView?.superview else { return nil }
+        return findSubview(in: root) { view in
+            let name = String(describing: type(of: view))
+            return tabBarMarkers.contains(where: { name.contains($0) && !$0.contains("Button") })
+                || name.contains("NSTabBar")
+                || name.contains("NSThemeTabBar")
+        }
+    }
+
+    private static func tabButtons(in tabBar: NSView) -> [NSView] {
+        var result: [NSView] = []
+        collectTabButtons(from: tabBar, into: &result)
+        if !result.isEmpty { return result }
+
+        // 退化：用可点的子视图近似标签按钮。
+        return tabBar.subviews.filter { subview in
+            let name = String(describing: type(of: subview))
+            return name.contains("Tab") || subview is NSButton || subview.gestureRecognizers.isEmpty == false
+        }
+    }
+
+    private static func collectTabButtons(from view: NSView, into result: inout [NSView]) {
+        let name = String(describing: type(of: view))
+        if name.contains("TabButton") || name.contains("NSTabButton") {
+            result.append(view)
+            return
+        }
+        for subview in view.subviews {
+            collectTabButtons(from: subview, into: &result)
+        }
+    }
+
+    private static func findSubview(in root: NSView, matching: (NSView) -> Bool) -> NSView? {
+        if matching(root) { return root }
+        for subview in root.subviews {
+            if let found = findSubview(in: subview, matching: matching) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private static func isInsideTabBar(_ view: NSView) -> Bool {
+        var current: NSView? = view
+        while let node = current {
+            let name = String(describing: type(of: node))
+            if tabBarMarkers.contains(where: { name.contains($0) }) {
+                return true
+            }
+            current = node.superview
+        }
+        return false
+    }
+
+    private static func isInTabBarGeometry(_ event: NSEvent, in window: NSWindow) -> Bool {
+        let screenLocation = NSEvent.mouseLocation
         guard window.frame.contains(screenLocation) else { return false }
 
         let windowPoint = NSPoint(
             x: screenLocation.x - window.frame.origin.x,
             y: screenLocation.y - window.frame.origin.y
         )
+        // 标签栏紧贴 contentLayoutRect 上方；略放宽高度，覆盖上半段标签。
         let contentTop = window.contentLayoutRect.maxY
-        let tabBarHeight: CGFloat = 32
-        return windowPoint.y >= contentTop && windowPoint.y <= contentTop + tabBarHeight
+        let tabBarHeight: CGFloat = 40
+        let windowTop = window.frame.height
+        return windowPoint.y >= contentTop
+            && windowPoint.y <= min(contentTop + tabBarHeight, windowTop)
+    }
+
+    private static func hitView(at locationInWindow: NSPoint, in window: NSWindow) -> NSView? {
+        guard let root = window.contentView?.superview else { return nil }
+        let point = root.convert(locationInWindow, from: nil)
+        return root.hitTest(point)
+    }
+}
+
+private final class TabBarContextMenuTarget: NSObject {
+    static let shared = TabBarContextMenuTarget()
+    weak var window: NSWindow?
+
+    @objc func closeTab(_ sender: Any?) {
+        window?.performClose(nil)
+        window = nil
+    }
+
+    @objc func closeOtherTabs(_ sender: Any?) {
+        guard let window, let tabGroup = window.tabGroup else { return }
+        let others = tabGroup.windows.filter { $0 !== window }
+        for other in others {
+            other.performClose(nil)
+        }
+        self.window = nil
+    }
+
+    @objc func closeTabsToTheRight(_ sender: Any?) {
+        guard let window, let tabGroup = window.tabGroup else { return }
+        let tabs = tabGroup.windows
+        guard let index = tabs.firstIndex(where: { $0 === window }) else { return }
+        let toClose = Array(tabs.suffix(from: index + 1))
+        for other in toClose {
+            other.performClose(nil)
+        }
+        self.window = nil
+    }
+
+    @objc func moveTabToNewWindow(_ sender: Any?) {
+        guard let window else { return }
+        window.moveTabToNewWindow(nil)
+        // 与 ⌘N 独立窗一致：移出后不再参与标签合并。
+        window.tabbingMode = .disallowed
+        window.makeKeyAndOrderFront(nil)
+        self.window = nil
+    }
+
+    @objc func showAllTabs(_ sender: Any?) {
+        window?.toggleTabOverview(nil)
+        self.window = nil
     }
 }
 

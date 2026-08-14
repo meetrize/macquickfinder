@@ -543,6 +543,10 @@ enum L10n {
         static var hideRightPanel: String { ModuleLocalization.localized("toolbar.hide_right_panel", bundle: .module) }
         static var newWindow: String { ModuleLocalization.localized("toolbar.new_window", bundle: .module) }
         static var newTab: String { ModuleLocalization.localized("toolbar.new_tab", bundle: .module) }
+        static var closeTab: String { ModuleLocalization.localized("toolbar.close_tab", bundle: .module) }
+        static var closeOtherTabs: String { ModuleLocalization.localized("toolbar.close_other_tabs", bundle: .module) }
+        static var closeTabsToTheRight: String { ModuleLocalization.localized("toolbar.close_tabs_to_the_right", bundle: .module) }
+        static var moveTabToNewWindow: String { ModuleLocalization.localized("toolbar.move_tab_to_new_window", bundle: .module) }
         static var showAllTabs: String { ModuleLocalization.localized("toolbar.show_all_tabs", bundle: .module) }
         static var showTabBar: String { ModuleLocalization.localized("toolbar.show_tab_bar", bundle: .module) }
         static var hideTabBar: String { ModuleLocalization.localized("toolbar.hide_tab_bar", bundle: .module) }
