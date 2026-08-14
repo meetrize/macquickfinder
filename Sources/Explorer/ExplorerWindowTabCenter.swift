@@ -52,6 +52,9 @@ final class ExplorerWindowTabCenter: ObservableObject {
     private var suppressOrderFrontWindowIDs: Set<ObjectIdentifier> = []
     /// 合并后主动 reveal 时放行 orderFront，避免被自己的拦截吞掉。
     private var isRevealingMergedTab = false
+    /// 合并/收起标签栏期间锁定外框，阻止系统把窗口撑高造成闪动。
+    private var frameLock: (frame: NSRect, windowTokens: Set<ObjectIdentifier>, groupTokens: Set<ObjectIdentifier>)?
+    private var frameLockReleaseWorkItem: DispatchWorkItem?
     @Published private(set) var tabBarRevision: UInt = 0
     private var notificationObservers: [NSObjectProtocol] = []
     private var tabDoubleClickMonitor: Any?
@@ -166,10 +169,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
 
         let windowID = ObjectIdentifier(window)
         if suppressOrderFrontWindowIDs.remove(windowID) != nil {
-            // 已合并：吞掉多余 orderFront；若仍不可见则补一次真正置前（勿再藏窗）。
-            if !window.isVisible || window.alphaValue < 0.999 {
-                revealMergedTabWindow(window)
-            }
+            // 后台合并的新标签：忽略系统多余置前，避免抢选中态造成闪动。
             return true
         }
         guard let pending = pendingNewTab else { return false }
@@ -195,8 +195,9 @@ final class ExplorerWindowTabCenter: ObservableObject {
         configureExplorerWindow(window)
         configureExplorerWindow(anchor)
 
-        // 锁定合并前 frame：系统显示标签栏时常把窗口向下撑高，合并后还原。
         let preservedFrame = anchor.frame
+        beginFrameLock(preservedFrame, windows: [anchor, window])
+
         let windowAnimation = window.animationBehavior
         let anchorAnimation = anchor.animationBehavior
         window.animationBehavior = .none
@@ -206,63 +207,117 @@ final class ExplorerWindowTabCenter: ObservableObject {
             anchor.animationBehavior = anchorAnimation
         }
 
-        // 只用透明隐藏，禁止 orderOut——orderOut 后再 addTabbedWindow 会把整组标签窗藏掉。
-        window.setFrame(preservedFrame, display: false)
-        window.alphaValue = 0
-
+        // 整段合并放进零时长动画组，中间态尽量不单独上屏。
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0
             context.allowsImplicitAnimation = false
+
+            // 新窗尚未成为选中标签前不要 orderOut，避免牵连整组标签窗。
+            window.setFrame(preservedFrame, display: false)
+
             anchor.addTabbedWindow(window, ordered: .above)
+            applyLockedFrame(preservedFrame, to: anchor)
+            applyLockedFrame(preservedFrame, to: window)
+
+            if pending.sceneKind == .main {
+                pendingMainTabNavigations[ObjectIdentifier(window)] = PendingMainTabNavigation(
+                    path: pending.path,
+                    selectionPath: pending.selectionPath,
+                    itemsSnapshot: pending.itemsSnapshot
+                )
+            }
+            pendingNewTab = nil
+
+            // 关键：新建标签留在后台，继续显示当前标签。
+            // 每个标签都是完整 ContentView，切过去等于整树拆建，同目录下会像「闪一下」。
+            if let tabGroup = window.tabGroup ?? anchor.tabGroup {
+                beginFrameLock(preservedFrame, windows: Array(tabGroup.windows))
+                tabGroup.selectedWindow = anchor
+            }
+
+            applyLockedFrame(preservedFrame, to: anchor)
+            applyLockedFrame(preservedFrame, to: window)
         }
 
-        if pending.sceneKind == .main {
-            pendingMainTabNavigations[ObjectIdentifier(window)] = PendingMainTabNavigation(
-                path: pending.path,
-                selectionPath: pending.selectionPath,
-                itemsSnapshot: pending.itemsSnapshot
-            )
-        }
-        pendingNewTab = nil
-        window.alphaValue = 1
-
-        restoreFrameIfNeeded(preservedFrame, forTabGroupOf: anchor)
-
-        if let tabGroup = window.tabGroup ?? anchor.tabGroup {
-            tabGroup.selectedWindow = window
-        }
-
-        // 主动置前一次，保证标签组仍在屏幕上；随后吞掉系统重复的 orderFront。
-        revealMergedTabWindow(window)
+        // 吞掉系统随后对「新窗」的 orderFront，防止它抢选中态。
         suppressOrderFrontWindowIDs.insert(ObjectIdentifier(window))
         let mergedID = ObjectIdentifier(window)
         DispatchQueue.main.async { [weak self] in
             self?.suppressOrderFrontWindowIDs.remove(mergedID)
         }
 
+        if !anchor.isKeyWindow {
+            anchor.makeKey()
+        }
+
+        // AppKit 可能在合并后异步改选中标签；下一拍再钉回当前标签。
+        let anchorToKeep = anchor
+        DispatchQueue.main.async {
+            if anchorToKeep.tabGroup?.selectedWindow !== anchorToKeep {
+                anchorToKeep.tabGroup?.selectedWindow = anchorToKeep
+            }
+        }
+
+        scheduleFrameLockRelease(after: 0.2, restoring: preservedFrame, window: anchor)
         bumpTabBarRevision()
     }
 
-    private func revealMergedTabWindow(_ window: NSWindow) {
-        isRevealingMergedTab = true
-        defer { isRevealingMergedTab = false }
-        window.alphaValue = 1
-        window.makeKeyAndOrderFront(nil)
+    /// 供 `NSWindow` setFrame hook 查询：合并期间强制外框不变。
+    func lockedFrame(for window: NSWindow) -> NSRect? {
+        guard let lock = frameLock else { return nil }
+        let windowID = ObjectIdentifier(window)
+        if lock.windowTokens.contains(windowID) {
+            return lock.frame
+        }
+        if let group = window.tabGroup, lock.groupTokens.contains(ObjectIdentifier(group)) {
+            return lock.frame
+        }
+        if let group = window.tabGroup {
+            for peer in group.windows where lock.windowTokens.contains(ObjectIdentifier(peer)) {
+                return lock.frame
+            }
+        }
+        return nil
     }
 
-    /// 系统增删标签栏时可能改 frame；还原为操作前尺寸，窗口不向下长高。
-    private func restoreFrameIfNeeded(_ preservedFrame: NSRect, forTabGroupOf window: NSWindow) {
-        let target = window.tabGroup?.selectedWindow ?? window
-        guard abs(target.frame.width - preservedFrame.width) > 0.5
-            || abs(target.frame.height - preservedFrame.height) > 0.5
-            || abs(target.frame.minX - preservedFrame.minX) > 0.5
-            || abs(target.frame.minY - preservedFrame.minY) > 0.5 else {
-            return
+    private func beginFrameLock(_ frame: NSRect, windows: [NSWindow]) {
+        frameLockReleaseWorkItem?.cancel()
+        var windowTokens = Set(windows.map { ObjectIdentifier($0) })
+        var groupTokens = Set<ObjectIdentifier>()
+        for window in windows {
+            guard let group = window.tabGroup else { continue }
+            groupTokens.insert(ObjectIdentifier(group))
+            for peer in group.windows {
+                windowTokens.insert(ObjectIdentifier(peer))
+            }
         }
-        let previous = target.animationBehavior
-        target.animationBehavior = .none
-        target.setFrame(preservedFrame, display: true)
-        target.animationBehavior = previous
+        if let existing = frameLock {
+            windowTokens.formUnion(existing.windowTokens)
+            groupTokens.formUnion(existing.groupTokens)
+        }
+        frameLock = (frame, windowTokens, groupTokens)
+    }
+
+    private func scheduleFrameLockRelease(after delay: TimeInterval, restoring frame: NSRect, window: NSWindow) {
+        frameLockReleaseWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.applyLockedFrame(frame, to: window)
+            if let selected = window.tabGroup?.selectedWindow {
+                self.applyLockedFrame(frame, to: selected)
+            }
+            self.frameLock = nil
+            self.frameLockReleaseWorkItem = nil
+        }
+        frameLockReleaseWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func applyLockedFrame(_ frame: NSRect, to window: NSWindow) {
+        let previous = window.animationBehavior
+        window.animationBehavior = .none
+        window.setFrame(frame, display: false)
+        window.animationBehavior = previous
     }
 
     private func scheduleHideTabBarIfSingleTab(relatedTo closingWindow: NSWindow) {
@@ -291,11 +346,13 @@ final class ExplorerWindowTabCenter: ObservableObject {
             guard let survivor = remaining.first ?? tabGroup.windows.first else { continue }
 
             let preservedFrame = survivor.frame
+            beginFrameLock(preservedFrame, windows: Array(tabGroup.windows))
             let previous = survivor.animationBehavior
             survivor.animationBehavior = .none
             survivor.toggleTabBar(nil)
-            restoreFrameIfNeeded(preservedFrame, forTabGroupOf: survivor)
+            applyLockedFrame(preservedFrame, to: survivor)
             survivor.animationBehavior = previous
+            scheduleFrameLockRelease(after: 0.15, restoring: preservedFrame, window: survivor)
             bumpTabBarRevision()
         }
     }

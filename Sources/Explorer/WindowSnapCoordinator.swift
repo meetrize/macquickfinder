@@ -23,6 +23,11 @@ enum NSWindowSnapFrameHook {
         )
         swizzle(
             NSWindow.self,
+            original: #selector(NSWindow.setFrame(_:display:animate:)),
+            swizzled: #selector(NSWindow.mf_snap_setFrame(_:display:animate:))
+        )
+        swizzle(
+            NSWindow.self,
             original: #selector(NSWindow.orderFront(_:)),
             swizzled: #selector(NSWindow.mf_snap_orderFront(_:))
         )
@@ -47,12 +52,29 @@ enum NSWindowSnapFrameHook {
 
 extension NSWindow {
     @objc dynamic func mf_snap_setFrameOrigin(_ point: NSPoint) {
+        if let locked = ExplorerWindowTabCenter.shared.lockedFrame(for: self) {
+            mf_snap_setFrameOrigin(locked.origin)
+            return
+        }
         mf_snap_setFrameOrigin(point)
         WindowSnapCoordinator.shared.leaderFrameUpdated(self)
     }
 
     @objc dynamic func mf_snap_setFrame(_ frameRect: NSRect, display flag: Bool) {
-        mf_snap_setFrame(frameRect, display: flag)
+        let rect = ExplorerWindowTabCenter.shared.lockedFrame(for: self) ?? frameRect
+        mf_snap_setFrame(rect, display: flag)
+        if ExplorerWindowTabCenter.shared.lockedFrame(for: self) == nil {
+            WindowSnapCoordinator.shared.leaderFrameUpdated(self)
+        }
+    }
+
+    @objc dynamic func mf_snap_setFrame(_ frameRect: NSRect, display flag: Bool, animate: Bool) {
+        if let locked = ExplorerWindowTabCenter.shared.lockedFrame(for: self) {
+            // 标签栏出现时的动画撑高：直接落到锁定 frame，且不动画。
+            mf_snap_setFrame(locked, display: flag, animate: false)
+            return
+        }
+        mf_snap_setFrame(frameRect, display: flag, animate: animate)
         WindowSnapCoordinator.shared.leaderFrameUpdated(self)
     }
 
