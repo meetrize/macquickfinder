@@ -228,37 +228,39 @@ final class ExplorerWindowTabCenter: ObservableObject {
             }
             pendingNewTab = nil
 
-            // 关键：新建标签留在后台，继续显示当前标签。
-            // 每个标签都是完整 ContentView，切过去等于整树拆建，同目录下会像「闪一下」。
+            // 选中新建标签（列表快照已在 init 填好，切换时不应空白闪一下）。
             if let tabGroup = window.tabGroup ?? anchor.tabGroup {
                 beginFrameLock(preservedFrame, windows: Array(tabGroup.windows))
-                tabGroup.selectedWindow = anchor
+                tabGroup.selectedWindow = window
             }
 
             applyLockedFrame(preservedFrame, to: anchor)
             applyLockedFrame(preservedFrame, to: window)
         }
 
-        // 吞掉系统随后对「新窗」的 orderFront，防止它抢选中态。
+        // 激活新标签；随后吞掉系统重复的 orderFront，避免激活→失焦闪动。
+        isRevealingMergedTab = true
+        if !window.isKeyWindow {
+            window.makeKey()
+        }
+        isRevealingMergedTab = false
+
         suppressOrderFrontWindowIDs.insert(ObjectIdentifier(window))
         let mergedID = ObjectIdentifier(window)
+        let newTab = window
         DispatchQueue.main.async { [weak self] in
+            if newTab.tabGroup?.selectedWindow !== newTab {
+                newTab.tabGroup?.selectedWindow = newTab
+            }
+            if !newTab.isKeyWindow {
+                self?.isRevealingMergedTab = true
+                newTab.makeKey()
+                self?.isRevealingMergedTab = false
+            }
             self?.suppressOrderFrontWindowIDs.remove(mergedID)
         }
 
-        if !anchor.isKeyWindow {
-            anchor.makeKey()
-        }
-
-        // AppKit 可能在合并后异步改选中标签；下一拍再钉回当前标签。
-        let anchorToKeep = anchor
-        DispatchQueue.main.async {
-            if anchorToKeep.tabGroup?.selectedWindow !== anchorToKeep {
-                anchorToKeep.tabGroup?.selectedWindow = anchorToKeep
-            }
-        }
-
-        scheduleFrameLockRelease(after: 0.2, restoring: preservedFrame, window: anchor)
+        scheduleFrameLockRelease(after: 0.2, restoring: preservedFrame, window: newTab)
         bumpTabBarRevision()
     }
 
