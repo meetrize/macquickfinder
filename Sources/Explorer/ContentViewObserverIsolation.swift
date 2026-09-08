@@ -1,14 +1,14 @@
 import SwiftUI
 
-/// 将粘贴进度观察隔离在子视图，避免 `PasteOperationCenter` 刷新整棵 ContentView。
+/// 将文件传输进度观察隔离在子视图，避免 `FileTransferCenter` 刷新整棵 ContentView。
 struct PasteProgressBannerOverlay: View {
-    @ObservedObject private var pasteOperationCenter = PasteOperationCenter.shared
+    @ObservedObject private var transferCenter = FileTransferCenter.shared
     var transientNoticeMessage: String?
 
     var body: some View {
         VStack(spacing: 8) {
-            if let pasteProgress = pasteOperationCenter.activeProgress {
-                pasteProgressBanner(pasteProgress)
+            if let progress = transferCenter.activeProgress {
+                transferProgressBanner(progress)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             if let transientNoticeMessage {
@@ -22,22 +22,31 @@ struct PasteProgressBannerOverlay: View {
         }
         .padding(.bottom, 12)
         .animation(.easeInOut(duration: 0.2), value: transientNoticeMessage)
-        .animation(.easeInOut(duration: 0.2), value: pasteOperationCenter.activeProgress)
+        .animation(.easeInOut(duration: 0.2), value: transferCenter.activeProgress)
     }
 
     @ViewBuilder
-    private func pasteProgressBanner(_ progress: PasteOperationCenter.ActiveProgress) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(progress.message)
-                .font(.callout)
-                .lineLimit(2)
-            if progress.showsDeterminateProgress, let fraction = progress.progressFraction {
-                ProgressView(value: fraction)
-                    .progressViewStyle(.linear)
-            } else {
-                ProgressView()
-                    .progressViewStyle(.linear)
+    private func transferProgressBanner(_ progress: FileTransferCenter.ActiveProgress) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(progress.message)
+                    .font(.callout)
+                    .lineLimit(2)
+                if progress.showsDeterminateProgress, let fraction = progress.progressFraction {
+                    ProgressView(value: fraction)
+                        .progressViewStyle(.linear)
+                } else {
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button(L10n.Action.cancel) {
+                FileOperations.cancelActiveTransfer()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
         .frame(maxWidth: 420, alignment: .leading)
         .padding(.horizontal, 14)

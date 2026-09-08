@@ -1001,10 +1001,6 @@ final class ExternalFolderOpenCenter: ObservableObject {
         schedulePendingApplyRetries()
     }
 
-    private func deliverOpenRequestToFrontmostTab(_ request: OpenRequest, anchor: NSWindow) {
-        deliverOpenRequestToWindow(request, window: anchor)
-    }
-
     /// 外部 Reveal 到不同目录：在锚点窗新开标签并落到目标路径 + 选中项。
     private func deliverOpenRequestInNewTab(_ request: OpenRequest, anchor: NSWindow) {
         ExplorerWindowTabCenter.shared.activateExplorerWindow(anchor)

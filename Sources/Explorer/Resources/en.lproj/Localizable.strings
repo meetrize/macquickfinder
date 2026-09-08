@@ -141,6 +141,10 @@
 "file.pasted_image_name" = "Pasted Image.png";
 "file.pasted_markdown_name" = "Pasted Document.md";
 "file.pasted_text_name" = "Pasted Text.txt";
+"file.transfer_copy_progress" = "Copying %1$lld of %2$lld…";
+"file.transfer_copy_progress_with_name" = "Copying %1$lld of %2$lld: %3$@";
+"file.transfer_move_progress" = "Moving %1$lld of %2$lld…";
+"file.transfer_move_progress_with_name" = "Moving %1$lld of %2$lld: %3$@";
 "folder.desktop" = "Desktop";
 "folder.documents" = "Documents";
 "folder.downloads" = "Downloads";

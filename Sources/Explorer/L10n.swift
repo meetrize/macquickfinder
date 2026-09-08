@@ -908,6 +908,40 @@ enum L10n {
                 name
             )
         }
+
+        static func transferCopyProgress(_ completed: Int, _ total: Int) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("file.transfer_copy_progress", bundle: .module),
+                completed,
+                total
+            )
+        }
+
+        static func transferCopyProgressWithName(_ completed: Int, _ total: Int, _ name: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("file.transfer_copy_progress_with_name", bundle: .module),
+                completed,
+                total,
+                name
+            )
+        }
+
+        static func transferMoveProgress(_ completed: Int, _ total: Int) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("file.transfer_move_progress", bundle: .module),
+                completed,
+                total
+            )
+        }
+
+        static func transferMoveProgressWithName(_ completed: Int, _ total: Int, _ name: String) -> String {
+            String(
+                format: ModuleLocalization.localizedFromTable("file.transfer_move_progress_with_name", bundle: .module),
+                completed,
+                total,
+                name
+            )
+        }
     }
 
     enum Sort {

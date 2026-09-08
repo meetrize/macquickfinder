@@ -838,7 +838,7 @@ struct ContentView: View {
             Text(L10n.OperationRecording.discardConfirmMessage)
         }
         .onChange(of: path) { newPath in
-            FileOperations.cancelActivePaste()
+            FileOperations.cancelActiveTransfer()
             let wasHistoryNavigation = isApplyingHistoryNavigation
             if let oldPath = lastRecordedPath, oldPath != newPath, !wasHistoryNavigation {
                 var history = pathNavigation

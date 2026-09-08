@@ -5,15 +5,22 @@ import UniformTypeIdentifiers
 
 enum FileOperations {
     private static let finderCopyPasteboardType = NSPasteboard.PasteboardType("com.apple.finder.copy")
-    private static var activePasteTask: Task<Void, Never>?
+    @MainActor
+    private static var activeTransferTask: Task<Void, Never>?
 
-    /// 切换目录或新粘贴开始时取消仍在进行的后台粘贴。
+    /// 切换目录或新传输开始时取消仍在进行的后台复制 / 移动 / 粘贴。
+    @MainActor
+    static func cancelActiveTransfer() {
+        activeTransferTask?.cancel()
+        activeTransferTask = nil
+        // 必须同步清理：若再包一层 Task，会在 beginTransfer 之后才执行 cancelAll，进度条会被立刻清掉。
+        FileTransferCenter.shared.cancelAll()
+    }
+
+    /// 兼容旧调用名。
+    @MainActor
     static func cancelActivePaste() {
-        activePasteTask?.cancel()
-        activePasteTask = nil
-        Task { @MainActor in
-            PasteOperationCenter.shared.cancelAll()
-        }
+        cancelActiveTransfer()
     }
     
     struct PasteboardState {
@@ -113,42 +120,50 @@ enum FileOperations {
             presentMoveBlockedAlert(reason)
             return
         }
-        
-        let fileManager = FileManager.default
-        var hadError = false
-        var completedPairs: [RecordedFilePair] = []
-        
-        for sourceURL in sourceURLs {
-            let destinationURL = uniqueDestinationURL(
-                for: sourceURL.lastPathComponent,
-                in: destinationDirectory
+
+        Task { @MainActor in
+            cancelActiveTransfer()
+            DirectoryFSEventsMonitor.shared.noteUserInitiatedListingRefresh()
+
+            let revealPolicy = FileTransferCenter.ProgressPolicy.revealPolicy(
+                urls: sourceURLs,
+                copy: copy,
+                destination: destinationDirectory
             )
-            
-            do {
-                if copy {
-                    try fileManager.copyItem(at: sourceURL, to: destinationURL)
-                } else {
-                    try fileManager.moveItem(at: sourceURL, to: destinationURL)
-                }
-                completedPairs.append(RecordedFilePair(source: sourceURL, destination: destinationURL))
-            } catch {
-                NSAlert(error: error).runModal()
-                hadError = true
-                break
-            }
-        }
-        
-        if !hadError {
-            recordOperation(
-                .transferItems(
-                    pairs: completedPairs,
-                    mode: copy ? .copy : .move
+            let transferMode: FileTransferCenter.TransferMode = copy ? .copy : .move
+            let weightPlan = FileTransferCenter.WeightPlan.make(urls: sourceURLs)
+            let sessionID = FileTransferCenter.shared.beginTransfer(
+                mode: transferMode,
+                total: sourceURLs.count,
+                destination: destinationDirectory.path,
+                weightPlan: weightPlan,
+                deferredReveal: revealPolicy == .deferred
+            )
+
+            let urls = sourceURLs
+            activeTransferTask = Task.detached(priority: .userInitiated) {
+                let outcome = performTransfer(
+                    urls: urls,
+                    copy: copy,
+                    to: destinationDirectory,
+                    onProgress: { completed, total, fileName in
+                        Task { @MainActor in
+                            FileTransferCenter.shared.updateTransfer(
+                                sessionID: sessionID,
+                                completed: completed,
+                                total: total,
+                                currentName: fileName
+                            )
+                        }
+                    }
                 )
-            )
-            if let firstDestination = completedPairs.first?.destination {
-                notifyGitWorkingTreeIfNeeded(at: firstDestination)
+                await MainActor.run {
+                    activeTransferTask = nil
+                    FileTransferCenter.shared.finish(sessionID: sessionID)
+                    guard !Task.isCancelled else { return }
+                    finishDragTransfer(outcome: outcome, copy: copy, completion: completion)
+                }
             }
-            completion()
         }
     }
     
@@ -468,7 +483,7 @@ enum FileOperations {
         completion: @escaping (PasteCompletion) -> Void
     ) {
         Task { @MainActor in
-            cancelActivePaste()
+            cancelActiveTransfer()
 
             let state = pasteboardState()
             guard canPaste(with: state, to: destinationDirectory) else { return }
@@ -476,14 +491,14 @@ enum FileOperations {
             DirectoryFSEventsMonitor.shared.noteUserInitiatedListingRefresh()
 
             if state.urls.isEmpty {
-                let sessionID = PasteOperationCenter.shared.beginCreatingFromClipboard(
+                let sessionID = FileTransferCenter.shared.beginCreatingFromClipboard(
                     destination: destinationDirectory.path
                 )
                 let createdURL = await ClipboardFileCreation.createFileAsync(
                     in: destinationDirectory,
                     pasteboard: .general
                 )
-                PasteOperationCenter.shared.finish(sessionID: sessionID)
+                FileTransferCenter.shared.finish(sessionID: sessionID)
                 guard let createdURL else {
                     ClipboardFileCreation.presentCreateFileFailure()
                     completion(PasteCompletion(inlineRenameURL: nil, destinationURLs: []))
@@ -502,18 +517,27 @@ enum FileOperations {
 
             let urls = state.urls
             let isCut = state.isCut
-            let sessionID = PasteOperationCenter.shared.beginFilePaste(
-                total: urls.count,
-                destination: destinationDirectory.path
+            let revealPolicy = FileTransferCenter.ProgressPolicy.revealPolicy(
+                urls: urls,
+                copy: !isCut,
+                destination: destinationDirectory
             )
-            activePasteTask = Task.detached(priority: .userInitiated) {
-                let outcome = performFilePaste(
+            let weightPlan = FileTransferCenter.WeightPlan.make(urls: urls)
+            let sessionID = FileTransferCenter.shared.beginTransfer(
+                mode: .paste,
+                total: urls.count,
+                destination: destinationDirectory.path,
+                weightPlan: weightPlan,
+                deferredReveal: revealPolicy == .deferred
+            )
+            activeTransferTask = Task.detached(priority: .userInitiated) {
+                let outcome = performTransfer(
                     urls: urls,
-                    isCut: isCut,
+                    copy: !isCut,
                     to: destinationDirectory,
                     onProgress: { completed, total, fileName in
                         Task { @MainActor in
-                            PasteOperationCenter.shared.updateFilePaste(
+                            FileTransferCenter.shared.updateTransfer(
                                 sessionID: sessionID,
                                 completed: completed,
                                 total: total,
@@ -523,8 +547,8 @@ enum FileOperations {
                     }
                 )
                 await MainActor.run {
-                    activePasteTask = nil
-                    PasteOperationCenter.shared.finish(sessionID: sessionID)
+                    activeTransferTask = nil
+                    FileTransferCenter.shared.finish(sessionID: sessionID)
                     guard !Task.isCancelled else { return }
                     finishFilePaste(outcome: outcome, isCut: isCut, completion: completion)
                 }
@@ -532,23 +556,23 @@ enum FileOperations {
         }
     }
 
-    private struct FilePasteOutcome {
+    private struct TransferOutcome {
         let completedPairs: [RecordedFilePair]
         let error: Error?
     }
 
-    private static func performFilePaste(
+    private static func performTransfer(
         urls: [URL],
-        isCut: Bool,
+        copy: Bool,
         to destinationDirectory: URL,
         onProgress: ((Int, Int, String) -> Void)? = nil
-    ) -> FilePasteOutcome {
+    ) -> TransferOutcome {
         let fileManager = FileManager.default
         var completedPairs: [RecordedFilePair] = []
 
         for sourceURL in urls {
             if Task.isCancelled {
-                return FilePasteOutcome(completedPairs: completedPairs, error: nil)
+                return TransferOutcome(completedPairs: completedPairs, error: nil)
             }
 
             let destinationURL = uniqueDestinationURL(
@@ -557,24 +581,47 @@ enum FileOperations {
             )
 
             do {
-                if isCut {
-                    try fileManager.moveItem(at: sourceURL, to: destinationURL)
-                } else {
+                if copy {
                     try fileManager.copyItem(at: sourceURL, to: destinationURL)
+                } else {
+                    try fileManager.moveItem(at: sourceURL, to: destinationURL)
                 }
                 completedPairs.append(RecordedFilePair(source: sourceURL, destination: destinationURL))
                 onProgress?(completedPairs.count, urls.count, sourceURL.lastPathComponent)
             } catch {
-                return FilePasteOutcome(completedPairs: completedPairs, error: error)
+                return TransferOutcome(completedPairs: completedPairs, error: error)
             }
         }
 
-        return FilePasteOutcome(completedPairs: completedPairs, error: nil)
+        return TransferOutcome(completedPairs: completedPairs, error: nil)
+    }
+
+    @MainActor
+    private static func finishDragTransfer(
+        outcome: TransferOutcome,
+        copy: Bool,
+        completion: @escaping () -> Void
+    ) {
+        if let error = outcome.error {
+            NSAlert(error: error).runModal()
+            return
+        }
+
+        recordOperation(
+            .transferItems(
+                pairs: outcome.completedPairs,
+                mode: copy ? .copy : .move
+            )
+        )
+        if let firstDestination = outcome.completedPairs.first?.destination {
+            notifyGitWorkingTreeIfNeeded(at: firstDestination)
+        }
+        completion()
     }
 
     @MainActor
     private static func finishFilePaste(
-        outcome: FilePasteOutcome,
+        outcome: TransferOutcome,
         isCut: Bool,
         completion: @escaping (PasteCompletion) -> Void
     ) {

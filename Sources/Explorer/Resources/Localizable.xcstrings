@@ -1106,6 +1106,74 @@
         }
       }
     },
+    "file.transfer_copy_progress": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copying %1$lld of %2$lld…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在复制 %1$lld / %2$lld…"
+          }
+        }
+      }
+    },
+    "file.transfer_copy_progress_with_name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copying %1$lld of %2$lld: %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在复制 %1$lld / %2$lld：%3$@"
+          }
+        }
+      }
+    },
+    "file.transfer_move_progress": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moving %1$lld of %2$lld…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在移动 %1$lld / %2$lld…"
+          }
+        }
+      }
+    },
+    "file.transfer_move_progress_with_name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moving %1$lld of %2$lld: %3$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在移动 %1$lld / %2$lld：%3$@"
+          }
+        }
+      }
+    },
     "dialog.create": {
       "extractionState": "manual",
       "localizations": {

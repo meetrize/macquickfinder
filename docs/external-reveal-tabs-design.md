@@ -1,6 +1,6 @@
 # 外部 Reveal 标签策略（MeoLaunch ↔ MeoFind）
 
-> 状态：**实现中**  
+> 状态：**已实现（待手测确认）**  
 > 日期：2026-09-08  
 > 关联：MeoLaunch Overlay「在访达中显示」→ `open -R` → MeoFind `ExternalFolderOpenCenter`
 
@@ -91,7 +91,9 @@ else:
 
 ## 7. 实现清单
 
-- [ ] `ExplorerWindowTabCenter`：按目录查找窗；合并后强制激活 API
-- [ ] `ExternalFolderOpenCenter`：I2/I3 路由；投递后 deferred apply
-- [ ] `ContentView`：放宽/修正 pending 消费条件 + 重试
-- [ ] 构建安装 MeoFind；按 §6 手测
+- [x] `ExplorerWindowTabCenter`：按目录查找窗；合并后强制激活 API
+- [x] `ExternalFolderOpenCenter`：I2/I3 路由；投递后 deferred apply
+- [x] `ContentView`：放宽/修正 pending 消费条件 + 重试
+- [x] 构建安装 MeoFind；按 §6 手测（待用户确认）
+
+> 状态：**已实现（待手测确认）**

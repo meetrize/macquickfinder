@@ -141,6 +141,10 @@
 "file.pasted_image_name" = "粘贴的图片.png";
 "file.pasted_markdown_name" = "粘贴的文档.md";
 "file.pasted_text_name" = "粘贴的文本.txt";
+"file.transfer_copy_progress" = "正在复制 %1$lld / %2$lld…";
+"file.transfer_copy_progress_with_name" = "正在复制 %1$lld / %2$lld：%3$@";
+"file.transfer_move_progress" = "正在移动 %1$lld / %2$lld…";
+"file.transfer_move_progress_with_name" = "正在移动 %1$lld / %2$lld：%3$@";
 "folder.desktop" = "桌面";
 "folder.documents" = "文稿";
 "folder.downloads" = "下载";
