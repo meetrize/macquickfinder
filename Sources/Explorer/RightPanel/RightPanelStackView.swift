@@ -120,8 +120,7 @@ struct RightPanelStackView: View {
                             dragPreviewHeight = nil
                         }
                     )
-                    .frame(height: VerticalResizeDividerMetrics.hitHeight)
-                    .padding(.vertical, -(VerticalResizeDividerMetrics.hitHeight - VerticalResizeDividerMetrics.visualHeight) / 2)
+                    .verticalResizeDividerChrome()
                 }
 
                 if layout.showSnippets {
@@ -154,9 +153,7 @@ struct RightPanelStackView: View {
                             dragSnippetsHeight = nil
                         }
                     )
-                    .frame(height: VerticalResizeDividerMetrics.hitHeight)
-                    .padding(.vertical, -(VerticalResizeDividerMetrics.hitHeight - VerticalResizeDividerMetrics.visualHeight) / 2)
-                    .zIndex(1)
+                    .verticalResizeDividerChrome()
                 }
 
                 if showPreviewGitDivider {
@@ -174,9 +171,7 @@ struct RightPanelStackView: View {
                             dragPreviewHeight = nil
                         }
                     )
-                    .frame(height: VerticalResizeDividerMetrics.hitHeight)
-                    .padding(.vertical, -(VerticalResizeDividerMetrics.hitHeight - VerticalResizeDividerMetrics.visualHeight) / 2)
-                    .zIndex(1)
+                    .verticalResizeDividerChrome()
                 }
 
                 if layout.showGit {

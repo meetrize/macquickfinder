@@ -1,6 +1,18 @@
 import AppKit
 import SwiftUI
 
+/// 面板分隔条命中/悬停指标（水平、垂直、输出面板顶边共用）。
+enum PanelResizeHandleMetrics {
+    /// 布局占位（细线槽宽/高）。
+    static let visualExtent: CGFloat = 1
+    /// 主栏↔右栏、右栈内部垂直分隔的命中厚度。
+    static let hitExtent: CGFloat = 10
+    /// 输出面板顶边命中（略宽，跨主内容与输出区）。
+    static let outputHitExtent: CGFloat = 12
+    /// Hover / 拖拽时线宽。
+    static let hoverThickness: CGFloat = 3
+}
+
 /// 主窗口各面板之间的实线分界样式（不透明、无渐变、高对比）。
 enum PanelSeparatorStyle {
     private static let colorName = NSColor.Name("MeoFind.PanelSeparator")

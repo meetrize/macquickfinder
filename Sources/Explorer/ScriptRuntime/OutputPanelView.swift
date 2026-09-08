@@ -75,8 +75,9 @@ struct OutputPanelView: View {
                                 dragPanelHeight = nil
                             }
                         )
-                        .frame(height: OutputPanelMetrics.resizeHandleHeight)
-                        .offset(y: -OutputPanelMetrics.resizeHandleHeight)
+                        .frame(height: OutputPanelMetrics.resizeHandleHitHeight)
+                        .offset(y: -OutputPanelMetrics.resizeHandleHitHeight / 2)
+                        .zIndex(1)
                     }
                 }
                 .background(Color(nsColor: .windowBackgroundColor))

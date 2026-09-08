@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// 预览与 Snippets 之间的垂直分隔条：拖拽时分隔条跟随鼠标（窗口坐标），松手后持久化比例。
+/// 预览 / Snippets / Git 之间的垂直分隔条：拖拽时按窗口坐标改高度，松手后持久化。
 struct VerticalResizeDivider: NSViewRepresentable {
     var previewHeight: CGFloat
     var totalHeight: CGFloat
@@ -108,8 +108,21 @@ struct VerticalResizeDivider: NSViewRepresentable {
 }
 
 enum VerticalResizeDividerMetrics {
-    static let visualHeight: CGFloat = 1
-    static let hitHeight: CGFloat = 6
+    static let visualHeight: CGFloat = PanelResizeHandleMetrics.visualExtent
+    static let hitHeight: CGFloat = PanelResizeHandleMetrics.hitExtent
+    static let hoverThickness: CGFloat = PanelResizeHandleMetrics.hoverThickness
+}
+
+extension View {
+    /// 布局只占 `visualHeight`，命中区居中溢出并压在邻面板之上。
+    func verticalResizeDividerChrome() -> some View {
+        frame(height: VerticalResizeDividerMetrics.hitHeight)
+            .padding(
+                .vertical,
+                -(VerticalResizeDividerMetrics.hitHeight - VerticalResizeDividerMetrics.visualHeight) / 2
+            )
+            .zIndex(1)
+    }
 }
 
 final class VerticalResizeDividerNSView: NSView {
@@ -125,7 +138,12 @@ final class VerticalResizeDividerNSView: NSView {
     var dragStartPreviewHeight: CGFloat?
     var dragStartTotalHeight: CGFloat?
 
-    override var isOpaque: Bool { true }
+    private var isHovered = false
+    private var isDragging = false
+
+    /// 叠在邻面板上时上下必须透明，否则会盖住预览/Snippets/Git 内容。
+    override var isOpaque: Bool { false }
+    override var isFlipped: Bool { true }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         bounds.contains(point) ? self : nil
@@ -164,34 +182,54 @@ final class VerticalResizeDividerNSView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        NSCursor.resizeUpDown.push()
+        setHovered(true)
+        NSCursor.resizeUpDown.set()
     }
 
     override func mouseExited(with event: NSEvent) {
-        NSCursor.pop()
+        if !isDragging {
+            setHovered(false)
+        }
     }
 
     override func mouseDown(with event: NSEvent) {
         let windowY = event.locationInWindow.y
         dragStartMouseYWindow = windowY
+        isDragging = true
+        setHovered(true)
+        NSCursor.resizeUpDown.set()
         onDragStart?(windowY)
     }
 
     override func mouseDragged(with event: NSEvent) {
+        NSCursor.resizeUpDown.set()
         onDragChange?(event.locationInWindow.y)
     }
 
     override func mouseUp(with event: NSEvent) {
+        isDragging = false
+        let stillInside = bounds.contains(convert(event.locationInWindow, from: nil))
+        setHovered(stillInside)
+        if stillInside {
+            NSCursor.resizeUpDown.set()
+        }
         onDragEnd?(event.locationInWindow.y)
     }
 
-    override var isFlipped: Bool { true }
-
     override func draw(_ dirtyRect: NSRect) {
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2.0
-        let thickness = PanelSeparatorStyle.hairlineThickness(for: scale)
-        let lineY = floor((bounds.height - thickness) / 2)
+        let idleThickness = PanelSeparatorStyle.hairlineThickness(for: scale)
+        let thickness = (isHovered || isDragging)
+            ? VerticalResizeDividerMetrics.hoverThickness
+            : idleThickness
+        let lineY = floor((bounds.height - thickness) / 2 * scale) / scale
         let lineRect = NSRect(x: bounds.minX, y: lineY, width: bounds.width, height: thickness)
         PanelSeparatorStyle.fill(dirtyRect.intersection(lineRect), in: self)
+    }
+
+    private func setHovered(_ hovered: Bool) {
+        guard isHovered != hovered else { return }
+        isHovered = hovered
+        needsDisplay = true
     }
 }

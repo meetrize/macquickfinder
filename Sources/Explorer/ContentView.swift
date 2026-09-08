@@ -2538,10 +2538,9 @@ private struct HorizontalResizeDivider: NSViewRepresentable {
 
 /// 水平分隔条：布局只占 `visualWidth`，命中区 `hitWidth` 居中溢出并压在邻面板之上。
 private enum HorizontalResizeDividerMetrics {
-    static let visualWidth: CGFloat = 1
-    /// 灰线左右各约 5pt 的连续可拖区域（对齐编辑器分隔条手感）。
-    static let hitWidth: CGFloat = 10
-    static let hoverThickness: CGFloat = 3
+    static let visualWidth: CGFloat = PanelResizeHandleMetrics.visualExtent
+    static let hitWidth: CGFloat = PanelResizeHandleMetrics.hitExtent
+    static let hoverThickness: CGFloat = PanelResizeHandleMetrics.hoverThickness
 }
 
 private extension View {
