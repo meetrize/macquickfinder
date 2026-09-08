@@ -31,15 +31,12 @@ struct GitPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if layout.isGitContentCollapsed {
-                Spacer(minLength: 0)
+            if showsTopSeparator {
                 Divider()
-                topBar(snapshot: displaySnapshot)
-            } else {
-                if showsTopSeparator {
-                    Divider()
-                }
-                topBar(snapshot: displaySnapshot)
+            }
+            topBar(snapshot: displaySnapshot)
+            Divider()
+            if !layout.isGitContentCollapsed {
                 panelBody
             }
         }

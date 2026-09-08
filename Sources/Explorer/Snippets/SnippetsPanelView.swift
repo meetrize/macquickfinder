@@ -42,13 +42,9 @@ struct SnippetsPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if layout.isSnippetsContentCollapsed {
-                Spacer(minLength: 0)
-                Divider()
-                topBar
-            } else {
-                topBar
-                Divider()
+            topBar
+            Divider()
+            if !layout.isSnippetsContentCollapsed {
                 snippetGrid
                 searchBar
             }

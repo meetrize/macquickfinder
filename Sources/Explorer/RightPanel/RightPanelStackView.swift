@@ -22,15 +22,15 @@ struct RightPanelStackView: View {
     @State private var dragSnippetsHeight: CGFloat?
 
     private var previewMinHeight: CGFloat {
-        layout.isPreviewContentCollapsed ? PanelTopBarMetrics.totalHeight : 80
+        layout.isPreviewContentCollapsed ? PanelTopBarMetrics.collapsedChromeHeight : 80
     }
 
     private var snippetsMinHeight: CGFloat {
-        layout.isSnippetsContentCollapsed ? PanelTopBarMetrics.totalHeight : 80
+        layout.isSnippetsContentCollapsed ? PanelTopBarMetrics.collapsedChromeHeight : 80
     }
 
     private var gitMinHeight: CGFloat {
-        layout.isGitContentCollapsed ? PanelTopBarMetrics.totalHeight : GitPanelMetrics.minHeight
+        layout.isGitContentCollapsed ? PanelTopBarMetrics.collapsedChromeHeight : GitPanelMetrics.minHeight
     }
 
     var body: some View {
@@ -182,7 +182,8 @@ struct RightPanelStackView: View {
                         selection: selection,
                         items: items,
                         cwd: cwd,
-                        showsTopSeparator: !showSnippetsGitDivider && !showPreviewGitDivider,
+                        // 仅当 Git 为右栏最上方面板时补顶边线；上方面板折叠态已有标题下 Divider。
+                        showsTopSeparator: !layout.showPreview && !layout.showSnippets,
                         onRevealPath: onRevealGitPath
                     )
                     .frame(height: effectiveGitHeight)
@@ -221,7 +222,7 @@ struct RightPanelStackView: View {
             previewMinHeight: previewMinHeight,
             snippetsMinHeight: snippetsMinHeight,
             gitMinHeight: gitMinHeight,
-            collapsedTitleBarHeight: PanelTopBarMetrics.totalHeight
+            collapsedTitleBarHeight: PanelTopBarMetrics.collapsedChromeHeight
         )
     }
 }
@@ -229,7 +230,10 @@ struct RightPanelStackView: View {
 enum PanelTopBarMetrics {
     static let contentHeight: CGFloat = 28
     static let verticalPadding: CGFloat = 6
+    static let chromeDividerHeight: CGFloat = 1
     static var totalHeight: CGFloat { contentHeight + verticalPadding * 2 }
+    /// 折叠态：标题栏 + 下边缘 Divider，避免被 clip 裁掉。
+    static var collapsedChromeHeight: CGFloat { totalHeight + chromeDividerHeight }
 }
 
 enum OutputPanelMetrics {

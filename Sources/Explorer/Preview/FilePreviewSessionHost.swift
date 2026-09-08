@@ -83,8 +83,8 @@ struct FilePreviewSessionHost: View {
                 )
             )
 
+            Divider()
             if !layout.isPreviewContentCollapsed {
-                Divider()
                 inlinePreviewContent
             }
         }

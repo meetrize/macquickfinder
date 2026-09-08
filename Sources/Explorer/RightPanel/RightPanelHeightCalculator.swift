@@ -136,6 +136,11 @@ enum RightPanelHeightCalculator {
 
     static func snippetsHeight(for input: Input) -> CGFloat {
         guard input.showSnippets else { return 0 }
+
+        if input.isSnippetsContentCollapsed {
+            return input.collapsedTitleBarHeight
+        }
+
         let lower = lowerStackHeight(for: input)
         guard input.showGit else { return lower }
         let gitSection = gitHeight(for: input)

@@ -3,7 +3,7 @@ import XCTest
 
 final class RightPanelHeightCalculatorTests: XCTestCase {
     private let total: CGFloat = 800
-    private let titleBar: CGFloat = PanelTopBarMetrics.totalHeight
+    private let titleBar: CGFloat = PanelTopBarMetrics.collapsedChromeHeight
     private let divider: CGFloat = VerticalResizeDividerMetrics.visualHeight
 
     private func baseInput(
@@ -26,8 +26,8 @@ final class RightPanelHeightCalculatorTests: XCTestCase {
             gitPanelHeight: GitPanelMetrics.defaultHeight,
             dragPreviewHeight: dragHeight,
             dividerHeight: divider,
-            previewMinHeight: 80,
-            snippetsMinHeight: 80,
+            previewMinHeight: previewCollapsed ? titleBar : 80,
+            snippetsMinHeight: snippetsCollapsed ? titleBar : 80,
             gitMinHeight: GitPanelMetrics.minHeight,
             collapsedTitleBarHeight: titleBar
         )
@@ -64,6 +64,10 @@ final class RightPanelHeightCalculatorTests: XCTestCase {
             RightPanelHeightCalculator.previewHeight(for: input),
             total - input.snippetsMinHeight
         )
+        XCTAssertEqual(
+            RightPanelHeightCalculator.snippetsHeight(for: input),
+            titleBar
+        )
     }
 
     func testPreviewCollapsedUsesTitleBarHeight() {
@@ -89,6 +93,21 @@ final class RightPanelHeightCalculatorTests: XCTestCase {
             RightPanelHeightCalculator.allocatedStackHeight(for: input),
             total,
             accuracy: 1
+        )
+    }
+
+    func testBothCollapsedStacksAtTopWithoutFillingTotal() {
+        let input = baseInput(previewCollapsed: true, snippetsCollapsed: true)
+        XCTAssertEqual(RightPanelHeightCalculator.previewHeight(for: input), titleBar)
+        XCTAssertEqual(RightPanelHeightCalculator.snippetsHeight(for: input), titleBar)
+        XCTAssertEqual(
+            RightPanelHeightCalculator.allocatedStackHeight(for: input),
+            titleBar * 2,
+            accuracy: 0.01
+        )
+        XCTAssertLessThan(
+            RightPanelHeightCalculator.allocatedStackHeight(for: input),
+            total
         )
     }
 }

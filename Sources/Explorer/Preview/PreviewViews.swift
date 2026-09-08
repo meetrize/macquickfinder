@@ -165,8 +165,8 @@ private struct FilePreviewEmptyChrome: View {
             .padding(.horizontal, 10)
             .padding(.vertical, PanelTopBarMetrics.verticalPadding)
 
+            Divider()
             if !layout.isPreviewContentCollapsed {
-                Divider()
                 Text(L10n.Preview.emptyState)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

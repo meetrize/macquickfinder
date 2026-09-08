@@ -1,7 +1,7 @@
 import AppKit
 
 enum DetachedPreviewWindowLayoutMetrics {
-    static var previewChromeHeight: CGFloat { PanelTopBarMetrics.totalHeight + chromeDividerHeight }
+    static var previewChromeHeight: CGFloat { PanelTopBarMetrics.collapsedChromeHeight }
 
     /// 略收窄内容宽度，消除图片与窗口左右边缘的细缝。
     static let horizontalImageTrim: CGFloat = 14
@@ -9,7 +9,7 @@ enum DetachedPreviewWindowLayoutMetrics {
     /// 文本类内容（Markdown、代码、表格文本模式等）预览与容器边缘的内边距；图片预览不使用。
     static let textContentInsets: CGFloat = 12
 
-    static let chromeDividerHeight: CGFloat = 1
+    static var chromeDividerHeight: CGFloat { PanelTopBarMetrics.chromeDividerHeight }
 
     /// 布局计量留一点余量，避免圆角 / 分隔线导致底部栏被裁切。
     static let layoutSlack: CGFloat = 2

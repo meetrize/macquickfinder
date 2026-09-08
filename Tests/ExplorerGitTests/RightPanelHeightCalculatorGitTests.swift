@@ -3,7 +3,7 @@ import XCTest
 
 final class RightPanelHeightCalculatorGitTests: XCTestCase {
     private let total: CGFloat = 800
-    private let titleBar: CGFloat = PanelTopBarMetrics.totalHeight
+    private let titleBar: CGFloat = PanelTopBarMetrics.collapsedChromeHeight
     private let divider: CGFloat = VerticalResizeDividerMetrics.visualHeight
 
     private func baseInput(
@@ -27,9 +27,9 @@ final class RightPanelHeightCalculatorGitTests: XCTestCase {
             gitPanelHeight: gitPanelHeight,
             dragPreviewHeight: nil,
             dividerHeight: divider,
-            previewMinHeight: 80,
-            snippetsMinHeight: 80,
-            gitMinHeight: GitPanelMetrics.minHeight,
+            previewMinHeight: previewCollapsed ? titleBar : 80,
+            snippetsMinHeight: snippetsCollapsed ? titleBar : 80,
+            gitMinHeight: gitCollapsed ? titleBar : GitPanelMetrics.minHeight,
             collapsedTitleBarHeight: titleBar
         )
     }
@@ -119,5 +119,54 @@ final class RightPanelHeightCalculatorGitTests: XCTestCase {
         let input = baseInput(showSnippets: false, showGit: true, gitPanelHeight: 500)
         let git = RightPanelHeightCalculator.gitHeight(for: input)
         XCTAssertGreaterThan(git, 360)
+    }
+
+    func testAllCollapsedStacksAtTopWithoutFillingTotal() {
+        let input = baseInput(
+            previewCollapsed: true,
+            snippetsCollapsed: true,
+            gitCollapsed: true
+        )
+        XCTAssertEqual(RightPanelHeightCalculator.previewHeight(for: input), titleBar)
+        XCTAssertEqual(RightPanelHeightCalculator.snippetsHeight(for: input), titleBar)
+        XCTAssertEqual(RightPanelHeightCalculator.gitHeight(for: input), titleBar)
+        XCTAssertEqual(
+            RightPanelHeightCalculator.allocatedStackHeight(for: input),
+            titleBar * 3,
+            accuracy: 0.01
+        )
+        XCTAssertLessThan(
+            RightPanelHeightCalculator.allocatedStackHeight(for: input),
+            total
+        )
+    }
+
+    func testPreviewAndSnippetsCollapsedLeavesGitBelowTitleBars() {
+        let input = baseInput(
+            previewCollapsed: true,
+            snippetsCollapsed: true,
+            gitCollapsed: false,
+            gitPanelHeight: 200
+        )
+        XCTAssertEqual(RightPanelHeightCalculator.previewHeight(for: input), titleBar)
+        XCTAssertEqual(RightPanelHeightCalculator.snippetsHeight(for: input), titleBar)
+        XCTAssertEqual(RightPanelHeightCalculator.gitHeight(for: input), 200, accuracy: 0.01)
+        XCTAssertEqual(
+            RightPanelHeightCalculator.allocatedStackHeight(for: input),
+            titleBar * 2 + 200,
+            accuracy: 1
+        )
+    }
+
+    func testSnippetsCollapsedUsesTitleBarEvenWhenPreviewCollapsed() {
+        let input = baseInput(
+            previewCollapsed: true,
+            snippetsCollapsed: true,
+            gitCollapsed: false,
+            gitPanelHeight: 200
+        )
+        let lower = RightPanelHeightCalculator.lowerStackHeight(for: input)
+        XCTAssertGreaterThan(lower, titleBar + 200)
+        XCTAssertEqual(RightPanelHeightCalculator.snippetsHeight(for: input), titleBar)
     }
 }
