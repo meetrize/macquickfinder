@@ -50,7 +50,6 @@ struct SnippetsPanelView: View {
                 topBar
                 Divider()
                 snippetGrid
-                Divider()
                 searchBar
             }
         }
@@ -133,6 +132,8 @@ struct SnippetsPanelView: View {
         .frame(height: PanelTopBarMetrics.contentHeight)
         .padding(.horizontal, 10)
         .padding(.vertical, PanelTopBarMetrics.verticalPadding)
+        .contentShape(Rectangle())
+        .simultaneousGesture(TapGesture().onEnded { resignSearchFocus() })
     }
 
     private var snippetGrid: some View {
@@ -161,6 +162,7 @@ struct SnippetsPanelView: View {
                 SnippetFlowLayout(horizontalSpacing: 6, verticalSpacing: 4) {
                     ForEach(visibleSnippets) { snippet in
                         SnippetMinimalButtonView(snippet: snippet) {
+                            resignSearchFocus()
                             execute(snippet)
                         }
                         .contextMenu { snippetContextMenu(for: snippet) }
@@ -177,10 +179,17 @@ struct SnippetsPanelView: View {
                         SnippetListItemView(
                             snippet: snippet,
                             isSelected: selectedSnippetID == snippet.id,
-                            onExecute: { execute(snippet) },
+                            onExecute: {
+                                resignSearchFocus()
+                                execute(snippet)
+                            },
                             onSelect: { selectedSnippetID = snippet.id }
                         )
-                        .onTapGesture(count: 2) { execute(snippet) }
+                        .simultaneousGesture(TapGesture().onEnded { resignSearchFocus() })
+                        .onTapGesture(count: 2) {
+                            resignSearchFocus()
+                            execute(snippet)
+                        }
                         .contextMenu { snippetContextMenu(for: snippet) }
                     }
                 }
@@ -189,6 +198,7 @@ struct SnippetsPanelView: View {
         }
         .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
         .contentShape(Rectangle())
+        .onTapGesture { resignSearchFocus() }
         .contextMenu { panelBlankContextMenu() }
     }
 
@@ -214,7 +224,10 @@ struct SnippetsPanelView: View {
     private var searchBar: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
+                .font(.caption)
                 .foregroundStyle(.secondary)
+                .frame(width: 12)
+
             TextField(L10n.Snippets.Panel.searchPrompt, text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
@@ -229,18 +242,40 @@ struct SnippetsPanelView: View {
                         execute(first)
                     }
                 }
+
             if !searchText.isEmpty {
                 Button {
                     searchText = ""
+                    searchFocused = true
                 } label: {
                     Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 10)
+        .frame(height: 28)
+        .background {
+            Capsule(style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        }
+        .overlay {
+            Capsule(style: .continuous)
+                .strokeBorder(
+                    searchFocused ? Color.accentColor.opacity(0.35) : Color.clear,
+                    lineWidth: 1
+                )
+        }
+        .padding(.horizontal, 10)
         .padding(.vertical, 8)
+    }
+
+    private func resignSearchFocus() {
+        guard searchFocused else { return }
+        searchFocused = false
+        NSApp.keyWindow?.makeFirstResponder(nil)
     }
 
     private var importConflictSheet: some View {
