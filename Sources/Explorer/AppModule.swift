@@ -884,6 +884,8 @@ final class ExternalFolderOpenCenter: ObservableObject {
     private(set) var isSessionEstablished = false
     private(set) var launchedFromExternalEvent = false
     private var pendingRequest: OpenRequest?
+    /// 温启动复用时限定由哪个 NSWindow 的 ContentView 消费 pending（避免背后幽灵窗抢走选中）。
+    private(set) var pendingDeliveryWindowID: ObjectIdentifier?
     private var openFolderWindow: ((OpenRequest) -> Void)?
     private var recentlyHandledRequestKeys: [String: Date] = [:]
     private let requestDedupeWindow: TimeInterval = 1.0
@@ -891,7 +893,15 @@ final class ExternalFolderOpenCenter: ObservableObject {
     private init() {}
 
     func markSessionEstablished() {
+        let wasEstablished = isSessionEstablished
         isSessionEstablished = true
+        if !wasEstablished {
+            ExternalOpenDiagnostic.logRaw("session established")
+        }
+        // 冷启动外部 Reveal：窗刚就绪时再抢一次前台（此前 bring 时窗可能尚未创建）。
+        if !wasEstablished, launchedFromExternalEvent {
+            scheduleColdLaunchFrontActivation()
+        }
     }
 
     func markLaunchedFromExternalEvent() {
@@ -923,34 +933,52 @@ final class ExternalFolderOpenCenter: ObservableObject {
 
         let targetDir = ExternalSelectionPathMatcher.standardizedPath(resolvedRequest.directoryPath)
         let tabs = ExplorerWindowTabCenter.shared
+        tabs.clearStalePendingOpen(reason: "requestOpen")
+        tabs.beginExternalDocumentOpenSuppression(duration: 2.5)
+        ExternalOpenDiagnostic.logWindowSnapshot("requestOpen-enter dir=\(targetDir)")
+        ExternalOpenDiagnostic.logRaw(
+            "requestOpen resolved selection=\(resolvedRequest.selectionPath ?? "nil") session=\(isSessionEstablished)"
+        )
 
-        // 温启动 I2：任一标签已显示 targetDir → 复用并激活，禁止新标签。
-        if isSessionEstablished, let reuse = tabs.windowShowingDirectory(targetDir) {
-            ExternalOpenDiagnostic.logRaw(
-                "requestOpen warm-reuse-tab dir=\(targetDir) selection=\(resolvedRequest.selectionPath ?? "nil")"
-            )
-            tabs.activateExplorerWindow(reuse)
-            deliverOpenRequestToWindow(resolvedRequest, window: reuse)
-            return
-        }
+        let anchor = preferredExplorerAnchorWindow()
+        ExternalOpenDiagnostic.logRaw(
+            "requestOpen anchor path=\(anchor.flatMap { tabs.path(for: $0) } ?? "nil") key=\(anchor?.isKeyWindow ?? false) session=\(isSessionEstablished) registered=\(tabs.hasRegisteredWindows)"
+        )
 
-        // 温启动 I3：无同目录标签 → 在锚点窗新开标签并强制激活。
-        if isSessionEstablished, let anchor = preferredExplorerAnchorWindow() {
+        // 已有浏览窗（登记或会话）→ 每次 Reveal 都新开标签并激活选中。
+        // 不单靠 isSessionEstablished：冷启动后若 mark 漏掉，二次 Reveal 会误走 cold-pending。
+        let warm = isSessionEstablished || tabs.hasRegisteredWindows
+        if warm, let anchor {
             let currentDir = tabs.path(for: anchor).map {
                 ExternalSelectionPathMatcher.standardizedPath($0)
             }
             ExternalOpenDiagnostic.logRaw(
-                "requestOpen warm-new-tab from=\(currentDir ?? "nil") to=\(targetDir)"
+                "requestOpen warm-new-tab ALWAYS from=\(currentDir ?? "nil") to=\(targetDir) selection=\(resolvedRequest.selectionPath ?? "nil")"
             )
+            if !isSessionEstablished {
+                markSessionEstablished()
+            }
             deliverOpenRequestInNewTab(resolvedRequest, anchor: anchor)
             return
         }
 
-        if isSessionEstablished {
+        if warm {
             ExternalOpenDiagnostic.logRaw(
-                "requestOpen warm-no-anchor → openFolderWindow dir=\(resolvedRequest.directoryPath)"
+                "requestOpen warm-no-anchor → try any browser or key"
             )
-            openFolderWindow?(resolvedRequest)
+            if let anyBrowser = NSApp.windows.first(where: {
+                !$0.isMiniaturized && $0.canBecomeKey
+                    && tabs.path(for: $0) != nil
+                    && (tabs.sceneKind(for: $0) == .main || tabs.sceneKind(for: $0) == .folder)
+            }) {
+                if !isSessionEstablished { markSessionEstablished() }
+                deliverOpenRequestInNewTab(resolvedRequest, anchor: anyBrowser)
+                return
+            }
+            if let key = NSApp.keyWindow {
+                if !isSessionEstablished { markSessionEstablished() }
+                deliverOpenRequestInNewTab(resolvedRequest, anchor: key)
+            }
             return
         }
 
@@ -961,7 +989,9 @@ final class ExternalFolderOpenCenter: ObservableObject {
         markLaunchedFromExternalEvent()
         targetRequest = resolvedRequest
         pendingRequest = resolvedRequest
+        pendingDeliveryWindowID = nil
         bringExplorerWindowsToFront()
+        scheduleColdLaunchFrontActivation()
         openRequestGeneration &+= 1
         schedulePendingApplyRetries()
         DuplicateExplorerWindowCloser.scheduleCoalesce(keeping: resolvedRequest)
@@ -972,10 +1002,18 @@ final class ExternalFolderOpenCenter: ObservableObject {
         pendingRequest
     }
 
+    /// 温启动复用时限定消费窗；无限定则任何匹配窗可消费。
+    func pendingDeliveryMatches(window: NSWindow?) -> Bool {
+        guard let pendingDeliveryWindowID else { return true }
+        guard let window else { return false }
+        return ObjectIdentifier(window) == pendingDeliveryWindowID
+    }
+
     /// 仅由 frontmost 浏览标签消费；消费后清除 sticky `targetRequest`。
     func consumePendingRequest() -> OpenRequest? {
         let request = pendingRequest
         pendingRequest = nil
+        pendingDeliveryWindowID = nil
         if request != nil {
             targetRequest = nil
         }
@@ -988,30 +1026,123 @@ final class ExternalFolderOpenCenter: ObservableObject {
         launchedFromExternalEvent = false
         targetRequest = nil
         pendingRequest = nil
+        pendingDeliveryWindowID = nil
         openRequestGeneration = 0
         recentlyHandledRequestKeys.removeAll()
     }
 
+    /// 同目录复用入口（含 `openExternalRevealTab` 双保险 abort）。
+    func deliverReuseSelection(directoryPath: String, selectionPath: String?, window: NSWindow) {
+        deliverOpenRequestToWindow(
+            OpenRequest(directoryPath: directoryPath, selectionPath: selectionPath),
+            window: window
+        )
+    }
+
     /// 投递给指定窗；激活竞态下多次 bump generation，避免 pending 因单次 !isKey 永丢。
     private func deliverOpenRequestToWindow(_ request: OpenRequest, window: NSWindow) {
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.0)
+        // 关掉同路径的其它窗（背后幽灵独立窗），只留 keeper 所在标签组。
+        closeDetachedDuplicateWindows(of: window, directoryPath: request.directoryPath)
+        // 只关「与 keeper 同路径」的游离窗；勿在 suppression 下误关前台其它目录标签组。
+        closeOrphanDuplicatesOnly(of: window, directoryPath: request.directoryPath)
         ExplorerWindowTabCenter.shared.activateExplorerWindow(window)
+        ExternalOpenDiagnostic.logWindowSnapshot("after-reuse-activate")
         pendingRequest = request
+        pendingDeliveryWindowID = ObjectIdentifier(window)
         targetRequest = nil
         openRequestGeneration &+= 1
         schedulePendingApplyRetries()
+        for delay in [0.05, 0.15, 0.35, 0.7] as [TimeInterval] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                self.closeOrphanDuplicatesOnly(of: window, directoryPath: request.directoryPath)
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(window)
+                if self.pendingRequest != nil,
+                   self.pendingDeliveryWindowID == ObjectIdentifier(window) {
+                    self.openRequestGeneration &+= 1
+                }
+            }
+        }
     }
 
-    /// 外部 Reveal 到不同目录：在锚点窗新开标签并落到目标路径 + 选中项。
+    /// 仅关闭与目标目录同路径、且不在 keeper 标签组内的窗（比全面 closeDetachedBrowserWindows 更安全）。
+    private func closeOrphanDuplicatesOnly(of keeper: NSWindow, directoryPath: String) {
+        closeDetachedDuplicateWindows(of: keeper, directoryPath: directoryPath)
+    }
+
+    /// 关闭与目标目录同路径、但不在 keeper 标签组内的窗（含误拆出的独立窗）。
+    private func closeDetachedDuplicateWindows(of keeper: NSWindow, directoryPath: String) {
+        let target = ExternalSelectionPathMatcher.standardizedPath(directoryPath)
+        let keeperGroup = keeper.tabGroup
+        for window in NSApp.windows {
+            guard window !== keeper else { continue }
+            let kind = ExplorerWindowTabCenter.shared.sceneKind(for: window)
+            guard kind == .main || kind == .folder else { continue }
+            guard let path = ExplorerWindowTabCenter.shared.path(for: window) else { continue }
+            guard ExternalSelectionPathMatcher.standardizedPath(path) == target else { continue }
+            let sameGroup = (keeperGroup != nil && window.tabGroup === keeperGroup)
+            if sameGroup { continue }
+            ExternalOpenDiagnostic.logRaw(
+                "close detached duplicate window path=\(path)"
+            )
+            window.close()
+        }
+    }
+
+    /// 外部 Reveal 到不同/相同目录：folder WindowValue 开标签并合并，禁止无参 main 叠 Desktop。
     private func deliverOpenRequestInNewTab(_ request: OpenRequest, anchor: NSWindow) {
-        ExplorerWindowTabCenter.shared.activateExplorerWindow(anchor)
         pendingRequest = nil
         targetRequest = nil
-        ExplorerWindowTabCenter.shared.openNewTab(
+        pendingDeliveryWindowID = nil
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
+        ExplorerWindowTabCenter.shared.clearStalePendingOpen(reason: "deliverOpenRequestInNewTab")
+        ExternalOpenDiagnostic.logRaw(
+            "deliverOpenRequestInNewTab dir=\(request.directoryPath) selection=\(request.selectionPath ?? "nil")"
+        )
+        ExplorerWindowTabCenter.shared.openExternalRevealTab(
             path: request.directoryPath,
             selectionPath: request.selectionPath,
             from: anchor,
             activatesTab: true
         )
+        let revealDir = request.directoryPath
+        let selection = request.selectionPath
+        let activateNewTab = {
+            // 同目录多标签：必须激活「刚合并」的那一页，不能 windowShowingDirectory（会命中旧 Excel 标签）。
+            let newTab = ExplorerWindowTabCenter.shared.lastMergedRevealTab()
+                ?? ExplorerWindowTabCenter.shared.windowShowingDirectory(
+                    revealDir,
+                    preferringGroupOf: anchor
+                )
+            if let newTab {
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(newTab)
+                ExternalOpenDiagnostic.logRaw(
+                    "deliverOpenRequestInNewTab activate win path=\(ExplorerWindowTabCenter.shared.path(for: newTab) ?? "nil") selection=\(selection ?? "nil")"
+                )
+            } else {
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(anchor)
+                ExternalOpenDiagnostic.logRaw("deliverOpenRequestInNewTab activate fallback=anchor")
+            }
+            ExternalOpenDiagnostic.logWindowSnapshot("after-new-tab-activate")
+        }
+        activateNewTab()
+        // tabsOnly：只收壳/游离窗，不要 coalesce 掉同目录的旧业务标签。
+        DuplicateExplorerWindowCloser.scheduleCoalesce(keeping: request, tabsOnly: true)
+        let anchorRef = anchor
+        for delay in [0.05, 0.2, 0.45, 0.9, 1.4] as [TimeInterval] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                activateNewTab()
+                if let newTab = ExplorerWindowTabCenter.shared.lastMergedRevealTab() {
+                    DuplicateExplorerWindowCloser.closeDetachedBrowserWindows(
+                        keepingTabGroupOf: newTab
+                    )
+                    ExplorerWindowTabCenter.shared.pruneDuplicateAnchorTabsForReveal(
+                        anchor: anchorRef,
+                        newTab: newTab
+                    )
+                }
+            }
+        }
     }
 
     private func schedulePendingApplyRetries() {
@@ -1027,12 +1158,16 @@ final class ExternalFolderOpenCenter: ObservableObject {
     private func preferredExplorerAnchorWindow() -> NSWindow? {
         let browserCandidates = NSApplication.shared.windows.filter { window in
             guard !window.isMiniaturized, window.canBecomeKey else { return false }
-            // 独立预览等禁止标签的窗不作为 Reveal 目标。
-            guard window.tabbingMode != .disallowed else { return false }
+            // 独立预览等禁止标签的窗不作为 Reveal 锚点；但允许已注册 path 的 folder 标签。
             let kind = ExplorerWindowTabCenter.shared.sceneKind(for: window)
-            return kind == .main || kind == .folder
+            guard kind == .main || kind == .folder else { return false }
+            if window.tabbingMode == .disallowed,
+               ExplorerWindowTabCenter.shared.path(for: window) == nil {
+                return false
+            }
+            return true
         }
-        // 优先已注册宿主窗；注册尚未完成时回退到可见候选，避免再 openFolderWindow 叠出第二窗。
+        // 优先已注册 path 的宿主窗。
         let registered = browserCandidates.filter {
             ExplorerWindowTabCenter.shared.path(for: $0) != nil
         }
@@ -1069,12 +1204,38 @@ final class ExternalFolderOpenCenter: ObservableObject {
 
     private func bringExplorerWindowsToFront() {
         let app = NSApplication.shared
-        if let keyWindow = app.keyWindow, keyWindow.isVisible, !keyWindow.isMiniaturized {
+        app.unhide(nil)
+        app.activate(ignoringOtherApps: true)
+
+        let browser = app.windows.first { window in
+            guard !window.isMiniaturized, window.canBecomeKey else { return false }
+            guard window.tabbingMode != .disallowed else { return false }
+            let kind = ExplorerWindowTabCenter.shared.sceneKind(for: window)
+            return kind == .main || kind == .folder
+        }
+        if let browser {
+            ExplorerWindowTabCenter.shared.activateExplorerWindow(browser)
+            return
+        }
+        if let keyWindow = app.keyWindow {
+            keyWindow.deminiaturize(nil)
             keyWindow.makeKeyAndOrderFront(nil)
             return
         }
-        if let window = app.windows.first(where: { $0.isVisible && !$0.isMiniaturized && $0.canBecomeKey }) {
+        if let window = app.windows.first(where: { $0.canBecomeKey }) {
+            window.deminiaturize(nil)
             window.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    /// 冷启动时窗尚未就绪；多拍激活，避免停在 MeoLaunch / 其它应用后面。
+    private func scheduleColdLaunchFrontActivation() {
+        for delay in [0.0, 0.1, 0.3, 0.6, 1.0, 1.8] as [TimeInterval] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self else { return }
+                ExternalOpenDiagnostic.logRaw("cold-launch front activation delay=\(delay)")
+                self.bringExplorerWindowsToFront()
+            }
         }
     }
 
@@ -1142,33 +1303,65 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        ExternalFolderOpenCenter.shared.shouldAllowUntitledWindow
+        // open -R / odoc 会先问「要不要空白窗」再投递 URL。温启动若返回 true，
+        // 系统会再开一个 main 窗并落到 restoredLaunchPath（常为 Desktop），
+        // 随后我们的 Reveal 再开 SSD 标签 → Desktop + Desktop + SSD 三标签。
+        ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile invoked")
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
+
+        if ExplorerWindowTabCenter.shared.hasRegisteredWindows
+            || ExplorerWindowTabCenter.shared.hasVisibleBrowserWindows
+            || ExternalFolderOpenCenter.shared.isSessionEstablished {
+            ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile=false (existing browser/session)")
+            return false
+        }
+        if let event = NSAppleEventManager.shared().currentAppleEvent {
+            if ExternalOpenIntentDetector.isRevealAppleEvent(event)
+                || event.eventID == AEEventID(kAEOpenDocuments)
+                || event.eventID == AEEventID(kAERevealSelection) {
+                ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile=false (external AE)")
+                return false
+            }
+        }
+        let allow = ExternalFolderOpenCenter.shared.shouldAllowUntitledWindow
+        ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile=\(allow)")
+        return allow
     }
 
+    @MainActor
     @objc func newWindowForTab(_ sender: Any?) {
-        Task { @MainActor in
-            // 系统为「新建标签」预创建的壳窗口；关闭后走真正的新标签逻辑（与工具栏 / ⌘T 一致）。
-            var anchorWindow = NSApp.keyWindow
+        // 同步处理：不可再包 Task，否则门闩建立前系统壳已变成正式标签。
+        if ExplorerWindowTabCenter.shared.shouldIgnoreSystemNewWindowForTab {
+            ExternalOpenDiagnostic.logRaw("newWindowForTab ignored — programmatic tab in flight")
             if let tabShell = sender as? NSWindow {
-                if let tabGroup = tabShell.tabGroup {
-                    anchorWindow = tabGroup.windows.first { $0 !== tabShell && $0.isVisible } ?? anchorWindow
-                }
                 tabShell.close()
             }
-            let path = ExplorerWindowTabCenter.shared.path(for: anchorWindow)
-                ?? FileManager.default.homeDirectoryForCurrentUser.path
-            ExplorerWindowTabCenter.shared.openNewTab(path: path, from: anchorWindow)
+            return
         }
+
+        // 系统为「新建标签」预创建的壳窗口；关闭后走真正的新标签逻辑（与工具栏 / ⌘T 一致）。
+        var anchorWindow = NSApp.keyWindow
+        if let tabShell = sender as? NSWindow {
+            if let tabGroup = tabShell.tabGroup {
+                anchorWindow = tabGroup.windows.first { $0 !== tabShell && $0.isVisible } ?? anchorWindow
+            }
+            tabShell.close()
+        }
+        let path = ExplorerWindowTabCenter.shared.path(for: anchorWindow)
+            ?? FileManager.default.homeDirectoryForCurrentUser.path
+        ExplorerWindowTabCenter.shared.openNewTab(path: path, from: anchorWindow)
     }
 
     @MainActor
     func application(_ application: NSApplication, open urls: [URL]) {
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
         ExternalOpenDiagnostic.logRaw("application(open:) urls=\(urls.map(\.path))")
         ExternalOpenRouter.handleOpen(urls: urls)
     }
 
     @MainActor
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
         ExternalOpenDiagnostic.logRaw("application(openFiles:) files=\(filenames)")
         let urls = filenames.map { URL(fileURLWithPath: $0) }
         ExternalOpenRouter.handleOpen(urls: urls)
@@ -1177,6 +1370,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
         ExternalOpenDiagnostic.logRaw("application(openFile:) file=\(filename)")
         ExternalOpenRouter.handleOpen(urls: [URL(fileURLWithPath: filename)])
         return true

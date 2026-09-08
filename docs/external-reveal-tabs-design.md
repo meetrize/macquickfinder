@@ -76,6 +76,16 @@ else:
 - `openNewTab` 写入 pending 后，ContentView init / `hostWindow` onChange / onAppear 三路径都能落到 `navigation.path`。
 - 若 `bootstrappedFromPendingNewTab` 但 path 仍像首页/上次路径，强制 `applyPendingExternalNavigationForNewTab`。
 
+### 5.6 温启动「一个 Reveal → 三个标签」补丁（2026-09-08）
+
+根因：`openNewTab` → `openMainWindow` 后，AppKit 还会回调 `newWindowForTab`。若此时 pending 已合并清空，第二次会再开一页同路径且无 `selectionPath`；若 pending 仍在，还可能用 `nil` selection **覆盖**原 pending。
+
+修复：
+- `pendingNewTab != nil` 时忽略后续 `openNewTab`
+- `shouldIgnoreSystemNewWindowForTab` 短窗口内 `newWindowForTab` 只关壳
+- 新标签 init 即写入 `pendingExternalSelectionPath`；合并后多拍 `makeKeyAndOrderFront`
+- 温启动 coalesce 仅收同路径多余标签（`tabsOnly`），不关原目录标签
+
 ### 5.5 非目标
 
 - 不改 MeoLaunch 菜单项与 `open -R` 调用方式。

@@ -53,20 +53,35 @@ extension ContentView {
         guard let selectionPath = pendingExternalSelectionPath else {
             return !items.isEmpty && !isLoading
         }
-        guard !items.isEmpty, !isLoading else { return false }
+        guard !items.isEmpty, !isLoading else {
+            ExternalOpenDiagnostic.logRaw(
+                "selection WAIT path=\(selectionPath) items=\(items.count) loading=\(isLoading) dir=\(path)"
+            )
+            return false
+        }
         guard let item = ExternalSelectionPathMatcher.matchingItem(in: items, selectionPath: selectionPath) else {
+            let sample = items.prefix(5).map(\.name).joined(separator: ",")
+            ExternalOpenDiagnostic.logRaw(
+                "selection MISS want=\(selectionPath) dir=\(path) items=\(items.count) sample=[\(sample)]"
+            )
             return false
         }
         selection = [item.id]
         pendingExternalSelectionPath = nil
         fileListFocusToken &+= 1
+        ExternalOpenDiagnostic.logRaw(
+            "selection HIT name=\(item.name) id=\(item.id) dir=\(path)"
+        )
         return true
     }
 
-    /// Reveal 选中常早于目录枚举完成；短延迟重试，避免冷启动/新标签丢选中。
+    /// Reveal 选中常早于目录枚举完成；延长重试覆盖慢盘/大目录。
     func scheduleExternalSelectionRetry() {
         guard pendingExternalSelectionPath != nil else { return }
-        let delays: [TimeInterval] = [0.05, 0.15, 0.35, 0.8, 1.5]
+        let delays: [TimeInterval] = [0.05, 0.15, 0.35, 0.8, 1.5, 3.0, 5.0, 8.0]
+        ExternalOpenDiagnostic.logRaw(
+            "selection retry scheduled want=\(pendingExternalSelectionPath ?? "nil") dir=\(path)"
+        )
         for delay in delays {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 _ = self.applyExternalSelectionImmediatelyIfPossible()
@@ -77,17 +92,31 @@ extension ContentView {
     func applyPendingExternalSelectionIfNeeded(loadedItems: [FileItem], for directoryPath: String) {
         let loadedDirectory = ExternalSelectionPathMatcher.standardizedPath(directoryPath)
         let currentDirectory = ExternalSelectionPathMatcher.standardizedPath(path)
-        guard loadedDirectory == currentDirectory else { return }
+        guard loadedDirectory == currentDirectory else {
+            ExternalOpenDiagnostic.logRaw(
+                "selection skip loadedDirMismatch loaded=\(loadedDirectory) current=\(currentDirectory)"
+            )
+            return
+        }
         guard let pendingExternalSelectionPath else { return }
         guard let item = ExternalSelectionPathMatcher.matchingItem(
             in: loadedItems,
             selectionPath: pendingExternalSelectionPath
         ) else {
+            let sample = loadedItems.prefix(5).map(\.name).joined(separator: ",")
+            ExternalOpenDiagnostic.logRaw(
+                "selection MISS-on-load want=\(pendingExternalSelectionPath) items=\(loadedItems.count) sample=[\(sample)]"
+            )
             return
         }
         self.pendingExternalSelectionPath = nil
         selection = [item.id]
+        fileListFocusToken &+= 1
+        ExternalOpenDiagnostic.logRaw(
+            "selection HIT-on-load name=\(item.name) id=\(item.id) items=\(loadedItems.count)"
+        )
         // 不在这里 bump focusToken：由 applyLoadedListing 统一处理，避免抢在选中同步前 reload。
+        // 上面已 bump：Reveal 场景需要立刻可见选中。
     }
 
     func refreshListingItem(at filePath: String) {
@@ -205,6 +234,7 @@ extension ContentView {
     func applyExternalOpenRequestIfNeeded() {
         guard windowSceneKind == .main || windowSceneKind == .folder else { return }
         guard let hostWindow else { return }
+        guard externalFolderOpenCenter.pendingDeliveryMatches(window: hostWindow) else { return }
         guard let pending = externalFolderOpenCenter.peekPendingRequest() else { return }
 
         let targetDir = ExternalSelectionPathMatcher.standardizedPath(pending.directoryPath)
@@ -222,11 +252,14 @@ extension ContentView {
             return
         }
 
-        // 目录匹配 / 当前选中标签 / key 窗均可消费（不再唯一依赖 isKeyWindow，避免激活竞态丢 pending）。
+        // 限定投递窗：目录匹配 / 选中标签 / key 均可。
         guard pathMatches || isSelectedTab || isKey else { return }
 
         guard let request = externalFolderOpenCenter.consumePendingRequest() else { return }
         didConsumeLaunchNavigation = true
+        ExternalOpenDiagnostic.logRaw(
+            "ContentView apply external selection dir=\(request.directoryPath) item=\(request.selectionPath ?? "nil")"
+        )
         applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
     }
 
@@ -350,6 +383,8 @@ struct ContentView: View {
     private let bootstrappedWithListingSnapshot: Bool
     /// 新建标签首帧先占位右侧栏，下一帧再挂预览/片段/Git，缩短可交互时间。
     @State private var deferHeavyRightPanels: Bool
+    /// 世代内拒绝 restored 时，hostWindow 可能尚未挂上，挂上后立刻关闭。
+    @State private var closeWhenHostWindowAppears = false
     
     init(
         initialPath: String? = nil,
@@ -383,6 +418,11 @@ struct ContentView: View {
             }
         } else if windowSceneKind == .main, let pendingTab {
             _path = State(initialValue: pendingTab.path)
+            _pendingExternalSelectionPath = State(
+                initialValue: pendingTab.selectionPath.map {
+                    ExternalSelectionPathMatcher.standardizedPath($0)
+                }
+            )
             if let snapshot, !snapshot.isEmpty {
                 _items = State(initialValue: snapshot)
                 bootstrappedWithListingSnapshot = true
@@ -610,8 +650,9 @@ struct ContentView: View {
             HostWindowReader(
                 window: $hostWindow,
                 onWindowAttached: { window in
+                    // 必须先于 configure/merge：否则 odoc 壳会先并进标签栏再被关 → 闪一下。
+                    guard ExplorerWindowTabCenter.shared.attemptTabMerge(for: window) else { return }
                     ExplorerWindowTabCenter.shared.configureExplorerWindow(window)
-                    ExplorerWindowTabCenter.shared.attemptTabMerge(for: window)
                 }
             )
             .frame(width: 0, height: 0)
@@ -623,13 +664,45 @@ struct ContentView: View {
                 operationRecordingCloseGuard.detach()
                 return
             }
+            if closeWhenHostWindowAppears {
+                closeWhenHostWindowAppears = false
+                if ExplorerWindowTabCenter.shared.shouldCloseAsSurplusRestoredWindow(window) {
+                    ExplorerWindowTabCenter.shared.closeSurplusWindow(
+                        window,
+                        reason: "rejected-restored-host"
+                    )
+                    return
+                }
+                ExternalOpenDiagnostic.logRaw(
+                    "ContentView cancel rejected-restored — window is primary/rebuild path=\(ExplorerWindowTabCenter.shared.path(for: window) ?? "nil")"
+                )
+                // 重建：沿用已登记路径，避免再走 restored 把目录打成 lastOpened。
+                if let registered = ExplorerWindowTabCenter.shared.path(for: window), !registered.isEmpty {
+                    path = registered
+                } else if path.isEmpty {
+                    path = restoredLaunchPath()
+                    loadItems()
+                }
+                // fall through to normal host attach
+            }
+            guard ExplorerWindowTabCenter.shared.attemptTabMerge(for: window) else { return }
             ExplorerWindowTabCenter.shared.configureExplorerWindow(window)
-            ExplorerWindowTabCenter.shared.attemptTabMerge(for: window)
+            guard ExplorerWindowTabCenter.shared.noteWindowAppearedDuringProgrammaticTabGeneration(
+                window,
+                path: path
+            ) else {
+                return
+            }
             if let navigation = ExplorerWindowTabCenter.shared.consumeInitialNavigationForNewTab(in: window) {
                 applyPendingExternalNavigationForNewTab(navigation)
+            } else {
+                scheduleExternalSelectionRetry()
             }
             ExplorerWindowTabCenter.shared.registerWindow(window, path: path, sceneKind: windowSceneKind)
-            ExplorerWindowTabCenter.shared.handleExplorerWindowDidAppear(window)
+            // Reveal 合并中禁止走 ⌘N 拆窗；否则会把新标签拆成同路径独立窗口。
+            if !ExplorerWindowTabCenter.shared.shouldIgnoreSystemNewWindowForTab {
+                ExplorerWindowTabCenter.shared.handleExplorerWindowDidAppear(window)
+            }
             PreviewHostWindowRegistry.shared.register(hostWindowID: previewHostWindowID, window: window)
             // onAppear 时常尚无 hostWindow；在此 register 后才宣告会话就绪，供外部 Reveal 温启动。
             externalFolderOpenCenter.markSessionEstablished()
@@ -722,12 +795,16 @@ struct ContentView: View {
                 pendingExternalSelectionPath = initialSelectionPath.map {
                     ExternalSelectionPathMatcher.standardizedPath($0)
                 }
+                ExternalOpenDiagnostic.logRaw(
+                    "ContentView bootstrap=initial path=\(initialPath) selection=\(initialSelectionPath ?? "nil")"
+                )
                 if bootstrappedWithListingSnapshot, !items.isEmpty {
                     didConsumeLaunchNavigation = true
                     scheduleSilentListingReconcileAfterSnapshot()
                 } else {
                     loadItems()
                 }
+                scheduleExternalSelectionRetry()
             } else if windowSceneKind == .main {
                 if didConsumeLaunchNavigation {
                     if items.isEmpty, !isLoading {
@@ -738,44 +815,93 @@ struct ContentView: View {
                 } else if let pendingTab = ExplorerWindowTabCenter.shared.peekPendingNewTabNavigation() {
                     // 新建标签：直接落到目标目录，避免先加载首页再跳转。
                     didConsumeLaunchNavigation = true
+                    ExternalOpenDiagnostic.logRaw(
+                        "ContentView bootstrap=pending path=\(pendingTab.path)"
+                    )
                     applyPendingExternalNavigationForNewTab(pendingTab)
                 } else if bootstrappedFromPendingNewTab {
-                    // merge 可能已清掉 pending；路径/快照已在 init 预填。
+                    // merge 可能已清掉 pending；路径/选中已在 init 预填。
                     didConsumeLaunchNavigation = true
+                    ExternalOpenDiagnostic.logRaw(
+                        "ContentView bootstrap=bootstrapped-pending path=\(path)"
+                    )
                     if items.isEmpty {
-                        if !isLoading { loadItems() }
+                        if !applyExternalSelectionImmediatelyIfPossible(), !isLoading {
+                            loadItems()
+                        }
                     } else {
+                        _ = applyExternalSelectionImmediatelyIfPossible()
                         scheduleSilentListingReconcileAfterSnapshot()
                     }
+                    scheduleExternalSelectionRetry()
                 } else if let launchRequest = externalFolderOpenCenter.consumePendingRequest() {
                     didConsumeLaunchNavigation = true
                     applyLaunchNavigation(launchRequest)
+                    ExternalOpenDiagnostic.logRaw("ContentView bootstrap=launch path=\(path)")
+                } else if ExplorerWindowTabCenter.shared.shouldRejectSurplusRestoredMainWindow()
+                    || ExplorerWindowTabCenter.shared.shouldRejectRestoredLaunchBootstrap() {
+                    // 程序化开标签世代内 / 已有浏览窗时：禁止 restoredLaunchPath 叠出第二主窗。
+                    ExternalOpenDiagnostic.logRaw(
+                        "ContentView bootstrap=rejected-restored scene=\(windowSceneKind) surplus=\(ExplorerWindowTabCenter.shared.shouldRejectSurplusRestoredMainWindow()) session=\(externalFolderOpenCenter.isSessionEstablished) registered=\(ExplorerWindowTabCenter.shared.hasRegisteredWindows)"
+                    )
+                    ExternalOpenDiagnostic.logWindowSnapshot("rejected-restored-main")
+                    didConsumeLaunchNavigation = true
+                    closeWhenHostWindowAppears = true
+                    DispatchQueue.main.async {
+                        self.hostWindow?.close()
+                    }
                 } else {
                     path = restoredLaunchPath()
                     loadItems()
+                    ExternalOpenDiagnostic.logRaw(
+                        "ContentView bootstrap=restored path=\(path) session=\(externalFolderOpenCenter.isSessionEstablished) registered=\(ExplorerWindowTabCenter.shared.hasRegisteredWindows)"
+                    )
+                    ExternalOpenDiagnostic.logWindowSnapshot("bootstrap-restored-main")
+                }
+            } else if ExplorerWindowTabCenter.shared.shouldRejectRestoredLaunchBootstrap()
+                || ExplorerWindowTabCenter.shared.shouldRejectSurplusRestoredMainWindow() {
+                ExternalOpenDiagnostic.logRaw(
+                    "ContentView bootstrap=rejected-restored-folder session=\(externalFolderOpenCenter.isSessionEstablished)"
+                )
+                ExternalOpenDiagnostic.logWindowSnapshot("rejected-restored-folder")
+                didConsumeLaunchNavigation = true
+                closeWhenHostWindowAppears = true
+                DispatchQueue.main.async {
+                    self.hostWindow?.close()
                 }
             } else {
                 path = restoredLaunchPath()
                 loadItems()
+                ExternalOpenDiagnostic.logRaw("ContentView bootstrap=restored-folder path=\(path)")
             }
             lastRecordedPath = path
             syncExplorerTabBarState()
             lastHandledOpenRequestGeneration = externalFolderOpenCenter.openRequestGeneration
             // 必须先 register path 再 markSessionEstablished：否则外部 Reveal 温启动分支
             // 会因 path==nil 误判「目录不同」而 openNewTab，冷启动叠出第二标签。
+            var keepWindow = true
             if let hostWindow {
-                ExplorerWindowTabCenter.shared.registerWindow(
+                keepWindow = ExplorerWindowTabCenter.shared.noteWindowAppearedDuringProgrammaticTabGeneration(
                     hostWindow,
-                    path: path,
-                    sceneKind: windowSceneKind
+                    path: path
                 )
-                externalFolderOpenCenter.markSessionEstablished()
+                if keepWindow {
+                    ExplorerWindowTabCenter.shared.registerWindow(
+                        hostWindow,
+                        path: path,
+                        sceneKind: windowSceneKind
+                    )
+                    externalFolderOpenCenter.markSessionEstablished()
+                }
             }
             // 非首屏关键：延后到下一帧，让标签合并与目录列表先动起来。
             let appearedPath = path
             let shouldRevealRightPanels = deferHeavyRightPanels
+            let shouldRecordPath = keepWindow
             DispatchQueue.main.async {
-                layout.recordLastOpenedPath(appearedPath)
+                if shouldRecordPath {
+                    layout.recordLastOpenedPath(appearedPath)
+                }
                 scheduleGitRefreshIfPanelVisible(cwd: appearedPath)
                 if shouldRevealRightPanels {
                     deferHeavyRightPanels = false
@@ -838,7 +964,7 @@ struct ContentView: View {
             Text(L10n.OperationRecording.discardConfirmMessage)
         }
         .onChange(of: path) { newPath in
-            FileOperations.cancelActiveTransfer()
+            FileOperations.cancelActivePaste()
             let wasHistoryNavigation = isApplyingHistoryNavigation
             if let oldPath = lastRecordedPath, oldPath != newPath, !wasHistoryNavigation {
                 var history = pathNavigation

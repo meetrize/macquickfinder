@@ -26,6 +26,28 @@ enum ExternalOpenDiagnostic {
         write("[delegate] \(line)")
     }
 
+    /// 快照当前浏览窗，便于对照「谁被激活 / 谁在叠 restored」。
+    @MainActor
+    static func logWindowSnapshot(_ reason: String) {
+        let tabs = ExplorerWindowTabCenter.shared
+        let lines: [String] = NSApp.windows.compactMap { window in
+            guard window.canBecomeKey else { return nil }
+            let kind = tabs.sceneKind(for: window)
+            let path = tabs.path(for: window)
+            let hasRep = window.representedURL?.path
+            let isBrowser = (kind == .main || kind == .folder) || path != nil || hasRep != nil
+            guard isBrowser || window.isVisible else { return nil }
+            let groupID: String = {
+                guard let group = window.tabGroup else { return "none" }
+                return String(ObjectIdentifier(group).hashValue, radix: 16)
+            }()
+            let selected = window.tabGroup?.selectedWindow === window
+            let tabCount = window.tabGroup?.windows.count ?? 1
+            return "id=\(String(ObjectIdentifier(window).hashValue, radix: 16)) path=\(path ?? hasRep ?? "nil") kind=\(kind) tabs=\(tabCount) group=\(groupID) selected=\(selected) key=\(window.isKeyWindow) visible=\(window.isVisible) tabbing=\(window.tabbingMode == .disallowed ? "disallowed" : "ok")"
+        }
+        write("[snapshot:\(reason)] count=\(lines.count) :: " + lines.joined(separator: " || "))
+    }
+
     private static func describe(_ event: NSAppleEventDescriptor) -> String {
         "\(fourCC(UInt32(event.eventClass)))/\(fourCC(UInt32(event.eventID)))"
     }

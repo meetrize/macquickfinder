@@ -53,13 +53,33 @@ final class ExplorerWindowTabCenter: ObservableObject {
     private var suppressOrderFrontWindowIDs: Set<ObjectIdentifier> = []
     /// 合并后主动 reveal 时放行 orderFront，避免被自己的拦截吞掉。
     private var isRevealingMergedTab = false
+    /// 程序化 openNewTab 后的短窗口：忽略系统 `newWindowForTab`，否则会叠出第二个同路径空选中标签。
+    private var ignoreSystemNewWindowForTabUntil: Date?
+    /// 外部 Reveal 等程序化开标签世代：只允许一个新窗，其余立即关闭。
+    private var programmaticTabGeneration: ProgrammaticTabGeneration?
     /// 合并/收起标签栏期间锁定外框，阻止系统把窗口撑高造成闪动。
     private var frameLock: (frame: NSRect, windowTokens: Set<ObjectIdentifier>, groupTokens: Set<ObjectIdentifier>)?
     private var frameLockReleaseWorkItem: DispatchWorkItem?
+    /// 防止 attemptTabMerge 与 interceptOrderFront 双进入 merge。
+    private var isMergingNewTab = false
+    /// 最近一次外部 Reveal 合并成功的新标签（同目录多标签时不能靠 path 查找，会命中旧标签）。
+    private weak var lastMergedRevealWindow: NSWindow?
     @Published private(set) var tabBarRevision: UInt = 0
     private var notificationObservers: [NSObjectProtocol] = []
     private var tabDoubleClickMonitor: Any?
     private var tabRightClickMonitor: Any?
+
+    /// 外部 odoc/Reveal 投递期间：禁止再冒出 untitled / restored 主窗。
+    private var suppressSurplusRestoredWindowsUntil: Date?
+
+    private struct ProgrammaticTabGeneration {
+        let id: UUID
+        weak var anchor: NSWindow?
+        let targetPath: String
+        let preexistingWindowIDs: Set<ObjectIdentifier>
+        var allowedNewWindowIDs: Set<ObjectIdentifier>
+        var expiresAt: Date
+    }
 
     private init() {
         installTabDoubleClickMonitor()
@@ -88,8 +108,10 @@ final class ExplorerWindowTabCenter: ObservableObject {
 
     func registerWindow(_ window: NSWindow, path: String, sceneKind: ExplorerWindowSceneKind) {
         let id = ObjectIdentifier(window)
-        windowPaths[id] = path
+        let standardized = ExternalSelectionPathMatcher.standardizedPath(path)
+        windowPaths[id] = standardized
         windowSceneKinds[id] = sceneKind
+        window.representedURL = URL(fileURLWithPath: standardized)
     }
 
     func path(for window: NSWindow?) -> String? {
@@ -102,48 +124,165 @@ final class ExplorerWindowTabCenter: ObservableObject {
         return windowSceneKinds[ObjectIdentifier(window)] ?? .main
     }
 
-    /// 已注册且当前浏览目录等于 `directoryPath` 的窗口（优先 key / 选中标签）。
-    func windowShowingDirectory(_ directoryPath: String) -> NSWindow? {
+    /// 已注册且当前浏览目录等于 `directoryPath` 的窗口（优先：锚点同组 → 可标签 → key/选中）。
+    func windowShowingDirectory(
+        _ directoryPath: String,
+        preferringGroupOf anchor: NSWindow? = nil
+    ) -> NSWindow? {
         let target = ExternalSelectionPathMatcher.standardizedPath(directoryPath)
         let matches = NSApp.windows.filter { window in
             guard !window.isMiniaturized, window.canBecomeKey else { return false }
-            guard window.tabbingMode != .disallowed else { return false }
             let kind = sceneKind(for: window)
             guard kind == .main || kind == .folder else { return false }
-            guard let path = path(for: window) else { return false }
-            return ExternalSelectionPathMatcher.standardizedPath(path) == target
+            let resolved: String?
+            if let registered = path(for: window) {
+                resolved = registered
+            } else if let urlPath = window.representedURL?.path, !urlPath.isEmpty {
+                resolved = urlPath
+            } else {
+                resolved = nil
+            }
+            guard let resolved else { return false }
+            return ExternalSelectionPathMatcher.standardizedPath(resolved) == target
         }
-        guard !matches.isEmpty else { return nil }
-        if let key = NSApp.keyWindow, matches.contains(where: { $0 === key }) {
-            return key
+        if matches.isEmpty {
+            let registeredSummary = windowPaths.map { "\($0.value)" }.sorted().joined(separator: ",")
+            ExternalOpenDiagnostic.logRaw(
+                "windowShowingDirectory miss target=\(target) registered=\(windowPaths.count) paths=[\(registeredSummary)]"
+            )
+            return nil
         }
-        if let selected = matches.first(where: { $0.tabGroup?.selectedWindow === $0 }) {
-            return selected
+        for window in matches where path(for: window) == nil {
+            registerWindow(window, path: target, sceneKind: sceneKind(for: window))
         }
-        return matches.first
+
+        func pickBest(in pool: [NSWindow]) -> NSWindow? {
+            guard !pool.isEmpty else { return nil }
+            let tabbable = pool.filter { $0.tabbingMode != .disallowed }
+            let preferred = tabbable.isEmpty ? pool : tabbable
+            if let key = NSApp.keyWindow, preferred.contains(where: { $0 === key }) {
+                return key
+            }
+            if let selected = preferred.first(where: { $0.tabGroup?.selectedWindow === $0 }) {
+                return selected
+            }
+            return preferred.min(by: { $0.orderedIndex < $1.orderedIndex })
+        }
+
+        if let anchor {
+            let anchorGroup = anchor.tabGroup
+            let inGroup = matches.filter { window in
+                if let anchorGroup {
+                    return window.tabGroup === anchorGroup
+                }
+                return window === anchor
+            }
+            if let best = pickBest(in: inGroup) {
+                return best
+            }
+        }
+
+        let multiTab = matches.filter {
+            ($0.tabGroup?.windows.count ?? 0) > 1 && $0.tabbingMode != .disallowed
+        }
+        if let best = pickBest(in: multiTab) {
+            return best
+        }
+        return pickBest(in: matches)
+    }
+
+    /// 同目录窗是否只存在于与锚点不同的标签组 / 独立窗（应改走前台新标签）。
+    func isOrphanRelativeToFront(window: NSWindow, anchor: NSWindow?) -> Bool {
+        if window.tabbingMode == .disallowed { return true }
+        guard let anchor else { return false }
+        if window === anchor { return false }
+        guard let anchorGroup = anchor.tabGroup else {
+            return window.tabGroup != nil
+        }
+        return window.tabGroup !== anchorGroup
+    }
+
+    /// 最近一次 Reveal 合并出的新标签（同目录多开时优先激活它，勿用 path 命中旧标签）。
+    func lastMergedRevealTab() -> NSWindow? {
+        lastMergedRevealWindow
     }
 
     /// 将浏览窗选为当前标签并成为 key（外部 Reveal / 同目录复用）。
     func activateExplorerWindow(_ window: NSWindow) {
+        // 若曾被拆成独立窗，恢复可标签化以便回到原组选中态。
+        if window.tabbingMode == .disallowed {
+            window.tabbingMode = .preferred
+        }
         configureExplorerWindow(window)
-        if let tabGroup = window.tabGroup, tabGroup.windows.count > 1 {
+        if let tabGroup = window.tabGroup {
             if tabGroup.selectedWindow !== window {
                 tabGroup.selectedWindow = window
             }
         }
         NSApp.unhide(nil)
         NSApp.activate(ignoringOtherApps: true)
-        if !window.isKeyWindow || !window.isVisible {
-            window.makeKeyAndOrderFront(nil)
-        }
+        window.makeKeyAndOrderFront(nil)
+        ExternalOpenDiagnostic.logRaw(
+            "activateExplorerWindow path=\(path(for: window) ?? "nil") selected=\(window.tabGroup?.selectedWindow === window) key=\(window.isKeyWindow)"
+        )
         DispatchQueue.main.async { [weak window] in
             guard let window else { return }
             if let tabGroup = window.tabGroup, tabGroup.selectedWindow !== window {
                 tabGroup.selectedWindow = window
             }
-            if !window.isKeyWindow {
-                window.makeKeyAndOrderFront(nil)
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    /// odoc 叠出的无 path 浏览主窗：仅在外部 open 抑制期内、且确认为浏览窗时才杀。
+    /// 注意：不可在全局 `orderFront` 里对任意 path=nil 窗下手——会误杀菜单/面板，导致菜单栏点不开。
+    func shouldKillSurplusOdocWindow(_ window: NSWindow) -> Bool {
+        if pendingNewTab != nil { return false }
+        if isProgrammaticTabGenerationActive { return false }
+        if path(for: window) != nil { return false }
+
+        // 只在外部 Reveal/odoc 抑制窗内动手；平时绝不动。
+        guard let until = suppressSurplusRestoredWindowsUntil, Date() < until else {
+            return false
+        }
+        guard hasRegisteredWindows || ExternalFolderOpenCenter.shared.isSessionEstablished else {
+            return false
+        }
+
+        // 排除菜单、面板、非普通层级窗。
+        if window is NSPanel { return false }
+        if window.level != .normal { return false }
+        if window.styleMask.contains(.nonactivatingPanel) { return false }
+        if !window.styleMask.contains(.titled) { return false }
+        if !window.canBecomeKey { return false }
+
+        // 未登记的 sceneKind 默认 .main，不可单独依赖；要求已是 tab 候选或挂在浏览 tabGroup。
+        if window.tabbingMode == .disallowed { return false }
+        if let group = window.tabGroup,
+           group.windows.contains(where: { path(for: $0) != nil }) {
+            return true
+        }
+        // 独立冒出的 titled 主窗（尚无 tabGroup）在抑制期内也可关。
+        return window.tabGroup == nil
+    }
+
+    /// 关掉多余窗前先切走选中标签，减少「闪一下再关」的观感。
+    func closeSurplusWindow(_ window: NSWindow, reason: String) {
+        ExternalOpenDiagnostic.logRaw(
+            "close surplus window reason=\(reason) path=\(path(for: window) ?? "nil")"
+        )
+        if let group = window.tabGroup {
+            let others = group.windows.filter { $0 !== window }
+            let preferred = others.first { path(for: $0) != nil } ?? others.first
+            if let preferred {
+                group.selectedWindow = preferred
             }
+        }
+        // 禁止再并进标签栏。
+        window.tabbingMode = .disallowed
+        window.orderOut(nil)
+        DispatchQueue.main.async {
+            window.close()
         }
     }
 
@@ -166,6 +305,321 @@ final class ExplorerWindowTabCenter: ObservableObject {
         !windowPaths.isEmpty
     }
 
+    /// 当前可见的浏览窗（含尚未 register path 的壳）。
+    var hasVisibleBrowserWindows: Bool {
+        !visibleBrowserWindows().isEmpty
+    }
+
+    func visibleBrowserWindows() -> [NSWindow] {
+        NSApp.windows.filter { window in
+            guard window.isVisible || window.isMiniaturized else { return false }
+            guard window.canBecomeKey else { return false }
+            let kind = sceneKind(for: window)
+            if kind == .main || kind == .folder { return true }
+            if path(for: window) != nil { return true }
+            // 尚未 register、但已挂在含已登记窗的 tabGroup 里的壳。
+            if let group = window.tabGroup,
+               group.windows.contains(where: { path(for: $0) != nil }) {
+                return true
+            }
+            return false
+        }
+    }
+
+    /// 外部文档/Reveal 到达前后调用：后续多余 restored 主窗一律关闭。
+    func beginExternalDocumentOpenSuppression(duration: TimeInterval = 2.5) {
+        let until = Date().addingTimeInterval(duration)
+        suppressSurplusRestoredWindowsUntil = until
+        ignoreSystemNewWindowForTabUntil = until
+        ExternalOpenDiagnostic.logRaw("external-open suppression begin duration=\(duration)")
+    }
+
+    /// 已有浏览会话时，无参 main 的 restored 启动是 odoc 叠出来的第二窗，应关闭。
+    func shouldRejectSurplusRestoredMainWindow() -> Bool {
+        // 合法新标签走 initialPath / peekPendingNewTabNavigation，不会进 restored 分支。
+        // 世代内出现的无参 restored 一律拒。
+        if isProgrammaticTabGenerationActive { return true }
+        // 只有「已经登记过其它浏览窗」时才拒。
+        // 禁止用 hasVisibleBrowserWindows：未 register 的窗 sceneKind 默认 .main，
+        // 冷启动会把自己判成已有浏览窗 → rejected-restored → close → 崩溃/闪退。
+        // 禁止单靠 isSessionEstablished：ContentView 重建时窗仍在 registry，会自杀。
+        return hasRegisteredWindows
+    }
+
+    /// hostWindow 挂上后二次确认：已登记的窗是 SwiftUI 重建，不是 surplus。
+    func shouldCloseAsSurplusRestoredWindow(_ window: NSWindow) -> Bool {
+        if path(for: window) != nil { return false }
+        if windowSceneKinds[ObjectIdentifier(window)] != nil { return false }
+        if isProgrammaticTabGenerationActive {
+            // 世代内允许的新窗由 noteWindowAppeared / initialPath 放行；无 path 的壳可关。
+            return true
+        }
+        // 还没有任何已登记窗时，这就是首个主窗，不能关。
+        return hasRegisteredWindows
+    }
+
+    /// 调试：清空遗留 ⌘N pending，避免下一扇窗被 detach 成独立窗。
+    func clearStalePendingOpen(reason: String) {
+        guard pendingOpen != nil else { return }
+        ExternalOpenDiagnostic.logRaw("clear stale pendingOpen reason=\(reason)")
+        pendingOpen = nil
+    }
+
+    /// 程序化新建标签进行中，或刚结束后的短抑制窗：系统 `newWindowForTab` 应只关壳、勿再开一页。
+    var shouldIgnoreSystemNewWindowForTab: Bool {
+        if pendingNewTab != nil { return true }
+        if isProgrammaticTabGenerationActive { return true }
+        if let until = ignoreSystemNewWindowForTabUntil, Date() < until {
+            return true
+        }
+        if let until = suppressSurplusRestoredWindowsUntil, Date() < until {
+            return true
+        }
+        return false
+    }
+
+    var isProgrammaticTabGenerationActive: Bool {
+        guard let generation = programmaticTabGeneration else { return false }
+        return Date() < generation.expiresAt
+    }
+
+    /// 世代内出现的窗：路径命中 target / 仍有 pending 的首个新窗放行，其余关闭。
+    /// - Returns: `true` 表示本窗应继续；`false` 表示已安排关闭。
+    @discardableResult
+    func noteWindowAppearedDuringProgrammaticTabGeneration(
+        _ window: NSWindow,
+        path: String? = nil
+    ) -> Bool {
+        guard var generation = programmaticTabGeneration, Date() < generation.expiresAt else {
+            return true
+        }
+        let id = ObjectIdentifier(window)
+        if generation.preexistingWindowIDs.contains(id) {
+            return true
+        }
+        if generation.allowedNewWindowIDs.contains(id) {
+            return true
+        }
+
+        let standardizedPath = path.map { ExternalSelectionPathMatcher.standardizedPath($0) }
+        let matchesTarget = standardizedPath == generation.targetPath
+        let pendingStillOpen = pendingNewTab != nil
+
+        // 只允许「恰好一个」新窗：已有 allowed 后，即便路径命中 target 也关掉（防止 SwiftUI 双开 folder）。
+        if !generation.allowedNewWindowIDs.isEmpty {
+            ExternalOpenDiagnostic.logRaw(
+                "tab-generation close surplus-allowed window=\(id) path=\(standardizedPath ?? "nil") target=\(generation.targetPath)"
+            )
+            DispatchQueue.main.async {
+                window.close()
+            }
+            return false
+        }
+
+        if matchesTarget || pendingStillOpen {
+            generation.allowedNewWindowIDs.insert(id)
+            programmaticTabGeneration = generation
+            ExternalOpenDiagnostic.logRaw(
+                "tab-generation allow window=\(id) path=\(standardizedPath ?? "nil") target=\(generation.targetPath)"
+            )
+            return true
+        }
+
+        ExternalOpenDiagnostic.logRaw(
+            "tab-generation close spurious window=\(id) path=\(standardizedPath ?? "nil") target=\(generation.targetPath)"
+        )
+        DispatchQueue.main.async {
+            window.close()
+        }
+        return false
+    }
+
+    /// 无 pending / initialPath 的 bootstrap 若落在世代内，禁止 `restoredLaunchPath`（会造 Desktop 第三标签）。
+    func shouldRejectRestoredLaunchBootstrap() -> Bool {
+        isProgrammaticTabGenerationActive
+    }
+
+    func beginProgrammaticTabGeneration(from anchor: NSWindow, targetPath: String, duration: TimeInterval = 2.0) {
+        // 只把「锚点」标为 preexisting。tabGroup 里未登记 / path==nil 的壳不能保护，
+        // 否则 odoc 叠出来的第二窗会永远活着。
+        var preexisting: Set<ObjectIdentifier> = [ObjectIdentifier(anchor)]
+        if let group = anchor.tabGroup {
+            for window in group.windows {
+                let id = ObjectIdentifier(window)
+                if id == ObjectIdentifier(anchor) { continue }
+                if let registered = path(for: window), !registered.isEmpty {
+                    preexisting.insert(id)
+                } else {
+                    ExternalOpenDiagnostic.logRaw(
+                        "tab-generation drop unprotected nil-shell before begin"
+                    )
+                    window.close()
+                }
+            }
+        }
+        let expires = Date().addingTimeInterval(duration)
+        programmaticTabGeneration = ProgrammaticTabGeneration(
+            id: UUID(),
+            anchor: anchor,
+            targetPath: ExternalSelectionPathMatcher.standardizedPath(targetPath),
+            preexistingWindowIDs: preexisting,
+            allowedNewWindowIDs: [],
+            expiresAt: expires
+        )
+        ignoreSystemNewWindowForTabUntil = expires
+        let pathList = (anchor.tabGroup?.windows ?? [anchor]).map { path(for: $0) ?? "nil" }.joined(separator: ", ")
+        ExternalOpenDiagnostic.logRaw(
+            "tab-generation begin target=\(targetPath) preexisting=\(preexisting.count) paths=[\(pathList)]"
+        )
+    }
+
+    func extendProgrammaticTabGeneration(by duration: TimeInterval = 1.5) {
+        guard var generation = programmaticTabGeneration else { return }
+        generation.expiresAt = Date().addingTimeInterval(duration)
+        programmaticTabGeneration = generation
+        ignoreSystemNewWindowForTabUntil = generation.expiresAt
+    }
+
+    func endProgrammaticTabGeneration() {
+        programmaticTabGeneration = nil
+        ExternalOpenDiagnostic.logRaw("tab-generation end")
+    }
+
+    /// 世代内创建、且不是唯一合法新标签的窗（供 coalesce 兜底）。
+    func spuriousWindowsCreatedDuringProgrammaticTabGeneration() -> [NSWindow] {
+        guard let generation = programmaticTabGeneration, Date() < generation.expiresAt else {
+            return []
+        }
+        return NSApp.windows.filter { window in
+            let id = ObjectIdentifier(window)
+            guard !generation.preexistingWindowIDs.contains(id) else { return false }
+            guard window.tabbingMode != .disallowed else { return false }
+            let kind = sceneKind(for: window)
+            guard kind == .main || kind == .folder else { return false }
+            return !generation.allowedNewWindowIDs.contains(id)
+        }
+    }
+
+    /// Reveal 合并后：关掉世代外冒出的窗，以及与锚点同路径的多余复本（untitled→Desktop）。
+    func pruneDuplicateAnchorTabsForReveal(anchor: NSWindow, newTab: NSWindow) {
+        pruneTabGroupAfterExternalReveal(anchor: anchor, newTab: newTab)
+        activateExplorerWindow(newTab)
+    }
+
+    private func pruneTabGroupAfterExternalReveal(anchor: NSWindow, newTab: NSWindow) {
+        guard let group = newTab.tabGroup ?? anchor.tabGroup else { return }
+        let anchorID = ObjectIdentifier(anchor)
+        let newID = ObjectIdentifier(newTab)
+        let generation = programmaticTabGeneration
+        let targetPath = generation?.targetPath
+        let keeperGroup = group
+
+        for window in Array(group.windows) {
+            let id = ObjectIdentifier(window)
+            if id == anchorID || id == newID { continue }
+            if let generation, generation.allowedNewWindowIDs.contains(id), id != newID {
+                // 世代内只允许一个新窗；其余即便曾 allow 也关掉。
+                ExternalOpenDiagnostic.logRaw(
+                    "tab-generation prune surplus-allowed path=\(path(for: window) ?? "nil")"
+                )
+                window.close()
+                continue
+            }
+
+            let windowPath = path(for: window).map { ExternalSelectionPathMatcher.standardizedPath($0) }
+            let isPreexisting = generation?.preexistingWindowIDs.contains(id) == true
+
+            // 业务标签（世代前已有且 path 非空）保留；nil 壳与本世代垃圾关掉。
+            if isPreexisting, windowPath != nil { continue }
+
+            ExternalOpenDiagnostic.logRaw(
+                "tab-generation prune newcomer path=\(windowPath ?? "nil") target=\(targetPath ?? "nil")"
+            )
+            window.close()
+        }
+
+        // 关掉不在 keeper 标签组内的游离浏览窗（真正的「第二个 MeoFind 窗口」）。
+        for window in NSApp.windows {
+            guard window !== anchor, window !== newTab else { continue }
+            guard window.canBecomeKey else { continue }
+            let kind = sceneKind(for: window)
+            guard kind == .main || kind == .folder || windowPaths[ObjectIdentifier(window)] != nil else {
+                continue
+            }
+            if window.tabGroup === keeperGroup { continue }
+            ExternalOpenDiagnostic.logRaw(
+                "tab-generation prune detached-window path=\(path(for: window) ?? "nil")"
+            )
+            window.close()
+        }
+    }
+
+    private func beginIgnoreSystemNewWindowForTab(for duration: TimeInterval = 1.0) {
+        ignoreSystemNewWindowForTabUntil = Date().addingTimeInterval(duration)
+    }
+
+    /// 外部 Reveal：用 folder WindowValue 带 path+selection 开窗，再合并进锚点标签组。
+    /// 同目录也允许再开一页（每次 Reveal = 新标签 + 选中）。
+    func openExternalRevealTab(
+        path: String,
+        selectionPath: String?,
+        from sourceWindow: NSWindow?,
+        activatesTab: Bool = true
+    ) {
+        let anchor = sourceWindow ?? NSApp.keyWindow
+        guard let anchor else {
+            ExternalOpenDiagnostic.logRaw("openExternalRevealTab failed — no anchor")
+            return
+        }
+
+        ExternalOpenDiagnostic.logRaw(
+            "openExternalRevealTab begin path=\(path) selection=\(selectionPath ?? "nil") anchor=\(self.path(for: anchor) ?? "nil")"
+        )
+
+        // 先开世代/抑制，再 configure/activate，避免 orderFront 触发系统在门闩前再抛壳。
+        if pendingNewTab != nil {
+            ExternalOpenDiagnostic.logRaw(
+                "openExternalRevealTab ignored — pending already in flight path=\(pendingNewTab?.path ?? "?")"
+            )
+            return
+        }
+
+        beginExternalDocumentOpenSuppression(duration: 2.5)
+        beginProgrammaticTabGeneration(from: anchor, targetPath: path)
+
+        configureExplorerWindow(anchor)
+
+        // 关键：清掉遗留的 ⌘N pendingOpen，否则 handleExplorerWindowDidAppear
+        // 会把 Reveal 新标签 removeWindow + tabbingMode=.disallowed 拆成独立窗。
+        if pendingOpen != nil {
+            ExternalOpenDiagnostic.logRaw("openExternalRevealTab clear stale pendingOpen(.newWindow)")
+            pendingOpen = nil
+        }
+
+        pendingNewTab = PendingNewTab(
+            sourceWindow: anchor,
+            sceneKind: sceneKind(for: anchor),
+            path: path,
+            selectionPath: selectionPath,
+            itemsSnapshot: nil,
+            activatesTab: activatesTab
+        )
+
+        guard let openFolderWindow = ExplorerWindowOpenBridge.shared.openFolderWindow else {
+            ExternalOpenDiagnostic.logRaw("openExternalRevealTab failed — no openFolderWindow bridge")
+            pendingNewTab = nil
+            endProgrammaticTabGeneration()
+            return
+        }
+
+        ExternalOpenDiagnostic.logRaw(
+            "openExternalRevealTab folder-value path=\(path) selection=\(selectionPath ?? "nil")"
+        )
+        openFolderWindow(
+            ExplorerFolderWindowValue(path: path, selectionPath: selectionPath)
+        )
+    }
+
     /// 在当前窗口组中新建标签页（工具栏 / ⌘T / 系统标签栏「+」：同场景、同路径、直接合并）。
     /// - Parameter activatesTab: 外部 Reveal 等场景为 true，合并后强制选中并激活新标签。
     func openNewTab(
@@ -181,13 +635,17 @@ final class ExplorerWindowTabCenter: ObservableObject {
         configureExplorerWindow(anchor)
 
         let sceneKind = sceneKind(for: anchor)
-        if let existing = pendingNewTab,
-           existing.sourceWindow === anchor,
-           existing.sceneKind == sceneKind,
-           existing.path == path,
-           existing.selectionPath == selectionPath {
+        // 已有进行中的新建：绝不能覆盖 pending（否则会丢掉 selectionPath）或再开第二窗。
+        if pendingNewTab != nil {
+            ExternalOpenDiagnostic.logRaw(
+                "openNewTab ignored — pending already in flight path=\(pendingNewTab?.path ?? "?")"
+            )
             return
         }
+
+        beginIgnoreSystemNewWindowForTab()
+        // 工具栏 ⌘T 也开世代，防止系统壳叠页。
+        beginProgrammaticTabGeneration(from: anchor, targetPath: path, duration: 1.2)
 
         pendingNewTab = PendingNewTab(
             sourceWindow: anchor,
@@ -200,12 +658,15 @@ final class ExplorerWindowTabCenter: ObservableObject {
 
         switch sceneKind {
         case .main:
+            ExternalOpenDiagnostic.logRaw("openNewTab openMainWindow path=\(path)")
             ExplorerWindowOpenBridge.shared.openMainWindow?()
         case .folder:
             guard let openFolderWindow = ExplorerWindowOpenBridge.shared.openFolderWindow else {
                 pendingNewTab = nil
+                endProgrammaticTabGeneration()
                 return
             }
+            ExternalOpenDiagnostic.logRaw("openNewTab openFolderWindow path=\(path)")
             openFolderWindow(
                 ExplorerFolderWindowValue(path: path, selectionPath: selectionPath)
             )
@@ -223,28 +684,58 @@ final class ExplorerWindowTabCenter: ObservableObject {
             // 后台合并的新标签：忽略系统多余置前，避免抢选中态造成闪动。
             return true
         }
+
+        // 注意：不要在全局 orderFront 里 close 窗。菜单/面板也会走 makeKeyAndOrderFront，
+        // 误杀会导致菜单栏完全点不开。odoc 壳只在 attemptTabMerge / rejected-restored 里关。
+
         guard let pending = pendingNewTab else { return false }
         guard pending.sourceWindow !== window else { return false }
         guard let anchor = pending.sourceWindow else { return false }
         guard window.tabbingMode != .disallowed else { return false }
+        _ = noteWindowAppearedDuringProgrammaticTabGeneration(window, path: pending.path)
         mergeNewTabWindow(window, into: anchor, pending: pending)
         return true
     }
 
     /// 在 `NSWindow` 挂到视图层级时尽早合并，避免独立窗口闪现。
-    func attemptTabMerge(for window: NSWindow) {
-        guard let pending = pendingNewTab else { return }
-        guard pending.sourceWindow !== window else { return }
+    /// - Returns: `false` 表示本窗已作为 surplus 关闭，调用方勿再 configure/merge。
+    @discardableResult
+    func attemptTabMerge(for window: NSWindow) -> Bool {
+        if shouldKillSurplusOdocWindow(window) {
+            closeSurplusWindow(window, reason: "attemptTabMerge-odoc")
+            return false
+        }
+        _ = noteWindowAppearedDuringProgrammaticTabGeneration(
+            window,
+            path: path(for: window) ?? pendingNewTab?.path
+        )
+        guard let pending = pendingNewTab else { return true }
+        guard pending.sourceWindow !== window else { return true }
         guard let anchor = pending.sourceWindow else {
             pendingNewTab = nil
-            return
+            return true
         }
         mergeNewTabWindow(window, into: anchor, pending: pending)
+        return true
     }
 
     private func mergeNewTabWindow(_ window: NSWindow, into anchor: NSWindow, pending: PendingNewTab) {
+        // 先清空 pending，避免 attemptTabMerge + orderFront 拦截双进 merge。
+        guard !isMergingNewTab else {
+            ExternalOpenDiagnostic.logRaw("mergeNewTabWindow skipped — already merging")
+            return
+        }
+        isMergingNewTab = true
+        defer { isMergingNewTab = false }
+        if pendingNewTab != nil {
+            pendingNewTab = nil
+        }
+
         configureExplorerWindow(window)
         configureExplorerWindow(anchor)
+        // 合并进标签组后必须保持可 tab；禁止随后被当成独立窗。
+        window.tabbingMode = .preferred
+        anchor.tabbingMode = .preferred
 
         let preservedFrame = anchor.frame
         beginFrameLock(preservedFrame, windows: [anchor, window])
@@ -270,14 +761,11 @@ final class ExplorerWindowTabCenter: ObservableObject {
             applyLockedFrame(preservedFrame, to: anchor)
             applyLockedFrame(preservedFrame, to: window)
 
-            if pending.sceneKind == .main {
-                pendingMainTabNavigations[ObjectIdentifier(window)] = PendingMainTabNavigation(
-                    path: pending.path,
-                    selectionPath: pending.selectionPath,
-                    itemsSnapshot: pending.itemsSnapshot
-                )
-            }
-            pendingNewTab = nil
+            pendingMainTabNavigations[ObjectIdentifier(window)] = PendingMainTabNavigation(
+                path: pending.path,
+                selectionPath: pending.selectionPath,
+                itemsSnapshot: pending.itemsSnapshot
+            )
 
             // 选中新建标签（列表快照已在 init 填好，切换时不应空白闪一下）。
             if let tabGroup = window.tabGroup ?? anchor.tabGroup {
@@ -289,10 +777,26 @@ final class ExplorerWindowTabCenter: ObservableObject {
             applyLockedFrame(preservedFrame, to: window)
         }
 
+        // 尽早登记 path，避免后续 Reveal 因 path==nil 误判「无同目录标签」。
+        registerWindow(window, path: pending.path, sceneKind: .folder)
+        lastMergedRevealWindow = window
+        _ = noteWindowAppearedDuringProgrammaticTabGeneration(window, path: pending.path)
+        extendProgrammaticTabGeneration(by: 1.5)
+        ExternalOpenDiagnostic.logRaw(
+            "tab-generation merged path=\(pending.path) selection=\(pending.selectionPath ?? "nil") win=\(String(ObjectIdentifier(window).hashValue, radix: 16))"
+        )
+        // 外部 Reveal：合并后只保留「世代前已有窗 + 唯一新标签」，并去掉与锚点同路径的复本。
+        if pending.activatesTab {
+            pruneTabGroupAfterExternalReveal(anchor: anchor, newTab: window)
+        }
+
         let shouldActivate = pending.activatesTab
         isRevealingMergedTab = true
         if shouldActivate {
             NSApp.activate(ignoringOtherApps: true)
+            if let tabGroup = window.tabGroup ?? anchor.tabGroup {
+                tabGroup.selectedWindow = window
+            }
             window.makeKeyAndOrderFront(nil)
         } else if !window.isKeyWindow {
             window.makeKey()
@@ -306,23 +810,29 @@ final class ExplorerWindowTabCenter: ObservableObject {
         if !shouldActivate {
             suppressOrderFrontWindowIDs.insert(mergedID)
         }
-        DispatchQueue.main.async { [weak self] in
-            if newTab.tabGroup?.selectedWindow !== newTab {
-                newTab.tabGroup?.selectedWindow = newTab
-            }
-            if shouldActivate {
-                NSApp.activate(ignoringOtherApps: true)
-                if !newTab.isKeyWindow || newTab.tabGroup?.selectedWindow !== newTab {
-                    self?.isRevealingMergedTab = true
-                    newTab.makeKeyAndOrderFront(nil)
-                    self?.isRevealingMergedTab = false
+        beginIgnoreSystemNewWindowForTab(for: 1.0)
+
+        let activationDelays: [TimeInterval] = shouldActivate ? [0.0, 0.05, 0.2, 0.45] : [0.0]
+        for delay in activationDelays {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self else { return }
+                if newTab.tabGroup?.selectedWindow !== newTab {
+                    newTab.tabGroup?.selectedWindow = newTab
                 }
-            } else if !newTab.isKeyWindow {
-                self?.isRevealingMergedTab = true
-                newTab.makeKey()
-                self?.isRevealingMergedTab = false
+                if shouldActivate {
+                    NSApp.activate(ignoringOtherApps: true)
+                    self.isRevealingMergedTab = true
+                    newTab.makeKeyAndOrderFront(nil)
+                    self.isRevealingMergedTab = false
+                } else if !newTab.isKeyWindow {
+                    self.isRevealingMergedTab = true
+                    newTab.makeKey()
+                    self.isRevealingMergedTab = false
+                }
+                if delay >= 0.2 {
+                    self.suppressOrderFrontWindowIDs.remove(mergedID)
+                }
             }
-            self?.suppressOrderFrontWindowIDs.remove(mergedID)
         }
 
         scheduleFrameLockRelease(after: 0.2, restoring: preservedFrame, window: newTab)
@@ -447,6 +957,12 @@ final class ExplorerWindowTabCenter: ObservableObject {
     func handleExplorerWindowDidAppear(_ window: NSWindow) {
         configureExplorerWindow(window)
 
+        // Reveal / 程序化新标签合并期间绝不走 ⌘N 拆窗逻辑。
+        if pendingNewTab != nil || isProgrammaticTabGenerationActive || isMergingNewTab {
+            bumpTabBarRevision()
+            return
+        }
+
         guard let pendingOpen else {
             bumpTabBarRevision()
             return
@@ -459,6 +975,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
         guard pendingOpen.mode == .newWindow else { return }
 
         self.pendingOpen = nil
+        ExternalOpenDiagnostic.logRaw("handleExplorerWindowDidAppear detach for ⌘N new window")
         window.tabGroup?.removeWindow(window)
         window.tabbingMode = .disallowed
         window.makeKeyAndOrderFront(nil)
