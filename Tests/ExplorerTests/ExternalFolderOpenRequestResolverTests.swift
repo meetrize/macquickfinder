@@ -70,13 +70,23 @@ final class ExternalFolderOpenRequestResolverTests: XCTestCase {
         XCTAssertNil(resolved?.selectionPath)
     }
 
-    func testResolvePathTextOpensDirectory() throws {
-        let folder = temporaryDirectory.appendingPathComponent("docs", isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    func testResolveSelectsAppPackageInParentDirectory() throws {
+        let app = temporaryDirectory.appendingPathComponent("汽水音乐.app", isDirectory: true)
+        try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
 
-        let resolved = ExternalFolderOpenRequestResolver.resolve(fromPathText: "  \(folder.path)  ")
+        let resolved = ExternalFolderOpenRequestResolver.resolve(from: [app])
 
-        XCTAssertEqual(resolved?.directoryPath, folder.standardizedFileURL.path)
-        XCTAssertNil(resolved?.selectionPath)
+        XCTAssertEqual(resolved?.directoryPath, temporaryDirectory.standardizedFileURL.path)
+        XCTAssertEqual(resolved?.selectionPath, app.standardizedFileURL.path)
+    }
+
+    func testResolvePathTextSelectsAppPackageInParentDirectory() throws {
+        let app = temporaryDirectory.appendingPathComponent("MeoBrowser.app", isDirectory: true)
+        try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
+
+        let resolved = ExternalFolderOpenRequestResolver.resolve(fromPathText: app.path)
+
+        XCTAssertEqual(resolved?.directoryPath, temporaryDirectory.standardizedFileURL.path)
+        XCTAssertEqual(resolved?.selectionPath, app.standardizedFileURL.path)
     }
 }

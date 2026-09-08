@@ -49,4 +49,30 @@ final class ExternalSelectionPathMatcherTests: XCTestCase {
         )
         XCTAssertEqual(matched?.id, item.id)
     }
+
+    func testMatchesAppPackageByBasenameWhenUnicodeFormDiffers() {
+        let nfcName = "汽水音乐.app"
+        let item = FileItem(
+            id: "/Volumes/SSD4T/app/\(nfcName)",
+            url: URL(fileURLWithPath: "/Volumes/SSD4T/app/\(nfcName)"),
+            name: nfcName,
+            isDirectory: true,
+            modificationDate: .distantPast,
+            creationDate: .distantPast,
+            size: 0,
+            isHidden: false,
+            fileType: "文件夹",
+            sizeDisplay: "",
+            dateDisplay: "",
+            creationDateDisplay: "",
+            finderComment: "",
+            tags: []
+        )
+        let nfdName = nfcName.decomposedStringWithCanonicalMapping
+        let matched = ExternalSelectionPathMatcher.matchingItem(
+            in: [item],
+            selectionPath: "/Volumes/SSD4T/app/\(nfdName)"
+        )
+        XCTAssertEqual(matched?.id, item.id)
+    }
 }

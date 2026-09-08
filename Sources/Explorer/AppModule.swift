@@ -921,24 +921,55 @@ final class ExternalFolderOpenCenter: ObservableObject {
         app.unhide(nil)
         app.activate(ignoringOtherApps: true)
 
-        // 已有浏览窗：只投递给 frontmost 标签（原地导航），禁止 openNewTab / 全标签广播，
-        // 避免第三方 Reveal 时多出一个空白 tab，也不改其它标签路径。
-        if let anchor = preferredExplorerAnchorWindow() {
-            deliverOpenRequestToFrontmostTab(resolvedRequest, anchor: anchor)
+        let targetDir = ExternalSelectionPathMatcher.standardizedPath(resolvedRequest.directoryPath)
+        let tabs = ExplorerWindowTabCenter.shared
+
+        // 温启动 I2：任一标签已显示 targetDir → 复用并激活，禁止新标签。
+        if isSessionEstablished, let reuse = tabs.windowShowingDirectory(targetDir) {
+            ExternalOpenDiagnostic.logRaw(
+                "requestOpen warm-reuse-tab dir=\(targetDir) selection=\(resolvedRequest.selectionPath ?? "nil")"
+            )
+            tabs.activateExplorerWindow(reuse)
+            deliverOpenRequestToWindow(resolvedRequest, window: reuse)
+            return
+        }
+
+        // 温启动 I3：无同目录标签 → 在锚点窗新开标签并强制激活。
+        if isSessionEstablished, let anchor = preferredExplorerAnchorWindow() {
+            let currentDir = tabs.path(for: anchor).map {
+                ExternalSelectionPathMatcher.standardizedPath($0)
+            }
+            ExternalOpenDiagnostic.logRaw(
+                "requestOpen warm-new-tab from=\(currentDir ?? "nil") to=\(targetDir)"
+            )
+            deliverOpenRequestInNewTab(resolvedRequest, anchor: anchor)
             return
         }
 
         if isSessionEstablished {
+            ExternalOpenDiagnostic.logRaw(
+                "requestOpen warm-no-anchor → openFolderWindow dir=\(resolvedRequest.directoryPath)"
+            )
             openFolderWindow?(resolvedRequest)
             return
         }
 
+        // 冷启动 I1：单窗 + pendingRequest。
+        ExternalOpenDiagnostic.logRaw(
+            "requestOpen cold-pending dir=\(resolvedRequest.directoryPath) selection=\(resolvedRequest.selectionPath ?? "nil")"
+        )
         markLaunchedFromExternalEvent()
         targetRequest = resolvedRequest
         pendingRequest = resolvedRequest
         bringExplorerWindowsToFront()
         openRequestGeneration &+= 1
+        schedulePendingApplyRetries()
         DuplicateExplorerWindowCloser.scheduleCoalesce(keeping: resolvedRequest)
+    }
+
+    /// 窥视尚未消费的 pending（不清除），供 ContentView 判断是否应由本窗处理。
+    func peekPendingRequest() -> OpenRequest? {
+        pendingRequest
     }
 
     /// 仅由 frontmost 浏览标签消费；消费后清除 sticky `targetRequest`。
@@ -961,12 +992,40 @@ final class ExternalFolderOpenCenter: ObservableObject {
         recentlyHandledRequestKeys.removeAll()
     }
 
-    private func deliverOpenRequestToFrontmostTab(_ request: OpenRequest, anchor: NSWindow) {
-        anchor.makeKeyAndOrderFront(nil)
-        // 不写入 sticky targetRequest，避免后续新建标签误用。
+    /// 投递给指定窗；激活竞态下多次 bump generation，避免 pending 因单次 !isKey 永丢。
+    private func deliverOpenRequestToWindow(_ request: OpenRequest, window: NSWindow) {
+        ExplorerWindowTabCenter.shared.activateExplorerWindow(window)
         pendingRequest = request
         targetRequest = nil
         openRequestGeneration &+= 1
+        schedulePendingApplyRetries()
+    }
+
+    private func deliverOpenRequestToFrontmostTab(_ request: OpenRequest, anchor: NSWindow) {
+        deliverOpenRequestToWindow(request, window: anchor)
+    }
+
+    /// 外部 Reveal 到不同目录：在锚点窗新开标签并落到目标路径 + 选中项。
+    private func deliverOpenRequestInNewTab(_ request: OpenRequest, anchor: NSWindow) {
+        ExplorerWindowTabCenter.shared.activateExplorerWindow(anchor)
+        pendingRequest = nil
+        targetRequest = nil
+        ExplorerWindowTabCenter.shared.openNewTab(
+            path: request.directoryPath,
+            selectionPath: request.selectionPath,
+            from: anchor,
+            activatesTab: true
+        )
+    }
+
+    private func schedulePendingApplyRetries() {
+        guard pendingRequest != nil else { return }
+        for delay in [0.05, 0.2, 0.5] as [TimeInterval] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, self.pendingRequest != nil else { return }
+                self.openRequestGeneration &+= 1
+            }
+        }
     }
 
     private func preferredExplorerAnchorWindow() -> NSWindow? {
@@ -987,6 +1046,9 @@ final class ExternalFolderOpenCenter: ObservableObject {
         guard !candidates.isEmpty else { return nil }
         if let key = NSApp.keyWindow, candidates.contains(where: { $0 === key }) {
             return key
+        }
+        if let selected = candidates.first(where: { $0.tabGroup?.selectedWindow === $0 }) {
+            return selected
         }
         return candidates.first
     }

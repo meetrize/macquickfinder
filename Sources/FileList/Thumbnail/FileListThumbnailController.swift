@@ -317,12 +317,33 @@ public final class FileListThumbnailController: FileListContentController {
         
         if pendingScrollToTop {
             pendingScrollToTop = false
-            scrollToTop()
+            // 有外部选中时滚到选中项，而不是顶到列表开头把选中滚出视野。
+            if !scrollSelectionIntoViewIfNeeded() {
+                scrollToTop()
+            }
+        } else {
+            _ = scrollSelectionIntoViewIfNeeded()
         }
         
         scheduleVisibleThumbnailLoad()
         scheduleVisibleDirectoryPathsNotify(debounce: 0.08)
         consumePendingRenameIfNeeded()
+    }
+
+    @discardableResult
+    private func scrollSelectionIntoViewIfNeeded() -> Bool {
+        guard let collectionView, let selectionGet else { return false }
+        let selected = selectionGet()
+        guard !selected.isEmpty else { return false }
+        guard let index = displayRows.firstIndex(where: { selected.contains($0.id) }) else {
+            return false
+        }
+        let indexPath = IndexPath(item: index, section: 0)
+        collectionView.scrollToItems(
+            at: [indexPath],
+            scrollPosition: [.centeredVertically]
+        )
+        return true
     }
 
     func clearDeferredListingUpdateWhileRenaming() {

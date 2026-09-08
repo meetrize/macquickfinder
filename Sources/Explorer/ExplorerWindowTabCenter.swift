@@ -35,6 +35,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
         let path: String
         let selectionPath: String?
         let itemsSnapshot: [FileItem]?
+        let activatesTab: Bool
     }
 
     private struct PendingOpen {
@@ -101,6 +102,51 @@ final class ExplorerWindowTabCenter: ObservableObject {
         return windowSceneKinds[ObjectIdentifier(window)] ?? .main
     }
 
+    /// 已注册且当前浏览目录等于 `directoryPath` 的窗口（优先 key / 选中标签）。
+    func windowShowingDirectory(_ directoryPath: String) -> NSWindow? {
+        let target = ExternalSelectionPathMatcher.standardizedPath(directoryPath)
+        let matches = NSApp.windows.filter { window in
+            guard !window.isMiniaturized, window.canBecomeKey else { return false }
+            guard window.tabbingMode != .disallowed else { return false }
+            let kind = sceneKind(for: window)
+            guard kind == .main || kind == .folder else { return false }
+            guard let path = path(for: window) else { return false }
+            return ExternalSelectionPathMatcher.standardizedPath(path) == target
+        }
+        guard !matches.isEmpty else { return nil }
+        if let key = NSApp.keyWindow, matches.contains(where: { $0 === key }) {
+            return key
+        }
+        if let selected = matches.first(where: { $0.tabGroup?.selectedWindow === $0 }) {
+            return selected
+        }
+        return matches.first
+    }
+
+    /// 将浏览窗选为当前标签并成为 key（外部 Reveal / 同目录复用）。
+    func activateExplorerWindow(_ window: NSWindow) {
+        configureExplorerWindow(window)
+        if let tabGroup = window.tabGroup, tabGroup.windows.count > 1 {
+            if tabGroup.selectedWindow !== window {
+                tabGroup.selectedWindow = window
+            }
+        }
+        NSApp.unhide(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        if !window.isKeyWindow || !window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+        }
+        DispatchQueue.main.async { [weak window] in
+            guard let window else { return }
+            if let tabGroup = window.tabGroup, tabGroup.selectedWindow !== window {
+                tabGroup.selectedWindow = window
+            }
+            if !window.isKeyWindow {
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
+    }
+
     /// 主场景标签合并后，供新 `ContentView` 同步目录与外部选中项。
     func consumeInitialNavigationForNewTab(in window: NSWindow) -> PendingMainTabNavigation? {
         pendingMainTabNavigations.removeValue(forKey: ObjectIdentifier(window))
@@ -121,11 +167,13 @@ final class ExplorerWindowTabCenter: ObservableObject {
     }
 
     /// 在当前窗口组中新建标签页（工具栏 / ⌘T / 系统标签栏「+」：同场景、同路径、直接合并）。
+    /// - Parameter activatesTab: 外部 Reveal 等场景为 true，合并后强制选中并激活新标签。
     func openNewTab(
         path: String,
         selectionPath: String? = nil,
         itemsSnapshot: [FileItem]? = nil,
-        from sourceWindow: NSWindow?
+        from sourceWindow: NSWindow?,
+        activatesTab: Bool = true
     ) {
         let anchor = sourceWindow ?? NSApp.keyWindow
         guard let anchor else { return }
@@ -146,7 +194,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
             sceneKind: sceneKind,
             path: path,
             selectionPath: selectionPath,
-            itemsSnapshot: itemsSnapshot
+            itemsSnapshot: itemsSnapshot,
+            activatesTab: activatesTab
         )
 
         switch sceneKind {
@@ -240,21 +289,35 @@ final class ExplorerWindowTabCenter: ObservableObject {
             applyLockedFrame(preservedFrame, to: window)
         }
 
-        // 激活新标签；随后吞掉系统重复的 orderFront，避免激活→失焦闪动。
+        let shouldActivate = pending.activatesTab
         isRevealingMergedTab = true
-        if !window.isKeyWindow {
+        if shouldActivate {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+        } else if !window.isKeyWindow {
             window.makeKey()
         }
         isRevealingMergedTab = false
 
-        suppressOrderFrontWindowIDs.insert(ObjectIdentifier(window))
+        // 外部 Reveal 需要稳定前台：不要吞掉后续 orderFront。
+        // 内部 ⌘T 仍短暂 suppress，减轻激活→失焦闪动。
         let mergedID = ObjectIdentifier(window)
         let newTab = window
+        if !shouldActivate {
+            suppressOrderFrontWindowIDs.insert(mergedID)
+        }
         DispatchQueue.main.async { [weak self] in
             if newTab.tabGroup?.selectedWindow !== newTab {
                 newTab.tabGroup?.selectedWindow = newTab
             }
-            if !newTab.isKeyWindow {
+            if shouldActivate {
+                NSApp.activate(ignoringOtherApps: true)
+                if !newTab.isKeyWindow || newTab.tabGroup?.selectedWindow !== newTab {
+                    self?.isRevealingMergedTab = true
+                    newTab.makeKeyAndOrderFront(nil)
+                    self?.isRevealingMergedTab = false
+                }
+            } else if !newTab.isKeyWindow {
                 self?.isRevealingMergedTab = true
                 newTab.makeKey()
                 self?.isRevealingMergedTab = false

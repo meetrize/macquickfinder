@@ -177,6 +177,8 @@ public final class FileListTableController: FileListContentController {
                     tableView?.reloadData()
                 }
             }
+            // Reveal 等同目录再次定位：listing 未变也要同步选中并滚入可视区。
+            syncSelectionToTable()
             scheduleVisibleDirectoryPathsNotify(debounce: 0.15)
             if useIconPreview {
                 scheduleVisibleIconPreviewLoad()
@@ -419,6 +421,10 @@ public final class FileListTableController: FileListContentController {
         }
         if tableView.selectedRowIndexes != indexes {
             tableView.selectRowIndexes(indexes, byExtendingSelection: false)
+        }
+        // 外部 Reveal 常在 listingChanged → scrollToTop 之后同步选中；必须滚到目标行。
+        if let first = indexes.first {
+            tableView.scrollRowToVisible(first)
         }
     }
 

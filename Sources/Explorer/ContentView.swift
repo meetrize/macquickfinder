@@ -29,14 +29,21 @@ extension ContentView {
         let currentDirectory = ExternalSelectionPathMatcher.standardizedPath(path)
         if currentDirectory == targetDirectory {
             if applyExternalSelectionImmediatelyIfPossible() {
+                scheduleExternalSelectionRetry()
                 return
             }
             if isLoading {
+                scheduleExternalSelectionRetry()
                 return
             }
             loadItems()
+            scheduleExternalSelectionRetry()
         } else {
             path = target.directoryPath
+            if !isLoading {
+                loadItems()
+            }
+            scheduleExternalSelectionRetry()
         }
     }
 
@@ -56,8 +63,21 @@ extension ContentView {
         return true
     }
 
+    /// Reveal 选中常早于目录枚举完成；短延迟重试，避免冷启动/新标签丢选中。
+    func scheduleExternalSelectionRetry() {
+        guard pendingExternalSelectionPath != nil else { return }
+        let delays: [TimeInterval] = [0.05, 0.15, 0.35, 0.8, 1.5]
+        for delay in delays {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                _ = self.applyExternalSelectionImmediatelyIfPossible()
+            }
+        }
+    }
+
     func applyPendingExternalSelectionIfNeeded(loadedItems: [FileItem], for directoryPath: String) {
-        guard directoryPath == path else { return }
+        let loadedDirectory = ExternalSelectionPathMatcher.standardizedPath(directoryPath)
+        let currentDirectory = ExternalSelectionPathMatcher.standardizedPath(path)
+        guard loadedDirectory == currentDirectory else { return }
         guard let pendingExternalSelectionPath else { return }
         guard let item = ExternalSelectionPathMatcher.matchingItem(
             in: loadedItems,
@@ -67,7 +87,7 @@ extension ContentView {
         }
         self.pendingExternalSelectionPath = nil
         selection = [item.id]
-        fileListFocusToken &+= 1
+        // 不在这里 bump focusToken：由 applyLoadedListing 统一处理，避免抢在选中同步前 reload。
     }
 
     func refreshListingItem(at filePath: String) {
@@ -151,15 +171,21 @@ extension ContentView {
         }
         if path != navigation.path {
             path = navigation.path
+            if !isLoading {
+                loadItems()
+            }
+            scheduleExternalSelectionRetry()
             return
         }
         if items.isEmpty {
             if !applyExternalSelectionImmediatelyIfPossible(), !isLoading {
                 loadItems()
             }
+            scheduleExternalSelectionRetry()
             return
         }
         _ = applyExternalSelectionImmediatelyIfPossible()
+        scheduleExternalSelectionRetry()
         scheduleSilentListingReconcileAfterSnapshot()
     }
 
@@ -178,8 +204,27 @@ extension ContentView {
 
     func applyExternalOpenRequestIfNeeded() {
         guard windowSceneKind == .main || windowSceneKind == .folder else { return }
-        // 仅 key 窗消费 pending，避免多标签同时跳到同一目录。
-        guard let hostWindow, hostWindow.isKeyWindow else { return }
+        guard let hostWindow else { return }
+        guard let pending = externalFolderOpenCenter.peekPendingRequest() else { return }
+
+        let targetDir = ExternalSelectionPathMatcher.standardizedPath(pending.directoryPath)
+        let myDir = ExternalSelectionPathMatcher.standardizedPath(path)
+        let pathMatches = myDir == targetDir
+        let isSelectedTab = hostWindow.tabGroup?.selectedWindow === hostWindow
+            || hostWindow.tabGroup == nil
+            || hostWindow.tabGroup?.windows.count == 1
+        let isKey = hostWindow.isKeyWindow
+
+        // 有其它标签已显示 targetDir 时，只让该标签消费，避免错误标签被改路径。
+        if !pathMatches,
+           let owner = ExplorerWindowTabCenter.shared.windowShowingDirectory(targetDir),
+           owner !== hostWindow {
+            return
+        }
+
+        // 目录匹配 / 当前选中标签 / key 窗均可消费（不再唯一依赖 isKeyWindow，避免激活竞态丢 pending）。
+        guard pathMatches || isSelectedTab || isKey else { return }
+
         guard let request = externalFolderOpenCenter.consumePendingRequest() else { return }
         didConsumeLaunchNavigation = true
         applyExternalNavigationTarget(ExternalNavigationTarget(request: request))
@@ -221,11 +266,16 @@ extension ContentView {
             ExternalSelectionPathMatcher.standardizedPath($0)
         }
         let directory = request.directoryPath
-        if path != directory {
+        let sameDir = ExternalSelectionPathMatcher.standardizedPath(path)
+            == ExternalSelectionPathMatcher.standardizedPath(directory)
+        if !sameDir {
             path = directory
-        } else if !applyExternalSelectionImmediatelyIfPossible(), !isLoading {
+        }
+        // 冷启动 onAppear 里改 path 不一定触发 onChange；显式加载，选中等列表就绪后再做。
+        if !applyExternalSelectionImmediatelyIfPossible(), !isLoading {
             loadItems()
         }
+        scheduleExternalSelectionRetry()
     }
 }
 struct ContentView: View {
@@ -581,6 +631,8 @@ struct ContentView: View {
             ExplorerWindowTabCenter.shared.registerWindow(window, path: path, sceneKind: windowSceneKind)
             ExplorerWindowTabCenter.shared.handleExplorerWindowDidAppear(window)
             PreviewHostWindowRegistry.shared.register(hostWindowID: previewHostWindowID, window: window)
+            // onAppear 时常尚无 hostWindow；在此 register 后才宣告会话就绪，供外部 Reveal 温启动。
+            externalFolderOpenCenter.markSessionEstablished()
             syncExplorerTabBarState()
             if window.isKeyWindow {
                 applyExternalOpenRequestIfNeeded()
@@ -708,14 +760,16 @@ struct ContentView: View {
             }
             lastRecordedPath = path
             syncExplorerTabBarState()
-            externalFolderOpenCenter.markSessionEstablished()
             lastHandledOpenRequestGeneration = externalFolderOpenCenter.openRequestGeneration
+            // 必须先 register path 再 markSessionEstablished：否则外部 Reveal 温启动分支
+            // 会因 path==nil 误判「目录不同」而 openNewTab，冷启动叠出第二标签。
             if let hostWindow {
                 ExplorerWindowTabCenter.shared.registerWindow(
                     hostWindow,
                     path: path,
                     sceneKind: windowSceneKind
                 )
+                externalFolderOpenCenter.markSessionEstablished()
             }
             // 非首屏关键：延后到下一帧，让标签合并与目录列表先动起来。
             let appearedPath = path
@@ -953,6 +1007,16 @@ struct ContentView: View {
         }
     }
 
+    private func handleContentSearchMatchOpen(_ match: ContentSearchMatch) {
+        selection = [match.fileURL.path]
+        let resolved = FileItem.resolveSelection(ids: [match.fileURL.path], from: items)
+        if let item = resolved.first {
+            openItemWithDefaultApp(item)
+        } else {
+            NSWorkspace.shared.open(match.fileURL)
+        }
+    }
+
     private func loadPersistedContentSearchFilter() {
         guard let data = UserDefaults.standard.data(forKey: AppPreferences.Search.contentFilterJSON),
               let filter = try? JSONDecoder().decode(ContentSearchFilter.self, from: data) else {
@@ -1021,6 +1085,9 @@ struct ContentView: View {
                         session: contentSearchSession,
                         onSelectMatch: { match in
                             handleContentSearchMatchSelected(match)
+                        },
+                        onOpenMatch: { match in
+                            handleContentSearchMatchOpen(match)
                         },
                         onShowPreview: {
                             layout.showPreview = true
@@ -1661,7 +1728,6 @@ struct ContentView: View {
     ) {
         items = loadedItems
         isLoading = false
-        fileListFocusToken &+= 1
         applyPendingExternalSelectionIfNeeded(
             loadedItems: loadedItems,
             for: currentPath
@@ -1677,6 +1743,8 @@ struct ContentView: View {
                 shouldPreserve: shouldPreserveSelection
             )
         }
+        // 选中落定后再 bump，确保 TableHost 同帧拿到 selection 并滚入可视区。
+        fileListFocusToken &+= 1
         scheduleFinderCommentEnrichment(for: loadedItems, generation: currentGeneration)
         if pendingListingReloadAfterLoad {
             pendingListingReloadAfterLoad = false

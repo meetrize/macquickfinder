@@ -52,6 +52,7 @@ struct DirectoryContentSearchFileGroupView: View {
     let selectedMatchID: UUID?
     let onToggleExpansion: () -> Void
     let onSelectMatch: (ContentSearchMatch) -> Void
+    let onOpenMatch: (ContentSearchMatch) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -101,7 +102,10 @@ struct DirectoryContentSearchFileGroupView: View {
                             isSelected: selectedMatchID == match.id
                         )
                         .id(match.id)
-                        .onTapGesture {
+                        .onTapGesture(count: 2) {
+                            onOpenMatch(match)
+                        }
+                        .onTapGesture(count: 1) {
                             onSelectMatch(match)
                         }
                     }

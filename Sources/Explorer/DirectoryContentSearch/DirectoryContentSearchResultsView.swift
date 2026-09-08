@@ -3,6 +3,7 @@ import SwiftUI
 struct DirectoryContentSearchResultsView: View {
     @ObservedObject var session: DirectoryContentSearchSession
     let onSelectMatch: (ContentSearchMatch) -> Void
+    let onOpenMatch: (ContentSearchMatch) -> Void
     let onShowPreview: () -> Void
     let onDismiss: () -> Void
 
@@ -95,6 +96,10 @@ struct DirectoryContentSearchResultsView: View {
                             onSelectMatch: { match in
                                 session.selectedMatchID = match.id
                                 onSelectMatch(match)
+                            },
+                            onOpenMatch: { match in
+                                session.selectedMatchID = match.id
+                                onOpenMatch(match)
                             }
                         )
                     }
@@ -119,6 +124,7 @@ struct DirectoryContentSearchResultsView_Previews: PreviewProvider {
         return DirectoryContentSearchResultsView(
             session: session,
             onSelectMatch: { _ in },
+            onOpenMatch: { _ in },
             onShowPreview: {},
             onDismiss: {}
         )

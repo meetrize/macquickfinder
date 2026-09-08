@@ -51,6 +51,16 @@ enum ExternalFolderOpenRequestResolver {
 
         if exists {
             if isDirectory.boolValue {
+                // .app / packages are directories on disk but must reveal as items in the
+                // parent folder (Launchpad / MeoLaunch “Show in Finder”), not browse into.
+                if isSelectablePackage(standardized) {
+                    let parentDirectory = standardized.deletingLastPathComponent()
+                    guard parentDirectory.path != standardized.path else { return nil }
+                    return ResolvedRequest(
+                        directoryPath: parentDirectory.path,
+                        selectionPath: standardized.path
+                    )
+                }
                 return ResolvedRequest(directoryPath: standardized.path, selectionPath: nil)
             }
             let parentDirectory = standardized.deletingLastPathComponent()
@@ -63,14 +73,32 @@ enum ExternalFolderOpenRequestResolver {
 
         // 第三方「在访达中显示」可能传入当前进程无法 stat 的路径（如其他 App 容器目录），
         // 仍按路径结构打开父目录并尝试选中，避免完全无响应。
-        if standardized.hasDirectoryPath {
-            return ResolvedRequest(directoryPath: standardized.path, selectionPath: nil)
+        if isSelectablePackage(standardized) || !standardized.hasDirectoryPath {
+            let parentDirectory = standardized.deletingLastPathComponent()
+            guard parentDirectory.path != standardized.path else { return nil }
+            return ResolvedRequest(
+                directoryPath: parentDirectory.path,
+                selectionPath: standardized.path
+            )
         }
-        let parentDirectory = standardized.deletingLastPathComponent()
-        guard parentDirectory.path != standardized.path else { return nil }
-        return ResolvedRequest(
-            directoryPath: parentDirectory.path,
-            selectionPath: standardized.path
-        )
+        return ResolvedRequest(directoryPath: standardized.path, selectionPath: nil)
+    }
+
+    /// Application bundles and other Finder packages should be selected, not entered.
+    private static func isSelectablePackage(_ url: URL) -> Bool {
+        if url.pathExtension.lowercased() == "app" {
+            return true
+        }
+        if url.pathExtension.lowercased() == "bundle"
+            || url.pathExtension.lowercased() == "framework"
+            || url.pathExtension.lowercased() == "plugin"
+            || url.pathExtension.lowercased() == "kext" {
+            return true
+        }
+        guard let values = try? url.resourceValues(forKeys: [.isPackageKey]),
+              values.isPackage == true else {
+            return false
+        }
+        return true
     }
 }
