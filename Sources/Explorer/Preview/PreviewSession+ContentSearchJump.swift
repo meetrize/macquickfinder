@@ -97,4 +97,58 @@ extension PreviewTextSearchHighlighter {
 
         return nil
     }
+
+    /// 按行号 + 行内 UTF-16 列定位匹配；列对不上时回退到该行第一个匹配。
+    static func matchIndex(
+        lineNumber: Int,
+        columnUTF16: Int,
+        in text: String,
+        matchRanges: [NSRange]
+    ) -> Int? {
+        guard lineNumber >= 1 else { return nil }
+        let nsText = text as NSString
+        var currentLine = 1
+        var lineStart = 0
+
+        while currentLine <= lineNumber {
+            if currentLine == lineNumber {
+                let lineEnd: Int
+                if lineStart >= nsText.length {
+                    lineEnd = lineStart
+                } else {
+                    let found = nsText.rangeOfCharacter(
+                        from: .newlines,
+                        range: NSRange(location: lineStart, length: nsText.length - lineStart)
+                    )
+                    lineEnd = found.location == NSNotFound ? nsText.length : found.location
+                }
+                let lineRange = NSRange(location: lineStart, length: max(0, lineEnd - lineStart))
+                let preferredLocation = lineStart + max(0, columnUTF16)
+
+                if let exact = matchRanges.enumerated().first(where: { _, range in
+                    range.location == preferredLocation && NSIntersectionRange(range, lineRange).length > 0
+                }) {
+                    return exact.offset
+                }
+
+                for (index, matchRange) in matchRanges.enumerated() {
+                    if NSIntersectionRange(matchRange, lineRange).length > 0 {
+                        return index
+                    }
+                }
+                return matchRanges.isEmpty ? nil : 0
+            }
+
+            guard lineStart < nsText.length else { break }
+            let found = nsText.rangeOfCharacter(
+                from: .newlines,
+                range: NSRange(location: lineStart, length: nsText.length - lineStart)
+            )
+            if found.location == NSNotFound { break }
+            currentLine += 1
+            lineStart = found.location + found.length
+        }
+
+        return nil
+    }
 }

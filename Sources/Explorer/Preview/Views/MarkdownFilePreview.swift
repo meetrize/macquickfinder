@@ -12,6 +12,10 @@ struct MarkdownFilePreview: NSViewRepresentable {
     @Binding var searchPrevToken: UInt
     @Binding var searchMatchCount: Int
     @Binding var searchCurrentIndex: Int
+    @Binding var contentSearchJumpLine: Int?
+    @Binding var contentSearchJumpColumnUTF16: Int
+    @Binding var contentSearchJumpToken: UInt
+    var contentSearchJumpEpoch: UInt = 0
 
     private static let tableSeparatorRegex: NSRegularExpression? = {
         try? NSRegularExpression(
@@ -70,7 +74,11 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 textView: textView,
                 searchQuery: searchQuery,
                 searchNextToken: searchNextToken,
-                searchPrevToken: searchPrevToken
+                searchPrevToken: searchPrevToken,
+                contentSearchJumpLine: contentSearchJumpLine,
+                contentSearchJumpColumnUTF16: contentSearchJumpColumnUTF16,
+                contentSearchJumpToken: contentSearchJumpToken,
+                contentSearchJumpEpoch: contentSearchJumpEpoch
             )
         }
         context.coordinator.installTableLayoutWidthTracking()
@@ -122,7 +130,11 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 textView: textView,
                 searchQuery: searchQuery,
                 searchNextToken: searchNextToken,
-                searchPrevToken: searchPrevToken
+                searchPrevToken: searchPrevToken,
+                contentSearchJumpLine: contentSearchJumpLine,
+                contentSearchJumpColumnUTF16: contentSearchJumpColumnUTF16,
+                contentSearchJumpToken: contentSearchJumpToken,
+                contentSearchJumpEpoch: contentSearchJumpEpoch
             )
         }
 
@@ -161,11 +173,19 @@ struct MarkdownFilePreview: NSViewRepresentable {
             context.coordinator.lastMermaidBlockSources = MarkdownPreviewMermaidBlock.blockSources(in: markdown)
             let pending = applyMarkdown(markdown, to: textView, viewport: viewport)
             context.coordinator.scheduleMermaidRenders(pending: pending, textView: textView)
+            let hasActiveContentSearchJump =
+                contentSearchJumpLine != nil
+                && (context.coordinator.lastContentSearchJumpToken != contentSearchJumpToken
+                    || context.coordinator.lastContentSearchJumpEpoch != contentSearchJumpEpoch
+                    || context.coordinator.pendingContentSearchJump != nil)
             if markdownChanged || wrapChanged {
                 context.coordinator.searchCurrentIndex = 0
                 context.coordinator.lastHighlightedSearchRanges = []
-                textView.scrollToBeginningOfDocument(nil)
-                scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
+                // 有待处理的内容搜索跳转时不要滚回顶部，否则会盖住定位。
+                if !hasActiveContentSearchJump {
+                    textView.scrollToBeginningOfDocument(nil)
+                    scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
+                }
             }
             PreviewTextWrapLayout.invalidateLayout(textView: textView)
         } else if wrapLines {
@@ -181,7 +201,11 @@ struct MarkdownFilePreview: NSViewRepresentable {
             textView: textView,
             searchQuery: searchQuery,
             searchNextToken: searchNextToken,
-            searchPrevToken: searchPrevToken
+            searchPrevToken: searchPrevToken,
+            contentSearchJumpLine: contentSearchJumpLine,
+            contentSearchJumpColumnUTF16: contentSearchJumpColumnUTF16,
+            contentSearchJumpToken: contentSearchJumpToken,
+            contentSearchJumpEpoch: contentSearchJumpEpoch
         )
     }
 
@@ -642,6 +666,9 @@ struct MarkdownFilePreview: NSViewRepresentable {
         var lastSearchQuery: String = ""
         var lastSearchNextToken: UInt = 0
         var lastSearchPrevToken: UInt = 0
+        var lastContentSearchJumpToken: UInt = 0
+        var lastContentSearchJumpEpoch: UInt = 0
+        var pendingContentSearchJump: PendingContentSearchJump?
         var searchCurrentIndex: Int = 0
         var searchMatchRanges: [NSRange] = []
         var lastHighlightedSearchRanges: [NSRange] = []
@@ -649,8 +676,16 @@ struct MarkdownFilePreview: NSViewRepresentable {
         private var tableLayoutWidthObserver: NSObjectProtocol?
         private var tableLayoutWidthDebounceWorkItem: DispatchWorkItem?
         private var mermaidVisibilityDebounceWorkItem: DispatchWorkItem?
+        private var deferredJumpWorkItem: DispatchWorkItem?
         private var deferredMermaidRenders: [MarkdownPreviewMermaidBlock.PendingRender] = []
         private var mermaidInFlightKeys: Set<String> = []
+
+        struct PendingContentSearchJump {
+            let lineNumber: Int
+            let columnUTF16: Int
+            let token: UInt
+            let epoch: UInt
+        }
 
         init(searchMatchCount: Binding<Int>, searchCurrentIndex: Binding<Int>) {
             _searchMatchCount = searchMatchCount
@@ -883,19 +918,34 @@ struct MarkdownFilePreview: NSViewRepresentable {
             textView: NSTextView,
             searchQuery: String,
             searchNextToken: UInt,
-            searchPrevToken: UInt
+            searchPrevToken: UInt,
+            contentSearchJumpLine: Int?,
+            contentSearchJumpColumnUTF16: Int,
+            contentSearchJumpToken: UInt,
+            contentSearchJumpEpoch: UInt
         ) {
+            let hasActiveContentSearchJump =
+                contentSearchJumpLine != nil
+                && (lastContentSearchJumpToken != contentSearchJumpToken
+                    || lastContentSearchJumpEpoch != contentSearchJumpEpoch
+                    || pendingContentSearchJump != nil)
+
             if lastSearchQuery != searchQuery {
                 lastSearchQuery = searchQuery
                 searchCurrentIndex = 0
                 applySearchHighlightsInPlace(
                     textView: textView,
                     scrollToCurrent: !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        && !hasActiveContentSearchJump
                 )
             }
 
             if lastSearchNextToken != searchNextToken {
                 lastSearchNextToken = searchNextToken
+                if searchMatchRanges.isEmpty,
+                   !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+                }
                 guard !searchMatchRanges.isEmpty else { return }
                 searchCurrentIndex = PreviewTextSearchHighlighter.advanceMatchIndex(
                     current: searchCurrentIndex,
@@ -907,6 +957,10 @@ struct MarkdownFilePreview: NSViewRepresentable {
 
             if lastSearchPrevToken != searchPrevToken {
                 lastSearchPrevToken = searchPrevToken
+                if searchMatchRanges.isEmpty,
+                   !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+                }
                 guard !searchMatchRanges.isEmpty else { return }
                 searchCurrentIndex = PreviewTextSearchHighlighter.advanceMatchIndex(
                     current: searchCurrentIndex,
@@ -915,6 +969,83 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 )
                 applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
             }
+
+            if (lastContentSearchJumpToken != contentSearchJumpToken
+                || lastContentSearchJumpEpoch != contentSearchJumpEpoch),
+               let jumpLine = contentSearchJumpLine {
+                let didApply = applyContentSearchJump(
+                    lineNumber: jumpLine,
+                    columnUTF16: contentSearchJumpColumnUTF16,
+                    textView: textView
+                )
+                if didApply {
+                    lastContentSearchJumpToken = contentSearchJumpToken
+                    lastContentSearchJumpEpoch = contentSearchJumpEpoch
+                    pendingContentSearchJump = nil
+                } else {
+                    pendingContentSearchJump = PendingContentSearchJump(
+                        lineNumber: jumpLine,
+                        columnUTF16: contentSearchJumpColumnUTF16,
+                        token: contentSearchJumpToken,
+                        epoch: contentSearchJumpEpoch
+                    )
+                }
+            } else {
+                retryPendingContentSearchJumpIfNeeded(textView: textView)
+            }
+        }
+
+        func applyContentSearchJump(lineNumber: Int, columnUTF16: Int, textView: NSTextView) -> Bool {
+            guard PreviewTextSearchHighlighter.canRevealLine(lineNumber, in: textView.string) else {
+                return false
+            }
+
+            applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+            if let matchIndex = PreviewTextSearchHighlighter.matchIndex(
+                lineNumber: lineNumber,
+                columnUTF16: columnUTF16,
+                in: textView.string,
+                matchRanges: searchMatchRanges
+            ) {
+                searchCurrentIndex = matchIndex
+                applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
+            } else {
+                PreviewTextSearchHighlighter.scrollToLine(lineNumber, in: textView)
+            }
+            scheduleDeferredScroll(toLine: lineNumber, columnUTF16: columnUTF16, textView: textView)
+            return true
+        }
+
+        func retryPendingContentSearchJumpIfNeeded(textView: NSTextView) {
+            guard let pending = pendingContentSearchJump else { return }
+            let didApply = applyContentSearchJump(
+                lineNumber: pending.lineNumber,
+                columnUTF16: pending.columnUTF16,
+                textView: textView
+            )
+            guard didApply else { return }
+            lastContentSearchJumpToken = pending.token
+            lastContentSearchJumpEpoch = pending.epoch
+            pendingContentSearchJump = nil
+        }
+
+        private func scheduleDeferredScroll(toLine lineNumber: Int, columnUTF16: Int, textView: NSTextView) {
+            deferredJumpWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self, weak textView] in
+                guard let self, let textView else { return }
+                if let matchIndex = PreviewTextSearchHighlighter.matchIndex(
+                    lineNumber: lineNumber,
+                    columnUTF16: columnUTF16,
+                    in: textView.string,
+                    matchRanges: self.searchMatchRanges
+                ), matchIndex < self.searchMatchRanges.count {
+                    PreviewTextSearchHighlighter.scrollToRange(self.searchMatchRanges[matchIndex], in: textView)
+                } else {
+                    PreviewTextSearchHighlighter.scrollToLine(lineNumber, in: textView)
+                }
+            }
+            deferredJumpWorkItem = work
+            DispatchQueue.main.async(execute: work)
         }
 
         func applySearchHighlightsInPlace(textView: NSTextView, scrollToCurrent: Bool) {
@@ -959,6 +1090,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
         deinit {
             tableLayoutWidthDebounceWorkItem?.cancel()
             mermaidVisibilityDebounceWorkItem?.cancel()
+            deferredJumpWorkItem?.cancel()
             if let firstResponderObserver {
                 NotificationCenter.default.removeObserver(firstResponderObserver)
             }

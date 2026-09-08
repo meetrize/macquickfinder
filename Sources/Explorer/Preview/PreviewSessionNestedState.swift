@@ -226,6 +226,8 @@ final class PreviewSessionTextState: ObservableObject {
     @Published var searchMatchCount = 0
     @Published var searchCurrentIndex = 0
     @Published var contentSearchJumpLine: Int?
+    /// 匹配在目标行内的 UTF-16 列偏移（与 `ContentSearchMatch.matchStartUTF16` 一致）。
+    @Published var contentSearchJumpColumnUTF16: Int = 0
     @Published var contentSearchJumpToken: UInt = 0
     @Published var markdownMode: MarkdownDisplayMode = .preview
     @Published var markdownPreviewScale: CGFloat = 1.0
@@ -249,6 +251,7 @@ final class PreviewSessionTextState: ObservableObject {
         searchMatchCount = 0
         searchCurrentIndex = 0
         contentSearchJumpLine = nil
+        contentSearchJumpColumnUTF16 = 0
         contentSearchJumpToken = 0
         markdownMode = .preview
         markdownPreviewScale = 1.0
@@ -508,6 +511,8 @@ final class PreviewSessionContentState: ObservableObject {
 
 extension PreviewSession {
     func observeNestedState<T: ObservableObject>(_ child: T, storage: inout Set<AnyCancellable>) {
+        // 异步转发，避免在 onAppear / onChange 等视图更新周期内同步 objectWillChange
+        // 触发 “Publishing changes from within view updates” 并丢失刷新。
         child.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.objectWillChange.send() }

@@ -939,14 +939,18 @@ struct ContentView: View {
     private func handleContentSearchMatchSelected(_ match: ContentSearchMatch) {
         selection = [match.fileURL.path]
         layout.showPreview = true
-        ContentSearchRevealNotification.prepareReveal(
-            ContentSearchRevealRequest(
-                hostWindowID: previewHostWindowID,
-                fileID: match.fileURL.path,
-                lineNumber: match.lineNumber,
-                query: contentQuery
-            )
+        let request = ContentSearchRevealRequest(
+            hostWindowID: previewHostWindowID,
+            fileID: match.fileURL.path,
+            lineNumber: match.lineNumber,
+            query: contentQuery,
+            matchStartUTF16: match.matchStartUTF16
         )
+        // 等 selection → previewSelection 同步、预览宿主切到目标文件后再发 reveal，
+        // 避免通知落在旧文件宿主上被丢弃。
+        DispatchQueue.main.async {
+            ContentSearchRevealNotification.prepareReveal(request)
+        }
     }
 
     private func loadPersistedContentSearchFilter() {

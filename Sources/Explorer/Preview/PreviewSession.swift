@@ -14,6 +14,8 @@ final class PreviewSession: ObservableObject, Identifiable {
 
     @Published var location: PreviewSessionLocation = .inline
     @Published var folderInlineChild: FileItem?
+    /// 内容搜索跳转世代：挂在 session 自身（非嵌套 ObservableObject），保证同文件再次点击时 SwiftUI 一定会刷新预览。
+    @Published var contentSearchJumpEpoch: UInt = 0
 
     var image = PreviewSessionImageState()
     var pdf = PreviewSessionPDFState()
@@ -37,7 +39,7 @@ final class PreviewSession: ObservableObject, Identifiable {
     var loadTask: Task<Void, Never>?
     var imageResolutionUpgradeTask: Task<Void, Never>?
     /// 当前 `content` 所对应的文件 ID；用于避免同一文件重复整页重载。
-    var contentLoadedItemID: String?
+    @Published var contentLoadedItemID: String?
     private var browseContextCancellable: AnyCancellable?
     private var nestedStateCancellables = Set<AnyCancellable>()
     let browseContentPrefetcher = PreviewBrowserContentPrefetcher()

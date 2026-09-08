@@ -18,7 +18,10 @@ struct TextFilePreview: NSViewRepresentable {
     @Binding var searchMatchCount: Int
     @Binding var searchCurrentIndex: Int
     @Binding var contentSearchJumpLine: Int?
+    @Binding var contentSearchJumpColumnUTF16: Int
     @Binding var contentSearchJumpToken: UInt
+    /// session 级跳转世代；变化时强制走 updateNSView（同文件多次点击）。
+    var contentSearchJumpEpoch: UInt = 0
 
     private var isEditing: Bool {
         displayMode == .editing
@@ -218,12 +221,20 @@ struct TextFilePreview: NSViewRepresentable {
         guard !isEditing else { return }
 
         let coordinator = context.coordinator
+        let hasActiveContentSearchJump =
+            contentSearchJumpLine != nil
+            && (coordinator.lastContentSearchJumpToken != contentSearchJumpToken
+                || coordinator.lastContentSearchJumpEpoch != contentSearchJumpEpoch
+                || coordinator.pendingContentSearchJump != nil)
+
         if coordinator.lastSearchQuery != searchQuery {
             coordinator.lastSearchQuery = searchQuery
             coordinator.searchCurrentIndex = 0
             coordinator.applySearchHighlightsInPlace(
                 textView: textView,
+                // 有待处理的内容搜索跳转时不要滚到第 0 个匹配，避免盖住目标行。
                 scrollToCurrent: !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    && !hasActiveContentSearchJump
             )
         }
 
@@ -263,19 +274,39 @@ struct TextFilePreview: NSViewRepresentable {
             )
         }
 
-        if coordinator.lastContentSearchJumpToken != contentSearchJumpToken,
+        if (coordinator.lastContentSearchJumpToken != contentSearchJumpToken
+            || coordinator.lastContentSearchJumpEpoch != contentSearchJumpEpoch),
            let jumpLine = contentSearchJumpLine {
             let didApply = coordinator.applyContentSearchJump(
                 lineNumber: jumpLine,
+                columnUTF16: contentSearchJumpColumnUTF16,
                 textView: textView
             )
             if didApply {
                 coordinator.lastContentSearchJumpToken = contentSearchJumpToken
+                coordinator.lastContentSearchJumpEpoch = contentSearchJumpEpoch
+                coordinator.pendingContentSearchJump = nil
+            } else {
+                coordinator.pendingContentSearchJump = Coordinator.PendingContentSearchJump(
+                    lineNumber: jumpLine,
+                    columnUTF16: contentSearchJumpColumnUTF16,
+                    token: contentSearchJumpToken,
+                    epoch: contentSearchJumpEpoch
+                )
             }
+        } else {
+            coordinator.retryPendingContentSearchJumpIfNeeded(textView: textView)
         }
     }
     
     final class Coordinator {
+        struct PendingContentSearchJump {
+            let lineNumber: Int
+            let columnUTF16: Int
+            let token: UInt
+            let epoch: UInt
+        }
+
         @Binding var searchMatchCount: Int
         var searchCurrentIndexBinding: Binding<Int>
         var previewTextSelectionActive: Binding<Bool>?
@@ -290,6 +321,8 @@ struct TextFilePreview: NSViewRepresentable {
         var lastSearchNextToken: UInt = 0
         var lastSearchPrevToken: UInt = 0
         var lastContentSearchJumpToken: UInt = 0
+        var lastContentSearchJumpEpoch: UInt = 0
+        var pendingContentSearchJump: PendingContentSearchJump?
         var searchCurrentIndex: Int = 0
         var searchMatchRanges: [NSRange] = []
         var lastHighlightedSearchRanges: [NSRange] = []
@@ -298,6 +331,7 @@ struct TextFilePreview: NSViewRepresentable {
         private var generation: UInt64 = 0
         private var selectionObserver: NSObjectProtocol?
         private var firstResponderObserver: NSObjectProtocol?
+        private var deferredJumpWorkItem: DispatchWorkItem?
 
         init(
             searchMatchCount: Binding<Int>,
@@ -317,6 +351,7 @@ struct TextFilePreview: NSViewRepresentable {
 
         deinit {
             renderWorkItem?.cancel()
+            deferredJumpWorkItem?.cancel()
             if let selectionObserver {
                 NotificationCenter.default.removeObserver(selectionObserver)
             }
@@ -438,14 +473,15 @@ struct TextFilePreview: NSViewRepresentable {
             previewTextSelectionActive?.wrappedValue = textView.window?.firstResponder === textView
         }
 
-        func applyContentSearchJump(lineNumber: Int, textView: NSTextView) -> Bool {
+        func applyContentSearchJump(lineNumber: Int, columnUTF16: Int, textView: NSTextView) -> Bool {
             guard PreviewTextSearchHighlighter.canRevealLine(lineNumber, in: textView.string) else {
                 return false
             }
 
             applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
-            if let matchIndex = PreviewTextSearchHighlighter.firstMatchIndexOnLine(
+            if let matchIndex = PreviewTextSearchHighlighter.matchIndex(
                 lineNumber: lineNumber,
+                columnUTF16: columnUTF16,
                 in: textView.string,
                 matchRanges: searchMatchRanges
             ) {
@@ -454,7 +490,42 @@ struct TextFilePreview: NSViewRepresentable {
             } else {
                 PreviewTextSearchHighlighter.scrollToLine(lineNumber, in: textView)
             }
+
+            // 布局未完成时 scrollRangeToVisible 可能无效，下一帧再滚一次。
+            scheduleDeferredScroll(toLine: lineNumber, columnUTF16: columnUTF16, textView: textView)
             return true
+        }
+
+        func retryPendingContentSearchJumpIfNeeded(textView: NSTextView) {
+            guard let pending = pendingContentSearchJump else { return }
+            let didApply = applyContentSearchJump(
+                lineNumber: pending.lineNumber,
+                columnUTF16: pending.columnUTF16,
+                textView: textView
+            )
+            guard didApply else { return }
+            lastContentSearchJumpToken = pending.token
+            lastContentSearchJumpEpoch = pending.epoch
+            pendingContentSearchJump = nil
+        }
+
+        private func scheduleDeferredScroll(toLine lineNumber: Int, columnUTF16: Int, textView: NSTextView) {
+            deferredJumpWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self, weak textView] in
+                guard let self, let textView else { return }
+                if let matchIndex = PreviewTextSearchHighlighter.matchIndex(
+                    lineNumber: lineNumber,
+                    columnUTF16: columnUTF16,
+                    in: textView.string,
+                    matchRanges: self.searchMatchRanges
+                ), matchIndex < self.searchMatchRanges.count {
+                    PreviewTextSearchHighlighter.scrollToRange(self.searchMatchRanges[matchIndex], in: textView)
+                } else {
+                    PreviewTextSearchHighlighter.scrollToLine(lineNumber, in: textView)
+                }
+            }
+            deferredJumpWorkItem = work
+            DispatchQueue.main.async(execute: work)
         }
 
         func applySearchHighlightsInPlace(textView: NSTextView, scrollToCurrent: Bool) {
@@ -532,10 +603,10 @@ struct TextFilePreview: NSViewRepresentable {
                     PreviewTextWrapLayout.applyParagraphWrapStyle(to: textView, wrapLines: wrapLines)
                     PreviewTextWrapLayout.invalidateLayout(textView: textView)
                     self.lastHighlightedSearchRanges = []
+                    // 整段替换 attributedString 会打乱滚动位置；有搜索时一律滚回当前匹配。
                     self.applySearchHighlightsInPlace(
                         textView: textView,
                         scrollToCurrent: !self.lastSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            && self.searchCurrentIndex == 0
                     )
                     if selectedRange.location <= textView.string.utf16.count {
                         let nsLength = (textView.string as NSString).length

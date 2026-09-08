@@ -134,7 +134,15 @@ struct FilePreviewSessionHost: View {
         }
 
         guard let revealRequest, revealRequest.fileID == selectedItem.id else { return }
-        session.revealContentSearchMatch(lineNumber: revealRequest.lineNumber, query: revealRequest.query)
+        // 推迟到下一轮 runloop，避开 onAppear/onChange 视图更新周期内发布状态。
+        let session = session
+        DispatchQueue.main.async {
+            session.revealContentSearchMatch(
+                lineNumber: revealRequest.lineNumber,
+                query: revealRequest.query,
+                matchStartUTF16: revealRequest.matchStartUTF16
+            )
+        }
     }
 
     @ViewBuilder

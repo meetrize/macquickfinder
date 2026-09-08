@@ -108,6 +108,11 @@ struct FilePreviewView: View {
             return
         }
         let previousSelection = previewSelection
+        // 无未保存编辑时同步切换，保证内容搜索 reveal 通知打到正确预览宿主。
+        if PreviewSessionStore.shared.inlineSessionWithUnsavedTextEdits(hostWindowID: hostWindowID) == nil {
+            previewSelection = newSelection
+            return
+        }
         Task { @MainActor in
             if let session = PreviewSessionStore.shared.inlineSessionWithUnsavedTextEdits(
                 hostWindowID: hostWindowID

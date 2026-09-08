@@ -298,7 +298,11 @@ struct FileContentView: View {
                         searchNextToken: $session.text.searchNextToken,
                         searchPrevToken: $session.text.searchPrevToken,
                         searchMatchCount: $session.text.searchMatchCount,
-                        searchCurrentIndex: $session.text.searchCurrentIndex
+                        searchCurrentIndex: $session.text.searchCurrentIndex,
+                        contentSearchJumpLine: $session.text.contentSearchJumpLine,
+                        contentSearchJumpColumnUTF16: $session.text.contentSearchJumpColumnUTF16,
+                        contentSearchJumpToken: $session.text.contentSearchJumpToken,
+                        contentSearchJumpEpoch: session.contentSearchJumpEpoch
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -319,7 +323,9 @@ struct FileContentView: View {
                         searchMatchCount: $session.text.searchMatchCount,
                         searchCurrentIndex: $session.text.searchCurrentIndex,
                         contentSearchJumpLine: $session.text.contentSearchJumpLine,
-                        contentSearchJumpToken: $session.text.contentSearchJumpToken
+                        contentSearchJumpColumnUTF16: $session.text.contentSearchJumpColumnUTF16,
+                        contentSearchJumpToken: $session.text.contentSearchJumpToken,
+                        contentSearchJumpEpoch: session.contentSearchJumpEpoch
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
