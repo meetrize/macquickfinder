@@ -488,9 +488,7 @@ struct ContentView: View {
                             onResize: handleLeftPanelDrag(delta:),
                             onDragEnded: handleLeftPanelDragEnded
                         )
-                        .frame(width: HorizontalResizeDividerMetrics.hitWidth)
-                        .padding(.horizontal, -(HorizontalResizeDividerMetrics.hitWidth - HorizontalResizeDividerMetrics.visualWidth) / 2)
-                        .frame(maxHeight: .infinity)
+                        .horizontalResizeDividerChrome()
                     }
                     .animation(nil, value: liveLeftPanelDragWidth)
                 }
@@ -1412,9 +1410,7 @@ struct ContentView: View {
                 layout.previewPanelWidth = Double(livePreviewPanelWidth)
             }
         )
-        .frame(width: HorizontalResizeDividerMetrics.hitWidth)
-        .padding(.horizontal, -(HorizontalResizeDividerMetrics.hitWidth - HorizontalResizeDividerMetrics.visualWidth) / 2)
-        .frame(maxHeight: .infinity)
+        .horizontalResizeDividerChrome()
         
         RightPanelStackView(
             layout: layout,
@@ -2540,45 +2536,57 @@ private struct HorizontalResizeDivider: NSViewRepresentable {
     }
 }
 
+/// 水平分隔条：布局只占 `visualWidth`，命中区 `hitWidth` 居中溢出并压在邻面板之上。
 private enum HorizontalResizeDividerMetrics {
     static let visualWidth: CGFloat = 1
-    static let hitWidth: CGFloat = 6
+    /// 灰线左右各约 5pt 的连续可拖区域（对齐编辑器分隔条手感）。
+    static let hitWidth: CGFloat = 10
+    static let hoverThickness: CGFloat = 3
+}
+
+private extension View {
+    func horizontalResizeDividerChrome() -> some View {
+        frame(width: HorizontalResizeDividerMetrics.hitWidth)
+            .padding(
+                .horizontal,
+                -(HorizontalResizeDividerMetrics.hitWidth - HorizontalResizeDividerMetrics.visualWidth) / 2
+            )
+            .zIndex(1)
+            .frame(maxHeight: .infinity)
+    }
 }
 
 private final class ResizeDividerNSView: NSView {
     var onResize: ((CGFloat) -> Void)?
     var onDragEnded: (() -> Void)?
     private var lastMouseX: CGFloat?
-    private var trackingArea: NSTrackingArea?
+    private var isHovered = false
+    private var isDragging = false
 
-    override var isOpaque: Bool { true }
+    /// 叠在邻面板上时两侧必须透明，否则会盖住列表/预览内容。
+    override var isOpaque: Bool { false }
     override var isFlipped: Bool { true }
 
-    private var hitTestBounds: NSRect {
-        bounds.insetBy(dx: -(HorizontalResizeDividerMetrics.hitWidth - bounds.width) / 2, dy: 0)
-    }
-
     override func hitTest(_ point: NSPoint) -> NSView? {
-        hitTestBounds.contains(point) ? self : nil
+        bounds.contains(point) ? self : nil
     }
 
     override func resetCursorRects() {
         discardCursorRects()
-        addCursorRect(hitTestBounds, cursor: .resizeLeftRight)
+        addCursorRect(bounds, cursor: .resizeLeftRight)
     }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        if let trackingArea {
-            removeTrackingArea(trackingArea)
+        for area in trackingAreas where area.owner as AnyObject === self {
+            removeTrackingArea(area)
         }
         let area = NSTrackingArea(
-            rect: hitTestBounds,
+            rect: bounds,
             options: [.activeInKeyWindow, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect],
             owner: self
         )
         addTrackingArea(area)
-        trackingArea = area
     }
 
     override func viewDidMoveToWindow() {
@@ -2596,15 +2604,21 @@ private final class ResizeDividerNSView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        NSCursor.resizeLeftRight.push()
+        setHovered(true)
+        NSCursor.resizeLeftRight.set()
     }
 
     override func mouseExited(with event: NSEvent) {
-        NSCursor.pop()
+        if !isDragging {
+            setHovered(false)
+        }
     }
 
     override func mouseDown(with event: NSEvent) {
         lastMouseX = event.locationInWindow.x
+        isDragging = true
+        setHovered(true)
+        NSCursor.resizeLeftRight.set()
     }
     
     override func mouseDragged(with event: NSEvent) {
@@ -2612,19 +2626,35 @@ private final class ResizeDividerNSView: NSView {
         let currentX = event.locationInWindow.x
         let delta = currentX - lastX
         lastMouseX = currentX
+        NSCursor.resizeLeftRight.set()
         onResize?(delta)
     }
     
     override func mouseUp(with event: NSEvent) {
         lastMouseX = nil
+        isDragging = false
+        let stillInside = bounds.contains(convert(event.locationInWindow, from: nil))
+        setHovered(stillInside)
+        if stillInside {
+            NSCursor.resizeLeftRight.set()
+        }
         onDragEnded?()
     }
     
     override func draw(_ dirtyRect: NSRect) {
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2.0
-        let thickness = PanelSeparatorStyle.hairlineThickness(for: scale)
-        let lineX = floor((bounds.width - thickness) / 2)
+        let idleThickness = PanelSeparatorStyle.hairlineThickness(for: scale)
+        let thickness = (isHovered || isDragging)
+            ? HorizontalResizeDividerMetrics.hoverThickness
+            : idleThickness
+        let lineX = floor((bounds.width - thickness) / 2 * scale) / scale
         let lineRect = NSRect(x: lineX, y: bounds.minY, width: thickness, height: bounds.height)
         PanelSeparatorStyle.fill(dirtyRect.intersection(lineRect), in: self)
+    }
+
+    private func setHovered(_ hovered: Bool) {
+        guard isHovered != hovered else { return }
+        isHovered = hovered
+        needsDisplay = true
     }
 }
