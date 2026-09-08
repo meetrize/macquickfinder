@@ -6,7 +6,8 @@ struct DirectoryContentSearchResultsView: View {
     let onShowPreview: () -> Void
     let onDismiss: () -> Void
 
-    @FocusState private var isResultsFocused: Bool
+    /// 仅用于启用本地键盘导航，不使用 SwiftUI `.focusable()`，避免系统蓝色焦点框。
+    @State private var isKeyboardNavigationActive = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,19 +34,18 @@ struct DirectoryContentSearchResultsView: View {
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .focusable()
-        .focused($isResultsFocused)
         .onAppear {
-            // 结果出现时不自动抢焦点，否则首字输入后顶栏搜索框会失焦。
+            // 不抢顶栏搜索框焦点；用本地 key monitor 处理结果列表快捷键。
+            isKeyboardNavigationActive = true
             DirectoryContentSearchKeyboardPriority.setResultsNavigationActive(true)
         }
         .onDisappear {
+            isKeyboardNavigationActive = false
             DirectoryContentSearchKeyboardPriority.setResultsNavigationActive(false)
-            isResultsFocused = false
         }
         .background {
             DirectoryContentSearchKeyboardMonitor(
-                isActive: isResultsFocused,
+                isActive: isKeyboardNavigationActive,
                 onMoveSelection: { forward in
                     session.selectNextMatch(forward: forward)
                 },
@@ -94,7 +94,6 @@ struct DirectoryContentSearchResultsView: View {
                             },
                             onSelectMatch: { match in
                                 session.selectedMatchID = match.id
-                                isResultsFocused = true
                                 onSelectMatch(match)
                             }
                         )
