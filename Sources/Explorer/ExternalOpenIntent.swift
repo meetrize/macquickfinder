@@ -143,7 +143,7 @@ private final class FileViewerRevealAppleEventHandler: NSObject {
       return
     }
     // srev 不走 AppDelegate application(open:)，须在此同步开抑制，挡住系统「+」抢 pending。
-    ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
+    ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 1.2)
     // 尽快返回，避免发送方（微信）阻塞在 AE reply 上。
     ExternalOpenRouter.handleOpen(urls: urls, intent: .revealInFileViewer)
   }

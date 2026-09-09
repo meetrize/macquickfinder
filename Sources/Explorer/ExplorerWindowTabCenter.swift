@@ -90,6 +90,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
     private var suppressSurplusRestoredWindowsUntil: Date?
     /// 系统「+」bridge 兜底；Reveal 到来时必须取消，避免双开/误杀 Reveal 窗。
     private var systemPlusBridgeFallbackWorkItem: DispatchWorkItem?
+    private var pendingNewTabSafetyWorkItem: DispatchWorkItem?
 
     private struct ProgrammaticTabGeneration {
         let id: UUID
@@ -311,11 +312,17 @@ final class ExplorerWindowTabCenter: ObservableObject {
     /// odoc 叠出的无 path 浏览主窗：仅在外部 open 抑制期内、且确认为浏览窗时才杀。
     /// 注意：不可在全局 `orderFront` 里对任意 path=nil 窗下手——会误杀菜单/面板，导致菜单栏点不开。
     func shouldKillSurplusOdocWindow(_ window: NSWindow) -> Bool {
+        // 合并 / 选中标签进行中绝不能关窗，否则 NSWindowStackController 会 SIGABRT。
+        if isMergingNewTab || isRevealingMergedTab { return false }
         // 仅保护「外部 Reveal」pending；用户「+」pending 不能挡住杀 odoc 壳。
         if pendingNewTab?.isExternalReveal == true { return false }
-        if isProgrammaticTabGenerationActive,
-           pendingNewTab?.isExternalReveal == true {
-            return false
+        if isProgrammaticTabGenerationActive {
+            if pendingNewTab?.isExternalReveal == true { return false }
+            // 世代内已放行的新标签（path 可能尚未 register）不可杀。
+            if let generation = programmaticTabGeneration,
+               generation.allowedNewWindowIDs.contains(ObjectIdentifier(window)) {
+                return false
+            }
         }
         if path(for: window) != nil { return false }
 
@@ -350,6 +357,17 @@ final class ExplorerWindowTabCenter: ObservableObject {
 
     /// 关掉多余窗前先切走选中标签，减少「闪一下再关」的观感。
     func closeSurplusWindow(_ window: NSWindow, reason: String) {
+        // 合并中延后关窗，避免和 setSelectedWindow / addTabbedWindow 打架导致崩溃。
+        if isMergingNewTab || isRevealingMergedTab {
+            ExternalOpenDiagnostic.logRaw(
+                "close surplus deferred reason=\(reason) path=\(path(for: window) ?? "nil")"
+            )
+            DispatchQueue.main.async { [weak self, weak window] in
+                guard let self, let window else { return }
+                self.closeSurplusWindow(window, reason: "\(reason)-deferred")
+            }
+            return
+        }
         ExternalOpenDiagnostic.logRaw(
             "close surplus window reason=\(reason) path=\(path(for: window) ?? "nil")"
         )
@@ -428,7 +446,9 @@ final class ExplorerWindowTabCenter: ObservableObject {
     func beginExternalDocumentOpenSuppression(duration: TimeInterval = 2.5) {
         let until = Date().addingTimeInterval(duration)
         suppressSurplusRestoredWindowsUntil = until
-        ignoreSystemNewWindowForTabUntil = until
+        // 注意：不要写 ignoreSystemNewWindowForTabUntil。
+        // 否则 Reveal 后 2.5s 内标签栏「+」会被 systemNewTabAction 直接吞掉，表现为「zip 好了但加号坏了」。
+        // ignore 只用于挡住程序化开标签时系统叠出来的重复壳。
         // 清掉用户「+」误写的 pending，否则 odoc 壳会被 merge 成空标签，微信 Reveal 失效。
         clearStaleNonRevealPendingNewTab(reason: "external-open-suppression")
         ExternalOpenDiagnostic.logRaw("external-open suppression begin duration=\(duration)")
@@ -438,12 +458,34 @@ final class ExplorerWindowTabCenter: ObservableObject {
     func clearStaleNonRevealPendingNewTab(reason: String) {
         systemPlusBridgeFallbackWorkItem?.cancel()
         systemPlusBridgeFallbackWorkItem = nil
+        pendingNewTabSafetyWorkItem?.cancel()
+        pendingNewTabSafetyWorkItem = nil
         guard let pending = pendingNewTab, !pending.isExternalReveal else { return }
         ExternalOpenDiagnostic.logRaw(
             "clear stale + pending reason=\(reason) path=\(pending.path)"
         )
         pendingNewTab = nil
         endProgrammaticTabGeneration()
+    }
+
+    /// pending 若长时间未被窗消费，自动清掉，避免「+」永久 swallow。
+    private func schedulePendingNewTabSafetyTimeout(isExternalReveal: Bool) {
+        pendingNewTabSafetyWorkItem?.cancel()
+        let expectedReveal = isExternalReveal
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingNewTabSafetyWorkItem = nil
+            guard let pending = self.pendingNewTab,
+                  pending.isExternalReveal == expectedReveal else { return }
+            ExternalOpenDiagnostic.logRaw(
+                "pending new-tab safety timeout clear reveal=\(expectedReveal) path=\(pending.path)"
+            )
+            self.pendingNewTab = nil
+            self.endProgrammaticTabGeneration()
+        }
+        pendingNewTabSafetyWorkItem = work
+        let delay: TimeInterval = isExternalReveal ? 4.0 : 2.0
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     /// 已有浏览会话时，无参 main 的 restored 启动是 odoc 叠出来的第二窗，应关闭。
@@ -562,10 +604,11 @@ final class ExplorerWindowTabCenter: ObservableObject {
                 if let registered = path(for: window), !registered.isEmpty {
                     preexisting.insert(id)
                 } else {
+                    // 不要同步 close：会弄坏正在用的 NSWindowStackController，随后 merge 必崩。
+                    // 留给 merge 后的 prune / 异步 odoc 清理。
                     ExternalOpenDiagnostic.logRaw(
-                        "tab-generation drop unprotected nil-shell before begin"
+                        "tab-generation skip sync-close nil-shell before begin"
                     )
-                    window.close()
                 }
             }
         }
@@ -634,7 +677,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
                 ExternalOpenDiagnostic.logRaw(
                     "tab-generation prune surplus-allowed path=\(path(for: window) ?? "nil")"
                 )
-                window.close()
+                closeSurplusWindow(window, reason: "prune-after-reveal")
                 continue
             }
 
@@ -647,7 +690,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
             ExternalOpenDiagnostic.logRaw(
                 "tab-generation prune newcomer path=\(windowPath ?? "nil") target=\(targetPath ?? "nil")"
             )
-            window.close()
+            closeSurplusWindow(window, reason: "prune-after-reveal")
         }
 
         // 关掉不在 keeper 标签组内的游离浏览窗（真正的「第二个 MeoFind 窗口」）。
@@ -662,7 +705,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
             ExternalOpenDiagnostic.logRaw(
                 "tab-generation prune detached-window path=\(path(for: window) ?? "nil")"
             )
-            window.close()
+            closeSurplusWindow(window, reason: "prune-after-reveal")
         }
     }
 
@@ -686,12 +729,10 @@ final class ExplorerWindowTabCenter: ObservableObject {
             ExternalOpenDiagnostic.logRaw("system + swallow — pending/generation in flight")
             return .swallow
         }
+        // 仅在外部 Reveal/odoc 抑制期内吞「+」，避免假 pending 抢走微信壳。
+        // 不再看 ignoreSystemNewWindowForTabUntil：那是防叠壳用的，会误伤用户点加号。
         if let until = suppressSurplusRestoredWindowsUntil, Date() < until {
             ExternalOpenDiagnostic.logRaw("system + swallow — external-open suppression")
-            return .swallow
-        }
-        if let until = ignoreSystemNewWindowForTabUntil, Date() < until {
-            ExternalOpenDiagnostic.logRaw("system + swallow — ignore window")
             return .swallow
         }
         // 微信/odoc 投递期间可能先触发 newWindowForTab；勿写成假「+」pending。
@@ -712,6 +753,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
             isExternalReveal: false
         )
         ExternalOpenDiagnostic.logRaw("system + prepare pending path=\(tabPath)")
+        schedulePendingNewTabSafetyTimeout(isExternalReveal: false)
         return .createWithOriginal
     }
 
@@ -724,15 +766,16 @@ final class ExplorerWindowTabCenter: ObservableObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.systemPlusBridgeFallbackWorkItem = nil
-            // Reveal 抑制期间绝不再 bridge「+」。
-            if self.isExternalOpenSuppressionActive {
-                ExternalOpenDiagnostic.logRaw("system + fallback cancelled — suppression active")
-                return
-            }
             guard let current = self.pendingNewTab,
                   !current.isExternalReveal,
                   current.path == expectedPath,
                   current.sourceWindow === anchor else { return }
+            // 抑制期内若仍是用户「+」pending：照样 bridge，否则 pending 悬挂导致之后加号全吞。
+            if self.isExternalOpenSuppressionActive {
+                ExternalOpenDiagnostic.logRaw(
+                    "system + fallback bridge during suppression path=\(expectedPath)"
+                )
+            }
             ExternalOpenDiagnostic.logRaw(
                 "system + fallback bridge after timeout path=\(expectedPath)"
             )
@@ -866,8 +909,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
             clearStaleNonRevealPendingNewTab(reason: "openExternalRevealTab")
         }
 
-        beginExternalDocumentOpenSuppression(duration: 2.5)
-        beginProgrammaticTabGeneration(from: anchor, targetPath: path)
+        beginExternalDocumentOpenSuppression(duration: 1.2)
+        beginProgrammaticTabGeneration(from: anchor, targetPath: path, duration: 1.0)
 
         configureExplorerWindow(anchor)
 
@@ -887,6 +930,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
             activatesTab: activatesTab,
             isExternalReveal: true
         )
+        schedulePendingNewTabSafetyTimeout(isExternalReveal: true)
 
         guard let openFolderWindow = ExplorerWindowOpenBridge.shared.openFolderWindow else {
             ExternalOpenDiagnostic.logRaw("openExternalRevealTab failed — no openFolderWindow bridge")
@@ -939,6 +983,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
             activatesTab: activatesTab,
             isExternalReveal: false
         )
+        schedulePendingNewTabSafetyTimeout(isExternalReveal: false)
 
         switch sceneKind {
         case .main:
@@ -961,7 +1006,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
     /// - Returns: 已处理则返回 `true`，调用方勿再走普通置前。
     @discardableResult
     func interceptOrderFrontIfPendingNewTab(_ window: NSWindow) -> Bool {
-        if isRevealingMergedTab { return false }
+        // 合并中的 setSelectedWindow → makeKeyAndOrderFront 绝不能再进 merge。
+        if isMergingNewTab || isRevealingMergedTab { return false }
 
         let windowID = ObjectIdentifier(window)
         if suppressOrderFrontWindowIDs.remove(windowID) != nil {
@@ -985,7 +1031,13 @@ final class ExplorerWindowTabCenter: ObservableObject {
     @discardableResult
     func attemptTabMerge(for window: NSWindow) -> Bool {
         if shouldKillSurplusOdocWindow(window) {
-            closeSurplusWindow(window, reason: "attemptTabMerge-odoc")
+            // 异步关：同步关会撞上并行的 mergeNewTabWindow/setSelectedWindow → SIGABRT。
+            let victim = window
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard self.shouldKillSurplusOdocWindow(victim) else { return }
+                self.closeSurplusWindow(victim, reason: "attemptTabMerge-odoc")
+            }
             return false
         }
         _ = noteWindowAppearedDuringProgrammaticTabGeneration(
@@ -1005,22 +1057,30 @@ final class ExplorerWindowTabCenter: ObservableObject {
     }
 
     private func mergeNewTabWindow(_ window: NSWindow, into anchor: NSWindow, pending: PendingNewTab) {
-        // 先清空 pending，避免 attemptTabMerge + orderFront 拦截双进 merge。
+        // 用 isMergingNewTab 防重入；pending 在 register 之后再清，避免空窗期被当 odoc 杀掉。
         guard !isMergingNewTab else {
             ExternalOpenDiagnostic.logRaw("mergeNewTabWindow skipped — already merging")
             return
         }
         isMergingNewTab = true
         defer { isMergingNewTab = false }
-        if pendingNewTab != nil {
-            pendingNewTab = nil
-        }
 
         configureExplorerWindow(window)
         configureExplorerWindow(anchor)
         // 合并进标签组后必须保持可 tab；禁止随后被当成独立窗。
         window.tabbingMode = .preferred
         anchor.tabbingMode = .preferred
+
+        // 先登记 path / 放行世代，再动标签栈——否则 path=nil 会被 shouldKill 误杀。
+        registerWindow(window, path: pending.path, sceneKind: .folder)
+        lastMergedRevealWindow = window
+        _ = noteWindowAppearedDuringProgrammaticTabGeneration(window, path: pending.path)
+
+        if pendingNewTab != nil {
+            pendingNewTab = nil
+            pendingNewTabSafetyWorkItem?.cancel()
+            pendingNewTabSafetyWorkItem = nil
+        }
 
         let preservedFrame = anchor.frame
         beginFrameLock(preservedFrame, windows: [anchor, window])
@@ -1034,7 +1094,14 @@ final class ExplorerWindowTabCenter: ObservableObject {
             anchor.animationBehavior = anchorAnimation
         }
 
-        // 整段合并放进零时长动画组，中间态尽量不单独上屏。
+        pendingMainTabNavigations[ObjectIdentifier(window)] = PendingMainTabNavigation(
+            path: pending.path,
+            selectionPath: pending.selectionPath,
+            itemsSnapshot: pending.itemsSnapshot
+        )
+
+        // 整段合并放进零时长动画组；选中期间抬高 isRevealingMergedTab，挡住 orderFront 拦截。
+        isRevealingMergedTab = true
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0
             context.allowsImplicitAnimation = false
@@ -1042,42 +1109,41 @@ final class ExplorerWindowTabCenter: ObservableObject {
             // 新窗尚未成为选中标签前不要 orderOut，避免牵连整组标签窗。
             window.setFrame(preservedFrame, display: false)
 
-            anchor.addTabbedWindow(window, ordered: .above)
+            if window.tabGroup !== anchor.tabGroup || window.tabGroup == nil {
+                anchor.addTabbedWindow(window, ordered: .above)
+            }
             applyLockedFrame(preservedFrame, to: anchor)
             applyLockedFrame(preservedFrame, to: window)
-
-            pendingMainTabNavigations[ObjectIdentifier(window)] = PendingMainTabNavigation(
-                path: pending.path,
-                selectionPath: pending.selectionPath,
-                itemsSnapshot: pending.itemsSnapshot
-            )
 
             // 选中新建标签（列表快照已在 init 填好，切换时不应空白闪一下）。
             if let tabGroup = window.tabGroup ?? anchor.tabGroup {
                 beginFrameLock(preservedFrame, windows: Array(tabGroup.windows))
-                tabGroup.selectedWindow = window
+                if tabGroup.selectedWindow !== window {
+                    tabGroup.selectedWindow = window
+                }
             }
 
             applyLockedFrame(preservedFrame, to: anchor)
             applyLockedFrame(preservedFrame, to: window)
         }
-
-        // 尽早登记 path，避免后续 Reveal 因 path==nil 误判「无同目录标签」。
-        registerWindow(window, path: pending.path, sceneKind: .folder)
-        lastMergedRevealWindow = window
-        _ = noteWindowAppearedDuringProgrammaticTabGeneration(window, path: pending.path)
+        isRevealingMergedTab = false
         if pending.isExternalReveal {
-            extendProgrammaticTabGeneration(by: 1.5)
+            // 短世代即可挡叠壳；过长会让 isProgrammaticTabGenerationActive 吞掉用户「+」。
+            extendProgrammaticTabGeneration(by: 0.6)
         } else {
             // 普通新标签：只挡紧随其后的重复壳，避免下一次「+」隔次失败。
-            extendProgrammaticTabGeneration(by: 0.35)
+            extendProgrammaticTabGeneration(by: 0.25)
         }
         ExternalOpenDiagnostic.logRaw(
             "tab-generation merged path=\(pending.path) selection=\(pending.selectionPath ?? "nil") win=\(String(ObjectIdentifier(window).hashValue, radix: 16))"
         )
-        // 外部 Reveal：合并后只保留「世代前已有窗 + 唯一新标签」，并去掉与锚点同路径的复本。
+        // 外部 Reveal：合并完成后再 prune，避免在 isMergingNewTab / 标签栈更新中 sync close。
         if pending.isExternalReveal {
-            pruneTabGroupAfterExternalReveal(anchor: anchor, newTab: window)
+            let anchorRef = anchor
+            let newTabRef = window
+            DispatchQueue.main.async { [weak self] in
+                self?.pruneTabGroupAfterExternalReveal(anchor: anchorRef, newTab: newTabRef)
+            }
         }
 
         let shouldActivate = pending.activatesTab
@@ -1101,7 +1167,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
         if !shouldActivate {
             suppressOrderFrontWindowIDs.insert(mergedID)
         }
-        beginIgnoreSystemNewWindowForTab(for: pending.isExternalReveal ? 1.0 : 0.35)
+        beginIgnoreSystemNewWindowForTab(for: pending.isExternalReveal ? 0.35 : 0.25)
 
         let activationDelays: [TimeInterval] = shouldActivate ? [0.0, 0.05, 0.2, 0.45, 0.9] : [0.0]
         for delay in activationDelays {

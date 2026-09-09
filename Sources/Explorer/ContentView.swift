@@ -882,6 +882,12 @@ struct ContentView: View {
                     )
                     ExternalOpenDiagnostic.logWindowSnapshot("bootstrap-restored-main")
                 }
+            } else if let pendingTab = ExplorerWindowTabCenter.shared.peekPendingNewTabNavigation() {
+                didConsumeLaunchNavigation = true
+                ExternalOpenDiagnostic.logRaw(
+                    "ContentView bootstrap=pending-folder path=\(pendingTab.path)"
+                )
+                applyPendingExternalNavigationForNewTab(pendingTab)
             } else if ExplorerWindowTabCenter.shared.shouldRejectRestoredLaunchBootstrap()
                 || ExplorerWindowTabCenter.shared.shouldRejectSurplusRestoredMainWindow() {
                 ExternalOpenDiagnostic.logRaw(
@@ -1528,14 +1534,26 @@ struct ContentView: View {
         }
 
         if center.pendingNewTabIsExternalReveal == false {
-            ExternalOpenDiagnostic.logRaw("deferred orphan → reject (stale + pending on odoc shell)")
-            center.clearStaleNonRevealPendingNewTab(reason: "deferred-orphan-odoc")
-            if let window = hostWindow {
-                center.closeSurplusWindow(window, reason: "deferred-odoc-over-plus")
-            } else {
-                closeWhenHostWindowAppears = true
+            // 抑制期内：更可能是微信/odoc 壳，不能收成「+」。
+            if center.isExternalOpenSuppressionActive {
+                ExternalOpenDiagnostic.logRaw("deferred orphan → reject (+ pending during suppression)")
+                center.clearStaleNonRevealPendingNewTab(reason: "deferred-orphan-odoc")
+                if let window = hostWindow {
+                    center.closeSurplusWindow(window, reason: "deferred-odoc-over-plus")
+                } else {
+                    closeWhenHostWindowAppears = true
+                }
+                return
             }
-            return
+            // 非抑制期：本窗就是用户「+」新标签，必须收养。
+            if let pending = center.peekPendingNewTabNavigation() {
+                ExternalOpenDiagnostic.logRaw(
+                    "deferred orphan → apply + pending path=\(pending.path)"
+                )
+                applyPendingExternalNavigationForNewTab(pending)
+                attachDeferredOrphanHostWindowIfNeeded()
+                return
+            }
         }
 
         if let adopted = center.beginAdoptingOrphanMainWindowAsNewTab() {

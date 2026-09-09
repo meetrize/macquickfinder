@@ -936,7 +936,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
         let targetDir = ExternalSelectionPathMatcher.standardizedPath(resolvedRequest.directoryPath)
         let tabs = ExplorerWindowTabCenter.shared
         tabs.clearStalePendingOpen(reason: "requestOpen")
-        tabs.beginExternalDocumentOpenSuppression(duration: 2.5)
+        tabs.beginExternalDocumentOpenSuppression(duration: 1.2)
         ExternalOpenDiagnostic.logWindowSnapshot("requestOpen-enter dir=\(targetDir)")
         ExternalOpenDiagnostic.logRaw(
             "requestOpen resolved selection=\(resolvedRequest.selectionPath ?? "nil") session=\(isSessionEstablished)"
@@ -1052,7 +1052,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
 
     /// 投递给指定窗；激活竞态下多次 bump generation，避免 pending 因单次 !isKey 永丢。
     private func deliverOpenRequestToWindow(_ request: OpenRequest, window: NSWindow) {
-        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.0)
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 1.2)
         // 关掉同路径的其它窗（背后幽灵独立窗），只留 keeper 所在标签组。
         closeDetachedDuplicateWindows(of: window, directoryPath: request.directoryPath)
         // 只关「与 keeper 同路径」的游离窗；勿在 suppression 下误关前台其它目录标签组。
@@ -1106,7 +1106,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
         pendingRequest = nil
         targetRequest = nil
         pendingDeliveryWindowID = nil
-        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 1.2)
         ExplorerWindowTabCenter.shared.clearStalePendingOpen(reason: "deliverOpenRequestInNewTab")
         ExternalOpenDiagnostic.logRaw(
             "deliverOpenRequestInNewTab dir=\(request.directoryPath) selection=\(request.selectionPath ?? "nil")"
@@ -1324,7 +1324,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
         // 随后我们的 Reveal 再开目标标签 → Desktop + Desktop + 目标 三标签。
         // 冷启动（尚无任何浏览窗）必须允许空白窗，否则 pending 无人消费 → 完全无响应。
         ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile invoked")
-        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 1.2)
 
         let hasBrowser =
             ExplorerWindowTabCenter.shared.hasRegisteredWindows
@@ -1395,14 +1395,14 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func application(_ application: NSApplication, open urls: [URL]) {
-        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 1.2)
         ExternalOpenDiagnostic.logRaw("application(open:) urls=\(urls.map(\.path))")
         ExternalOpenRouter.handleOpen(urls: urls)
     }
 
     @MainActor
     func application(_ sender: NSApplication, openFiles filenames: [String]) {
-        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 1.2)
         ExternalOpenDiagnostic.logRaw("application(openFiles:) files=\(filenames)")
         let urls = filenames.map { URL(fileURLWithPath: $0) }
         ExternalOpenRouter.handleOpen(urls: urls)
@@ -1411,7 +1411,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 1.2)
         ExternalOpenDiagnostic.logRaw("application(openFile:) file=\(filename)")
         ExternalOpenRouter.handleOpen(urls: [URL(fileURLWithPath: filename)])
         return true
