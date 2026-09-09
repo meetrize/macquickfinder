@@ -21,6 +21,8 @@ struct PreviewSettingsTab: View {
     private var previewBrowserSameTypeOnly = false
     @AppStorage(AppPreferences.Preview.codeShowLineNumbers)
     private var codePreviewShowLineNumbers = false
+    @AppStorage(AppPreferences.Preview.folderContents)
+    private var previewFolderContents = false
     @AppStorage(AppPreferences.Preview.doubleClickAction)
     private var doubleClickActionRaw = PreviewDoubleClickAction.defaultValue.rawValue
     @AppStorage(AppPreferences.Preview.externalOpenAction)
@@ -61,6 +63,14 @@ struct PreviewSettingsTab: View {
                 Text(L10n.Settings.Preview.codeLineNumbers)
             } footer: {
                 Text(L10n.Settings.Preview.codeLineNumbersFooter)
+            }
+
+            Section {
+                Toggle(L10n.Settings.Preview.folderContentsToggle, isOn: $previewFolderContents)
+            } header: {
+                Text(L10n.Settings.Preview.folderContents)
+            } footer: {
+                Text(L10n.Settings.Preview.folderContentsFooter)
             }
 
             Section {

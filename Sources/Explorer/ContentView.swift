@@ -1223,7 +1223,8 @@ struct ContentView: View {
                     showHiddenFiles: showHiddenFiles,
                     historyEntries: pathNavigation.recentEntries(currentPath: path),
                     onSelectHistory: navigateToHistoryPath,
-                    onCommitNavigation: applyExternalNavigationTarget
+                    onCommitNavigation: applyExternalNavigationTarget,
+                    contextActions: pathBarContextActions
                 )
 
                 GitPathBarChip(
@@ -2579,6 +2580,43 @@ struct ContentView: View {
             canCut: !selected.isEmpty,
             canPaste: pasteboardAvailability.canPaste(to: URL(fileURLWithPath: destPath)),
             canDelete: !deletableSelectedItems.isEmpty
+        )
+    }
+
+    private var pathBarContextActions: PathBarContextActions {
+        PathBarContextActions(
+            copyPath: { segmentPath in
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(segmentPath, forType: .string)
+            },
+            copyDirectoryName: { segmentPath in
+                let name: String
+                if segmentPath == "/" {
+                    name = "/"
+                } else {
+                    name = (segmentPath as NSString).lastPathComponent
+                }
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(name, forType: .string)
+            },
+            isFavorited: { FavoritesStore.shared.contains(path: $0) },
+            addFavorite: { FavoritesStore.shared.addDirectory(at: $0) },
+            removeFavorite: { FavoritesStore.shared.remove(path: $0) },
+            openTerminal: { TerminalHelper.open(at: $0) },
+            revealInFinder: { FinderHelper.reveal(at: $0) },
+            openInNewWindow: { directoryPath in
+                externalFolderOpenCenter.requestOpenInNewWindow(directoryPath: directoryPath)
+            },
+            openClipboardPath: { resolved in
+                applyExternalNavigationTarget(
+                    ExternalNavigationTarget(
+                        directoryPath: resolved.directoryPath,
+                        selectionPath: resolved.selectionPath
+                    )
+                )
+            }
         )
     }
     

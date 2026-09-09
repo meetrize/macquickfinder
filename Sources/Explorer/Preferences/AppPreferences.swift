@@ -61,6 +61,8 @@ enum AppPreferences {
         static let externalOpenAction = "preview.externalOpenAction"
         static let archiveDoubleClickAction = "preview.archiveDoubleClickAction"
         static let externalMultiImageOpen = "preview.externalMultiImageOpen"
+        /// 选中目录时是否在预览面板列出子项；默认关闭。
+        static let folderContents = "preview.folderContents"
     }
 
     /// 目录元数据。

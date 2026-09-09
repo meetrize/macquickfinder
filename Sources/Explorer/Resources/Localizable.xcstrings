@@ -69,6 +69,23 @@
         }
       }
     },
+    "action.copy_directory_name": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Directory Name"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制目录名"
+          }
+        }
+      }
+    },
     "action.copy_paths": {
       "extractionState": "manual",
       "localizations": {
@@ -354,6 +371,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "在此处打开终端"
+          }
+        }
+      }
+    },
+    "action.open_clipboard_path": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Path from Clipboard"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开剪贴板中的路径"
+          }
+        }
+      }
+    },
+    "action.reveal_in_finder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Finder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Finder 中显示"
           }
         }
       }
@@ -8327,6 +8378,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "代码预览显示行号"
+          }
+        }
+      }
+    },
+    "settings.preview.folder_contents": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder Preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录预览"
+          }
+        }
+      }
+    },
+    "settings.preview.folder_contents.footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When enabled, selecting a folder in the file list shows its contents in the preview panel. Off by default."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启后，在文件列表中选中目录时，于右侧预览面板列出该目录中的内容。默认关闭。"
+          }
+        }
+      }
+    },
+    "settings.preview.folder_contents.toggle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview folder contents"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览目录内容"
           }
         }
       }

@@ -19,13 +19,22 @@ final class PreviewCodeTextView: NSTextView {
 
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder()
-        if became { onInteractionStateChanged?() }
+        if became {
+            // 延后通知，避免抢/让焦点时同步触发 SwiftUI 预览绑定刷新拖慢地址栏。
+            DispatchQueue.main.async { [weak self] in
+                self?.onInteractionStateChanged?()
+            }
+        }
         return became
     }
 
     override func resignFirstResponder() -> Bool {
         let resigned = super.resignFirstResponder()
-        if resigned { onInteractionStateChanged?() }
+        if resigned {
+            DispatchQueue.main.async { [weak self] in
+                self?.onInteractionStateChanged?()
+            }
+        }
         return resigned
     }
 

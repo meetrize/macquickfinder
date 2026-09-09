@@ -129,6 +129,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Preview.Chrome.revealInFileList, "preview.chrome.reveal_in_file_list")
         XCTAssertNotEqual(L10n.Settings.Preview.customize, "settings.preview.customize")
         XCTAssertNotEqual(L10n.Settings.Preview.Mode.archive, "settings.preview.mode.archive")
+        XCTAssertNotEqual(L10n.Settings.Preview.folderContentsToggle, "settings.preview.folder_contents.toggle")
         XCTAssertNotEqual(L10n.Archive.passwordTitle, "archive.password.title")
     }
 
@@ -254,6 +255,15 @@ final class ExplorerL10nTests: XCTestCase {
             L10n.Alert.moveBlockedMessage(.sourceMissing),
             "alert.move_blocked.source_missing"
         )
+    }
+
+    func testPathBarClipboardMenuStringResolves() {
+        XCTAssertNotEqual(L10n.Action.openClipboardPath, "action.open_clipboard_path")
+        XCTAssertFalse(L10n.Action.openClipboardPath.isEmpty)
+        XCTAssertNotEqual(L10n.Action.revealInFinder, "action.reveal_in_finder")
+        XCTAssertFalse(L10n.Action.revealInFinder.isEmpty)
+        XCTAssertNotEqual(L10n.Action.copyDirectoryName, "action.copy_directory_name")
+        XCTAssertFalse(L10n.Action.copyDirectoryName.isEmpty)
     }
 
     private func localizedBundle(language: String, parent: Bundle) -> Bundle? {

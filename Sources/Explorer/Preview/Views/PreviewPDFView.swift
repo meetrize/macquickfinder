@@ -7,13 +7,21 @@ final class PreviewPDFView: PDFView {
 
     override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder()
-        if became { onInteractionStateChanged?() }
+        if became {
+            DispatchQueue.main.async { [weak self] in
+                self?.onInteractionStateChanged?()
+            }
+        }
         return became
     }
 
     override func resignFirstResponder() -> Bool {
         let resigned = super.resignFirstResponder()
-        if resigned { onInteractionStateChanged?() }
+        if resigned {
+            DispatchQueue.main.async { [weak self] in
+                self?.onInteractionStateChanged?()
+            }
+        }
         return resigned
     }
 

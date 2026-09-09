@@ -5,6 +5,7 @@
 "action.compress_many %lld" = "Compress %lld Items";
 "action.compress_one %@" = "Compress \"%@\"";
 "action.copy" = "Copy";
+"action.copy_directory_name" = "Copy Directory Name";
 "action.copy_filename" = "Copy Filename";
 "action.copy_paths" = "Copy Full Path";
 "action.cut" = "Cut";
@@ -18,6 +19,7 @@
 "action.extract_to" = "Extract To…";
 "action.ok" = "OK";
 "action.open" = "Open";
+"action.open_clipboard_path" = "Open Path from Clipboard";
 "action.open_in_detached_preview" = "Open in Detached Preview Window";
 "action.open_in_new_window" = "Open in New Window";
 "action.open_terminal_here" = "Open Terminal Here";
@@ -30,6 +32,7 @@
 "action.refresh" = "Refresh";
 "action.remove_favorite" = "Remove from Favorites";
 "action.rename" = "Rename";
+"action.reveal_in_finder" = "Show in Finder";
 "action.save" = "Save";
 "action.services" = "Services";
 "action.show_finder_info" = "Get Info in Finder";
@@ -850,6 +853,9 @@
 "settings.preview.external_open" = "External open for previewable files";
 "settings.preview.external_open.browser_and_select" = "Open browser window and select file";
 "settings.preview.external_open.standalone_only" = "Detached preview window only";
+"settings.preview.folder_contents" = "Folder Preview";
+"settings.preview.folder_contents.footer" = "When enabled, selecting a folder in the file list shows its contents in the preview panel. Off by default.";
+"settings.preview.folder_contents.toggle" = "Preview folder contents";
 "settings.preview.handler_group.current_handler %@" = "Current: %@";
 "settings.preview.handler_group.footer" = "When enabled, Finder double-click opens MeoFind for that file group. You may need to restart MeoFind or log out for macOS to apply changes.";
 "settings.preview.handler_group.image" = "Images";

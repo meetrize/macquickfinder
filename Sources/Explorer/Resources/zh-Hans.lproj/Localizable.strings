@@ -5,6 +5,7 @@
 "action.compress_many %lld" = "压缩 %lld 个项目";
 "action.compress_one %@" = "压缩「%@」";
 "action.copy" = "复制";
+"action.copy_directory_name" = "复制目录名";
 "action.copy_filename" = "复制文件名";
 "action.copy_paths" = "复制完整路径";
 "action.cut" = "剪切";
@@ -18,6 +19,7 @@
 "action.extract_to" = "解压到…";
 "action.ok" = "好";
 "action.open" = "打开";
+"action.open_clipboard_path" = "打开剪贴板中的路径";
 "action.open_in_detached_preview" = "在独立预览窗口中打开";
 "action.open_in_new_window" = "在新窗口中打开";
 "action.open_terminal_here" = "在此处打开终端";
@@ -30,6 +32,7 @@
 "action.refresh" = "刷新";
 "action.remove_favorite" = "取消收藏";
 "action.rename" = "重命名";
+"action.reveal_in_finder" = "在 Finder 中显示";
 "action.save" = "保存";
 "action.services" = "服务";
 "action.show_finder_info" = "显示简介";
@@ -850,6 +853,9 @@
 "settings.preview.external_open" = "外部打开可预览文件";
 "settings.preview.external_open.browser_and_select" = "打开浏览窗口并选中该文件";
 "settings.preview.external_open.standalone_only" = "仅独立预览窗";
+"settings.preview.folder_contents" = "目录预览";
+"settings.preview.folder_contents.footer" = "开启后，在文件列表中选中目录时，于右侧预览面板列出该目录中的内容。默认关闭。";
+"settings.preview.folder_contents.toggle" = "预览目录内容";
 "settings.preview.handler_group.current_handler %@" = "当前：%@";
 "settings.preview.handler_group.footer" = "开启后，Finder 双击该组文件将由 MeoFind 打开。可能需要重启 MeoFind 或重新登录后系统才会生效。";
 "settings.preview.handler_group.image" = "图片";

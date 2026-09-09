@@ -53,11 +53,14 @@ enum L10n {
         static var putBack: String { ModuleLocalization.localized("action.put_back", bundle: .module) }
         static var deleteImmediately: String { ModuleLocalization.localized("action.delete_immediately", bundle: .module) }
         static var copyFilename: String { ModuleLocalization.localized("action.copy_filename", bundle: .module) }
+        static var copyDirectoryName: String { ModuleLocalization.localized("action.copy_directory_name", bundle: .module) }
         static var copyPaths: String { ModuleLocalization.localized("action.copy_paths", bundle: .module) }
         static var showInfo: String { ModuleLocalization.localized("action.show_info", bundle: .module) }
         static var showFinderInfo: String { ModuleLocalization.localized("action.show_finder_info", bundle: .module) }
         static var services: String { ModuleLocalization.localized("action.services", bundle: .module) }
         static var openTerminalHere: String { ModuleLocalization.localized("action.open_terminal_here", bundle: .module) }
+        static var openClipboardPath: String { ModuleLocalization.localized("action.open_clipboard_path", bundle: .module) }
+        static var revealInFinder: String { ModuleLocalization.localized("action.reveal_in_finder", bundle: .module) }
         static var extract: String { ModuleLocalization.localized("action.extract", bundle: .module) }
         static var extractHere: String { ModuleLocalization.localized("action.extract_here", bundle: .module) }
         static var extractTo: String { ModuleLocalization.localized("action.extract_to", bundle: .module) }
@@ -369,6 +372,9 @@ enum L10n {
             static var codeLineNumbers: String { ModuleLocalization.localized("settings.preview.code_line_numbers", bundle: .module) }
             static var codeLineNumbersFooter: String { ModuleLocalization.localized("settings.preview.code_line_numbers.footer", bundle: .module) }
             static var codeLineNumbersToggle: String { ModuleLocalization.localized("settings.preview.code_line_numbers.toggle", bundle: .module) }
+            static var folderContents: String { ModuleLocalization.localized("settings.preview.folder_contents", bundle: .module) }
+            static var folderContentsFooter: String { ModuleLocalization.localized("settings.preview.folder_contents.footer", bundle: .module) }
+            static var folderContentsToggle: String { ModuleLocalization.localized("settings.preview.folder_contents.toggle", bundle: .module) }
             static var noRulesHint: String { ModuleLocalization.localized("settings.preview.no_rules_hint", bundle: .module) }
             static var customTypes: String { ModuleLocalization.localized("settings.preview.custom_types", bundle: .module) }
             static var addRule: String { ModuleLocalization.localized("settings.preview.add_rule", bundle: .module) }

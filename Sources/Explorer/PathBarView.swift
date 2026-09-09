@@ -70,7 +70,25 @@ enum BarTextFieldFocusRegistry {
 
     static func focus(_ id: BarTextFieldID, in window: NSWindow) {
         guard let field = field(for: id, in: window) else { return }
+        clearCompetingFirstResponderIfNeeded(for: field, in: window)
         window.makeFirstResponder(field)
+    }
+
+    /// 预览区 NSTextView 等占用 firstResponder 时，先结束编辑再抢焦点，避免等待慢速 resign。
+    private static func clearCompetingFirstResponderIfNeeded(for field: NSTextField, in window: NSWindow) {
+        guard let responder = window.firstResponder else { return }
+        if responder === field { return }
+        if let editor = field.currentEditor(), responder === editor { return }
+        if let view = responder as? NSView, view.isDescendant(of: field) { return }
+
+        window.endEditing(for: nil)
+        if let still = window.firstResponder {
+            if still === field { return }
+            if let editor = field.currentEditor(), still === editor { return }
+            if let view = still as? NSView, view.isDescendant(of: field) { return }
+            // 强制让出（预览文本/PDF 等），保证地址栏点击可立刻抢到焦点。
+            window.makeFirstResponder(nil)
+        }
     }
 
     static func selectAll(_ id: BarTextFieldID, in window: NSWindow) {
@@ -100,6 +118,7 @@ enum BarTextFieldFocusRegistry {
             focusWhenReady(id, in: window, selectAll: true)
             return
         }
+        // 地址栏 NSTextField 始终挂在视图树中（面包屑模式下仅 alpha=0），可立刻抢焦点。
         focus(id, in: window)
         if field.currentEditor() == nil {
             field.selectText(nil)
@@ -114,6 +133,13 @@ enum BarTextFieldFocusRegistry {
         }
     }
 
+    private static func focusRetryDelay(attempt: Int) -> TimeInterval {
+        // 前几次跟下一 runloop，避免原先固定 20ms×N 在预览侧栏打开时叠到接近 1 秒。
+        if attempt < 4 { return 0 }
+        if attempt < 10 { return 0.008 }
+        return 0.016
+    }
+
     static func focusWhenReady(
         _ id: BarTextFieldID,
         in window: NSWindow,
@@ -121,14 +147,25 @@ enum BarTextFieldFocusRegistry {
         onComplete: ((Bool) -> Void)? = nil,
         attempt: Int = 0
     ) {
-        guard attempt < 30 else {
+        guard attempt < 24 else {
             onComplete?(false)
             return
         }
-        guard let field = field(for: id, in: window), field.window != nil else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+
+        let scheduleRetry = {
+            let delay = focusRetryDelay(attempt: attempt)
+            let next = {
                 focusWhenReady(id, in: window, selectAll: selectAll, onComplete: onComplete, attempt: attempt + 1)
             }
+            if delay <= 0 {
+                DispatchQueue.main.async(execute: next)
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: next)
+            }
+        }
+
+        guard let field = field(for: id, in: window), field.window != nil else {
+            scheduleRetry()
             return
         }
 
@@ -141,9 +178,7 @@ enum BarTextFieldFocusRegistry {
         }
 
         guard hasActiveFieldEditor(field) else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
-                focusWhenReady(id, in: window, selectAll: selectAll, onComplete: onComplete, attempt: attempt + 1)
-            }
+            scheduleRetry()
             return
         }
 
@@ -977,7 +1012,10 @@ struct PathBarTextFieldRepresentable: NSViewRepresentable {
             coordinator?.text.wrappedValue = newValue
         }
         field.onEditingBegan = { [weak coordinator = context.coordinator] in
-            coordinator?.activeField.wrappedValue = .path
+            // 延后同步 activeField，避免 enterTextMode 抢焦点时同步抬升 ContentView。
+            DispatchQueue.main.async {
+                coordinator?.activeField.wrappedValue = .path
+            }
         }
         field.onEditingEnded = { [weak coordinator = context.coordinator] in
             coordinator?.handleEditingEnded()
@@ -1224,12 +1262,16 @@ struct PathBarView: View {
     var onSelectHistory: ((String) -> Void)?
     /// 回车或点击跳转：目录进入对应路径；文件则进入父目录并选中该文件。
     var onCommitNavigation: (ExternalNavigationTarget) -> Void
+    /// 面包屑段右键菜单动作（由 ContentView 接线）。
+    var contextActions: PathBarContextActions = .empty
     
     @State private var mode: PathBarMode = .breadcrumb
     @State private var editingText = ""
     @State private var committedViaSubmit = false
     @State private var previousActiveField: BarTextFieldID?
     @State private var historyBrowsing = PathBarHistoryBrowsing()
+    /// 跳转按钮目标异步解析，避免进入文本模式时同步 FileManager 拖慢首帧。
+    @State private var pendingNavigationTarget: ExternalNavigationTarget?
     
     private let cornerRadius: CGFloat = 7
     private let fieldHeight: CGFloat = 28
@@ -1266,7 +1308,7 @@ struct PathBarView: View {
         return inset
     }
 
-    private var pendingNavigationTarget: ExternalNavigationTarget? {
+    private func resolvePendingNavigationTarget() -> ExternalNavigationTarget? {
         guard mode == .text else { return nil }
         let raw = editingText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return nil }
@@ -1300,6 +1342,15 @@ struct PathBarView: View {
             selectionPath: nil
         )
     }
+
+    private func schedulePendingNavigationTargetRefresh() {
+        DispatchQueue.main.async {
+            let resolved = resolvePendingNavigationTarget()
+            if pendingNavigationTarget != resolved {
+                pendingNavigationTarget = resolved
+            }
+        }
+    }
     
     var body: some View {
         ZStack(alignment: .leading) {
@@ -1319,6 +1370,7 @@ struct PathBarView: View {
                 PathBreadcrumbView(
                     path: path,
                     showHiddenFiles: showHiddenFiles,
+                    contextActions: contextActions,
                     onNavigate: { path = $0 },
                     onRequestEdit: enterTextMode
                 )
@@ -1379,6 +1431,7 @@ struct PathBarView: View {
                 editingText = displayPath
             }
             PathSubdirectoryCache.preloadBreadcrumbPaths(path, showHiddenFiles: showHiddenFiles)
+            schedulePendingNavigationTargetRefresh()
         }
         .onChange(of: showHiddenFiles) { _ in
             PathSubdirectoryCache.invalidate()
@@ -1387,11 +1440,26 @@ struct PathBarView: View {
         .onReceive(NotificationCenter.default.publisher(for: .meoFindMemoryPressure)) { _ in
             PathSubdirectoryCache.invalidate()
         }
+        .onChange(of: editingText) { _ in
+            schedulePendingNavigationTargetRefresh()
+        }
         .onChange(of: mode) { newMode in
-            isTextMode = newMode == .text
-            guard newMode == .text else { return }
-            activeField = .path
+            // 父级 Binding 延后一拍，避免与 ContentView/预览侧栏同帧重算拖慢面包屑切换。
+            DispatchQueue.main.async {
+                let shouldBeText = newMode == .text
+                if isTextMode != shouldBeText {
+                    isTextMode = shouldBeText
+                }
+                if shouldBeText, activeField != .path {
+                    activeField = .path
+                }
+            }
+            guard newMode == .text else {
+                pendingNavigationTarget = nil
+                return
+            }
             requestPathFieldFocus()
+            schedulePendingNavigationTargetRefresh()
         }
         .onChange(of: isTextMode) { active in
             guard !active, mode == .text else { return }
@@ -1419,7 +1487,14 @@ struct PathBarView: View {
             if newValue == .path {
                 if mode != .text {
                     editingText = displayPath
-                    mode = .text
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        mode = .text
+                    }
+                    if let window = resolvedHostWindow {
+                        BarTextFieldFocusRegistry.focusAndSelectAll(.path, in: window)
+                    }
                 }
                 return
             }
@@ -1445,20 +1520,21 @@ struct PathBarView: View {
     private func requestPathFieldFocus() {
         guard let window = resolvedHostWindow else { return }
         BarTextFieldFocusRegistry.focusAndSelectAll(.path, in: window)
-        activeField = .path
+        // activeField 由 onChange(mode) 异步同步，避免同帧抬升 ContentView。
     }
     
     private func enterTextMode() {
         guard let window = resolvedHostWindow else { return }
         BarTextFieldFocusRegistry.requestSelectAll(.path, in: window)
         editingText = displayPath
-        activeField = .path
-        isTextMode = true
-        if mode == .text {
-            BarTextFieldFocusRegistry.focusAndSelectAll(.path, in: window)
-        } else {
+
+        // 只先改本地 mode，立刻 AppKit 抢焦点；父级 isTextMode/activeField 延后，保证面包屑消失尽量快。
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
             mode = .text
         }
+        BarTextFieldFocusRegistry.focusAndSelectAll(.path, in: window)
     }
     
     private func handlePathBarTrailingClick() {
@@ -1493,6 +1569,7 @@ struct PathBarView: View {
         } else {
             activeField = nil
         }
+        isTextMode = false
         mode = .breadcrumb
     }
 
@@ -1773,6 +1850,7 @@ private struct BreadcrumbTrailingClickArea: View {
 private struct PathBreadcrumbView: View {
     let path: String
     let showHiddenFiles: Bool
+    let contextActions: PathBarContextActions
     let onNavigate: (String) -> Void
     let onRequestEdit: () -> Void
     
@@ -1862,6 +1940,7 @@ private struct PathBreadcrumbView: View {
         HStack(alignment: .center, spacing: 0) {
             if showsLeadingRootSlash {
                 PathRootSlashButton(
+                    contextActions: contextActions,
                     onNavigate: { onNavigate("/") }
                 )
             }
@@ -1870,6 +1949,7 @@ private struct PathBreadcrumbView: View {
                 PathSegmentButton(
                     segment: leadingSegment,
                     isHighlighted: isSegmentHighlighted(leadingSegment),
+                    contextActions: contextActions,
                     onNavigate: onNavigate
                 )
                 .id(leadingSegment.id)
@@ -1891,6 +1971,7 @@ private struct PathBreadcrumbView: View {
             if layout.showsLeadingEllipsis {
                 PathBreadcrumbEllipsisMenu(
                     hiddenSegments: layout.hiddenSegments,
+                    contextActions: contextActions,
                     onNavigate: onNavigate
                 )
                 
@@ -1910,6 +1991,7 @@ private struct PathBreadcrumbView: View {
                 PathSegmentButton(
                     segment: segment,
                     isHighlighted: isSegmentHighlighted(segment),
+                    contextActions: contextActions,
                     onNavigate: onNavigate
                 )
                 .id(segment.id)
@@ -2109,6 +2191,7 @@ private struct PathBreadcrumbLayout {
 }
 
 private struct PathRootSlashButton: View {
+    let contextActions: PathBarContextActions
     let onNavigate: () -> Void
     
     var body: some View {
@@ -2120,6 +2203,9 @@ private struct PathRootSlashButton: View {
             .frame(width: 14, height: 28)
             .contentShape(Rectangle())
             .onTapGesture(perform: onNavigate)
+            .overlay {
+                PathBarSegmentRightClickOverlay(path: "/", actions: contextActions)
+            }
             .instantHoverTooltip("/")
     }
 }
@@ -2127,6 +2213,7 @@ private struct PathRootSlashButton: View {
 private struct PathSegmentButton: View {
     let segment: PathSegment
     let isHighlighted: Bool
+    let contextActions: PathBarContextActions
     let onNavigate: (String) -> Void
     
     var body: some View {
@@ -2145,6 +2232,9 @@ private struct PathSegmentButton: View {
         }
         .buttonStyle(.plain)
         .frame(height: 28)
+        .overlay {
+            PathBarSegmentRightClickOverlay(path: segment.path, actions: contextActions)
+        }
         .instantHoverTooltip(segment.path)
     }
 }
@@ -2204,7 +2294,14 @@ private struct PathSeparatorMenuItems: View {
 
 private struct PathBreadcrumbEllipsisMenu: View {
     let hiddenSegments: [PathSegment]
+    let contextActions: PathBarContextActions
     let onNavigate: (String) -> Void
+
+    private var hiddenForMenu: [PathBarBreadcrumbContextMenuBuilder.HiddenSegment] {
+        hiddenSegments.map {
+            PathBarBreadcrumbContextMenuBuilder.HiddenSegment(name: $0.name, path: $0.path)
+        }
+    }
     
     var body: some View {
         Menu {
@@ -2224,6 +2321,13 @@ private struct PathBreadcrumbEllipsisMenu: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
+        .overlay {
+            PathBarEllipsisRightClickOverlay(
+                segments: hiddenForMenu,
+                actions: contextActions,
+                onNavigate: onNavigate
+            )
+        }
         .instantHoverTooltip(L10n.Pathbar.parent)
     }
 }

@@ -19,6 +19,8 @@ struct FilePreviewSessionHost: View {
     @ObservedObject var detachCoordinator: PreviewDetachCoordinator
 
     @Environment(\.openWindow) private var openWindow
+    @AppStorage(AppPreferences.Preview.folderContents)
+    private var previewFolderContents = false
     @StateObject private var session: PreviewSession
 
     init(
@@ -118,6 +120,11 @@ struct FilePreviewSessionHost: View {
         .onChange(of: selectedItem.id) { _ in
             applyContentSearchReveal()
         }
+        .onChange(of: previewFolderContents) { enabled in
+            if !enabled {
+                session.folderInlineChild = nil
+            }
+        }
         .onChange(of: session.contentLoadedItemID) { loadedID in
             guard loadedID == selectedItem.id else { return }
             applyContentSearchReveal()
@@ -157,7 +164,7 @@ struct FilePreviewSessionHost: View {
                 showHiddenFiles: showHiddenFiles,
                 autoCalculateDirectorySizes: autoCalculateDirectorySizes,
                 metadataOverlay: metadataOverlay,
-                showContentsList: true,
+                showContentsList: previewFolderContents,
                 onNavigate: onNavigate,
                 onOpenFolder: { onOpenItem(selectedItem) },
                 onOpenTerminal: { onOpenTerminalAtPath(selectedItem.id) },
