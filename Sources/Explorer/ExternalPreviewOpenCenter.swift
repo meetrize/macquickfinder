@@ -31,8 +31,6 @@ final class ExternalPreviewOpenCenter: ObservableObject {
         let previewableURLs = ExternalPreviewFileClassifier.previewableURLs(from: urls)
         guard !previewableURLs.isEmpty else { return false }
 
-        shouldSuppressExplorerWindows = true
-
         let app = NSApplication.shared
         app.unhide(nil)
         app.activate(ignoringOtherApps: true)
@@ -42,6 +40,7 @@ final class ExternalPreviewOpenCenter: ObservableObject {
             && imageURLs.count == previewableURLs.count
             && PreviewOpenPreferences.externalMultiImageOpen == .oneWindowPerFile
 
+        let opened: Bool
         if openOneWindowPerImage {
             var openedAny = false
             for url in previewableURLs {
@@ -49,18 +48,23 @@ final class ExternalPreviewOpenCenter: ObservableObject {
                     openedAny = true
                 }
             }
-            if !openedAny {
-                shouldSuppressExplorerWindows = false
-            }
-            return openedAny
+            opened = openedAny
+        } else if let firstURL = previewableURLs.first {
+            let additionalURLs = Array(previewableURLs.dropFirst())
+            opened = openPreviewWindow(for: firstURL, additionalURLs: additionalURLs)
+        } else {
+            opened = false
         }
 
-        guard let firstURL = previewableURLs.first else {
+        // 仅在真正打开预览后抑制浏览窗。失败时绝不可留下 suppress，
+        // 否则后续 Reveal/requestOpen 新建的标签会被 ExplorerBrowserWindowSuppressor 立刻关掉
+        // （微信「在访达中显示」可预览文件却无法 resolve 时表现为完全无响应）。
+        if opened {
+            shouldSuppressExplorerWindows = true
+        } else {
             shouldSuppressExplorerWindows = false
-            return false
         }
-        let additionalURLs = Array(previewableURLs.dropFirst())
-        return openPreviewWindow(for: firstURL, additionalURLs: additionalURLs)
+        return opened
     }
 
     @discardableResult

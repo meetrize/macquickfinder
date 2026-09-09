@@ -930,6 +930,8 @@ final class ExternalFolderOpenCenter: ObservableObject {
         let app = NSApplication.shared
         app.unhide(nil)
         app.activate(ignoringOtherApps: true)
+        let opts = NSApplication.ActivationOptions([.activateAllWindows, .activateIgnoringOtherApps])
+        _ = NSRunningApplication.current.activate(options: opts)
 
         let targetDir = ExternalSelectionPathMatcher.standardizedPath(resolvedRequest.directoryPath)
         let tabs = ExplorerWindowTabCenter.shared
@@ -945,26 +947,27 @@ final class ExternalFolderOpenCenter: ObservableObject {
             "requestOpen anchor path=\(anchor.flatMap { tabs.path(for: $0) } ?? "nil") key=\(anchor?.isKeyWindow ?? false) session=\(isSessionEstablished) registered=\(tabs.hasRegisteredWindows)"
         )
 
-        // 已有浏览窗（登记或会话）→ 每次 Reveal 都新开标签并激活选中。
+        // 温启动（有会话或已登记窗）：每次 Reveal 都新开标签并激活选中（同目录亦然）。
+        // 保留微信路径：无锚点时 openFolderWindow，避免「完全无响应」。
         // 不单靠 isSessionEstablished：冷启动后若 mark 漏掉，二次 Reveal 会误走 cold-pending。
         let warm = isSessionEstablished || tabs.hasRegisteredWindows
-        if warm, let anchor {
-            let currentDir = tabs.path(for: anchor).map {
-                ExternalSelectionPathMatcher.standardizedPath($0)
-            }
-            ExternalOpenDiagnostic.logRaw(
-                "requestOpen warm-new-tab ALWAYS from=\(currentDir ?? "nil") to=\(targetDir) selection=\(resolvedRequest.selectionPath ?? "nil")"
-            )
-            if !isSessionEstablished {
-                markSessionEstablished()
-            }
-            deliverOpenRequestInNewTab(resolvedRequest, anchor: anchor)
-            return
-        }
-
         if warm {
+            if let anchor {
+                let currentDir = tabs.path(for: anchor).map {
+                    ExternalSelectionPathMatcher.standardizedPath($0)
+                }
+                ExternalOpenDiagnostic.logRaw(
+                    "requestOpen warm-new-tab ALWAYS from=\(currentDir ?? "nil") to=\(targetDir) selection=\(resolvedRequest.selectionPath ?? "nil")"
+                )
+                if !isSessionEstablished {
+                    markSessionEstablished()
+                }
+                deliverOpenRequestInNewTab(resolvedRequest, anchor: anchor)
+                return
+            }
+
             ExternalOpenDiagnostic.logRaw(
-                "requestOpen warm-no-anchor → try any browser or key"
+                "requestOpen warm-no-anchor → try any browser or openFolderWindow"
             )
             if let anyBrowser = NSApp.windows.first(where: {
                 !$0.isMiniaturized && $0.canBecomeKey
@@ -978,7 +981,15 @@ final class ExternalFolderOpenCenter: ObservableObject {
             if let key = NSApp.keyWindow {
                 if !isSessionEstablished { markSessionEstablished() }
                 deliverOpenRequestInNewTab(resolvedRequest, anchor: key)
+                return
             }
+            // 会话已建立但暂无可用宿主窗：回退新建文件夹窗，禁止静默吞掉请求
+            // （微信/系统「在访达中显示」在此路径上会表现为完全无响应）。
+            if !isSessionEstablished { markSessionEstablished() }
+            ExternalOpenDiagnostic.logRaw(
+                "requestOpen warm-no-anchor → openFolderWindow dir=\(resolvedRequest.directoryPath)"
+            )
+            openFolderWindow?(resolvedRequest)
             return
         }
 
@@ -1046,7 +1057,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
         closeDetachedDuplicateWindows(of: window, directoryPath: request.directoryPath)
         // 只关「与 keeper 同路径」的游离窗；勿在 suppression 下误关前台其它目录标签组。
         closeOrphanDuplicatesOnly(of: window, directoryPath: request.directoryPath)
-        ExplorerWindowTabCenter.shared.activateExplorerWindow(window)
+        ExplorerWindowTabCenter.shared.activateExplorerWindow(window, forceFrontmost: true)
         ExternalOpenDiagnostic.logWindowSnapshot("after-reuse-activate")
         pendingRequest = request
         pendingDeliveryWindowID = ObjectIdentifier(window)
@@ -1056,7 +1067,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
         for delay in [0.05, 0.15, 0.35, 0.7] as [TimeInterval] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 self.closeOrphanDuplicatesOnly(of: window, directoryPath: request.directoryPath)
-                ExplorerWindowTabCenter.shared.activateExplorerWindow(window)
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(window, forceFrontmost: true)
                 if self.pendingRequest != nil,
                    self.pendingDeliveryWindowID == ObjectIdentifier(window) {
                     self.openRequestGeneration &+= 1
@@ -1115,12 +1126,12 @@ final class ExternalFolderOpenCenter: ObservableObject {
                     preferringGroupOf: anchor
                 )
             if let newTab {
-                ExplorerWindowTabCenter.shared.activateExplorerWindow(newTab)
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(newTab, forceFrontmost: true)
                 ExternalOpenDiagnostic.logRaw(
                     "deliverOpenRequestInNewTab activate win path=\(ExplorerWindowTabCenter.shared.path(for: newTab) ?? "nil") selection=\(selection ?? "nil")"
                 )
             } else {
-                ExplorerWindowTabCenter.shared.activateExplorerWindow(anchor)
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(anchor, forceFrontmost: true)
                 ExternalOpenDiagnostic.logRaw("deliverOpenRequestInNewTab activate fallback=anchor")
             }
             ExternalOpenDiagnostic.logWindowSnapshot("after-new-tab-activate")
@@ -1214,7 +1225,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
             return kind == .main || kind == .folder
         }
         if let browser {
-            ExplorerWindowTabCenter.shared.activateExplorerWindow(browser)
+            ExplorerWindowTabCenter.shared.activateExplorerWindow(browser, forceFrontmost: true)
             return
         }
         if let keyWindow = app.keyWindow {
@@ -1305,27 +1316,26 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
         // open -R / odoc 会先问「要不要空白窗」再投递 URL。温启动若返回 true，
         // 系统会再开一个 main 窗并落到 restoredLaunchPath（常为 Desktop），
-        // 随后我们的 Reveal 再开 SSD 标签 → Desktop + Desktop + SSD 三标签。
+        // 随后我们的 Reveal 再开目标标签 → Desktop + Desktop + 目标 三标签。
+        // 冷启动（尚无任何浏览窗）必须允许空白窗，否则 pending 无人消费 → 完全无响应。
         ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile invoked")
         ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
 
-        if ExplorerWindowTabCenter.shared.hasRegisteredWindows
+        let hasBrowser =
+            ExplorerWindowTabCenter.shared.hasRegisteredWindows
             || ExplorerWindowTabCenter.shared.hasVisibleBrowserWindows
-            || ExternalFolderOpenCenter.shared.isSessionEstablished {
+            || ExternalFolderOpenCenter.shared.isSessionEstablished
+
+        if hasBrowser {
             ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile=false (existing browser/session)")
             return false
         }
-        if let event = NSAppleEventManager.shared().currentAppleEvent {
-            if ExternalOpenIntentDetector.isRevealAppleEvent(event)
-                || event.eventID == AEEventID(kAEOpenDocuments)
-                || event.eventID == AEEventID(kAERevealSelection) {
-                ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile=false (external AE)")
-                return false
-            }
-        }
-        let allow = ExternalFolderOpenCenter.shared.shouldAllowUntitledWindow
-        ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile=\(allow)")
-        return allow
+
+        // 冷启动：必须有一扇窗承接 pending（含 srev/odoc）。
+        // 勿再读 shouldAllowUntitledWindow：willFinishLaunching 可能已 markLaunchedFromExternalEvent
+        // 导致其返回 false，窗永远不出现 → 微信/系统 Reveal 完全无响应。
+        ExternalOpenDiagnostic.logRaw("shouldOpenUntitledFile=true (cold — need window for pending)")
+        return true
     }
 
     @MainActor

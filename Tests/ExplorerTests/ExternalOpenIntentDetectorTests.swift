@@ -91,11 +91,42 @@ final class ExternalOpenRouterTests: XCTestCase {
       intent: .revealInFileViewer
     )
 
+    let delivered = expectation(description: "deferred open delivered")
+    DispatchQueue.main.async { delivered.fulfill() }
+    wait(for: [delivered], timeout: 1.0)
+
     XCTAssertFalse(previewOpened)
     XCTAssertFalse(ExternalPreviewOpenCenter.shared.shouldSuppressExplorerWindows)
     XCTAssertEqual(
       ExternalFolderOpenCenter.shared.targetRequest?.selectionPath,
       "/tmp/reveal.png"
+    )
+  }
+
+  func testDefaultFileViewerTreatsIncomingOpenAsReveal() {
+    // 当 MeoFind 是 NSFileViewer 时，微信/open -R 的普通 odoc 应视为 Reveal，不走预览。
+    // 此处用显式 nil intent + 探测器无法读到 srev 的场景：依赖 shouldTreat 启发式。
+    // 若当前进程不是默认文件管理器，跳过（CI/本地未设置 NSFileViewer 时）。
+    guard DefaultFileViewerManager.isDefaultFileViewer else {
+      throw XCTSkip("MeoFind is not the current NSFileViewer")
+    }
+
+    var previewOpened = false
+    ExternalPreviewOpenCenter.shared.setOpenPreviewWindowHandler { _ in
+      previewOpened = true
+    }
+
+    ExternalOpenRouter.handleOpen(
+      urls: [URL(fileURLWithPath: "/tmp/wechat-show-in-finder.png")]
+    )
+
+    XCTAssertFalse(previewOpened)
+    XCTAssertEqual(
+      ExternalOpenRouter.resolveIntent(
+        for: [URL(fileURLWithPath: "/tmp/wechat-show-in-finder.png")],
+        explicit: nil
+      ),
+      .revealInFileViewer
     )
   }
 

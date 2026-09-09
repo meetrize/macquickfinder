@@ -53,9 +53,11 @@ extension ContentView {
         guard let selectionPath = pendingExternalSelectionPath else {
             return !items.isEmpty && !isLoading
         }
-        guard !items.isEmpty, !isLoading else {
+        // items 已有内容时即可选中；isLoading 可能仍为 true（注释 enrichment 等），
+        // 旧逻辑会卡在 WAIT，同目录二次 Reveal 表现为「定位失败」。
+        guard !items.isEmpty else {
             ExternalOpenDiagnostic.logRaw(
-                "selection WAIT path=\(selectionPath) items=\(items.count) loading=\(isLoading) dir=\(path)"
+                "selection WAIT path=\(selectionPath) items=0 loading=\(isLoading) dir=\(path)"
             )
             return false
         }

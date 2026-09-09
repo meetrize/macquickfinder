@@ -57,11 +57,24 @@ enum ExternalOpenIntentDetector {
 }
 
 enum ExternalAppleEventFileURLExtractor {
+    // AERegistry `keyAESelection` / 部分环境未桥接为 Swift 符号，使用四字符码。
+    private static let keySelection = AEKeyword(FourCharCode(0x7365_6C65)) // 'sele'
+    private static let keyFile = AEKeyword(FourCharCode(0x6B66_696C)) // 'kfil' == keyAEFile
+
     static func fileURLs(from event: NSAppleEventDescriptor) -> [URL] {
-        guard let list = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject)) else {
-            return []
+        let keywords: [AEKeyword] = [
+            AEKeyword(keyDirectObject),
+            keySelection,
+            keyFile,
+        ]
+        for keyword in keywords {
+            guard let list = event.paramDescriptor(forKeyword: keyword) else { continue }
+            let urls = fileURLs(fromList: list)
+            if !urls.isEmpty {
+                return urls
+            }
         }
-        return fileURLs(fromList: list)
+        return []
     }
 
     private static func fileURLs(fromList list: NSAppleEventDescriptor) -> [URL] {
@@ -85,6 +98,10 @@ enum ExternalAppleEventFileURLExtractor {
         }
         if let path = descriptor.stringValue, !path.isEmpty {
             return URL(fileURLWithPath: path)
+        }
+        // 微信等可能传入 typeAlias / bookmark，需 coerce 到 file URL。
+        if let coerced = descriptor.coerce(toDescriptorType: typeFileURL) {
+            return coerced.fileURLValue
         }
         return nil
     }
@@ -118,8 +135,12 @@ private final class FileViewerRevealAppleEventHandler: NSObject {
 
   @objc func handle(event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
     let urls = ExternalAppleEventFileURLExtractor.fileURLs(from: event)
-    guard !urls.isEmpty else { return }
     ExternalOpenDiagnostic.logRevealHandler(event: event, urls: urls)
+    guard !urls.isEmpty else {
+      ExternalOpenDiagnostic.logRaw("reveal-handler empty urls — ignored")
+      return
+    }
+    // 尽快返回，避免发送方（微信）阻塞在 AE reply 上。
     ExternalOpenRouter.handleOpen(urls: urls, intent: .revealInFileViewer)
   }
 }

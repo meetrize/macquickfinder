@@ -19,6 +19,17 @@ final class ExternalPreviewOpenCenterTests: XCTestCase {
         XCTAssertFalse(ExternalPreviewOpenCenter.shared.shouldSuppressExplorerWindows)
     }
 
+    func testTryOpenFailureClearsExplorerWindowSuppression() {
+        // 可预览扩展名但路径不可 resolve 时，不得留下 suppress（否则后续 Reveal 标签会被关掉）。
+        ExternalPreviewOpenCenter.shared.setOpenPreviewWindowHandler { _ in
+            XCTFail("should not open preview for unresolvable path")
+        }
+        // 使用不存在的 png：classifier 认为可预览，openPreviewWindow 因 FileItem 解析失败返回 false。
+        let urls = [URL(fileURLWithPath: "/tmp/meofind-missing-\(UUID().uuidString).png")]
+        XCTAssertFalse(ExternalPreviewOpenCenter.shared.tryOpen(urls: urls))
+        XCTAssertFalse(ExternalPreviewOpenCenter.shared.shouldSuppressExplorerWindows)
+    }
+
     func testTryOpenOpensSinglePreviewWindowForFirstPreviewableURL() {
         var openedValues: [PreviewWindowValue] = []
         ExternalPreviewOpenCenter.shared.setOpenPreviewWindowHandler { value in

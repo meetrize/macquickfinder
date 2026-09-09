@@ -30,7 +30,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
     }
 
     private struct PendingNewTab {
-        weak var sourceWindow: NSWindow?
+        /// 短生命周期 pending：用强引用，避免 weak 在合并前变 nil 导致「开了窗却永不 merge」。
+        let sourceWindow: NSWindow
         let sceneKind: ExplorerWindowSceneKind
         let path: String
         let selectionPath: String?
@@ -208,7 +209,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
     }
 
     /// 将浏览窗选为当前标签并成为 key（外部 Reveal / 同目录复用）。
-    func activateExplorerWindow(_ window: NSWindow) {
+    /// - Parameter forceFrontmost: 外部 Reveal 时为 true，用 `orderFrontRegardless` 从微信等发送方抢前台。
+    func activateExplorerWindow(_ window: NSWindow, forceFrontmost: Bool = false) {
         // 若曾被拆成独立窗，恢复可标签化以便回到原组选中态。
         if window.tabbingMode == .disallowed {
             window.tabbingMode = .preferred
@@ -219,18 +221,71 @@ final class ExplorerWindowTabCenter: ObservableObject {
                 tabGroup.selectedWindow = window
             }
         }
-        NSApp.unhide(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+
+        let needsForce = forceFrontmost || !NSApp.isActive
+        bringExplorerWindowToFront(window, force: needsForce)
+
         ExternalOpenDiagnostic.logRaw(
-            "activateExplorerWindow path=\(path(for: window) ?? "nil") selected=\(window.tabGroup?.selectedWindow === window) key=\(window.isKeyWindow)"
+            "activateExplorerWindow path=\(path(for: window) ?? "nil") selected=\(window.tabGroup?.selectedWindow === window) key=\(window.isKeyWindow) active=\(NSApp.isActive) force=\(needsForce)"
         )
-        DispatchQueue.main.async { [weak window] in
-            guard let window else { return }
-            if let tabGroup = window.tabGroup, tabGroup.selectedWindow !== window {
-                tabGroup.selectedWindow = window
+
+        // Apple Event 处理同期激活常被发送方（微信）压住；下一拍与短延迟再抢前台。
+        if needsForce {
+            let delays: [TimeInterval] = [0.0, 0.05, 0.15, 0.35, 0.7, 1.2]
+            for delay in delays {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak window] in
+                    guard let window, window.isVisible || window.isMiniaturized else { return }
+                    if window.isMiniaturized {
+                        window.deminiaturize(nil)
+                    }
+                    if let tabGroup = window.tabGroup, tabGroup.selectedWindow !== window {
+                        tabGroup.selectedWindow = window
+                    }
+                    self.bringExplorerWindowToFront(window, force: true)
+                    ExternalOpenDiagnostic.logRaw(
+                        "activateExplorerWindow retry delay=\(delay) path=\(self.path(for: window) ?? "nil") key=\(window.isKeyWindow) active=\(NSApp.isActive)"
+                    )
+                }
             }
-            window.makeKeyAndOrderFront(nil)
+        } else {
+            DispatchQueue.main.async { [weak window] in
+                guard let window else { return }
+                if let tabGroup = window.tabGroup, tabGroup.selectedWindow !== window {
+                    tabGroup.selectedWindow = window
+                }
+                self.bringExplorerWindowToFront(window, force: false)
+            }
+        }
+    }
+
+    private func bringExplorerWindowToFront(_ window: NSWindow, force: Bool) {
+        NSApp.unhide(nil)
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
+
+        // 多层激活：微信等发送方在 AE 同期常压住前台，单靠 activate(ignoringOtherApps:) 不够。
+        NSApp.activate(ignoringOtherApps: true)
+        let opts = NSApplication.ActivationOptions([.activateAllWindows, .activateIgnoringOtherApps])
+        _ = NSRunningApplication.current.activate(options: opts)
+
+        if force {
+            window.orderFrontRegardless()
+        }
+        window.makeKeyAndOrderFront(nil)
+        if !window.isKeyWindow {
+            window.makeKey()
+        }
+
+        // 仍未成为前台时，让 Launch Services 再激活本应用（对已运行实例 = 抢前台）。
+        if force, !NSApp.isActive {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            NSWorkspace.shared.openApplication(
+                at: Bundle.main.bundleURL,
+                configuration: config,
+                completionHandler: nil
+            )
         }
     }
 
@@ -690,10 +745,9 @@ final class ExplorerWindowTabCenter: ObservableObject {
 
         guard let pending = pendingNewTab else { return false }
         guard pending.sourceWindow !== window else { return false }
-        guard let anchor = pending.sourceWindow else { return false }
-        guard window.tabbingMode != .disallowed else { return false }
+        // 即便系统先把新窗标成 .disallowed，也要合并；merge 内会改回 .preferred。
         _ = noteWindowAppearedDuringProgrammaticTabGeneration(window, path: pending.path)
-        mergeNewTabWindow(window, into: anchor, pending: pending)
+        mergeNewTabWindow(window, into: pending.sourceWindow, pending: pending)
         return true
     }
 
@@ -710,12 +764,14 @@ final class ExplorerWindowTabCenter: ObservableObject {
             path: path(for: window) ?? pendingNewTab?.path
         )
         guard let pending = pendingNewTab else { return true }
-        guard pending.sourceWindow !== window else { return true }
-        guard let anchor = pending.sourceWindow else {
-            pendingNewTab = nil
+        guard pending.sourceWindow !== window else {
+            ExternalOpenDiagnostic.logRaw("attemptTabMerge skip — window is anchor itself")
             return true
         }
-        mergeNewTabWindow(window, into: anchor, pending: pending)
+        ExternalOpenDiagnostic.logRaw(
+            "attemptTabMerge begin new=\(path(for: window) ?? pending.path) into=\(path(for: pending.sourceWindow) ?? "nil")"
+        )
+        mergeNewTabWindow(window, into: pending.sourceWindow, pending: pending)
         return true
     }
 
@@ -797,6 +853,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
             if let tabGroup = window.tabGroup ?? anchor.tabGroup {
                 tabGroup.selectedWindow = window
             }
+            window.orderFrontRegardless()
             window.makeKeyAndOrderFront(nil)
         } else if !window.isKeyWindow {
             window.makeKey()
@@ -812,7 +869,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
         }
         beginIgnoreSystemNewWindowForTab(for: 1.0)
 
-        let activationDelays: [TimeInterval] = shouldActivate ? [0.0, 0.05, 0.2, 0.45] : [0.0]
+        let activationDelays: [TimeInterval] = shouldActivate ? [0.0, 0.05, 0.2, 0.45, 0.9] : [0.0]
         for delay in activationDelays {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self else { return }
@@ -822,6 +879,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
                 if shouldActivate {
                     NSApp.activate(ignoringOtherApps: true)
                     self.isRevealingMergedTab = true
+                    newTab.orderFrontRegardless()
                     newTab.makeKeyAndOrderFront(nil)
                     self.isRevealingMergedTab = false
                 } else if !newTab.isKeyWindow {

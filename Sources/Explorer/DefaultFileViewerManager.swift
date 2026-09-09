@@ -58,7 +58,7 @@ enum DefaultFileViewerManager {
         registerWithLaunchServices()
         do {
             try setGlobalFileViewer(bundleIdentifier)
-            try appendFolderHandlers(bundleIdentifier: bundleIdentifier)
+            try upsertFolderHandlers(bundleIdentifier: bundleIdentifier)
             try setLaunchServicesDefaultHandlers(bundleIdentifier: bundleIdentifier)
             await applyWorkspaceDefault(bundleURL: Bundle.main.bundleURL)
             return .success(())
@@ -73,8 +73,7 @@ enum DefaultFileViewerManager {
         }
         do {
             try clearGlobalFileViewer()
-            try removeFolderHandlers(bundleIdentifier: bundleIdentifier)
-            try appendFolderHandlers(bundleIdentifier: finderBundleIdentifier)
+            try upsertFolderHandlers(bundleIdentifier: finderBundleIdentifier)
             try setLaunchServicesDefaultHandlers(bundleIdentifier: finderBundleIdentifier)
             await applyWorkspaceDefault(bundleURL: finderURL)
             return .success(())
@@ -85,6 +84,10 @@ enum DefaultFileViewerManager {
 
     static func registerWithLaunchServicesIfNeeded() {
         registerWithLaunchServices()
+        // 自愈：已是 NSFileViewer 但 public.folder 丢失时，微信「打开目录」会落到 Finder 或无响应。
+        if globalFileViewerBundleIdentifier == bundleIdentifier {
+            try? upsertFolderHandlers(bundleIdentifier: bundleIdentifier)
+        }
     }
 
     private static func registerWithLaunchServices() {
@@ -132,11 +135,22 @@ enum DefaultFileViewerManager {
         }
     }
 
-    private static func appendFolderHandlers(bundleIdentifier: String) throws {
-        for roleKey in ["LSHandlerRoleAll", "LSHandlerRoleViewer"] {
-            let entry = "{LSHandlerContentType=\"public.folder\";\(roleKey)=\"\(bundleIdentifier)\";}"
-            try runDefaultsAppend(entry)
+    /// 写入 / 覆盖 `public.folder` 的 LSHandlers（`defaults -array-add` 易丢失，导致打开目录仍走 Finder）。
+    private static func upsertFolderHandlers(bundleIdentifier: String) throws {
+        var handlers = copyLaunchServicesHandlers()
+        handlers.removeAll { handler in
+            handler["LSHandlerContentType"] as? String == UTType.folder.identifier
         }
+        handlers.append([
+            "LSHandlerContentType": UTType.folder.identifier,
+            "LSHandlerRoleAll": bundleIdentifier,
+            "LSHandlerRoleViewer": bundleIdentifier,
+        ])
+        try writeLaunchServicesHandlers(handlers)
+    }
+
+    private static func appendFolderHandlers(bundleIdentifier: String) throws {
+        try upsertFolderHandlers(bundleIdentifier: bundleIdentifier)
     }
 
     private static func removeFolderHandlers(bundleIdentifier: String) throws {
@@ -180,23 +194,6 @@ enum DefaultFileViewerManager {
             kCFPreferencesAnyHost
         ) else {
             throw DefaultFileViewerError.preferencesSyncFailed
-        }
-    }
-
-    private static func runDefaultsAppend(_ entry: String) throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/defaults")
-        process.arguments = [
-            "write",
-            launchServicesDomain,
-            "LSHandlers",
-            "-array-add",
-            entry
-        ]
-        try process.run()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else {
-            throw DefaultFileViewerError.defaultsCommandFailed(process.terminationStatus)
         }
     }
 
