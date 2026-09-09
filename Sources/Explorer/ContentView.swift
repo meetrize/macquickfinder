@@ -273,7 +273,7 @@ extension ContentView {
         return !ExplorerWindowTabCenter.shared.hasRegisteredWindows
     }
 
-    /// 标签切换为 key 时接管共享目录监视；若曾失去 key，则全量对账补上后台期间的外部删改。
+    /// 标签切换为 key 时接管共享目录监视；若曾失去 key，则按 mtime 门闩决定是否静默对账。
     func claimSharedDirectorySessionIfNeeded() {
         guard ownsSharedDirectorySession else { return }
         guard !isLoading, !items.isEmpty else { return }
@@ -285,15 +285,29 @@ extension ContentView {
         )
         updateGitWorkspaceFSEventsMonitoring(for: path)
         rescheduleDirectorySizesIfNeeded()
-        if needsListingReconcileOnClaim {
-            needsListingReconcileOnClaim = false
-            // 对账重载勿清 selection：内容搜索预览依赖选中，清空会拆掉内联 PreviewSession。
-            loadItems(clearingSelection: false)
-        }
+        guard needsListingReconcileOnClaim else { return }
+        needsListingReconcileOnClaim = false
+        let cachedMTime = listingDirectoryMTimeAtResign
+        listingDirectoryMTimeAtResign = nil
+        let isNetwork = DirectoryListingOptions.forPath(path).lightweightMetadata
+        let currentMTime = DirectoryMetadataCache.directoryMTime(path: path)
+        guard TabListingReconcilePolicy.shouldReconcileListingOnClaim(
+            cachedMTime: cachedMTime,
+            currentMTime: currentMTime,
+            isNetwork: isNetwork
+        ) else { return }
+        // 对账重载勿清 selection：内容搜索预览依赖选中，清空会拆掉内联 PreviewSession。
+        // 静默对账：不闪 loading，并保留已有尺寸/计数 overlay。
+        loadItems(
+            clearingSelection: false,
+            showsLoadingIndicator: false,
+            preservesMetadataSession: true
+        )
     }
 
     func noteDirectorySessionResigned() {
         needsListingReconcileOnClaim = true
+        listingDirectoryMTimeAtResign = DirectoryMetadataCache.directoryMTime(path: path)
     }
 
     private func applyLaunchNavigation(_ request: ExternalFolderOpenCenter.OpenRequest) {
@@ -335,6 +349,8 @@ struct ContentView: View {
     @State private var isLoading = false
     @State private var pendingListingReloadAfterLoad = false
     @State private var needsListingReconcileOnClaim = false
+    /// resignKey 时目录 contentModificationDate；切回时与当前 mtime 比较以跳过无谓对账。
+    @State private var listingDirectoryMTimeAtResign: Date?
     @State private var searchText = ""
     @State private var quickSearchText = ""
     @State private var isQuickSearchVisible = false
@@ -1678,7 +1694,8 @@ struct ContentView: View {
     private func loadItems(
         invalidatingPaths: [String] = [],
         clearingSelection: Bool = true,
-        showsLoadingIndicator: Bool = true
+        showsLoadingIndicator: Bool = true,
+        preservesMetadataSession: Bool = false
     ) {
         loadGeneration += 1
         let currentGeneration = loadGeneration
@@ -1688,6 +1705,7 @@ struct ContentView: View {
         let shouldShowHiddenFiles = showHiddenFiles
         let listingOptions = DirectoryListingOptions.forPath(currentPath)
         let isNetworkListing = listingOptions.lightweightMetadata
+        let shouldOwnSharedDirectorySession = ownsSharedDirectorySession
 
         // 保留旧列表直至新结果就绪，避免大目录切换时空白闪烁。
         // 换目录等场景清空选中以防误操作旧项；key 窗对账重载则保留，避免预览被拆掉。
@@ -1697,8 +1715,8 @@ struct ContentView: View {
         if clearingSelection {
             selection.removeAll()
         }
-        let shouldOwnSharedDirectorySession = ownsSharedDirectorySession
-        if shouldOwnSharedDirectorySession {
+        // 标签静默对账：保留尺寸/计数 overlay，避免切回时徽标闪空。
+        if shouldOwnSharedDirectorySession, !preservesMetadataSession {
             directoryMetadataOverlay.beginSession(generation: currentGeneration)
         }
 
@@ -1734,49 +1752,54 @@ struct ContentView: View {
 
                 guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
 
-                await MainActor.run {
-                    guard currentGeneration == loadGeneration else { return }
-                    applyLoadedListing(
+                let applyResult = await MainActor.run { () -> Bool? in
+                    guard currentGeneration == loadGeneration else { return nil }
+                    return applyLoadedListing(
                         loadedItems,
                         currentPath: currentPath,
                         currentGeneration: currentGeneration,
                         preservedSelection: preservedSelection,
                         shouldPreserveSelection: shouldPreserveSelection
                     )
-                    didApplyItems = true
                 }
+                guard let listingUnchanged = applyResult else { return }
+                didApplyItems = true
 
                 if shouldOwnSharedDirectorySession {
-                    await MainActor.run {
-                        DirectoryFSEventsMonitor.shared.stop()
-                    }
-                    if !invalidatingPaths.isEmpty {
-                        await DirectoryMetadataScheduler.invalidate(paths: invalidatingPaths)
-                    }
-                    await DirectoryMetadataScheduler.resetSession(generation: currentGeneration)
+                    if !preservesMetadataSession || !listingUnchanged {
+                        await MainActor.run {
+                            DirectoryFSEventsMonitor.shared.stop()
+                        }
+                        if !invalidatingPaths.isEmpty {
+                            await DirectoryMetadataScheduler.invalidate(paths: invalidatingPaths)
+                        }
+                        if !preservesMetadataSession {
+                            await DirectoryMetadataScheduler.resetSession(generation: currentGeneration)
+                        }
 
-                    let folderPaths = loadedItems
-                        .filter(\.isDirectory)
-                        .map(\.id)
-                    await DirectoryMetadataScheduler.scheduleAfterListingLoad(
-                        folderPaths: folderPaths,
-                        showHiddenFiles: shouldShowHiddenFiles,
-                        includeSizes: false
-                    )
-                    await MainActor.run {
-                        guard currentGeneration == loadGeneration else { return }
-                        updateDirectoryFSEventsMonitoring(
-                            directoryPath: currentPath,
+                        let folderPaths = loadedItems
+                            .filter(\.isDirectory)
+                            .map(\.id)
+                        await DirectoryMetadataScheduler.scheduleAfterListingLoad(
                             folderPaths: folderPaths,
-                            showHiddenFiles: shouldShowHiddenFiles
+                            showHiddenFiles: shouldShowHiddenFiles,
+                            includeSizes: false
                         )
-                        updateGitWorkspaceFSEventsMonitoring(for: currentPath)
+                        await MainActor.run {
+                            guard currentGeneration == loadGeneration else { return }
+                            updateDirectoryFSEventsMonitoring(
+                                directoryPath: currentPath,
+                                folderPaths: folderPaths,
+                                showHiddenFiles: shouldShowHiddenFiles
+                            )
+                            updateGitWorkspaceFSEventsMonitoring(for: currentPath)
+                        }
                     }
                 }
                 return
             }
             
-            if shouldOwnSharedDirectorySession {
+            if shouldOwnSharedDirectorySession, !preservesMetadataSession {
                 await MainActor.run {
                     DirectoryFSEventsMonitor.shared.stop()
                 }
@@ -1810,24 +1833,35 @@ struct ContentView: View {
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
             
-            await MainActor.run {
-                guard currentGeneration == loadGeneration else { return }
-                applyLoadedListing(
+            let applyResult = await MainActor.run { () -> Bool? in
+                guard currentGeneration == loadGeneration else { return nil }
+                return applyLoadedListing(
                     loadedItems,
                     currentPath: currentPath,
                     currentGeneration: currentGeneration,
                     preservedSelection: preservedSelection,
                     shouldPreserveSelection: shouldPreserveSelection
                 )
-                didApplyItems = true
             }
+            guard let listingUnchanged = applyResult else { return }
+            didApplyItems = true
             
             guard !Task.isCancelled, currentGeneration == loadGeneration else { return }
             guard shouldOwnSharedDirectorySession else { return }
+
+            if preservesMetadataSession, listingUnchanged {
+                return
+            }
             
             let folderPaths = loadedItems
                 .filter(\.isDirectory)
                 .map(\.id)
+            if preservesMetadataSession {
+                // 对账改了列表：仅刷新监视与调度，不 reset 已有元数据会话。
+                if !invalidatingPaths.isEmpty {
+                    await DirectoryMetadataScheduler.invalidate(paths: invalidatingPaths)
+                }
+            }
             await DirectoryMetadataScheduler.scheduleAfterListingLoad(
                 folderPaths: folderPaths,
                 showHiddenFiles: shouldShowHiddenFiles,
@@ -1846,16 +1880,40 @@ struct ContentView: View {
         }
     }
 
+    /// - Returns: `true` 当列表签名未变（未写 items / 未 bump focusToken）。
     @MainActor
+    @discardableResult
     private func applyLoadedListing(
         _ loadedItems: [FileItem],
         currentPath: String,
         currentGeneration: UInt,
         preservedSelection: Set<FileItem.ID>,
         shouldPreserveSelection: Bool
-    ) {
-        items = loadedItems
+    ) -> Bool {
+        let listingUnchanged = !items.isEmpty
+            && TabListingReconcilePolicy.fileItemListingHash(for: items)
+            == TabListingReconcilePolicy.fileItemListingHash(for: loadedItems)
+
         isLoading = false
+        if listingUnchanged {
+            applyPendingExternalSelectionIfNeeded(
+                loadedItems: items,
+                for: currentPath
+            )
+            applyPendingInlineRenameIfNeeded(
+                loadedItems: items,
+                for: currentPath
+            )
+            if pendingListingReloadAfterLoad {
+                pendingListingReloadAfterLoad = false
+                DispatchQueue.main.async {
+                    loadItems()
+                }
+            }
+            return true
+        }
+
+        items = loadedItems
         applyPendingExternalSelectionIfNeeded(
             loadedItems: loadedItems,
             for: currentPath
@@ -1881,6 +1939,7 @@ struct ContentView: View {
                 loadItems()
             }
         }
+        return false
     }
 
     @MainActor
