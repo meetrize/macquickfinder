@@ -16,6 +16,13 @@ extension ContentView {
     func navigateToDirectory(_ targetPath: String) {
         selection.removeAll()
         if path != targetPath {
+            // 与 onChange(path) 同源：升到祖先时预置选中；onChange 若随后触发会因 pending 已有而跳过。
+            if pendingExternalSelectionPath == nil,
+               !TrashLoader.isTrashPath(path),
+               let child = ParentAscentSelection.childToSelect(from: path, to: targetPath) {
+                pendingExternalSelectionPath = child
+                scheduleExternalSelectionRetry()
+            }
             path = targetPath
         }
         loadItems()
@@ -660,10 +667,7 @@ struct ContentView: View {
                             selectedItems: FileItem.resolveSelection(ids: selection, from: items),
                             showHiddenFiles: showHiddenFiles
                         ),
-                        onNavigateToDirectory: { newPath in
-                            selection.removeAll()
-                            path = newPath
-                        }
+                        onNavigateToDirectory: navigateToDirectory
                     )
                     .zIndex(1)
                 }
@@ -1018,6 +1022,15 @@ struct ContentView: View {
                 var history = pathNavigation
                 history.recordNavigation(from: oldPath, to: newPath)
                 pathNavigation = history
+            }
+            // 升到祖先目录时，选中通向旧路径的那一层子目录（复用 Reveal 选中管道）。
+            // 已有显式 pending（外部 Reveal 等）不覆盖；离开废纸篓不定位 .Trash。
+            if pendingExternalSelectionPath == nil,
+               let oldPath = lastRecordedPath,
+               !TrashLoader.isTrashPath(oldPath),
+               let child = ParentAscentSelection.childToSelect(from: oldPath, to: newPath) {
+                pendingExternalSelectionPath = child
+                scheduleExternalSelectionRetry()
             }
             lastRecordedPath = newPath
             if wasHistoryNavigation {
@@ -2027,6 +2040,10 @@ struct ContentView: View {
         }
 
         items = loadedItems
+        // 须在 apply 清空 pending 之前采样：成功选中后 pending 变 nil，若再按「nil 则 restore」
+        // 会把刚设好的外部/升目录选中覆盖成空（preserved 来自旧目录）。
+        let hadPendingExternalSelection = pendingExternalSelectionPath != nil
+        let hadPendingInlineRename = pendingInlineRenamePath != nil
         applyPendingExternalSelectionIfNeeded(
             loadedItems: loadedItems,
             for: currentPath
@@ -2035,7 +2052,7 @@ struct ContentView: View {
             loadedItems: loadedItems,
             for: currentPath
         )
-        if pendingExternalSelectionPath == nil, pendingInlineRenamePath == nil {
+        if !hadPendingExternalSelection, !hadPendingInlineRename {
             restoreSelectionAfterListingLoad(
                 preservedSelection,
                 loadedItems: loadedItems,
