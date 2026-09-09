@@ -1264,7 +1264,8 @@ struct PathBarView: View {
     var onCommitNavigation: (ExternalNavigationTarget) -> Void
     /// 面包屑段右键菜单动作（由 ContentView 接线）。
     var contextActions: PathBarContextActions = .empty
-    
+
+    @ObservedObject private var favoritesStore = FavoritesStore.shared
     @State private var mode: PathBarMode = .breadcrumb
     @State private var editingText = ""
     @State private var committedViaSubmit = false
@@ -1291,7 +1292,8 @@ struct PathBarView: View {
     }
 
     private var showsHistoryMenu: Bool {
-        !historyEntries.isEmpty && onSelectHistory != nil
+        onSelectHistory != nil
+            && (!historyEntries.isEmpty || !favoritesStore.items.isEmpty)
     }
 
     private var pathBarContentTrailingInset: CGFloat {
@@ -1411,6 +1413,7 @@ struct PathBarView: View {
             if showsHistoryMenu {
                 PathBarHistoryMenuButton(
                     entries: historyEntries,
+                    favorites: favoritesStore.items,
                     currentPath: path,
                     onSelect: { onSelectHistory?($0) }
                 )
@@ -1598,21 +1601,39 @@ struct PathBarView: View {
 
 private struct PathBarHistoryMenuButton: View {
     let entries: [String]
+    let favorites: [FavoriteItem]
     let currentPath: String
     let onSelect: (String) -> Void
 
     var body: some View {
         Menu {
             ForEach(entries, id: \.self) { entry in
-                let isCurrent = (entry as NSString).standardizingPath
-                    == (currentPath as NSString).standardizingPath
+                let isCurrent = isCurrentPath(entry)
                 Button {
                     onSelect(entry)
                 } label: {
                     if isCurrent {
-                        Label(displayName(for: entry), systemImage: "checkmark")
+                        Label(historyDisplayName(for: entry), systemImage: "checkmark")
                     } else {
-                        Text(displayName(for: entry))
+                        Text(historyDisplayName(for: entry))
+                    }
+                }
+            }
+
+            if !entries.isEmpty && !favorites.isEmpty {
+                Divider()
+            }
+
+            ForEach(favorites) { favorite in
+                let target = favorite.resolvedDirectoryPath
+                let isCurrent = isCurrentPath(target)
+                Button {
+                    onSelect(target)
+                } label: {
+                    if isCurrent {
+                        Label(favorite.displayName, systemImage: "checkmark")
+                    } else {
+                        Label(favorite.displayName, systemImage: favorite.icon)
                     }
                 }
             }
@@ -1629,7 +1650,11 @@ private struct PathBarHistoryMenuButton: View {
         .instantHoverTooltip(L10n.Pathbar.history)
     }
 
-    private func displayName(for path: String) -> String {
+    private func isCurrentPath(_ candidate: String) -> Bool {
+        FavoritePathNormalization.pathsRepresentSameLocation(candidate, currentPath)
+    }
+
+    private func historyDisplayName(for path: String) -> String {
         let standardized = (path as NSString).standardizingPath
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         if standardized == home {
