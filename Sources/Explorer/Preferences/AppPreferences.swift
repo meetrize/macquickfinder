@@ -76,6 +76,8 @@ enum AppPreferences {
         static let windowSnapEnabled = "windowSnapEnabled"
         static let blankDoubleClickAction = "blankDoubleClickAction"
         static let interfaceLanguage = ModuleLocalization.preferenceKey
+        /// 外部打开目录时复用前台窗，不新建窗口/标签。
+        static let singleWindowMode = "singleWindowMode"
     }
 
     /// 顶栏搜索与内容搜索。

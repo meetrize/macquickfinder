@@ -107,6 +107,8 @@ private struct GeneralSettingsTab: View {
     private var windowSnapEnabled = true
     @AppStorage(AppPreferences.FileList.rowHoverHighlight)
     private var rowHoverHighlight = true
+    @AppStorage(AppPreferences.General.singleWindowMode)
+    private var singleWindowMode = false
     @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
     @StateObject private var gitSettings = GitSettingsModel()
 
@@ -137,6 +139,13 @@ private struct GeneralSettingsTab: View {
                 Section {
                     Toggle(L10n.Settings.General.windowSnap, isOn: $windowSnapEnabled)
                     Toggle(L10n.Settings.General.fileListRowHover, isOn: $rowHoverHighlight)
+                }
+
+                Section {
+                    Toggle(L10n.Settings.General.singleWindowMode, isOn: $singleWindowMode)
+                } footer: {
+                    Text(L10n.Settings.General.singleWindowModeFooter)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 GitSettingsSection(model: gitSettings)

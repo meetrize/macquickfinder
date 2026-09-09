@@ -809,6 +809,8 @@
 "settings.file_list.row_hover_highlight" = "Highlight file list row on hover";
 "settings.general.interface_language" = "Interface Language";
 "settings.general.interface_language_footer" = "Applies immediately to most of the app. Restart MeoFind if menu bar items look unchanged.";
+"settings.general.single_window_mode" = "Single Window Mode";
+"settings.general.single_window_mode_footer" = "When enabled, folders opened from other apps navigate in the frontmost window’s current tab instead of opening a new window or tab. Manually created windows and tabs are unaffected.";
 "settings.git.choose" = "Choose…";
 "settings.git.choose_panel_title" = "Choose Git Executable";
 "settings.git.executable" = "Git Executable";

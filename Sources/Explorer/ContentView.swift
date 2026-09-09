@@ -254,9 +254,13 @@ extension ContentView {
             || hostWindow.tabGroup?.windows.count == 1
         let isKey = hostWindow.isKeyWindow
 
-        // 有其它标签已显示 targetDir 时，只让该标签消费，避免错误标签被改路径。
+        // 同组内已有标签显示 targetDir 时，只让该标签消费，避免错误标签被改路径。
+        // 不跨组查找：单窗口模式下背后独立窗显示同目录时，仍应由前台选中标签原地导航。
         if !pathMatches,
-           let owner = ExplorerWindowTabCenter.shared.windowShowingDirectory(targetDir),
+           let owner = ExplorerWindowTabCenter.shared.windowShowingDirectory(
+            targetDir,
+            inTabGroupOf: hostWindow
+           ),
            owner !== hostWindow {
             return
         }

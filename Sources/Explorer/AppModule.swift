@@ -943,15 +943,25 @@ final class ExternalFolderOpenCenter: ObservableObject {
         )
 
         let anchor = preferredExplorerAnchorWindow()
+            ?? preferredExplorerAnchorWindow(includingMiniaturized: true)
         ExternalOpenDiagnostic.logRaw(
-            "requestOpen anchor path=\(anchor.flatMap { tabs.path(for: $0) } ?? "nil") key=\(anchor?.isKeyWindow ?? false) session=\(isSessionEstablished) registered=\(tabs.hasRegisteredWindows)"
+            "requestOpen anchor path=\(anchor.flatMap { tabs.path(for: $0) } ?? "nil") key=\(anchor?.isKeyWindow ?? false) session=\(isSessionEstablished) registered=\(tabs.hasRegisteredWindows) singleWindow=\(Self.isSingleWindowModeEnabled)"
         )
 
-        // 温启动（有会话或已登记窗）：每次 Reveal 都新开标签并激活选中（同目录亦然）。
+        // 温启动（有会话或已登记窗）：默认每次 Reveal 新开标签；单窗口模式则原地导航/同组复用。
         // 保留微信路径：无锚点时 openFolderWindow，避免「完全无响应」。
         // 不单靠 isSessionEstablished：冷启动后若 mark 漏掉，二次 Reveal 会误走 cold-pending。
         let warm = isSessionEstablished || tabs.hasRegisteredWindows
         if warm {
+            if Self.isSingleWindowModeEnabled {
+                handleSingleWindowModeOpen(
+                    resolvedRequest,
+                    targetDir: targetDir,
+                    anchor: anchor,
+                    tabs: tabs
+                )
+                return
+            }
             if let anchor {
                 let currentDir = tabs.path(for: anchor).map {
                     ExternalSelectionPathMatcher.standardizedPath($0)
@@ -1048,6 +1058,165 @@ final class ExternalFolderOpenCenter: ObservableObject {
             OpenRequest(directoryPath: directoryPath, selectionPath: selectionPath),
             window: window
         )
+    }
+
+    /// 单窗口模式：在指定窗原地导航（不新建标签/窗口，也不关闭其它用户窗）。
+    func deliverNavigateInPlace(_ request: OpenRequest, window: NSWindow) {
+        // 禁止落到 path=nil 壳：该壳随后常被 deferred-orphan 关掉，造成崩溃或跳转丢失。
+        guard let registeredPath = ExplorerWindowTabCenter.shared.path(for: window),
+              !registeredPath.isEmpty else {
+            ExternalOpenDiagnostic.logRaw(
+                "deliverNavigateInPlace aborted — unregistered shell; fallback openFolderWindow dir=\(request.directoryPath)"
+            )
+            openFolderWindow?(request)
+            return
+        }
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 1.2)
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
+        ExplorerWindowTabCenter.shared.activateExplorerWindow(window, forceFrontmost: true)
+        ExternalOpenDiagnostic.logWindowSnapshot("after-navigate-in-place-activate")
+        ExternalOpenDiagnostic.logRaw(
+            "deliverNavigateInPlace dir=\(request.directoryPath) selection=\(request.selectionPath ?? "nil") path=\(registeredPath)"
+        )
+        pendingRequest = request
+        pendingDeliveryWindowID = ObjectIdentifier(window)
+        targetRequest = nil
+        openRequestGeneration &+= 1
+        schedulePendingApplyRetries()
+        for delay in [0.15, 0.5] as [TimeInterval] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak window] in
+                guard let window else { return }
+                guard self.pendingDeliveryWindowID == ObjectIdentifier(window) else { return }
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(window, forceFrontmost: false)
+                if self.pendingRequest != nil {
+                    self.openRequestGeneration &+= 1
+                }
+            }
+        }
+    }
+
+    static var isSingleWindowModeEnabled: Bool {
+        UserDefaults.standard.bool(forKey: AppPreferences.General.singleWindowMode)
+    }
+
+    /// 单窗口模式路由决策（可单测）。
+    enum SingleWindowOpenDecision: Equatable {
+        case reuseSameDirectoryTab
+        case navigateInPlaceOnSelectedTab
+        case createBrowserWindow
+    }
+
+    static func singleWindowOpenDecision(
+        hasBrowserAnchor: Bool,
+        sameDirectoryTabInAnchorGroup: Bool
+    ) -> SingleWindowOpenDecision {
+        guard hasBrowserAnchor else { return .createBrowserWindow }
+        if sameDirectoryTabInAnchorGroup {
+            return .reuseSameDirectoryTab
+        }
+        return .navigateInPlaceOnSelectedTab
+    }
+
+    private func handleSingleWindowModeOpen(
+        _ request: OpenRequest,
+        targetDir: String,
+        anchor: NSWindow?,
+        tabs: ExplorerWindowTabCenter
+    ) {
+        if !isSessionEstablished {
+            markSessionEstablished()
+        }
+        // 必须落在「已登记 path」的浏览标签上。选中的 path=nil 壳若被当作 landing，
+        // 随后 deferred-orphan 会把同一窗关掉 → 无法跳转 / NSWindowStackController SIGABRT。
+        guard let landing = preferredSingleWindowLanding(tabs: tabs)
+            ?? anchor.flatMap({ window -> NSWindow? in
+                guard let path = tabs.path(for: window), !path.isEmpty else { return nil }
+                return window
+            })
+        else {
+            ExternalOpenDiagnostic.logRaw(
+                "requestOpen warm-single-window no-registered-landing → openFolderWindow dir=\(request.directoryPath)"
+            )
+            openFolderWindow?(request)
+            return
+        }
+
+        if let sameDirTab = tabs.windowShowingDirectory(targetDir, inTabGroupOf: landing) {
+            ExternalOpenDiagnostic.logRaw(
+                "requestOpen warm-reuse-tab (single-window) dir=\(targetDir) selection=\(request.selectionPath ?? "nil") landing=\(tabs.path(for: sameDirTab) ?? "nil")"
+            )
+            deliverNavigateInPlace(request, window: sameDirTab)
+            return
+        }
+
+        ExternalOpenDiagnostic.logRaw(
+            "requestOpen warm-navigate-in-place from=\(tabs.path(for: landing) ?? "nil") to=\(targetDir) selection=\(request.selectionPath ?? "nil")"
+        )
+        deliverNavigateInPlace(request, window: landing)
+    }
+
+    /// 单窗口模式落地窗：前台浏览标签组内、已登记 path 的标签（绝不返回 path=nil 壳）。
+    private func preferredSingleWindowLanding(tabs: ExplorerWindowTabCenter) -> NSWindow? {
+        func isBrowser(_ window: NSWindow) -> Bool {
+            let kind = tabs.sceneKind(for: window)
+            guard kind == .main || kind == .folder else { return false }
+            return window.canBecomeKey
+        }
+        func hasRegisteredPath(_ window: NSWindow) -> Bool {
+            guard let path = tabs.path(for: window), !path.isEmpty else { return false }
+            return true
+        }
+        func registeredMembers(around window: NSWindow) -> [NSWindow] {
+            let members: [NSWindow]
+            if let group = window.tabGroup {
+                members = Array(group.windows)
+            } else {
+                members = [window]
+            }
+            return members.filter {
+                isBrowser($0) && hasRegisteredPath($0) && !$0.isMiniaturized
+            }
+        }
+        func pickLanding(from registered: [NSWindow], hint: NSWindow) -> NSWindow? {
+            guard !registered.isEmpty else { return nil }
+            if let selected = hint.tabGroup?.selectedWindow,
+               hasRegisteredPath(selected),
+               registered.contains(where: { $0 === selected }) {
+                return selected
+            }
+            if hasRegisteredPath(hint),
+               registered.contains(where: { $0 === hint }) {
+                return hint
+            }
+            if let key = NSApp.keyWindow,
+               hasRegisteredPath(key),
+               registered.contains(where: { $0 === key }) {
+                return key
+            }
+            return registered.min(by: { $0.orderedIndex < $1.orderedIndex })
+        }
+
+        for window in NSApp.orderedWindows {
+            guard !window.isMiniaturized, isBrowser(window) else { continue }
+            if let landing = pickLanding(from: registeredMembers(around: window), hint: window) {
+                return landing
+            }
+        }
+
+        let fallback = NSApp.windows.filter {
+            isBrowser($0) && hasRegisteredPath($0)
+        }
+        if let key = NSApp.keyWindow, fallback.contains(where: { $0 === key }) {
+            return key
+        }
+        return fallback.min(by: { $0.orderedIndex < $1.orderedIndex })
+    }
+
+    /// 投递目标是否仍是某次外部打开的 pending 消费窗（关 surplus 时必须跳过）。
+    func isPendingDeliveryWindow(_ window: NSWindow) -> Bool {
+        pendingDeliveryWindowID == ObjectIdentifier(window)
     }
 
     /// 投递给指定窗；激活竞态下多次 bump generation，避免 pending 因单次 !isKey 永丢。
@@ -1168,9 +1337,12 @@ final class ExternalFolderOpenCenter: ObservableObject {
         }
     }
 
-    private func preferredExplorerAnchorWindow() -> NSWindow? {
+    private func preferredExplorerAnchorWindow(includingMiniaturized: Bool = false) -> NSWindow? {
         let browserCandidates = NSApplication.shared.windows.filter { window in
-            guard !window.isMiniaturized, window.canBecomeKey else { return false }
+            if !includingMiniaturized {
+                guard !window.isMiniaturized else { return false }
+            }
+            guard window.canBecomeKey else { return false }
             // 独立预览等禁止标签的窗不作为 Reveal 锚点；但允许已注册 path 的 folder 标签。
             let kind = ExplorerWindowTabCenter.shared.sceneKind(for: window)
             guard kind == .main || kind == .folder else { return false }
@@ -1185,7 +1357,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
             ExplorerWindowTabCenter.shared.path(for: $0) != nil
         }
         let candidates = registered.isEmpty
-            ? browserCandidates.filter { $0.isVisible || $0.isKeyWindow }
+            ? browserCandidates.filter { $0.isVisible || $0.isKeyWindow || (includingMiniaturized && $0.isMiniaturized) }
             : registered
         guard !candidates.isEmpty else { return nil }
         if let key = NSApp.keyWindow, candidates.contains(where: { $0 === key }) {
@@ -1193,6 +1365,13 @@ final class ExternalFolderOpenCenter: ObservableObject {
         }
         if let selected = candidates.first(where: { $0.tabGroup?.selectedWindow === $0 }) {
             return selected
+        }
+        // orderedWindows：越靠前越接近用户正在看的窗。
+        let ordered = NSApp.orderedWindows
+        if let front = ordered.first(where: { candidate in
+            candidates.contains(where: { $0 === candidate })
+        }) {
+            return front
         }
         return candidates.first
     }

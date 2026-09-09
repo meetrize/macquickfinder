@@ -209,6 +209,40 @@ final class ExplorerWindowTabCenter: ObservableObject {
         return pickBest(in: matches)
     }
 
+    /// 仅在 `anchor` 所在标签组内查找已显示 `directoryPath` 的窗；无组则只匹配 anchor 自身。
+    func windowShowingDirectory(_ directoryPath: String, inTabGroupOf anchor: NSWindow) -> NSWindow? {
+        let target = ExternalSelectionPathMatcher.standardizedPath(directoryPath)
+        let groupWindows: [NSWindow]
+        if let group = anchor.tabGroup {
+            groupWindows = Array(group.windows)
+        } else {
+            groupWindows = [anchor]
+        }
+        let matches = groupWindows.filter { window in
+            guard !window.isMiniaturized, window.canBecomeKey else { return false }
+            let kind = sceneKind(for: window)
+            guard kind == .main || kind == .folder else { return false }
+            let resolved: String?
+            if let registered = path(for: window) {
+                resolved = registered
+            } else if let urlPath = window.representedURL?.path, !urlPath.isEmpty {
+                resolved = urlPath
+            } else {
+                resolved = nil
+            }
+            guard let resolved else { return false }
+            return ExternalSelectionPathMatcher.standardizedPath(resolved) == target
+        }
+        guard !matches.isEmpty else { return nil }
+        if let selected = matches.first(where: { $0.tabGroup?.selectedWindow === $0 }) {
+            return selected
+        }
+        if matches.contains(where: { $0 === anchor }) {
+            return anchor
+        }
+        return matches.min(by: { $0.orderedIndex < $1.orderedIndex })
+    }
+
     /// 同目录窗是否只存在于与锚点不同的标签组 / 独立窗（应改走前台新标签）。
     func isOrphanRelativeToFront(window: NSWindow, anchor: NSWindow?) -> Bool {
         if window.tabbingMode == .disallowed { return true }
@@ -323,6 +357,10 @@ final class ExplorerWindowTabCenter: ObservableObject {
             }
         }
         if path(for: window) != nil { return false }
+        // 单窗口模式正在向该窗投递 pending 时绝不可杀（即便尚未 register path）。
+        if ExternalFolderOpenCenter.shared.isPendingDeliveryWindow(window) {
+            return false
+        }
 
         // 只在外部 Reveal/odoc 抑制窗内动手；平时绝不动。
         guard let until = suppressSurplusRestoredWindowsUntil, Date() < until else {
@@ -355,6 +393,13 @@ final class ExplorerWindowTabCenter: ObservableObject {
 
     /// 关掉多余窗前先切走选中标签，减少「闪一下再关」的观感。
     func closeSurplusWindow(_ window: NSWindow, reason: String) {
+        // 外部打开正在投递的目标窗绝不可关，否则 ContentView 半途销毁 → 跳转失败 / SIGABRT。
+        if ExternalFolderOpenCenter.shared.isPendingDeliveryWindow(window) {
+            ExternalOpenDiagnostic.logRaw(
+                "close surplus skipped — pending delivery target reason=\(reason)"
+            )
+            return
+        }
         // 合并中延后关窗，避免和 setSelectedWindow / addTabbedWindow 打架导致崩溃。
         if isMergingNewTab || isRevealingMergedTab {
             ExternalOpenDiagnostic.logRaw(

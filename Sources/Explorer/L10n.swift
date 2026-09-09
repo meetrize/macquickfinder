@@ -312,6 +312,8 @@ enum L10n {
             static var blankActionTerminal: String { ModuleLocalization.localized("settings.blank_action.terminal", bundle: .module) }
             static var windowSnap: String { ModuleLocalization.localized("settings.window_snap", bundle: .module) }
             static var fileListRowHover: String { ModuleLocalization.localized("settings.file_list.row_hover_highlight", bundle: .module) }
+            static var singleWindowMode: String { ModuleLocalization.localized("settings.general.single_window_mode", bundle: .module) }
+            static var singleWindowModeFooter: String { ModuleLocalization.localized("settings.general.single_window_mode_footer", bundle: .module) }
             static var interfaceLanguage: String { ModuleLocalization.localized("settings.general.interface_language", bundle: .module) }
             static var interfaceLanguageFooter: String { ModuleLocalization.localized("settings.general.interface_language_footer", bundle: .module) }
         }

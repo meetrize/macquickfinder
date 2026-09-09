@@ -10252,6 +10252,40 @@
         }
       }
     },
+    "settings.general.single_window_mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Single Window Mode"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单窗口模式"
+          }
+        }
+      }
+    },
+    "settings.general.single_window_mode_footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When enabled, folders opened from other apps navigate in the frontmost window’s current tab instead of opening a new window or tab. Manually created windows and tabs are unaffected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启后，从其它应用打开目录时，在当前前台窗口的标签中跳转，不新建窗口或标签。手动新建窗口/标签不受影响。"
+          }
+        }
+      }
+    },
     "settings.file_list.row_hover_highlight": {
       "extractionState": "manual",
       "localizations": {

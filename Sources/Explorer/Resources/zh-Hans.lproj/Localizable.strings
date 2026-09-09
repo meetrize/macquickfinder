@@ -809,6 +809,8 @@
 "settings.file_list.row_hover_highlight" = "鼠标悬停时高亮文件列表行";
 "settings.general.interface_language" = "界面语言";
 "settings.general.interface_language_footer" = "大部分界面会立即切换。若菜单栏未更新，请重启 MeoFind。";
+"settings.general.single_window_mode" = "单窗口模式";
+"settings.general.single_window_mode_footer" = "开启后，从其它应用打开目录时，在当前前台窗口的标签中跳转，不新建窗口或标签。手动新建窗口/标签不受影响。";
 "settings.git.choose" = "选择…";
 "settings.git.choose_panel_title" = "选择 Git 可执行文件";
 "settings.git.executable" = "Git 可执行文件";
