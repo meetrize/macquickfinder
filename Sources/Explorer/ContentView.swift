@@ -403,6 +403,8 @@ struct ContentView: View {
     @State private var deferHeavyRightPanels: Bool
     /// 世代内拒绝 restored 时，hostWindow 可能尚未挂上，挂上后立刻关闭。
     @State private var closeWhenHostWindowAppears = false
+    /// 无参 main 壳延后判决中：先隐藏，等 odoc/Reveal 抑制或收养为「+」。
+    @State private var isDeferredOrphanDecision = false
     
     init(
         initialPath: String? = nil,
@@ -682,6 +684,12 @@ struct ContentView: View {
                 operationRecordingCloseGuard.detach()
                 return
             }
+            if isDeferredOrphanDecision {
+                // 延后判决期间不要 register/home 路径，避免污染会话或抢 Reveal。
+                window.alphaValue = 0
+                window.orderOut(nil)
+                return
+            }
             if closeWhenHostWindowAppears {
                 closeWhenHostWindowAppears = false
                 if ExplorerWindowTabCenter.shared.shouldCloseAsSurplusRestoredWindow(window) {
@@ -858,16 +866,14 @@ struct ContentView: View {
                     ExternalOpenDiagnostic.logRaw("ContentView bootstrap=launch path=\(path)")
                 } else if ExplorerWindowTabCenter.shared.shouldRejectSurplusRestoredMainWindow()
                     || ExplorerWindowTabCenter.shared.shouldRejectRestoredLaunchBootstrap() {
-                    // 程序化开标签世代内 / 已有浏览窗时：禁止 restoredLaunchPath 叠出第二主窗。
+                    // odoc 壳常比 application(open:) 更早到。立刻 adopt 会抢 pending、破坏微信 Reveal。
+                    // 延后判决：抑制期内 → 关壳；否则再尝试收养为系统「+」。
                     ExternalOpenDiagnostic.logRaw(
-                        "ContentView bootstrap=rejected-restored scene=\(windowSceneKind) surplus=\(ExplorerWindowTabCenter.shared.shouldRejectSurplusRestoredMainWindow()) session=\(externalFolderOpenCenter.isSessionEstablished) registered=\(ExplorerWindowTabCenter.shared.hasRegisteredWindows)"
+                        "ContentView bootstrap=deferred-orphan-decision scene=\(windowSceneKind) surplus=\(ExplorerWindowTabCenter.shared.shouldRejectSurplusRestoredMainWindow()) session=\(externalFolderOpenCenter.isSessionEstablished) registered=\(ExplorerWindowTabCenter.shared.hasRegisteredWindows)"
                     )
-                    ExternalOpenDiagnostic.logWindowSnapshot("rejected-restored-main")
+                    ExternalOpenDiagnostic.logWindowSnapshot("deferred-orphan-main")
                     didConsumeLaunchNavigation = true
-                    closeWhenHostWindowAppears = true
-                    DispatchQueue.main.async {
-                        self.hostWindow?.close()
-                    }
+                    scheduleDeferredOrphanMainWindowDecision()
                 } else {
                     path = restoredLaunchPath()
                     loadItems()
@@ -885,7 +891,12 @@ struct ContentView: View {
                 didConsumeLaunchNavigation = true
                 closeWhenHostWindowAppears = true
                 DispatchQueue.main.async {
-                    self.hostWindow?.close()
+                    if let window = self.hostWindow {
+                        ExplorerWindowTabCenter.shared.closeSurplusWindow(
+                            window,
+                            reason: "rejected-restored-folder-async"
+                        )
+                    }
                 }
             } else {
                 path = restoredLaunchPath()
@@ -1481,6 +1492,83 @@ struct ContentView: View {
 
     private func openNewExplorerWindow() {
         ExplorerWindowTabCenter.shared.openNewWindow(path: path, from: hostWindow)
+    }
+
+    /// odoc 壳可能早于 `application(open:)`；延后判决以免误收养破坏微信 Reveal。
+    private func scheduleDeferredOrphanMainWindowDecision() {
+        isDeferredOrphanDecision = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            self.finishDeferredOrphanMainWindowDecision()
+        }
+    }
+
+    private func finishDeferredOrphanMainWindowDecision() {
+        isDeferredOrphanDecision = false
+        let center = ExplorerWindowTabCenter.shared
+
+        if center.isExternalOpenSuppressionActive {
+            ExternalOpenDiagnostic.logRaw("deferred orphan → reject (external suppression)")
+            if let window = hostWindow {
+                center.closeSurplusWindow(window, reason: "deferred-odoc-reject")
+            } else {
+                closeWhenHostWindowAppears = true
+            }
+            return
+        }
+
+        // 只应用外部 Reveal pending；用户「+」pending 不能拿 odoc 壳来消费。
+        if center.pendingNewTabIsExternalReveal == true,
+           let pending = center.peekPendingNewTabNavigation() {
+            ExternalOpenDiagnostic.logRaw(
+                "deferred orphan → apply reveal pending path=\(pending.path)"
+            )
+            applyPendingExternalNavigationForNewTab(pending)
+            attachDeferredOrphanHostWindowIfNeeded()
+            return
+        }
+
+        if center.pendingNewTabIsExternalReveal == false {
+            ExternalOpenDiagnostic.logRaw("deferred orphan → reject (stale + pending on odoc shell)")
+            center.clearStaleNonRevealPendingNewTab(reason: "deferred-orphan-odoc")
+            if let window = hostWindow {
+                center.closeSurplusWindow(window, reason: "deferred-odoc-over-plus")
+            } else {
+                closeWhenHostWindowAppears = true
+            }
+            return
+        }
+
+        if let adopted = center.beginAdoptingOrphanMainWindowAsNewTab() {
+            ExternalOpenDiagnostic.logRaw(
+                "deferred orphan → adopt-system-plus path=\(adopted.path)"
+            )
+            applyPendingExternalNavigationForNewTab(adopted)
+            attachDeferredOrphanHostWindowIfNeeded()
+            return
+        }
+
+        ExternalOpenDiagnostic.logRaw("deferred orphan → reject (no adopt)")
+        if let window = hostWindow {
+            center.closeSurplusWindow(window, reason: "deferred-orphan-reject")
+        } else {
+            closeWhenHostWindowAppears = true
+        }
+    }
+
+    private func attachDeferredOrphanHostWindowIfNeeded() {
+        guard let window = hostWindow else { return }
+        window.alphaValue = 1
+        guard ExplorerWindowTabCenter.shared.attemptTabMerge(for: window) else { return }
+        ExplorerWindowTabCenter.shared.configureExplorerWindow(window)
+        if let navigation = ExplorerWindowTabCenter.shared.consumeInitialNavigationForNewTab(in: window) {
+            applyPendingExternalNavigationForNewTab(navigation)
+        }
+        ExplorerWindowTabCenter.shared.registerWindow(window, path: path, sceneKind: windowSceneKind)
+        externalFolderOpenCenter.markSessionEstablished()
+        syncExplorerTabBarState()
+        if window.isKeyWindow {
+            claimSharedDirectorySessionIfNeeded()
+        }
     }
 
     private func openNewExplorerTab() {

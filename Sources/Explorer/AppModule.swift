@@ -1064,10 +1064,11 @@ final class ExternalFolderOpenCenter: ObservableObject {
         targetRequest = nil
         openRequestGeneration &+= 1
         schedulePendingApplyRetries()
-        for delay in [0.05, 0.15, 0.35, 0.7] as [TimeInterval] {
+        // 勿再 forceFrontmost：activate 内部已合并重试；重复 force 会打满主线程、卡死微信 AE。
+        for delay in [0.15, 0.5] as [TimeInterval] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 self.closeOrphanDuplicatesOnly(of: window, directoryPath: request.directoryPath)
-                ExplorerWindowTabCenter.shared.activateExplorerWindow(window, forceFrontmost: true)
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(window, forceFrontmost: false)
                 if self.pendingRequest != nil,
                    self.pendingDeliveryWindowID == ObjectIdentifier(window) {
                     self.openRequestGeneration &+= 1
@@ -1118,7 +1119,7 @@ final class ExternalFolderOpenCenter: ObservableObject {
         )
         let revealDir = request.directoryPath
         let selection = request.selectionPath
-        let activateNewTab = {
+        let activateNewTab: (Bool) -> Void = { force in
             // 同目录多标签：必须激活「刚合并」的那一页，不能 windowShowingDirectory（会命中旧 Excel 标签）。
             let newTab = ExplorerWindowTabCenter.shared.lastMergedRevealTab()
                 ?? ExplorerWindowTabCenter.shared.windowShowingDirectory(
@@ -1126,23 +1127,24 @@ final class ExternalFolderOpenCenter: ObservableObject {
                     preferringGroupOf: anchor
                 )
             if let newTab {
-                ExplorerWindowTabCenter.shared.activateExplorerWindow(newTab, forceFrontmost: true)
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(newTab, forceFrontmost: force)
                 ExternalOpenDiagnostic.logRaw(
                     "deliverOpenRequestInNewTab activate win path=\(ExplorerWindowTabCenter.shared.path(for: newTab) ?? "nil") selection=\(selection ?? "nil")"
                 )
             } else {
-                ExplorerWindowTabCenter.shared.activateExplorerWindow(anchor, forceFrontmost: true)
+                ExplorerWindowTabCenter.shared.activateExplorerWindow(anchor, forceFrontmost: force)
                 ExternalOpenDiagnostic.logRaw("deliverOpenRequestInNewTab activate fallback=anchor")
             }
             ExternalOpenDiagnostic.logWindowSnapshot("after-new-tab-activate")
         }
-        activateNewTab()
+        activateNewTab(true)
         // tabsOnly：只收壳/游离窗，不要 coalesce 掉同目录的旧业务标签。
         DuplicateExplorerWindowCloser.scheduleCoalesce(keeping: request, tabsOnly: true)
         let anchorRef = anchor
-        for delay in [0.05, 0.2, 0.45, 0.9, 1.4] as [TimeInterval] {
+        // 后续只做轻量确认；force 重试已在 activateExplorerWindow 内合并。
+        for delay in [0.25, 0.7] as [TimeInterval] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                activateNewTab()
+                activateNewTab(false)
                 if let newTab = ExplorerWindowTabCenter.shared.lastMergedRevealTab() {
                     DuplicateExplorerWindowCloser.closeDetachedBrowserWindows(
                         keepingTabGroupOf: newTab
@@ -1241,9 +1243,12 @@ final class ExternalFolderOpenCenter: ObservableObject {
 
     /// 冷启动时窗尚未就绪；多拍激活，避免停在 MeoLaunch / 其它应用后面。
     private func scheduleColdLaunchFrontActivation() {
-        for delay in [0.0, 0.1, 0.3, 0.6, 1.0, 1.8] as [TimeInterval] {
+        for delay in [0.0, 0.35, 1.0] as [TimeInterval] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self else { return }
+                if NSApp.isActive, NSApp.keyWindow != nil {
+                    return
+                }
                 ExternalOpenDiagnostic.logRaw("cold-launch front activation delay=\(delay)")
                 self.bringExplorerWindowsToFront()
             }
@@ -1340,26 +1345,52 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     @objc func newWindowForTab(_ sender: Any?) {
-        // 同步处理：不可再包 Task，否则门闩建立前系统壳已变成正式标签。
-        if ExplorerWindowTabCenter.shared.shouldIgnoreSystemNewWindowForTab {
-            ExternalOpenDiagnostic.logRaw("newWindowForTab ignored — programmatic tab in flight")
+        ExternalOpenDiagnostic.logRaw(
+            "AppDelegate newWindowForTab sender=\(sender as? NSWindow != nil ? "window" : String(describing: sender))"
+        )
+        let center = ExplorerWindowTabCenter.shared
+
+        // Window swizzle 可能已写入 pending。仅用户「+」且无外部抑制时保留壳；
+        // 微信/odoc 抑制期内绝不能 keep，否则空标签抢走 Reveal。
+        if center.hasPendingNewTab {
+            if center.shouldRetainSystemNewTabShell {
+                if sender is NSWindow {
+                    ExternalOpenDiagnostic.logRaw("AppDelegate newWindowForTab — pending set, keep shell")
+                    return
+                }
+                center.openBridgeWindowForPendingNewTabIfNeeded()
+                return
+            }
             if let tabShell = sender as? NSWindow {
-                tabShell.close()
+                ExternalOpenDiagnostic.logRaw("AppDelegate newWindowForTab — swallow shell under reveal/suppression")
+                center.closeSurplusWindow(tabShell, reason: "newWindowForTab-reveal-swallow")
             }
             return
         }
 
-        // 系统为「新建标签」预创建的壳窗口；关闭后走真正的新标签逻辑（与工具栏 / ⌘T 一致）。
         var anchorWindow = NSApp.keyWindow
         if let tabShell = sender as? NSWindow {
             if let tabGroup = tabShell.tabGroup {
-                anchorWindow = tabGroup.windows.first { $0 !== tabShell && $0.isVisible } ?? anchorWindow
+                anchorWindow = tabGroup.windows.first {
+                    $0 !== tabShell && center.path(for: $0) != nil
+                } ?? tabGroup.windows.first { $0 !== tabShell && $0.isVisible } ?? anchorWindow
             }
-            tabShell.close()
         }
-        let path = ExplorerWindowTabCenter.shared.path(for: anchorWindow)
-            ?? FileManager.default.homeDirectoryForCurrentUser.path
-        ExplorerWindowTabCenter.shared.openNewTab(path: path, from: anchorWindow)
+
+        switch center.systemNewTabAction(from: anchorWindow) {
+        case .createWithOriginal:
+            if sender is NSWindow {
+                ExternalOpenDiagnostic.logRaw("AppDelegate newWindowForTab — reuse system shell")
+                return
+            }
+            center.scheduleSystemPlusBridgeFallbackIfNeeded()
+        case .swallow:
+            if let tabShell = sender as? NSWindow {
+                center.closeSurplusWindow(tabShell, reason: "newWindowForTab-swallow")
+            }
+        case .passThrough:
+            break
+        }
     }
 
     @MainActor

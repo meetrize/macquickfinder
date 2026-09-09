@@ -16,6 +16,10 @@ enum ExternalOpenRouter {
         let resolvedIntent = resolveIntent(for: urls, explicit: intent)
         ExternalOpenDiagnostic.logRouter(urls: urls, intent: resolvedIntent, source: "router")
 
+        // 同步开抑制：async 投递前 odoc/`newWindowForTab` 可能已到，
+        // 否则系统「+」会写成假 pending，把微信 Reveal 壳收成空标签。
+        ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
+
         if resolvedIntent == .revealInFileViewer {
             markRevealHandled(urls: urls)
         }

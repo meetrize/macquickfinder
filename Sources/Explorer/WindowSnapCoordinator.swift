@@ -41,6 +41,12 @@ enum NSWindowSnapFrameHook {
             original: #selector(NSWindow.orderFrontRegardless),
             swizzled: #selector(NSWindow.mf_snap_orderFrontRegardless)
         )
+        // 系统标签栏「+」发往 NSWindow.newWindowForTab:；SwiftUI 下 AppDelegate 常收不到。
+        swizzle(
+            NSWindow.self,
+            original: #selector(NSWindow.newWindowForTab(_:)),
+            swizzled: #selector(NSWindow.mf_explorer_newWindowForTab(_:))
+        )
     }
 
     private static func swizzle(_ cls: AnyClass, original: Selector, swizzled: Selector) {
@@ -100,6 +106,18 @@ extension NSWindow {
         }
         mf_snap_orderFrontRegardless()
         WindowSnapCoordinator.shared.windowOrderedFront(self)
+    }
+
+    @objc dynamic func mf_explorer_newWindowForTab(_ sender: Any?) {
+        switch ExplorerWindowTabCenter.shared.systemNewTabAction(from: self) {
+        case .createWithOriginal:
+            // 只写 pending：优先等系统/SwiftUI 壳消费；超时再 bridge，避免双开。
+            ExplorerWindowTabCenter.shared.scheduleSystemPlusBridgeFallbackIfNeeded()
+        case .swallow:
+            return
+        case .passThrough:
+            mf_explorer_newWindowForTab(sender)
+        }
     }
 }
 

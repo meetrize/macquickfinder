@@ -134,12 +134,16 @@ private final class FileViewerRevealAppleEventHandler: NSObject {
   static let shared = FileViewerRevealAppleEventHandler()
 
   @objc func handle(event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
+    // 先记一笔：URL coerce 若卡住/失败，以前会完全无日志，微信侧看起来像「点了没反应」。
+    ExternalOpenDiagnostic.logRaw("reveal-handler enter")
     let urls = ExternalAppleEventFileURLExtractor.fileURLs(from: event)
     ExternalOpenDiagnostic.logRevealHandler(event: event, urls: urls)
     guard !urls.isEmpty else {
       ExternalOpenDiagnostic.logRaw("reveal-handler empty urls — ignored")
       return
     }
+    // srev 不走 AppDelegate application(open:)，须在此同步开抑制，挡住系统「+」抢 pending。
+    ExplorerWindowTabCenter.shared.beginExternalDocumentOpenSuppression(duration: 2.5)
     // 尽快返回，避免发送方（微信）阻塞在 AE reply 上。
     ExternalOpenRouter.handleOpen(urls: urls, intent: .revealInFileViewer)
   }
