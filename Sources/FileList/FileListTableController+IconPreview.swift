@@ -57,7 +57,8 @@ extension FileListTableController {
         visibleIconPreviewLoadWorkItem = nil
     }
 
-    func scheduleVisibleIconPreviewLoad() {
+    /// - Parameter coalesce: `true` 时短延迟合并滚动连发；`false` 时下一帧立即加载（如窗成为 key）。
+    func scheduleVisibleIconPreviewLoad(coalesce: Bool = true) {
         guard useIconPreview else { return }
         iconPreviewLoadGeneration &+= 1
         let generation = iconPreviewLoadGeneration
@@ -67,7 +68,11 @@ extension FileListTableController {
             self.loadVisibleIconPreviews(generation: generation)
         }
         visibleIconPreviewLoadWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: work)
+        if coalesce {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.016, execute: work)
+        } else {
+            DispatchQueue.main.async(execute: work)
+        }
     }
 
     private func loadVisibleIconPreviews(generation: Int) {

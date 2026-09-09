@@ -13,6 +13,7 @@ public final class FileListThumbnailController: FileListContentController {
     private var scrollWheelMonitor: Any?
     private var scrollBoundsObserver: NSObjectProtocol?
     private var memoryPressureObserver: NSObjectProtocol?
+    private var windowDidBecomeKeyObserver: NSObjectProtocol?
     private var visibleThumbnailLoadWorkItem: DispatchWorkItem?
     private var pendingDisplayRows: [FileListRow]?
     private var pendingCollectionUpdateWorkItem: DispatchWorkItem?
@@ -381,13 +382,18 @@ public final class FileListThumbnailController: FileListContentController {
     
     // MARK: - Thumbnails
     
-    private func scheduleVisibleThumbnailLoad() {
+    /// - Parameter coalesce: `true` 时短延迟合并滚动连发；`false` 时下一帧立即加载（如窗成为 key）。
+    private func scheduleVisibleThumbnailLoad(coalesce: Bool = true) {
         visibleThumbnailLoadWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
             self?.loadVisibleThumbnails()
         }
         visibleThumbnailLoadWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: work)
+        if coalesce {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.016, execute: work)
+        } else {
+            DispatchQueue.main.async(execute: work)
+        }
     }
     
     private static let visibleThumbnailBatchSize = 8
@@ -700,12 +706,27 @@ public final class FileListThumbnailController: FileListContentController {
             self?.thumbnailGenerator.clearMemoryCache()
             self?.thumbnailGenerator.trimDiskCache()
         }
+
+        windowDidBecomeKeyObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let window = notification.object as? NSWindow,
+                  window === self.collectionView?.window else { return }
+            self.scheduleVisibleThumbnailLoad(coalesce: false)
+        }
     }
     
     private func tearDownObservers() {
         if let memoryPressureObserver {
             NotificationCenter.default.removeObserver(memoryPressureObserver)
             self.memoryPressureObserver = nil
+        }
+        if let windowDidBecomeKeyObserver {
+            NotificationCenter.default.removeObserver(windowDidBecomeKeyObserver)
+            self.windowDidBecomeKeyObserver = nil
         }
         if let scrollWheelMonitor {
             NSEvent.removeMonitor(scrollWheelMonitor)

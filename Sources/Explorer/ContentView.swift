@@ -273,6 +273,18 @@ extension ContentView {
         return !ExplorerWindowTabCenter.shared.hasRegisteredWindows
     }
 
+    /// 标签切换为 key 时：先让系统画出新标签内容，再在下一 runloop 接管共享目录监视。
+    /// 快速连点多个标签时只让最终 key 窗执行（generation 作废中间调度）。
+    func scheduleClaimSharedDirectorySessionIfNeeded() {
+        claimSessionGeneration &+= 1
+        let generation = claimSessionGeneration
+        DispatchQueue.main.async {
+            guard generation == claimSessionGeneration else { return }
+            guard hostWindow?.isKeyWindow == true else { return }
+            claimSharedDirectorySessionIfNeeded()
+        }
+    }
+
     /// 标签切换为 key 时接管共享目录监视；若曾失去 key，则按 mtime 门闩决定是否静默对账。
     func claimSharedDirectorySessionIfNeeded() {
         guard ownsSharedDirectorySession else { return }
@@ -306,6 +318,8 @@ extension ContentView {
     }
 
     func noteDirectorySessionResigned() {
+        // 作废尚未执行的 claim，避免失焦窗抢回 FSEvents。
+        claimSessionGeneration &+= 1
         needsListingReconcileOnClaim = true
         listingDirectoryMTimeAtResign = DirectoryMetadataCache.directoryMTime(path: path)
     }
@@ -351,6 +365,8 @@ struct ContentView: View {
     @State private var needsListingReconcileOnClaim = false
     /// resignKey 时目录 contentModificationDate；切回时与当前 mtime 比较以跳过无谓对账。
     @State private var listingDirectoryMTimeAtResign: Date?
+    /// 推迟 claim 的世代令牌：连点标签时只让最终 key 窗执行。
+    @State private var claimSessionGeneration: UInt = 0
     @State private var searchText = ""
     @State private var quickSearchText = ""
     @State private var isQuickSearchVisible = false
@@ -735,7 +751,7 @@ struct ContentView: View {
             syncExplorerTabBarState()
             if window.isKeyWindow {
                 applyExternalOpenRequestIfNeeded()
-                claimSharedDirectorySessionIfNeeded()
+                scheduleClaimSharedDirectorySessionIfNeeded()
             }
             _ = applyExternalSelectionImmediatelyIfPossible()
             OperationRecordingHub.register(operationRecorder)
@@ -787,7 +803,7 @@ struct ContentView: View {
             guard let keyWindow = notification.object as? NSWindow,
                   keyWindow == hostWindow else { return }
             OperationRecordingHub.register(operationRecorder)
-            claimSharedDirectorySessionIfNeeded()
+            scheduleClaimSharedDirectorySessionIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { notification in
             guard let resigned = notification.object as? NSWindow,
@@ -1575,7 +1591,7 @@ struct ContentView: View {
         externalFolderOpenCenter.markSessionEstablished()
         syncExplorerTabBarState()
         if window.isKeyWindow {
-            claimSharedDirectorySessionIfNeeded()
+            scheduleClaimSharedDirectorySessionIfNeeded()
         }
     }
 

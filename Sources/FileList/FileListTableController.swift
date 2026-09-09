@@ -24,6 +24,7 @@ public final class FileListTableController: FileListContentController {
     var columnMoveObserver: NSObjectProtocol?
     var scrollBoundsObserver: NSObjectProtocol?
     var memoryPressureObserver: NSObjectProtocol?
+    var windowDidBecomeKeyObserver: NSObjectProtocol?
     var headerRightClickMonitor: Any?
     var widthSaveWorkItem: DispatchWorkItem?
     var paddingAfterResizeWorkItem: DispatchWorkItem?

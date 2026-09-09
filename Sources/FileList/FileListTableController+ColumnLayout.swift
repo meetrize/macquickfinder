@@ -412,12 +412,27 @@ extension FileListTableController {
             self?.thumbnailGenerator.clearMemoryCache()
             self?.thumbnailGenerator.trimDiskCache()
         }
+
+        windowDidBecomeKeyObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let window = notification.object as? NSWindow,
+                  window === self.tableView?.window else { return }
+            self.scheduleVisibleIconPreviewLoad(coalesce: false)
+        }
     }
 
     func tearDownObservers() {
         if let memoryPressureObserver {
             NotificationCenter.default.removeObserver(memoryPressureObserver)
             self.memoryPressureObserver = nil
+        }
+        if let windowDidBecomeKeyObserver {
+            NotificationCenter.default.removeObserver(windowDidBecomeKeyObserver)
+            self.windowDidBecomeKeyObserver = nil
         }
         if let columnResizeObserver {
             NotificationCenter.default.removeObserver(columnResizeObserver)

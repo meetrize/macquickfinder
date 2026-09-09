@@ -106,10 +106,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
         installTabRightClickMonitor()
         NSWindowSnapFrameHook.installIfNeeded()
         let center = NotificationCenter.default
+        // 不在 didBecomeKey 时 bump：同组切标签不改 tab 数/可见性，却会触发各窗 SwiftUI 刷新拖慢首帧。
         notificationObservers = [
-            center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.bumpTabBarRevision() }
-            },
             center.addObserver(forName: NSWindow.didResizeNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.bumpTabBarRevision() }
             },
