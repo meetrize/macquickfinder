@@ -713,8 +713,74 @@ final class ExplorerWindowTabCenter: ObservableObject {
         ignoreSystemNewWindowForTabUntil = Date().addingTimeInterval(duration)
     }
 
+    /// 标签栏「+」与 ⌘T / 工具栏同路径：直接 `openNewTab`，不依赖系统壳 + bridge。
+    /// - Returns: `true` 已处理（含外部抑制时的吞掉）；`false` 交给系统原实现。
+    @discardableResult
+    func handleTabBarPlusLikeCommandT(from window: NSWindow?, sender: Any?) -> Bool {
+        // swizzle 与 AppDelegate 可能各调一次：第二次只丢壳，勿再开标签。
+        if let pending = pendingNewTab, !pending.isExternalReveal, isProgrammaticTabGenerationActive {
+            if let shell = sender as? NSWindow, path(for: shell) == nil {
+                closeSurplusWindow(shell, reason: "tab-bar-plus-dup-shell")
+            }
+            ExternalOpenDiagnostic.logRaw("tab-bar + ignore dup — openNewTab already in flight")
+            return true
+        }
+
+        if shouldSwallowTabBarPlusForExternalOpen {
+            ExternalOpenDiagnostic.logRaw("tab-bar + swallow — external open / reveal AE")
+            if let shell = sender as? NSWindow, path(for: shell) == nil {
+                closeSurplusWindow(shell, reason: "tab-bar-plus-external-swallow")
+            }
+            return true
+        }
+
+        // 悬挂的用户「+」pending 会挡住 openNewTab；世代已结束时清掉再开。
+        if pendingNewTab != nil,
+           pendingNewTab?.isExternalReveal != true,
+           !isProgrammaticTabGenerationActive {
+            clearStaleNonRevealPendingNewTab(reason: "tab-bar-plus-stale-pending")
+        }
+
+        let host = window
+            ?? (sender as? NSWindow)
+            ?? NSApp.keyWindow
+        let anchor = preferredNewTabAnchor(excluding: nil)
+            ?? host.flatMap { path(for: $0) != nil ? $0 : nil }
+            ?? host?.tabGroup?.windows.first(where: { path(for: $0) != nil })
+            ?? NSApp.keyWindow.flatMap { path(for: $0) != nil ? $0 : nil }
+
+        guard let anchor, let tabPath = path(for: anchor), !tabPath.isEmpty else {
+            ExternalOpenDiagnostic.logRaw("tab-bar + passThrough — no registered anchor path")
+            return false
+        }
+
+        // 系统预建壳不要用：⌘T 也不用壳，关掉以免空标签残留。
+        if let shell = sender as? NSWindow, path(for: shell) == nil {
+            closeSurplusWindow(shell, reason: "tab-bar-plus-discard-shell")
+        }
+        if let host, path(for: host) == nil, host !== anchor {
+            closeSurplusWindow(host, reason: "tab-bar-plus-discard-host-shell")
+        }
+
+        ExternalOpenDiagnostic.logRaw("tab-bar + → openNewTab (⌘T path) path=\(tabPath)")
+        openNewTab(path: tabPath, from: anchor)
+        return true
+    }
+
+    /// 仅在「正在投递外部 Reveal/odoc」时吞「+」；抑制倒计时本身不挡（否则 Reveal 后加号失灵，⌘T 却正常）。
+    private var shouldSwallowTabBarPlusForExternalOpen: Bool {
+        if pendingNewTab?.isExternalReveal == true { return true }
+        guard let event = NSAppleEventManager.shared().currentAppleEvent else { return false }
+        if ExternalOpenIntentDetector.isRevealAppleEvent(event) {
+            return true
+        }
+        let id = event.eventID
+        return id == AEEventID(kAEOpenDocuments) || id == AEEventID(kAERevealSelection)
+    }
+
     /// 系统标签栏「+」/ `newWindowForTab:`：只准备 pending，由系统原建窗路径创建唯一一扇窗。
     /// 切勿再 `openMainWindow`，否则会与系统壳叠成「成功一次 + 立刻 rejected 闪 Finder」。
+    /// - Note: 热路径已改走 `handleTabBarPlusLikeCommandT`（与 ⌘T 一致）；保留本方法供旧逻辑对照。
     func systemNewTabAction(from window: NSWindow?) -> SystemNewTabAction {
         let anchor = preferredNewTabAnchor(excluding: window)
             ?? window.flatMap { candidate in
@@ -785,18 +851,10 @@ final class ExplorerWindowTabCenter: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: work)
     }
 
-    /// 兼容旧调用点（AppDelegate）：准备 pending，并安排兜底建窗。
+    /// 兼容旧调用点：与 ⌘T 同路径打开新标签。
     @discardableResult
     func handleSystemNewWindowForTab(from window: NSWindow?) -> Bool {
-        switch systemNewTabAction(from: window) {
-        case .createWithOriginal:
-            scheduleSystemPlusBridgeFallbackIfNeeded()
-            return true
-        case .swallow:
-            return true
-        case .passThrough:
-            return false
-        }
+        handleTabBarPlusLikeCommandT(from: window, sender: nil)
     }
 
     var hasPendingNewTab: Bool { pendingNewTab != nil }
@@ -828,13 +886,23 @@ final class ExplorerWindowTabCenter: ObservableObject {
         // 已有程序化 pending 时留给那一扇窗，勿让壳窗抢走。
         if pendingNewTab != nil { return nil }
         if isProgrammaticTabGenerationActive { return nil }
-        if isExternalOpenSuppressionActive { return nil }
-        if let until = ignoreSystemNewWindowForTabUntil, Date() < until { return nil }
-        // 当前 Apple Event 是 Reveal/打开文档时，绝不能把 odoc 壳收成「+」。
-        if NSAppleEventManager.shared().currentAppleEvent != nil {
-            ExternalOpenDiagnostic.logRaw("adopt orphan skipped — Apple Event in flight")
+        // 抑制期：仅当仍可能是 odoc 竞态时拒绝。Reveal 合并后已缩短抑制，用户「+」应可收养。
+        if isExternalOpenSuppressionActive {
+            ExternalOpenDiagnostic.logRaw("adopt orphan skipped — external suppression active")
             return nil
         }
+        // 当前 Apple Event 是 Reveal/打开文档时，绝不能把 odoc 壳收成「+」。
+        if let event = NSAppleEventManager.shared().currentAppleEvent {
+            let id = event.eventID
+            if ExternalOpenIntentDetector.isRevealAppleEvent(event)
+                || id == AEEventID(kAEOpenDocuments)
+                || id == AEEventID(kAERevealSelection) {
+                ExternalOpenDiagnostic.logRaw("adopt orphan skipped — Reveal/odoc Apple Event")
+                return nil
+            }
+        }
+        // 不再因 ignoreSystemNewWindowForTabUntil 拒绝收养：
+        // Reveal/⌘T 后的 ignore 窗会让 folder 场景系统「+」壳无法变成标签。
         guard hasRegisteredWindows else { return nil }
         guard let anchor = preferredNewTabAnchor() else { return nil }
         guard let tabPath = path(for: anchor), !tabPath.isEmpty else { return nil }
@@ -1129,7 +1197,11 @@ final class ExplorerWindowTabCenter: ObservableObject {
         isRevealingMergedTab = false
         if pending.isExternalReveal {
             // 短世代即可挡叠壳；过长会让 isProgrammaticTabGenerationActive 吞掉用户「+」。
-            extendProgrammaticTabGeneration(by: 0.6)
+            extendProgrammaticTabGeneration(by: 0.35)
+            // Reveal 已落地：结束长抑制，否则 folder 标签上点「+」会被误杀/无法收养。
+            // 留极短尾巴挡迟到的 odoc 壳。
+            suppressSurplusRestoredWindowsUntil = Date().addingTimeInterval(0.25)
+            ExternalOpenDiagnostic.logRaw("external-open suppression end-after-reveal-merge grace=0.25")
         } else {
             // 普通新标签：只挡紧随其后的重复壳，避免下一次「+」隔次失败。
             extendProgrammaticTabGeneration(by: 0.25)

@@ -890,20 +890,14 @@ struct ContentView: View {
                 applyPendingExternalNavigationForNewTab(pendingTab)
             } else if ExplorerWindowTabCenter.shared.shouldRejectRestoredLaunchBootstrap()
                 || ExplorerWindowTabCenter.shared.shouldRejectSurplusRestoredMainWindow() {
+                // Reveal 后选中的常是 folder 标签；系统「+」会抛无 path 的 folder 壳。
+                // 与 main 一样延后收养，勿直接 rejected（否则只有 ⌘T 开出的 main 标签「+」才可用）。
                 ExternalOpenDiagnostic.logRaw(
-                    "ContentView bootstrap=rejected-restored-folder session=\(externalFolderOpenCenter.isSessionEstablished)"
+                    "ContentView bootstrap=deferred-orphan-decision scene=folder surplus=\(ExplorerWindowTabCenter.shared.shouldRejectSurplusRestoredMainWindow()) session=\(externalFolderOpenCenter.isSessionEstablished) registered=\(ExplorerWindowTabCenter.shared.hasRegisteredWindows)"
                 )
-                ExternalOpenDiagnostic.logWindowSnapshot("rejected-restored-folder")
+                ExternalOpenDiagnostic.logWindowSnapshot("deferred-orphan-folder")
                 didConsumeLaunchNavigation = true
-                closeWhenHostWindowAppears = true
-                DispatchQueue.main.async {
-                    if let window = self.hostWindow {
-                        ExplorerWindowTabCenter.shared.closeSurplusWindow(
-                            window,
-                            reason: "rejected-restored-folder-async"
-                        )
-                    }
-                }
+                scheduleDeferredOrphanMainWindowDecision()
             } else {
                 path = restoredLaunchPath()
                 loadItems()
@@ -915,7 +909,10 @@ struct ContentView: View {
             // 必须先 register path 再 markSessionEstablished：否则外部 Reveal 温启动分支
             // 会因 path==nil 误判「目录不同」而 openNewTab，冷启动叠出第二标签。
             var keepWindow = true
-            if let hostWindow {
+            // 延后收养中：不要 noteWindowAppeared（世代内会把「+」壳当 surplus 关掉）。
+            if isDeferredOrphanDecision {
+                keepWindow = false
+            } else if let hostWindow {
                 keepWindow = ExplorerWindowTabCenter.shared.noteWindowAppearedDuringProgrammaticTabGeneration(
                     hostWindow,
                     path: path
@@ -1512,17 +1509,7 @@ struct ContentView: View {
         isDeferredOrphanDecision = false
         let center = ExplorerWindowTabCenter.shared
 
-        if center.isExternalOpenSuppressionActive {
-            ExternalOpenDiagnostic.logRaw("deferred orphan → reject (external suppression)")
-            if let window = hostWindow {
-                center.closeSurplusWindow(window, reason: "deferred-odoc-reject")
-            } else {
-                closeWhenHostWindowAppears = true
-            }
-            return
-        }
-
-        // 只应用外部 Reveal pending；用户「+」pending 不能拿 odoc 壳来消费。
+        // 外部 Reveal pending 仍在：优先交给 Reveal，勿收成用户「+」。
         if center.pendingNewTabIsExternalReveal == true,
            let pending = center.peekPendingNewTabNavigation() {
             ExternalOpenDiagnostic.logRaw(
@@ -1533,27 +1520,30 @@ struct ContentView: View {
             return
         }
 
-        if center.pendingNewTabIsExternalReveal == false {
-            // 抑制期内：更可能是微信/odoc 壳，不能收成「+」。
-            if center.isExternalOpenSuppressionActive {
-                ExternalOpenDiagnostic.logRaw("deferred orphan → reject (+ pending during suppression)")
-                center.clearStaleNonRevealPendingNewTab(reason: "deferred-orphan-odoc")
-                if let window = hostWindow {
-                    center.closeSurplusWindow(window, reason: "deferred-odoc-over-plus")
-                } else {
-                    closeWhenHostWindowAppears = true
-                }
-                return
+        // 抑制期内且仍像 odoc 竞态（有外部世代 / 无用户 + pending）：关壳。
+        // Reveal 已结束后的抑制倒计时不挡用户「+」（否则 folder 标签上加号永久失败）。
+        let revealRace = center.isExternalOpenSuppressionActive
+            && center.pendingNewTabIsExternalReveal != false
+            && (center.isProgrammaticTabGenerationActive || center.pendingNewTabIsExternalReveal == true)
+        if revealRace {
+            ExternalOpenDiagnostic.logRaw("deferred orphan → reject (external reveal race)")
+            if let window = hostWindow {
+                center.closeSurplusWindow(window, reason: "deferred-odoc-reject")
+            } else {
+                closeWhenHostWindowAppears = true
             }
-            // 非抑制期：本窗就是用户「+」新标签，必须收养。
-            if let pending = center.peekPendingNewTabNavigation() {
-                ExternalOpenDiagnostic.logRaw(
-                    "deferred orphan → apply + pending path=\(pending.path)"
-                )
-                applyPendingExternalNavigationForNewTab(pending)
-                attachDeferredOrphanHostWindowIfNeeded()
-                return
-            }
+            return
+        }
+
+        // 用户「+」已写入 pending：本窗消费它。
+        if center.pendingNewTabIsExternalReveal == false,
+           let pending = center.peekPendingNewTabNavigation() {
+            ExternalOpenDiagnostic.logRaw(
+                "deferred orphan → apply + pending path=\(pending.path)"
+            )
+            applyPendingExternalNavigationForNewTab(pending)
+            attachDeferredOrphanHostWindowIfNeeded()
+            return
         }
 
         if let adopted = center.beginAdoptingOrphanMainWindowAsNewTab() {

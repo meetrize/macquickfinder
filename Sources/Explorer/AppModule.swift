@@ -1348,49 +1348,9 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
         ExternalOpenDiagnostic.logRaw(
             "AppDelegate newWindowForTab sender=\(sender as? NSWindow != nil ? "window" : String(describing: sender))"
         )
-        let center = ExplorerWindowTabCenter.shared
-
-        // Window swizzle 可能已写入 pending。仅用户「+」且无外部抑制时保留壳；
-        // 微信/odoc 抑制期内绝不能 keep，否则空标签抢走 Reveal。
-        if center.hasPendingNewTab {
-            if center.shouldRetainSystemNewTabShell {
-                if sender is NSWindow {
-                    ExternalOpenDiagnostic.logRaw("AppDelegate newWindowForTab — pending set, keep shell")
-                    return
-                }
-                center.openBridgeWindowForPendingNewTabIfNeeded()
-                return
-            }
-            if let tabShell = sender as? NSWindow {
-                ExternalOpenDiagnostic.logRaw("AppDelegate newWindowForTab — swallow shell under reveal/suppression")
-                center.closeSurplusWindow(tabShell, reason: "newWindowForTab-reveal-swallow")
-            }
-            return
-        }
-
-        var anchorWindow = NSApp.keyWindow
-        if let tabShell = sender as? NSWindow {
-            if let tabGroup = tabShell.tabGroup {
-                anchorWindow = tabGroup.windows.first {
-                    $0 !== tabShell && center.path(for: $0) != nil
-                } ?? tabGroup.windows.first { $0 !== tabShell && $0.isVisible } ?? anchorWindow
-            }
-        }
-
-        switch center.systemNewTabAction(from: anchorWindow) {
-        case .createWithOriginal:
-            if sender is NSWindow {
-                ExternalOpenDiagnostic.logRaw("AppDelegate newWindowForTab — reuse system shell")
-                return
-            }
-            center.scheduleSystemPlusBridgeFallbackIfNeeded()
-        case .swallow:
-            if let tabShell = sender as? NSWindow {
-                center.closeSurplusWindow(tabShell, reason: "newWindowForTab-swallow")
-            }
-        case .passThrough:
-            break
-        }
+        let host = (sender as? NSWindow) ?? NSApp.keyWindow
+        // 与窗口 swizzle / ⌘T 同一入口，避免「保留系统壳」却永远等不到消费。
+        _ = ExplorerWindowTabCenter.shared.handleTabBarPlusLikeCommandT(from: host, sender: sender)
     }
 
     @MainActor

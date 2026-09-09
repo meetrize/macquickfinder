@@ -109,15 +109,11 @@ extension NSWindow {
     }
 
     @objc dynamic func mf_explorer_newWindowForTab(_ sender: Any?) {
-        switch ExplorerWindowTabCenter.shared.systemNewTabAction(from: self) {
-        case .createWithOriginal:
-            // 只写 pending：优先等系统/SwiftUI 壳消费；超时再 bridge，避免双开。
-            ExplorerWindowTabCenter.shared.scheduleSystemPlusBridgeFallbackIfNeeded()
-        case .swallow:
+        // 与 ⌘T / 工具栏同路径；不要再走「只写 pending + 等系统壳」那条易吞掉加号的路径。
+        if ExplorerWindowTabCenter.shared.handleTabBarPlusLikeCommandT(from: self, sender: sender) {
             return
-        case .passThrough:
-            mf_explorer_newWindowForTab(sender)
         }
+        mf_explorer_newWindowForTab(sender)
     }
 }
 
