@@ -147,6 +147,13 @@ enum FileListRowContextMenuBuilder {
 
         let fileURLs = fileSelection.map(\.url)
         FileServicesMenuSupport.appendToMenu(menu, fileURLs: fileURLs)
+
+        let foldersForSize = foldersEligibleForSizeCalculation(in: fileSelection)
+        if !foldersForSize.isEmpty {
+            menu.addItem(menuItem(title: L10n.Action.calculateFolderSize) {
+                actions.calculateFolderSizes(foldersForSize)
+            })
+        }
         
         menu.addItem(menuItem(title: L10n.Action.showInfo) { actions.showInfo(fileSelection) })
         menu.addItem(menuItem(
@@ -181,6 +188,14 @@ enum FileListRowContextMenuBuilder {
     private static func isNavigableFolder(_ item: FileItem) -> Bool {
         if item.isParentDirectoryEntry { return true }
         return item.isDirectory && item.url.pathExtension.lowercased() != "app"
+    }
+
+    private static func foldersEligibleForSizeCalculation(in items: [FileItem]) -> [FileItem] {
+        items.filter { item in
+            item.isDirectory
+                && !item.isParentDirectoryEntry
+                && !item.isApplicationBundle
+        }
     }
 
     private static func openWithMenuItem(

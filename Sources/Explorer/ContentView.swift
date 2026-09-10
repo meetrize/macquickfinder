@@ -2786,8 +2786,25 @@ struct ContentView: View {
             },
             extractToDownloads: { items in
                 ArchiveOperations.extract(archives: items, mode: .downloads) { _ in }
+            },
+            calculateFolderSizes: { items in
+                calculateFolderSizesOnDemand(items)
             }
         )
+    }
+
+    private func calculateFolderSizesOnDemand(_ items: [FileItem]) {
+        let paths = items
+            .filter { $0.isDirectory && !$0.isParentDirectoryEntry && !$0.isApplicationBundle }
+            .map(\.id)
+        guard !paths.isEmpty else { return }
+        let shouldShowHiddenFiles = showHiddenFiles
+        Task {
+            await DirectoryMetadataScheduler.scheduleDirectorySizesOnDemand(
+                paths: paths,
+                showHiddenFiles: shouldShowHiddenFiles
+            )
+        }
     }
 
     private func handleArchiveOperationCompleted(paths: [String], navigateIntoResult: Bool = false) {

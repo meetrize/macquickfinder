@@ -123,12 +123,45 @@ actor DirectoryMetadataService<Entry: Sendable> {
         showHiddenFiles: Bool,
         priority: DirectoryMetadataSchedulePriority = .normal
     ) {
+        enqueueSchedule(
+            paths: paths,
+            showHiddenFiles: showHiddenFiles,
+            priority: priority,
+            force: false
+        )
+    }
+
+    /// 右键「计算大小」等按需场景：绕过 `scheduleEnabled` / `shouldSchedulePath`
+    ///（例如自动计算关闭或网络卷），仍尊重内存压力暂停。
+    func scheduleForced(
+        paths: [String],
+        showHiddenFiles: Bool,
+        priority: DirectoryMetadataSchedulePriority = .visible
+    ) {
+        enqueueSchedule(
+            paths: paths,
+            showHiddenFiles: showHiddenFiles,
+            priority: priority,
+            force: true
+        )
+    }
+
+    private func enqueueSchedule(
+        paths: [String],
+        showHiddenFiles: Bool,
+        priority: DirectoryMetadataSchedulePriority,
+        force: Bool
+    ) {
         guard !schedulingPaused else { return }
-        guard configuration.scheduleEnabled() else { return }
+        if !force {
+            guard configuration.scheduleEnabled() else { return }
+        }
 
         let generation = activeGeneration
         for path in paths {
-            guard configuration.shouldSchedulePath(path) else { continue }
+            if !force {
+                guard configuration.shouldSchedulePath(path) else { continue }
+            }
             enqueue(
                 DirectoryMetadataWorkItem(
                     path: path,

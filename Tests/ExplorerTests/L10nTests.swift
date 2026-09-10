@@ -95,6 +95,7 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Action.compressOne("demo"), "action.compress_one demo")
         XCTAssertNotEqual(L10n.Action.extractHere, "action.extract_here")
         XCTAssertNotEqual(L10n.Action.openInDetachedPreview, "action.open_in_detached_preview")
+        XCTAssertNotEqual(L10n.Action.calculateFolderSize, "action.calculate_folder_size")
         XCTAssertNotEqual(L10n.Action.showFinderInfo, "action.show_finder_info")
         XCTAssertNotEqual(L10n.Settings.Preview.DoubleClick.defaultApp, "settings.preview.double_click.default_app")
         XCTAssertNotEqual(L10n.Settings.menuItem, "settings.menu_item")

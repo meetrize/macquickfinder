@@ -1,6 +1,7 @@
 /* Generated from Localizable.xcstrings — do not edit by hand; run Scripts/compile_localizations.sh */
 
 "action.add_favorite" = "Add to Favorites";
+"action.calculate_folder_size" = "Calculate Size";
 "action.cancel" = "Cancel";
 "action.compress_many %lld" = "Compress %lld Items";
 "action.compress_one %@" = "Compress \"%@\"";

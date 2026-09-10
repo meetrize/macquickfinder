@@ -51,6 +51,20 @@ enum DirectoryMetadataScheduler {
         )
     }
 
+    /// 右键按需计算：先失效缓存再强制调度，自动开关开/关均可用。
+    static func scheduleDirectorySizesOnDemand(
+        paths: [String],
+        showHiddenFiles: Bool
+    ) async {
+        guard !paths.isEmpty else { return }
+        await DirectorySizeService.shared.invalidate(paths: paths)
+        await DirectorySizeService.shared.scheduleForced(
+            paths: paths,
+            showHiddenFiles: showHiddenFiles,
+            priority: .visible
+        )
+    }
+
     static func scheduleDirectoryItemCounts(
         paths: [String],
         showHiddenFiles: Bool,

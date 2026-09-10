@@ -32,6 +32,8 @@ struct FileContextActions {
     var extractHere: ([FileItem]) -> Void = { _ in }
     var extractTo: ([FileItem]) -> Void = { _ in }
     var extractToDownloads: ([FileItem]) -> Void = { _ in }
+    /// 按需计算选中目录大小，并写入大小列覆盖层。
+    var calculateFolderSizes: ([FileItem]) -> Void = { _ in }
 }
 
 

@@ -35,6 +35,23 @@
         }
       }
     },
+    "action.calculate_folder_size": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calculate Size"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计算大小"
+          }
+        }
+      }
+    },
     "action.copy": {
       "extractionState": "manual",
       "localizations": {

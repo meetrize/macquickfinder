@@ -1,6 +1,7 @@
 /* Generated from Localizable.xcstrings — do not edit by hand; run Scripts/compile_localizations.sh */
 
 "action.add_favorite" = "收藏";
+"action.calculate_folder_size" = "计算大小";
 "action.cancel" = "取消";
 "action.compress_many %lld" = "压缩 %lld 个项目";
 "action.compress_one %@" = "压缩「%@」";

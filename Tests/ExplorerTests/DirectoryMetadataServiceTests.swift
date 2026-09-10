@@ -79,6 +79,30 @@ final class DirectoryMetadataServiceTests: XCTestCase {
         XCTAssertEqual(harness.counter.value, 0)
     }
 
+    func testScheduleForcedRunsWhenScheduleDisabled() async throws {
+        let harness = makeHarness(scheduleEnabled: { false })
+        let path = try makeTemporaryDirectoryPath()
+
+        await harness.service.scheduleForced(paths: [path], showHiddenFiles: false)
+        try await waitUntil { harness.recorder.records.count == 1 }
+
+        XCTAssertEqual(harness.counter.value, 1)
+        XCTAssertEqual(harness.recorder.records.map(\.path), [path])
+    }
+
+    func testScheduleForcedIgnoresShouldSchedulePathFilter() async throws {
+        let harness = makeHarness(
+            scheduleEnabled: { false },
+            shouldSchedulePath: { _ in false }
+        )
+        let path = try makeTemporaryDirectoryPath()
+
+        await harness.service.scheduleForced(paths: [path], showHiddenFiles: false)
+        try await waitUntil { harness.recorder.records.count == 1 }
+
+        XCTAssertEqual(harness.recorder.records.map(\.path), [path])
+    }
+
     func testScheduleComputesAndAppliesResult() async throws {
         let harness = makeHarness()
         let path = try makeTemporaryDirectoryPath()
