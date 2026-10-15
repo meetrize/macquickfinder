@@ -501,6 +501,13 @@ struct ContentView: View {
         layout.fileListViewMode
     }
 
+    /// 真实选中（排除 `..` 父目录虚拟项）；auto 模式下决定右侧面板是否生效。
+    private var hasRealSelection: Bool {
+        selection.contains { id in
+            items.first(where: { $0.id == id })?.isParentDirectoryEntry == false
+        }
+    }
+
     private var thumbnailCellSize: CGFloat {
         layout.thumbnailCellSizeValue
     }
@@ -634,7 +641,7 @@ struct ContentView: View {
                     HStack(spacing: 0) {
                         explorerBrowserColumn
 
-                        if layout.showPreview || layout.showSnippets || layout.showGit {
+                        if layout.isRightPanelEffectivelyVisible(hasSelection: hasRealSelection) {
                             if deferHeavyRightPanels {
                                 Color.clear
                                     .frame(width: livePreviewPanelWidth)
@@ -793,8 +800,12 @@ struct ContentView: View {
             }
             updateGitWorkspaceFSEventsMonitoring()
         }
+        .onChange(of: selection) { _ in
+            scheduleGitRefreshIfPanelVisible(cwd: path)
+            updateGitWorkspaceFSEventsMonitoring()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .gitWorkingTreeMayHaveChanged)) { notification in
-            guard layout.showGit else { return }
+            guard layout.effectiveRightPanelVisibility(hasSelection: hasRealSelection).showGit else { return }
             guard let changedPath = notification.userInfo?[GitWorkingTreeRefreshCenter.pathUserInfoKey] as? String,
                   let currentRoot = GitRepositoryDetector.findRepoRoot(from: path),
                   let changedRoot = GitRepositoryDetector.findRepoRoot(from: changedPath),
@@ -1303,8 +1314,8 @@ struct ContentView: View {
                 isOutputPanelVisible: layout.isOutputPanelVisible,
                 toggleLeftPanel: { layout.toggleLeftPanelVisibility() },
                 toggleRightPanel: { layout.toggleRightPanel() },
-                togglePreview: { layout.showPreview.toggle() },
-                toggleSnippets: { layout.showSnippets.toggle() },
+                togglePreview: { togglePreviewPanel() },
+                toggleSnippets: { toggleSnippetsPanel() },
                 toggleGit: { layout.toggleGitPanel() },
                 toggleOutputPanel: { layout.toggleOutputPanel() }
             )
@@ -1639,6 +1650,22 @@ struct ContentView: View {
         }
     }
 
+    private func togglePreviewPanel() {
+        let visible = !layout.showPreview
+        let applied = layout.setPreviewVisible(visible, hasSelection: hasRealSelection)
+        if !applied && visible {
+            showTransientNotice(L10n.Settings.General.rightPanelAutoHiddenNotice)
+        }
+    }
+
+    private func toggleSnippetsPanel() {
+        let visible = !layout.showSnippets
+        let applied = layout.setSnippetsVisible(visible, hasSelection: hasRealSelection)
+        if !applied && visible {
+            showTransientNotice(L10n.Settings.General.rightPanelAutoHiddenNotice)
+        }
+    }
+
     private var toolbarEnvironment: ExplorerToolbarEnvironment {
         ExplorerToolbarEnvironment(
             layout: layout,
@@ -1763,6 +1790,7 @@ struct ContentView: View {
             hostWindowID: previewHostWindowID,
             selection: $selection,
             items: items,
+            hasSelection: hasRealSelection,
             cwd: path,
             sortOrder: sortOrder,
             showHiddenFiles: showHiddenFiles,
@@ -2312,13 +2340,13 @@ struct ContentView: View {
     }
     
     private func scheduleGitRefreshIfPanelVisible(cwd: String) {
-        guard layout.showGit else { return }
+        guard layout.effectiveRightPanelVisibility(hasSelection: hasRealSelection).showGit else { return }
         gitStatusStore.scheduleRefresh(cwd: cwd)
     }
 
     private func updateGitWorkspaceFSEventsMonitoring(for directoryPath: String? = nil) {
         guard ownsSharedDirectorySession else { return }
-        guard layout.showGit else {
+        guard layout.effectiveRightPanelVisibility(hasSelection: hasRealSelection).showGit else {
             GitWorkspaceFSEventsMonitor.shared.stop()
             return
         }

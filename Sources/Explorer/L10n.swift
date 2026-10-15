@@ -315,6 +315,11 @@ enum L10n {
             static var fileListRowHover: String { ModuleLocalization.localized("settings.file_list.row_hover_highlight", bundle: .module) }
             static var singleWindowMode: String { ModuleLocalization.localized("settings.general.single_window_mode", bundle: .module) }
             static var singleWindowModeFooter: String { ModuleLocalization.localized("settings.general.single_window_mode_footer", bundle: .module) }
+            static var rightPanelMode: String { ModuleLocalization.localized("settings.general.right_panel_mode", bundle: .module) }
+            static var rightPanelPinned: String { ModuleLocalization.localized("settings.general.right_panel_pinned", bundle: .module) }
+            static var rightPanelAuto: String { ModuleLocalization.localized("settings.general.right_panel_auto", bundle: .module) }
+            static var rightPanelModeFooter: String { ModuleLocalization.localized("settings.general.right_panel_mode_footer", bundle: .module) }
+            static var rightPanelAutoHiddenNotice: String { ModuleLocalization.localized("settings.general.right_panel_auto_hidden_notice", bundle: .module) }
             static var interfaceLanguage: String { ModuleLocalization.localized("settings.general.interface_language", bundle: .module) }
             static var interfaceLanguageFooter: String { ModuleLocalization.localized("settings.general.interface_language_footer", bundle: .module) }
         }

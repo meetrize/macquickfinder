@@ -10303,6 +10303,91 @@
         }
       }
     },
+    "settings.general.right_panel_mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right Panel"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "右侧面板"
+          }
+        }
+      }
+    },
+    "settings.general.right_panel_auto": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-hide (hidden with no selection)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动隐藏（无选中时隐藏）"
+          }
+        }
+      }
+    },
+    "settings.general.right_panel_pinned": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pinned"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "固定显示"
+          }
+        }
+      }
+    },
+    "settings.general.right_panel_mode_footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-hide is the default: the right panel stays hidden with no file or folder selected, and restores the last Preview / Snippets / Git combination once you select something. Pinned keeps the current behavior regardless of selection."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动隐藏为默认：未选中文件或文件夹时右侧面板不显示，选中后按上次的预览 / Snippets / Git 组合恢复。固定显示则保持现有行为，与是否有选中无关。"
+          }
+        }
+      }
+    },
+    "settings.general.right_panel_auto_hidden_notice": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preference saved — it takes effect once you select a file or folder."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已记住偏好，选中文件或文件夹后生效。"
+          }
+        }
+      }
+    },
     "settings.file_list.row_hover_highlight": {
       "extractionState": "manual",
       "localizations": {

@@ -109,6 +109,8 @@ private struct GeneralSettingsTab: View {
     private var rowHoverHighlight = true
     @AppStorage(AppPreferences.General.singleWindowMode)
     private var singleWindowMode = false
+    @AppStorage(AppPreferences.Layout.rightPanelMode)
+    private var rightPanelModeRaw = RightPanelMode.auto.rawValue
     @StateObject private var defaultFileViewerSettings = DefaultFileViewerSettingsModel()
     @StateObject private var gitSettings = GitSettingsModel()
 
@@ -145,6 +147,17 @@ private struct GeneralSettingsTab: View {
                     Toggle(L10n.Settings.General.singleWindowMode, isOn: $singleWindowMode)
                 } footer: {
                     Text(L10n.Settings.General.singleWindowModeFooter)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Section {
+                    Picker(L10n.Settings.General.rightPanelMode, selection: $rightPanelModeRaw) {
+                        Text(L10n.Settings.General.rightPanelAuto).tag(RightPanelMode.auto.rawValue)
+                        Text(L10n.Settings.General.rightPanelPinned).tag(RightPanelMode.pinned.rawValue)
+                    }
+                    .pickerStyle(.radioGroup)
+                } footer: {
+                    Text(L10n.Settings.General.rightPanelModeFooter)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 

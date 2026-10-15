@@ -7,6 +7,8 @@ struct RightPanelStackView: View {
     let hostWindowID: UUID
     @Binding var selection: Set<FileItem.ID>
     let items: [FileItem]
+    /// 是否有真实选中（排除 `..` 虚拟项）；auto 模式无选中时整列隐藏。
+    var hasSelection: Bool = true
     let cwd: String
     let sortOrder: SortOrder
     let showHiddenFiles: Bool
@@ -34,6 +36,7 @@ struct RightPanelStackView: View {
     }
 
     var body: some View {
+        let effective = layout.effectiveRightPanelVisibility(hasSelection: hasSelection)
         GeometryReader { geo in
             let totalHeight = geo.size.height
             let layoutInput = heightInput(totalHeight: totalHeight)
@@ -80,10 +83,10 @@ struct RightPanelStackView: View {
                 }
                 return calculatedGitHeight
             }()
-            let shouldConstrainSnippetsHeight = layout.showGit || layout.showPreview
+            let shouldConstrainSnippetsHeight = effective.showGit || effective.showPreview
 
             VStack(spacing: 0) {
-                if layout.showPreview {
+                if effective.showPreview {
                     FilePreviewView(
                         hostWindowID: hostWindowID,
                         showPreview: $layout.showPreview,
@@ -123,7 +126,7 @@ struct RightPanelStackView: View {
                     .verticalResizeDividerChrome()
                 }
 
-                if layout.showSnippets {
+                if effective.showSnippets {
                     SnippetsPanelView(
                         showSnippets: $layout.showSnippets,
                         layout: layout,
@@ -174,7 +177,7 @@ struct RightPanelStackView: View {
                     .verticalResizeDividerChrome()
                 }
 
-                if layout.showGit {
+                if effective.showGit {
                     GitPanelView(
                         showGit: $layout.showGit,
                         layout: layout,
@@ -183,7 +186,7 @@ struct RightPanelStackView: View {
                         items: items,
                         cwd: cwd,
                         // 仅当 Git 为右栏最上方面板时补顶边线；上方面板折叠态已有标题下 Divider。
-                        showsTopSeparator: !layout.showPreview && !layout.showSnippets,
+                        showsTopSeparator: !effective.showPreview && !effective.showSnippets,
                         onRevealPath: onRevealGitPath
                     )
                     .frame(height: effectiveGitHeight)
@@ -209,9 +212,9 @@ struct RightPanelStackView: View {
     ) -> RightPanelHeightCalculator.Input {
         RightPanelHeightCalculator.Input(
             totalHeight: totalHeight,
-            showPreview: layout.showPreview,
-            showSnippets: layout.showSnippets,
-            showGit: layout.showGit,
+            showPreview: layout.effectiveRightPanelVisibility(hasSelection: hasSelection).showPreview,
+            showSnippets: layout.effectiveRightPanelVisibility(hasSelection: hasSelection).showSnippets,
+            showGit: layout.effectiveRightPanelVisibility(hasSelection: hasSelection).showGit,
             isPreviewContentCollapsed: layout.isPreviewContentCollapsed,
             isSnippetsContentCollapsed: layout.isSnippetsContentCollapsed,
             isGitContentCollapsed: layout.isGitContentCollapsed,

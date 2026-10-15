@@ -4,6 +4,14 @@ import FileList
 import SwiftUI
 
 /// 单窗口 UI 布局状态：运行期各窗口互不影响，写入 UserDefaults 时以最后一次操作为准。
+/// 右侧面板显示模式：pinned 固定显示；auto 无选中时自动隐藏，有选中恢复上次显隐组合。
+enum RightPanelMode: String, CaseIterable, Identifiable {
+    case pinned
+    case auto
+
+    var id: String { rawValue }
+}
+
 @MainActor
 final class ExplorerWindowLayoutState: ObservableObject {
     @Published var showPreview: Bool {
@@ -16,6 +24,11 @@ final class ExplorerWindowLayoutState: ObservableObject {
 
     @Published var showGit: Bool {
         didSet { UserDefaultsStorage.set(showGit, forKey: AppPreferences.Layout.showGit, in: defaults) }
+    }
+
+    /// 期望显隐（持久化的用户偏好）；生效状态见 `effectiveRightPanelVisibility(hasSelection:)`。
+    @Published var rightPanelModeRaw: String {
+        didSet { UserDefaultsStorage.set(rightPanelModeRaw, forKey: AppPreferences.Layout.rightPanelMode, in: defaults) }
     }
 
     @Published private(set) var leftPanelModeRaw: String {
@@ -127,6 +140,7 @@ final class ExplorerWindowLayoutState: ObservableObject {
         showPreview = stored.showPreview
         showSnippets = stored.showSnippets
         showGit = stored.showGit
+        rightPanelModeRaw = stored.rightPanelModeRaw
         leftPanelModeRaw = stored.leftPanelModeRaw
         leftPanelLastVisibleModeRaw = stored.leftPanelLastVisibleModeRaw
         leftPanelSidebarWidth = stored.leftPanelSidebarWidth
@@ -225,6 +239,27 @@ final class ExplorerWindowLayoutState: ObservableObject {
         setLeftPanelMode(.hidden)
     }
 
+    var rightPanelMode: RightPanelMode {
+        RightPanelMode(rawValue: rightPanelModeRaw) ?? .auto
+    }
+
+    func setRightPanelMode(_ mode: RightPanelMode) {
+        rightPanelModeRaw = mode.rawValue
+    }
+
+    /// 生效的右侧显隐：pinned 直接透传期望值；auto 无选中时全部隐藏，有选中恢复期望组合。
+    func effectiveRightPanelVisibility(hasSelection: Bool) -> (showPreview: Bool, showSnippets: Bool, showGit: Bool) {
+        guard rightPanelMode == .pinned || hasSelection else {
+            return (false, false, false)
+        }
+        return (showPreview, showSnippets, showGit)
+    }
+
+    func isRightPanelEffectivelyVisible(hasSelection: Bool) -> Bool {
+        let effective = effectiveRightPanelVisibility(hasSelection: hasSelection)
+        return effective.showPreview || effective.showSnippets || effective.showGit
+    }
+
     var isRightPanelVisible: Bool {
         showPreview || showSnippets || showGit
     }
@@ -238,6 +273,20 @@ final class ExplorerWindowLayoutState: ObservableObject {
             showPreview = true
             showSnippets = true
         }
+    }
+
+    /// auto 且无选中时只改期望值（选中后生效），调用方可用返回值决定是否 toast 提示。
+    /// - Returns: 面板是否实际可见变化（false 表示仅记住了偏好）。
+    @discardableResult
+    func setPreviewVisible(_ visible: Bool, hasSelection: Bool) -> Bool {
+        showPreview = visible
+        return rightPanelMode == .pinned || hasSelection
+    }
+
+    @discardableResult
+    func setSnippetsVisible(_ visible: Bool, hasSelection: Bool) -> Bool {
+        showSnippets = visible
+        return rightPanelMode == .pinned || hasSelection
     }
 
     func toggleGitPanel() {
@@ -287,6 +336,7 @@ final class ExplorerWindowLayoutState: ObservableObject {
         var showPreview: Bool
         var showSnippets: Bool
         var showGit: Bool
+        var rightPanelModeRaw: String
         var leftPanelModeRaw: String
         var leftPanelLastVisibleModeRaw: String
         var leftPanelSidebarWidth: Double
@@ -308,6 +358,11 @@ final class ExplorerWindowLayoutState: ObservableObject {
             showPreview: UserDefaultsStorage.bool(forKey: AppPreferences.Layout.showPreview, default: true, in: defaults),
             showSnippets: UserDefaultsStorage.bool(forKey: AppPreferences.Layout.showSnippets, default: true, in: defaults),
             showGit: UserDefaultsStorage.bool(forKey: AppPreferences.Layout.showGit, default: false, in: defaults),
+            rightPanelModeRaw: UserDefaultsStorage.string(
+                forKey: AppPreferences.Layout.rightPanelMode,
+                default: RightPanelMode.auto.rawValue,
+                in: defaults
+            ),
             leftPanelModeRaw: UserDefaultsStorage.string(
                 forKey: AppPreferences.Layout.leftPanelMode,
                 default: LeftPanelMode.sidebar.rawValue,

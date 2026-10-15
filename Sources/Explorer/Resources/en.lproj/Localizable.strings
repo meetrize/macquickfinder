@@ -810,6 +810,11 @@
 "settings.file_list.row_hover_highlight" = "Highlight file list row on hover";
 "settings.general.interface_language" = "Interface Language";
 "settings.general.interface_language_footer" = "Applies immediately to most of the app. Restart MeoFind if menu bar items look unchanged.";
+"settings.general.right_panel_auto" = "Auto-hide (hidden with no selection)";
+"settings.general.right_panel_auto_hidden_notice" = "Preference saved — it takes effect once you select a file or folder.";
+"settings.general.right_panel_mode" = "Right Panel";
+"settings.general.right_panel_mode_footer" = "Auto-hide is the default: the right panel stays hidden with no file or folder selected, and restores the last Preview / Snippets / Git combination once you select something. Pinned keeps the current behavior regardless of selection.";
+"settings.general.right_panel_pinned" = "Pinned";
 "settings.general.single_window_mode" = "Single Window Mode";
 "settings.general.single_window_mode_footer" = "When enabled, folders opened from other apps navigate in the frontmost window’s current tab instead of opening a new window or tab. Manually created windows and tabs are unaffected.";
 "settings.git.choose" = "Choose…";

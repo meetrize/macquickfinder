@@ -23,6 +23,8 @@ enum AppPreferences {
         static let showPreview = "showPreview"
         static let showSnippets = "showSnippets"
         static let showGit = "showGit"
+        /// 右侧面板模式：pinned 固定显示 / auto 自动隐藏（默认）。
+        static let rightPanelMode = "rightPanel.mode"
         static let previewSnippetsSplitRatio = "previewSnippetsSplitRatio"
         static let previewPanelWidth = "previewPanelWidth"
         static let gitPanelHeight = "gitPanelHeight"
