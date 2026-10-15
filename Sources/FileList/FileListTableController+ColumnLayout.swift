@@ -90,15 +90,35 @@ extension FileListTableController {
         guard let scrollView, let tableView else { return }
         let clipSize = scrollView.contentView.bounds.size
         let rowCount = tableView.numberOfRows
-        guard rowCount != lastFillLayoutRowCount
-                || abs(clipSize.height - lastFillLayoutClipHeight) > 0.5
-                || abs(clipSize.width - lastFillLayoutClipWidth) > 0.5
-        else { return }
+        // 纯宽度变化（拖右面板）不碰高度，只同步宽度；高度只在行数/可视高度变化时重算，
+        // 避免拖动中反复测量改写 document 高度导致底部闪动。
+        let heightChanged = rowCount != lastFillLayoutRowCount
+            || abs(clipSize.height - lastFillLayoutClipHeight) > 0.5
+        let widthChanged = abs(clipSize.width - lastFillLayoutClipWidth) > 0.5
+        guard heightChanged || widthChanged else { return }
 
         lastFillLayoutRowCount = rowCount
         lastFillLayoutClipHeight = clipSize.height
         lastFillLayoutClipWidth = clipSize.width
-        ensureTableViewFillsClipView()
+        if heightChanged {
+            ensureTableViewFillsClipView()
+        } else {
+            syncTableViewWidthToClipView()
+        }
+    }
+
+    /// 纯宽度变化时只同步宽度并保留滚动位置，不触碰 document 高度。
+    func syncTableViewWidthToClipView() {
+        guard let scrollView, let tableView else { return }
+        let clipView = scrollView.contentView
+        let clipSize = clipView.bounds.size
+        guard clipSize.width > 1 else { return }
+        var frame = tableView.frame
+        guard abs(frame.size.width - clipSize.width) > 0.5 else { return }
+        let savedBoundsOrigin = clipView.bounds.origin
+        frame.size.width = clipSize.width
+        tableView.frame = frame
+        clipView.bounds.origin = savedBoundsOrigin
     }
 
     func ensureTableViewFillsClipView() {
@@ -108,15 +128,18 @@ extension FileListTableController {
         guard clipSize.width > 1, clipSize.height > 1 else { return }
 
         let contentHeight = measuredTableContentHeight()
-        let targetHeight = max(contentHeight, clipSize.height)
         var frame = tableView.frame
         var changed = false
 
-        let heightDelta = targetHeight - frame.size.height
-        if abs(heightDelta) > 0.5 {
-            frame.size.height = targetHeight
-            frame.origin.y = 0
-            changed = true
+        // 内容高于可视区时高度完全交给 AppKit：拖动右面板等纯宽度变化时，
+        // 反复按自测高度改写 document 高度会与 NSTableView 自身布局打架，
+        // 造成底部行闪动、滚到底也看不到最后一行。只在行数少、有底部空白时补高。
+        if contentHeight < clipSize.height - 0.5 {
+            if abs(frame.size.height - clipSize.height) > 0.5 {
+                frame.size.height = clipSize.height
+                frame.origin.y = 0
+                changed = true
+            }
         }
         if abs(frame.size.width - clipSize.width) > 0.5 {
             frame.size.width = clipSize.width
