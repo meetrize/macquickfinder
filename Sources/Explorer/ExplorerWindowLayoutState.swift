@@ -129,6 +129,38 @@ final class ExplorerWindowLayoutState: ObservableObject {
         didSet { UserDefaultsStorage.set(thumbnailCellSize, forKey: AppPreferences.FileList.thumbnailCellSize, in: defaults) }
     }
 
+    @Published var isDualPaneEnabled: Bool {
+        didSet {
+            // 持久化放到下一拍，避免开关双栏时与首帧布局抢主线程。
+            let value = isDualPaneEnabled
+            let defaults = self.defaults
+            DispatchQueue.main.async {
+                UserDefaultsStorage.set(value, forKey: AppPreferences.Layout.dualPaneEnabled, in: defaults)
+            }
+        }
+    }
+
+    /// 左栏宽度占比 0…1。
+    @Published var dualPaneSplitRatio: Double {
+        didSet {
+            UserDefaultsStorage.set(
+                dualPaneSplitRatio,
+                forKey: AppPreferences.Layout.dualPaneSplitRatio,
+                in: defaults
+            )
+        }
+    }
+
+    @Published var dualPaneSecondaryPath: String {
+        didSet {
+            UserDefaultsStorage.set(
+                dualPaneSecondaryPath,
+                forKey: AppPreferences.Layout.dualPaneSecondaryPath,
+                in: defaults
+            )
+        }
+    }
+
     private let defaults: UserDefaults
     private let leftPanelConstants = LeftPanelLayoutConstants()
 
@@ -155,6 +187,17 @@ final class ExplorerWindowLayoutState: ObservableObject {
         isGitContentCollapsed = stored.isGitContentCollapsed
         fileListViewModeRaw = stored.fileListViewModeRaw
         thumbnailCellSize = stored.thumbnailCellSize
+        isDualPaneEnabled = stored.isDualPaneEnabled
+        dualPaneSplitRatio = stored.dualPaneSplitRatio
+        dualPaneSecondaryPath = stored.dualPaneSecondaryPath
+    }
+
+    func toggleDualPaneEnabled() {
+        isDualPaneEnabled.toggle()
+    }
+
+    func equalizeDualPaneSplit() {
+        dualPaneSplitRatio = 0.5
     }
 
     var fileListViewMode: FileListViewMode {
@@ -351,6 +394,9 @@ final class ExplorerWindowLayoutState: ObservableObject {
         var isGitContentCollapsed: Bool
         var fileListViewModeRaw: String
         var thumbnailCellSize: Double
+        var isDualPaneEnabled: Bool
+        var dualPaneSplitRatio: Double
+        var dualPaneSecondaryPath: String
     }
 
     private static func loadSnapshot(from defaults: UserDefaults) -> Snapshot {
@@ -431,6 +477,24 @@ final class ExplorerWindowLayoutState: ObservableObject {
             thumbnailCellSize: UserDefaultsStorage.double(
                 forKey: AppPreferences.FileList.thumbnailCellSize,
                 default: Double(FileListThumbnailMetrics.defaultCellSize),
+                in: defaults
+            ),
+            isDualPaneEnabled: UserDefaultsStorage.bool(
+                forKey: AppPreferences.Layout.dualPaneEnabled,
+                default: false,
+                in: defaults
+            ),
+            dualPaneSplitRatio: {
+                let raw = UserDefaultsStorage.double(
+                    forKey: AppPreferences.Layout.dualPaneSplitRatio,
+                    default: 0.5,
+                    in: defaults
+                )
+                return min(max(raw, 0.2), 0.8)
+            }(),
+            dualPaneSecondaryPath: UserDefaultsStorage.string(
+                forKey: AppPreferences.Layout.dualPaneSecondaryPath,
+                default: "",
                 in: defaults
             )
         )

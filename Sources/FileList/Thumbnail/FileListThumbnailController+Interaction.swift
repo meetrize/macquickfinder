@@ -3,10 +3,14 @@ import Foundation
 
 extension FileListThumbnailController {
     func handleCollectionFocusChanged(_ isFocused: Bool) {
+        if isFocused {
+            FileListFocusRegistry.claimActive(self)
+        }
         interaction.onTableFocusChanged(isFocused)
     }
     
     func willHandleItemMouseDown(_ event: NSEvent, indexPath: IndexPath) {
+        FileListFocusRegistry.claimActive(self)
         if isRenaming {
             commitActiveRenameIfPossible()
         }

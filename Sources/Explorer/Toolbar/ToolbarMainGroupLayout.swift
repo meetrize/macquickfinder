@@ -26,7 +26,7 @@ enum ToolbarMainGroup: Int, CaseIterable {
             return ToolbarMainGroup.windowTabs.rawValue
         case .preview, .snippets, .git, .outputPanel:
             return ToolbarMainGroup.panels.rawValue
-        case .listView, .thumbnailView:
+        case .listView, .thumbnailView, .dualPane:
             return ToolbarMainGroup.viewModes.rawValue
         case .recordOperations, .toggleHiddenFiles, .sortMenu, .browseSettingsMenu:
             return ToolbarMainGroup.utilities.rawValue
@@ -68,6 +68,7 @@ enum ToolbarMainGroup: Int, CaseIterable {
         .outputPanel,
         .listView,
         .thumbnailView,
+        .dualPane,
         .recordOperations,
         .toggleHiddenFiles,
         .sortMenu,

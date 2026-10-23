@@ -121,6 +121,30 @@ enum CommandPaletteRegistry {
 
         // MARK: - Panels
         CommandPaletteDefinition(
+            id: "toggle_dual_pane",
+            title: { context in
+                context.layout.isDualPaneEnabled ? L10n.Toolbar.dualPaneOff : L10n.Toolbar.dualPaneOn
+            },
+            category: L10n.Help.sectionTitle("layout"),
+            keywords: ["dual", "pane", "columns", "双栏", "分栏"],
+            shortcutDisplay: nil,
+            priority: 83,
+            isEnabled: { _ in true },
+            perform: { ToolbarBuiltinDispatcher.perform(.dualPane, environment: $0.toolbarEnvironment) }
+        ),
+        CommandPaletteDefinition(
+            id: "toggle_dual_pane",
+            title: { context in
+                context.layout.isDualPaneEnabled ? L10n.Toolbar.dualPaneOff : L10n.Toolbar.dualPaneOn
+            },
+            category: L10n.Help.sectionTitle("layout"),
+            keywords: ["dual", "pane", "columns", "双栏", "分栏"],
+            shortcutDisplay: nil,
+            priority: 83,
+            isEnabled: { _ in true },
+            perform: { ToolbarBuiltinDispatcher.perform(.dualPane, environment: $0.toolbarEnvironment) }
+        ),
+        CommandPaletteDefinition(
             id: "toggle_left_panel",
             title: { _ in L10n.Menu.toggleLeftPanel },
             category: L10n.Help.sectionTitle("sidebar"),

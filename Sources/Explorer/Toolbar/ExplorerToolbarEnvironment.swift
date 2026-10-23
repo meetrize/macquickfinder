@@ -31,6 +31,7 @@ struct ExplorerToolbarEnvironment {
     var editOpenApp: (CustomOpenAppAction) -> Void
     var performOpenShortcut: (CustomOpenShortcutAction) -> Void
     var toggleOperationRecording: () -> Void
+    var toggleDualPane: () -> Void
 
     func withCustomizing(_ value: Bool) -> ExplorerToolbarEnvironment {
         var copy = self
@@ -79,6 +80,8 @@ enum ToolbarBuiltinDispatcher {
             environment.layout.setFileListViewMode(.list)
         case .thumbnailView:
             environment.layout.setFileListViewMode(.thumbnail)
+        case .dualPane:
+            environment.toggleDualPane()
         case .thumbnailSizeSlider, .sortMenu, .browseSettingsMenu:
             break
         }

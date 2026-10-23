@@ -14,6 +14,12 @@ extension ExternalNavigationTarget {
 extension ContentView {
     /// 侧栏等 AppKit 宿主改 `path` 时 SwiftUI `onChange` 可能不触发，须显式加载列表。
     func navigateToDirectory(_ targetPath: String) {
+        if isSecondaryPaneActive {
+            secondaryPane.navigateToDirectory(targetPath)
+            secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+            syncSecondaryFSEvents()
+            return
+        }
         selection.removeAll()
         if path != targetPath {
             // 与 onChange(path) 同源：升到祖先时预置选中；onChange 若随后触发会因 pending 已有而跳过。
@@ -193,9 +199,9 @@ extension ContentView {
         selection = [renamePath]
         switch fileListViewMode {
         case .list:
-            FileListTableController.shared?.scheduleRenameAfterListingUpdate(itemID: renamePath)
+            FileListFocusRegistry.activeTable?.scheduleRenameAfterListingUpdate(itemID: renamePath)
         case .thumbnail:
-            FileListThumbnailController.shared?.scheduleRenameAfterListingUpdate(itemID: renamePath)
+            FileListFocusRegistry.activeThumbnail?.scheduleRenameAfterListingUpdate(itemID: renamePath)
         }
     }
 
@@ -432,7 +438,14 @@ struct ContentView: View {
     @State private var closeWhenHostWindowAppears = false
     /// 无参 main 壳延后判决中：先隐藏，等 odoc/Reveal 抑制或收养为「+」。
     @State private var isDeferredOrphanDecision = false
-    
+    @StateObject private var secondaryPane = ExplorerPaneState(
+        id: .secondary,
+        path: FileManager.default.homeDirectoryForCurrentUser.path
+    )
+    @State private var activePaneID: ExplorerPaneID = .primary
+    @State private var liveDualPaneSplitRatio: Double = 0.5
+    private let secondaryFSEventsBridge = SecondaryPaneFSEventsBridge()
+
     init(
         initialPath: String? = nil,
         initialSelectionPath: String? = nil,
@@ -503,9 +516,31 @@ struct ContentView: View {
 
     /// 真实选中（排除 `..` 父目录虚拟项）；auto 模式下决定右侧面板是否生效。
     private var hasRealSelection: Bool {
-        selection.contains { id in
+        if isSecondaryPaneActive {
+            return secondaryPane.hasRealSelection
+        }
+        return selection.contains { id in
             items.first(where: { $0.id == id })?.isParentDirectoryEntry == false
         }
+    }
+
+    private var isDualPaneActive: Bool { layout.isDualPaneEnabled }
+
+    private var isSecondaryPaneActive: Bool {
+        isDualPaneActive && activePaneID == .secondary
+    }
+
+    /// 侧栏 / 预览 / 工具栏跟随的活动栏路径。
+    private var activeBrowsePath: String {
+        isSecondaryPaneActive ? secondaryPane.path : path
+    }
+
+    private var activeBrowseItems: [FileItem] {
+        isSecondaryPaneActive ? secondaryPane.items : items
+    }
+
+    private var activeBrowseSelection: Set<FileItem.ID> {
+        isSecondaryPaneActive ? secondaryPane.selection : selection
     }
 
     private var thumbnailCellSize: CGFloat {
@@ -597,28 +632,24 @@ struct ContentView: View {
                             switch leftPanelMode {
                             case .sidebar:
                                 SidebarView(
-                                    path: $path,
+                                    path: activePathBinding,
                                     onNavigateToDirectory: navigateToDirectory,
                                     onItemsChanged: {
-                                        selection.removeAll()
-                                        loadItems()
+                                        reloadActivePaneListing()
                                     },
                                     onReload: {
-                                        selection.removeAll()
-                                        loadItems()
+                                        reloadActivePaneListing()
                                     }
                                 )
                             case .rail:
                                 SidebarRailView(
-                                    path: $path,
+                                    path: activePathBinding,
                                     onNavigateToDirectory: navigateToDirectory,
                                     onItemsChanged: {
-                                        selection.removeAll()
-                                        loadItems()
+                                        reloadActivePaneListing()
                                     },
                                     onReload: {
-                                        selection.removeAll()
-                                        loadItems()
+                                        reloadActivePaneListing()
                                     }
                                 )
                             case .hidden:
@@ -639,7 +670,7 @@ struct ContentView: View {
 
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
-                        explorerBrowserColumn
+                        explorerMainBrowserArea
 
                         if layout.isRightPanelEffectivelyVisible(hasSelection: hasRealSelection) {
                             if deferHeavyRightPanels {
@@ -674,8 +705,11 @@ struct ContentView: View {
                         containerHeight: containerHeight,
                         maxPanelHeight: outputMaxHeight,
                         executionContext: OutputExecutionContext(
-                            cwd: path,
-                            selectedItems: FileItem.resolveSelection(ids: selection, from: items),
+                            cwd: activeBrowsePath,
+                            selectedItems: FileItem.resolveSelection(
+                                ids: activeBrowseSelection,
+                                from: activeBrowseItems
+                            ),
                             showHiddenFiles: showHiddenFiles
                         ),
                         onNavigateToDirectory: navigateToDirectory
@@ -1063,10 +1097,36 @@ struct ContentView: View {
         }
         .onChange(of: showHiddenFiles) { _ in
             syncContentSearchContext()
+            if layout.isDualPaneEnabled {
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles, clearingSelection: false)
+            }
+        }
+        .onChange(of: secondaryPane.path) { newPath in
+            guard layout.isDualPaneEnabled else { return }
+            layout.dualPaneSecondaryPath = newPath
+            syncSecondaryFSEvents()
+        }
+        .onChange(of: layout.isDualPaneEnabled) { enabled in
+            if enabled {
+                syncSecondaryFSEvents()
+            } else {
+                secondaryFSEventsBridge.stop()
+            }
         }
         .onAppear {
             loadPersistedContentSearchFilter()
             syncContentSearchContext()
+            liveDualPaneSplitRatio = layout.dualPaneSplitRatio
+            if layout.isDualPaneEnabled {
+                let remembered = layout.dualPaneSecondaryPath
+                DispatchQueue.main.async {
+                    self.prepareSecondaryPaneAfterEnter(
+                        rememberedPath: remembered,
+                        fallbackPath: self.path,
+                        showHiddenFiles: self.showHiddenFiles
+                    )
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .findInFolderRequested)) { _ in
             focusFindInFolder()
@@ -1233,14 +1293,119 @@ struct ContentView: View {
     }
     
     @ViewBuilder
+    private var explorerMainBrowserArea: some View {
+        // 始终同一套 HStack + 主栏首位，避免开关双栏时拆掉主栏 FileList 再重建（可卡数百毫秒）。
+        GeometryReader { geo in
+            let total = max(geo.size.width, 1)
+            let dividerHit = PanelResizeHandleMetrics.hitExtent
+            let usable = max(total - dividerHit, 1)
+            let leftWidth = isDualPaneActive
+                ? usable * CGFloat(liveDualPaneSplitRatio)
+                : total
+            HStack(spacing: 0) {
+                primaryBrowserColumnChrome
+                    .frame(width: leftWidth)
+                    .frame(maxHeight: .infinity)
+
+                if isDualPaneActive {
+                    DualPaneSplitDivider(
+                        splitRatio: $liveDualPaneSplitRatio,
+                        containerWidth: usable,
+                        onDragEnded: {
+                            layout.dualPaneSplitRatio = liveDualPaneSplitRatio
+                        },
+                        onDoubleClickEqualize: {
+                            liveDualPaneSplitRatio = 0.5
+                            layout.equalizeDualPaneSplit()
+                        }
+                    )
+                    .frame(width: dividerHit)
+                    .zIndex(1)
+
+                    secondaryBrowserColumn
+                        .frame(maxWidth: .infinity)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
+            .animation(nil, value: liveDualPaneSplitRatio)
+            .animation(nil, value: isDualPaneActive)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            liveDualPaneSplitRatio = layout.dualPaneSplitRatio
+        }
+        .background(DualPaneTabKeyMonitor(
+            isEnabled: isDualPaneActive && !isAnyTextFieldEditing,
+            onToggle: toggleActivePane
+        ))
+    }
+
+    private var primaryBrowserColumnChrome: some View {
+        explorerBrowserColumn
+            .background(activePaneID == .primary ? Color.accentColor.opacity(0.04) : Color.clear)
+            .overlay(alignment: .leading) {
+                if isDualPaneActive, activePaneID == .primary {
+                    Rectangle()
+                        .fill(Color.accentColor)
+                        .frame(width: 2)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { activePaneID = .primary }
+            .contextMenu {
+                if isDualPaneActive {
+                    ForEach(primaryPaneChromeMenuItems, id: \.id) { item in
+                        Button(item.title, action: item.action)
+                    }
+                }
+            }
+    }
+
+    private var secondaryBrowserColumn: some View {
+        ExplorerBrowserColumnView(
+            pane: secondaryPane,
+            isActive: activePaneID == .secondary,
+            hostWindow: hostWindow,
+            showHiddenFiles: showHiddenFiles,
+            showPreview: $layout.showPreview,
+            viewMode: fileListViewMode,
+            thumbnailCellSize: thumbnailCellSize,
+            useIconPreview: useIconPreview,
+            directoryMetadataOverlay: directoryMetadataOverlay,
+            contextActions: secondaryFileContextActions,
+            blankMenuActions: secondaryBlankMenuActions,
+            pathBarContextActions: pathBarContextActions,
+            onActivate: { activePaneID = .secondary },
+            onOpenItem: { item, detached in
+                openItemInSecondaryPane(item, openInDetachedPreview: detached)
+            },
+            onBlankDoubleClick: handleSecondaryBlankDoubleClick,
+            onItemsChanged: {
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles, clearingSelection: false)
+            },
+            onScheduleVisibleDirectorySizes: scheduleVisibleDirectorySizes,
+            onScheduleVisibleDirectoryItemCounts: scheduleVisibleDirectoryItemCounts,
+            onThumbnailCellSizeChange: { layout.thumbnailCellSizeValue = $0 },
+            paneChromeMenu: { secondaryPaneChromeMenuItems }
+        )
+    }
+
+    @ViewBuilder
     private var explorerBrowserColumn: some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
                 PathBarNavigationButtons(
                     canGoBack: canNavigateBack,
                     canGoForward: canNavigateForward,
-                    onBack: navigateBack,
-                    onForward: navigateForward
+                    onBack: {
+                        activePaneID = .primary
+                        navigateBack()
+                    },
+                    onForward: {
+                        activePaneID = .primary
+                        navigateForward()
+                    }
                 )
 
                 PathBarView(
@@ -1250,8 +1415,14 @@ struct ContentView: View {
                     hostWindow: hostWindow,
                     showHiddenFiles: showHiddenFiles,
                     historyEntries: pathNavigation.recentEntries(currentPath: path),
-                    onSelectHistory: navigateToHistoryPath,
-                    onCommitNavigation: applyExternalNavigationTarget,
+                    onSelectHistory: { target in
+                        activePaneID = .primary
+                        navigateToHistoryPath(target)
+                    },
+                    onCommitNavigation: { target in
+                        activePaneID = .primary
+                        applyExternalNavigationTarget(target)
+                    },
                     contextActions: pathBarContextActions
                 )
 
@@ -1265,6 +1436,8 @@ struct ContentView: View {
             .padding(.leading, 0)
             .padding(.trailing, 8)
             .padding(.vertical, PanelTopBarMetrics.verticalPadding)
+            .contentShape(Rectangle())
+            .onTapGesture { activePaneID = .primary }
             
             Divider()
             
@@ -1698,7 +1871,8 @@ struct ContentView: View {
             performOpenApp: performToolbarOpenApp,
             editOpenApp: editToolbarOpenApp,
             performOpenShortcut: performToolbarOpenShortcut,
-            toggleOperationRecording: toggleOperationRecording
+            toggleOperationRecording: toggleOperationRecording,
+            toggleDualPane: toggleDualPane
         )
     }
 
@@ -1784,21 +1958,21 @@ struct ContentView: View {
         )
         .horizontalResizeDividerChrome()
         
-        RightPanelStackView(
+                RightPanelStackView(
             layout: layout,
             gitStatusStore: gitStatusStore,
             hostWindowID: previewHostWindowID,
-            selection: $selection,
-            items: items,
+            selection: activeSelectionBinding,
+            items: activeBrowseItems,
             hasSelection: hasRealSelection,
-            cwd: path,
+            cwd: activeBrowsePath,
             sortOrder: sortOrder,
             showHiddenFiles: showHiddenFiles,
-            autoCalculateDirectorySizes: shouldAutoCalculateDirectorySizes(for: path),
+            autoCalculateDirectorySizes: shouldAutoCalculateDirectorySizes(for: activeBrowsePath),
             directoryMetadataOverlay: directoryMetadataOverlay,
             panelWidth: livePreviewPanelWidth,
-            onNavigate: { path = $0 },
-            onOpenItem: { openItem($0) },
+            onNavigate: { navigateToDirectory($0) },
+            onOpenItem: { openItemInActivePane($0) },
             onOpenTerminalAtPath: { TerminalHelper.open(at: $0) },
             onRevealGitPath: revealGitPathInFileList
         )
@@ -2094,6 +2268,7 @@ struct ContentView: View {
         // 选中落定后再 bump，确保 TableHost 同帧拿到 selection 并滚入可视区。
         fileListFocusToken &+= 1
         scheduleFinderCommentEnrichment(for: loadedItems, generation: currentGeneration)
+        refreshSecondaryPaneIfSamePath(as: currentPath)
         if pendingListingReloadAfterLoad {
             pendingListingReloadAfterLoad = false
             // 延后一拍，避免与当前 apply 重入；补上 loading 窗口内被丢弃的 FSEvents。
@@ -2102,6 +2277,18 @@ struct ContentView: View {
             }
         }
         return false
+    }
+
+    private func refreshSecondaryPaneIfSamePath(as primaryPath: String) {
+        guard layout.isDualPaneEnabled else { return }
+        let primary = ExternalSelectionPathMatcher.standardizedPath(primaryPath)
+        let secondary = ExternalSelectionPathMatcher.standardizedPath(secondaryPane.path)
+        guard primary == secondary else { return }
+        secondaryPane.loadItems(
+            showHiddenFiles: showHiddenFiles,
+            clearingSelection: false,
+            showsLoadingIndicator: false
+        )
     }
 
     @MainActor
@@ -2576,7 +2763,10 @@ struct ContentView: View {
     }
     
     private var selectedItems: [FileItem] {
-        filteredItems.filter { selection.contains($0.id) }
+        if isSecondaryPaneActive {
+            return secondaryPane.selectedItems
+        }
+        return filteredItems.filter { selection.contains($0.id) }
     }
 
     private var deletableSelectedItems: [FileItem] {
@@ -2586,6 +2776,33 @@ struct ContentView: View {
     private func deleteSelectedItems() {
         let items = deletableSelectedItems
         guard !items.isEmpty else { return }
+        if isSecondaryPaneActive {
+            let paths = items.map(\.id)
+            let removedKeys = Set(paths.map(DirectoryListingPathNormalization.canonicalPath))
+            let applyOptimisticRemoval = {
+                self.secondaryPane.items = DirectoryListingIncrementalUpdate.merge(
+                    adding: [],
+                    removing: Set(paths),
+                    into: self.secondaryPane.items,
+                    sort: FileListPreferencesStore.shared.sort
+                )
+                self.secondaryPane.selection = Set(self.secondaryPane.selection.filter {
+                    !removedKeys.contains(DirectoryListingPathNormalization.canonicalPath($0))
+                })
+            }
+            if TrashLoader.isTrashPath(secondaryPane.path) {
+                FileOperations.deleteImmediately(items) {
+                    applyOptimisticRemoval()
+                    secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+                }
+            } else {
+                FileOperations.delete(items) {
+                    applyOptimisticRemoval()
+                    secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+                }
+            }
+            return
+        }
         let paths = items.map(\.id)
         let removedKeys = Set(paths.map(DirectoryListingPathNormalization.canonicalPath))
         let applyOptimisticRemoval = {
@@ -2616,7 +2833,7 @@ struct ContentView: View {
         let selected = selectedItems
         let destPath = FileOperations.pasteDestination(
             selectedItems: selected,
-            currentDirectoryPath: path
+            currentDirectoryPath: activeBrowsePath
         )
         return FileCommandHandlers(
             copy: { FileOperations.copy(selected) },
@@ -2747,7 +2964,7 @@ struct ContentView: View {
                 }
             },
             rename: { item in
-                FileListTableController.shared?.beginRename(itemID: item.id)
+                FileListFocusRegistry.activeTable?.beginRename(itemID: item.id)
             },
             showInfo: FileOperations.showInfo,
             showFinderInfo: FileOperations.showFinderInfo,
@@ -2900,6 +3117,10 @@ struct ContentView: View {
     }
 
     private func createNewFolder() {
+        if isSecondaryPaneActive {
+            createNewFolderInSecondaryPane()
+            return
+        }
         let alert = NSAlert()
         alert.messageText = L10n.Dialog.newFolderTitle
         alert.informativeText = L10n.Dialog.newFolderMessage
@@ -2934,6 +3155,10 @@ struct ContentView: View {
     }
     
     private func createNewFile() {
+        if isSecondaryPaneActive {
+            createNewFileInSecondaryPane()
+            return
+        }
         guard !TrashLoader.isTrashPath(path) else { return }
 
         let directoryURL = URL(fileURLWithPath: path)
@@ -2952,6 +3177,467 @@ struct ContentView: View {
         OperationRecordingHub.record(.createFile(url: fileURL))
         GitWorkingTreeRefreshCenter.notifyWorkingTreeMayHaveChanged(at: fileURL.path)
         insertListingItems(at: [fileURL], inlineRenamePath: fileURL.path)
+    }
+
+    // MARK: - Dual pane
+
+    private var activePathBinding: Binding<String> {
+        Binding(
+            get: { activeBrowsePath },
+            set: { newPath in
+                navigateToDirectory(newPath)
+            }
+        )
+    }
+
+    private var activeSelectionBinding: Binding<Set<FileItem.ID>> {
+        Binding(
+            get: { activeBrowseSelection },
+            set: { newValue in
+                if isSecondaryPaneActive {
+                    secondaryPane.selection = newValue
+                } else {
+                    selection = newValue
+                }
+            }
+        )
+    }
+
+    private func toggleActivePane() {
+        guard isDualPaneActive else { return }
+        activePaneID = activePaneID.other
+        secondaryPane.fileListFocusToken &+= 1
+        fileListFocusToken &+= 1
+    }
+
+    private func toggleDualPane() {
+        // 禁用隐式动画，避免开关像「慢半拍」。
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            if layout.isDualPaneEnabled {
+                exitDualPane()
+            } else {
+                enterDualPane()
+            }
+        }
+    }
+
+    private func enterDualPane() {
+        // 先亮双栏 UI，路径校验 / 列举 / FSEvents 放到下一帧，避免挡首帧。
+        let remembered = layout.dualPaneSecondaryPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bootstrapPath = remembered.isEmpty ? path : remembered
+        liveDualPaneSplitRatio = layout.dualPaneSplitRatio
+        activePaneID = .primary
+        if secondaryPane.path != bootstrapPath || secondaryPane.items.isEmpty {
+            secondaryPane.adoptSnapshot(path: bootstrapPath, items: [], selection: [])
+        }
+        layout.isDualPaneEnabled = true
+
+        let showHidden = showHiddenFiles
+        let primaryPath = path
+        DispatchQueue.main.async {
+            self.prepareSecondaryPaneAfterEnter(
+                rememberedPath: remembered,
+                fallbackPath: primaryPath,
+                showHiddenFiles: showHidden
+            )
+        }
+    }
+
+    private func prepareSecondaryPaneAfterEnter(
+        rememberedPath: String,
+        fallbackPath: String,
+        showHiddenFiles: Bool
+    ) {
+        guard layout.isDualPaneEnabled else { return }
+        let resolved: String = {
+            guard !rememberedPath.isEmpty else { return fallbackPath }
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: rememberedPath, isDirectory: &isDirectory),
+               isDirectory.boolValue {
+                return rememberedPath
+            }
+            return fallbackPath
+        }()
+        if secondaryPane.path != resolved {
+            secondaryPane.adoptSnapshot(path: resolved, items: [], selection: [])
+        }
+        if secondaryPane.items.isEmpty {
+            secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+        }
+        syncSecondaryFSEvents()
+    }
+
+    private func exitDualPane() {
+        let secondaryWasActive = activePaneID == .secondary
+        let secondaryPath = secondaryPane.path
+        let secondaryItems = secondaryPane.items
+        let secondarySelection = secondaryPane.selection
+        let secondaryHistory = secondaryPane.pathNavigation
+
+        // 先收起双栏，再迁移状态 / 释放，关闭同样即时。
+        activePaneID = .primary
+        layout.isDualPaneEnabled = false
+        layout.dualPaneSecondaryPath = secondaryPath
+
+        if secondaryWasActive {
+            path = secondaryPath
+            items = secondaryItems
+            selection = secondarySelection
+            pathNavigation = secondaryHistory
+            fileListFocusToken &+= 1
+        }
+
+        DispatchQueue.main.async {
+            self.secondaryFSEventsBridge.stop()
+            self.secondaryPane.releaseResources()
+            if secondaryWasActive {
+                self.loadItems(clearingSelection: false, showsLoadingIndicator: false)
+            }
+        }
+    }
+
+    private func syncSecondaryFSEvents() {
+        secondaryFSEventsBridge.update(
+            secondaryPath: secondaryPane.path,
+            primaryPath: path,
+            isDualPaneEnabled: layout.isDualPaneEnabled
+        ) {
+            secondaryPane.loadItems(
+                showHiddenFiles: showHiddenFiles,
+                clearingSelection: false,
+                showsLoadingIndicator: false
+            )
+        }
+    }
+
+    private func reloadActivePaneListing() {
+        if isSecondaryPaneActive {
+            secondaryPane.selection.removeAll()
+            secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+        } else {
+            selection.removeAll()
+            loadItems()
+        }
+    }
+
+    private func openItemInActivePane(_ item: FileItem) {
+        if isSecondaryPaneActive {
+            openItemInSecondaryPane(item, openInDetachedPreview: false)
+        } else {
+            openItem(item)
+        }
+    }
+
+    private func openItemInSecondaryPane(_ item: FileItem, openInDetachedPreview: Bool) {
+        activePaneID = .secondary
+        if item.isParentDirectoryEntry {
+            if let parent = FileItem.parentDirectoryURL(from: secondaryPane.path)?.path {
+                secondaryPane.navigateToDirectory(parent)
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+                syncSecondaryFSEvents()
+            }
+            return
+        }
+        if item.isDirectory, item.url.pathExtension.lowercased() != "app" {
+            secondaryPane.navigateToDirectory(item.url.path)
+            secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+            syncSecondaryFSEvents()
+            return
+        }
+        if openInDetachedPreview {
+            ExplorerStandalonePreviewOpener.open(
+                file: item,
+                context: ExplorerStandalonePreviewOpener.Context(
+                    hostWindowID: previewHostWindowID,
+                    directoryPath: secondaryPane.path,
+                    directoryItems: secondaryPane.items,
+                    sortOrder: sortOrder,
+                    showHiddenFiles: showHiddenFiles,
+                    showPreviewPanel: layout.showPreview,
+                    selectionContainsFile: { secondaryPane.selection.contains($0) },
+                    openWindow: openWindow,
+                    detachCoordinator: detachCoordinator
+                )
+            )
+            return
+        }
+        FileOperations.open([item]) { navigated in
+            secondaryPane.navigateToDirectory(navigated)
+            secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+            syncSecondaryFSEvents()
+        }
+    }
+
+    private func handleSecondaryBlankDoubleClick() {
+        switch blankDoubleClickAction {
+        case .navigateToParent:
+            if let parent = FileItem.parentDirectoryURL(from: secondaryPane.path)?.path {
+                secondaryPane.navigateToDirectory(parent)
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+                syncSecondaryFSEvents()
+            }
+        case .openTerminal:
+            TerminalHelper.open(at: secondaryPane.path)
+        }
+    }
+
+    private var primaryPaneChromeMenuItems: [ExplorerPaneChromeMenuItem] {
+        dualPaneChromeMenuItems(for: .primary)
+    }
+
+    private var secondaryPaneChromeMenuItems: [ExplorerPaneChromeMenuItem] {
+        dualPaneChromeMenuItems(for: .secondary)
+    }
+
+    private func dualPaneChromeMenuItems(for pane: ExplorerPaneID) -> [ExplorerPaneChromeMenuItem] {
+        var items: [ExplorerPaneChromeMenuItem] = [
+            ExplorerPaneChromeMenuItem(
+                id: "swap",
+                title: L10n.DualPane.swapPanes,
+                action: swapDualPanePaths
+            ),
+            ExplorerPaneChromeMenuItem(
+                id: "equalize",
+                title: L10n.DualPane.equalize,
+                action: {
+                    liveDualPaneSplitRatio = 0.5
+                    layout.equalizeDualPaneSplit()
+                }
+            ),
+        ]
+        let otherPath = pane == .primary ? secondaryPane.path : path
+        items.append(
+            ExplorerPaneChromeMenuItem(
+                id: "open-other-here",
+                title: L10n.DualPane.openOtherPath,
+                action: {
+                    if pane == .primary {
+                        navigateToDirectory(otherPath)
+                    } else {
+                        secondaryPane.navigateToDirectory(otherPath)
+                        secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+                        syncSecondaryFSEvents()
+                    }
+                }
+            )
+        )
+        let selectedFolder = selectedFolderPath(in: pane)
+        if let selectedFolder {
+            items.append(
+                ExplorerPaneChromeMenuItem(
+                    id: "open-in-other",
+                    title: L10n.DualPane.openInOtherPane,
+                    action: {
+                        openPathInOtherPane(selectedFolder, from: pane)
+                    }
+                )
+            )
+        }
+        return items
+    }
+
+    private func selectedFolderPath(in pane: ExplorerPaneID) -> String? {
+        let sourceItems = pane == .primary ? items : secondaryPane.items
+        let sourceSelection = pane == .primary ? selection : secondaryPane.selection
+        let selected = FileItem.resolveSelection(ids: sourceSelection, from: sourceItems)
+            .filter { !$0.isParentDirectoryEntry }
+        guard let first = selected.first else { return nil }
+        if first.isDirectory, first.url.pathExtension.lowercased() != "app" {
+            return first.url.path
+        }
+        return first.url.deletingLastPathComponent().path
+    }
+
+    private func openPathInOtherPane(_ targetPath: String, from pane: ExplorerPaneID) {
+        guard isDualPaneActive else { return }
+        if pane == .primary {
+            secondaryPane.navigateToDirectory(targetPath)
+            secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+            activePaneID = .secondary
+            syncSecondaryFSEvents()
+        } else {
+            activePaneID = .primary
+            navigateToDirectory(targetPath)
+        }
+    }
+
+    private func swapDualPanePaths() {
+        guard isDualPaneActive else { return }
+        let primaryPath = path
+        let primaryItems = items
+        let primarySelection = selection
+        let primaryHistory = pathNavigation
+        let secondaryPath = secondaryPane.path
+        let secondaryItems = secondaryPane.items
+        let secondarySelection = secondaryPane.selection
+        let secondaryHistory = secondaryPane.pathNavigation
+
+        path = secondaryPath
+        items = secondaryItems
+        selection = secondarySelection
+        pathNavigation = secondaryHistory
+        fileListFocusToken &+= 1
+
+        secondaryPane.adoptSnapshot(
+            path: primaryPath,
+            items: primaryItems,
+            selection: primarySelection
+        )
+        secondaryPane.pathNavigation = primaryHistory
+        layout.dualPaneSecondaryPath = secondaryPane.path
+        syncSecondaryFSEvents()
+    }
+
+    private var secondaryFileContextActions: FileContextActions {
+        var actions = fileContextActions
+        actions.open = { openItemInSecondaryPane($0, openInDetachedPreview: false) }
+        actions.openInDetachedPreview = { openItemInSecondaryPane($0, openInDetachedPreview: true) }
+        actions.delete = { deleted in
+            FileOperations.delete(deleted) {
+                secondaryPane.selection.removeAll()
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+            }
+        }
+        actions.deleteImmediately = { deleted in
+            FileOperations.deleteImmediately(deleted) {
+                secondaryPane.selection.removeAll()
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+            }
+        }
+        actions.paste = { destPath in
+            FileOperations.paste(to: URL(fileURLWithPath: destPath)) { _ in
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles, clearingSelection: false)
+            }
+        }
+        actions.emptyTrash = {
+            FileOperations.emptyTrash {
+                secondaryPane.selection.removeAll()
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+            }
+        }
+        actions.putBack = { putBackItems in
+            FileOperations.putBack(putBackItems) {
+                secondaryPane.selection.removeAll()
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+            }
+        }
+        actions.refresh = {
+            secondaryPane.loadItems(showHiddenFiles: showHiddenFiles, clearingSelection: false)
+        }
+        actions.isInTrash = TrashLoader.isTrashPath(secondaryPane.path)
+        actions.canEmptyTrash = TrashLoader.isTrashPath(secondaryPane.path)
+            && secondaryPane.items.contains { !$0.isParentDirectoryEntry }
+        actions.openInNewWindow = { item in
+            let directoryPath: String?
+            if item.isParentDirectoryEntry {
+                directoryPath = FileItem.parentDirectoryURL(from: secondaryPane.path)?.path
+            } else if item.isDirectory, item.url.pathExtension.lowercased() != "app" {
+                directoryPath = item.url.path
+            } else {
+                directoryPath = nil
+            }
+            guard let directoryPath else { return }
+            externalFolderOpenCenter.requestOpenInNewWindow(directoryPath: directoryPath)
+        }
+        return actions
+    }
+
+    private var secondaryBlankMenuActions: FileListBlankMenuActions {
+        let panePath = secondaryPane.path
+        let inTrash = TrashLoader.isTrashPath(panePath)
+        let isNetworkVolume = DirectorySizeVolumeFilter.isNetworkVolume(path: panePath)
+        let pasteDestination = URL(fileURLWithPath: panePath, isDirectory: true)
+        let canPaste = !inTrash && pasteboardAvailability.canPaste(to: pasteDestination)
+        return FileListBlankMenuActions(
+            isEnabled: true,
+            canGoBack: secondaryPane.canNavigateBack,
+            goBack: {
+                if secondaryPane.navigateBack() {
+                    secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+                    syncSecondaryFSEvents()
+                }
+            },
+            canGoUp: FileItem.canNavigateUp(from: panePath),
+            goUp: {
+                if let parent = FileItem.parentDirectoryURL(from: panePath)?.path {
+                    secondaryPane.navigateToDirectory(parent)
+                    secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+                    syncSecondaryFSEvents()
+                }
+            },
+            canPaste: canPaste,
+            paste: {
+                FileOperations.paste(to: pasteDestination) { _ in
+                    secondaryPane.loadItems(showHiddenFiles: showHiddenFiles, clearingSelection: false)
+                }
+            },
+            newFolder: {
+                activePaneID = .secondary
+                createNewFolderInSecondaryPane()
+            },
+            newFile: {
+                activePaneID = .secondary
+                createNewFileInSecondaryPane()
+            },
+            openTerminal: { TerminalHelper.open(at: panePath) },
+            isInTrash: inTrash,
+            canEmptyTrash: inTrash && secondaryPane.items.contains { !$0.isParentDirectoryEntry },
+            showRefresh: isNetworkVolume,
+            refresh: {
+                secondaryPane.loadItems(showHiddenFiles: showHiddenFiles, clearingSelection: false)
+            },
+            emptyTrash: {
+                FileOperations.emptyTrash {
+                    secondaryPane.selection.removeAll()
+                    secondaryPane.loadItems(showHiddenFiles: showHiddenFiles)
+                }
+            }
+        )
+    }
+
+    private func createNewFolderInSecondaryPane() {
+        let alert = NSAlert()
+        alert.messageText = L10n.Dialog.newFolderTitle
+        alert.informativeText = L10n.Dialog.newFolderMessage
+        let textField = KeyEquivalentTextFields.plain(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        textField.placeholderString = L10n.Dialog.folderNamePlaceholder
+        alert.accessoryView = textField
+        alert.addButton(withTitle: L10n.Dialog.create)
+        alert.addButton(withTitle: L10n.Action.cancel)
+        alert.window.initialFirstResponder = textField
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let folderName = textField.stringValue
+        guard !folderName.isEmpty else { return }
+        let folderURL = URL(fileURLWithPath: secondaryPane.path).appendingPathComponent(folderName)
+        do {
+            try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: false)
+            OperationRecordingHub.record(.createDirectory(url: folderURL))
+            secondaryPane.loadItems(showHiddenFiles: showHiddenFiles, clearingSelection: false)
+            secondaryPane.selection = [folderURL.path]
+        } catch {
+            NSAlert(error: error).runModal()
+        }
+    }
+
+    private func createNewFileInSecondaryPane() {
+        guard !TrashLoader.isTrashPath(secondaryPane.path) else { return }
+        let directoryURL = URL(fileURLWithPath: secondaryPane.path)
+        let fileURL = ArchiveOperations.uniqueNamedPath(
+            name: L10n.File.defaultNewFileName,
+            in: directoryURL
+        )
+        guard FileManager.default.createFile(atPath: fileURL.path, contents: Data()) else {
+            let errorAlert = NSAlert()
+            errorAlert.messageText = L10n.Dialog.cannotCreateFile
+            errorAlert.informativeText = L10n.Dialog.cannotCreateFileMessage
+            errorAlert.runModal()
+            return
+        }
+        OperationRecordingHub.record(.createFile(url: fileURL))
+        secondaryPane.loadItems(showHiddenFiles: showHiddenFiles, clearingSelection: false)
+        secondaryPane.selection = [fileURL.path]
     }
 }
 private struct LeadingResizeDivider: NSViewRepresentable {

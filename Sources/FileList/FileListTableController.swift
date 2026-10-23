@@ -4,7 +4,10 @@ import UniformTypeIdentifiers
 
 /// NSTableView 数据源、列配置、排序与表头交互的统一控制器。
 public final class FileListTableController: FileListContentController {
-    public static weak var shared: FileListTableController?
+    /// 兼容旧调用；请优先使用 `FileListFocusRegistry.activeTable`。
+    public static var shared: FileListTableController? {
+        FileListFocusRegistry.activeTable
+    }
 
     private(set) var scrollView: NSScrollView?
     private(set) var tableView: NSTableView?
@@ -48,10 +51,11 @@ public final class FileListTableController: FileListContentController {
 
     public override init() {
         super.init()
-        FileListTableController.shared = self
+        FileListFocusRegistry.register(self)
     }
 
     deinit {
+        // unregister 需在 MainActor；deinit 非隔离，仅 tearDown。
         tearDownObservers()
     }
 

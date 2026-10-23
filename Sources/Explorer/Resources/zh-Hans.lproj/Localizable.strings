@@ -88,6 +88,10 @@
 "dialog.new_file_title" = "新建文件";
 "dialog.new_folder_message" = "输入新文件夹名称：";
 "dialog.new_folder_title" = "新建文件夹";
+"dual_pane.equalize" = "均分双栏";
+"dual_pane.open_in_other" = "在另一栏打开";
+"dual_pane.open_other_path" = "打开对方路径到此栏";
+"dual_pane.swap_panes" = "交换左右栏";
 "error.archive.empty_listing" = "无法读取 ZIP 目录";
 "error.archive.timed_out" = "目录读取超时";
 "error.default_image_viewer.defaults_command %lld" = "defaults 命令失败（退出码 %lld）。";
@@ -1104,6 +1108,8 @@
 "toolbar.customize.reset" = "恢复默认";
 "toolbar.customize.title" = "自定义工具栏";
 "toolbar.delete" = "删除";
+"toolbar.dual_pane_off" = "退出双栏";
+"toolbar.dual_pane_on" = "进入双栏";
 "toolbar.error.app_missing" = "找不到应用「%@」，请在自定义工具栏中重新配置。";
 "toolbar.error.app_missing_title" = "找不到应用";
 "toolbar.error.no_selection" = "需要先选中文件";

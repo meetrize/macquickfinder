@@ -4,7 +4,10 @@ import UniformTypeIdentifiers
 
 /// 缩略图网格的数据源、布局与选择控制器。
 public final class FileListThumbnailController: FileListContentController {
-    public static weak var shared: FileListThumbnailController?
+    /// 兼容旧调用；请优先使用 `FileListFocusRegistry.activeThumbnail`。
+    public static var shared: FileListThumbnailController? {
+        FileListFocusRegistry.activeThumbnail
+    }
 
     private(set) var collectionView: FileListThumbnailCollectionView?
     
@@ -44,7 +47,7 @@ public final class FileListThumbnailController: FileListContentController {
     
     public override init() {
         super.init()
-        FileListThumbnailController.shared = self
+        FileListFocusRegistry.register(self)
     }
     
     deinit {

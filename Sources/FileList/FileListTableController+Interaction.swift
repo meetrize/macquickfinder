@@ -55,12 +55,14 @@ extension FileListTableController {
         if !isFocused {
             clearRowHoverHighlight()
         } else {
+            FileListFocusRegistry.claimActive(self)
             refreshRowHoverHighlightFromCurrentMouseLocation()
         }
         interaction.onTableFocusChanged(isFocused)
     }
     
     func willHandleMouseDown(_ event: NSEvent, row: Int, pointInTable: NSPoint) {
+        FileListFocusRegistry.claimActive(self)
         mouseDownHandledByDisclosureToggle = false
         wasAlreadySelectedAtMouseDown = row >= 0 && row < displayRows.count && {
             guard let tableView else { return false }

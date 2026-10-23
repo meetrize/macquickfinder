@@ -32,6 +32,9 @@ enum AppPreferences {
         static let leftPanelLastVisibleMode = "leftPanelLastVisibleMode"
         static let leftPanelSidebarWidth = "leftPanelSidebarWidth"
         static let lastOpenedPath = "lastOpenedPath"
+        static let dualPaneEnabled = "dualPane.enabled"
+        static let dualPaneSplitRatio = "dualPane.splitRatio"
+        static let dualPaneSecondaryPath = "dualPane.secondaryPath"
     }
 
     /// 输出/片段面板折叠与尺寸。

@@ -400,6 +400,10 @@ struct ExplorerToolbarItemView: View {
             return L10n.Toolbar.listView
         case .thumbnailView:
             return L10n.Toolbar.thumbnailView
+        case .dualPane:
+            return environment.layout.isDualPaneEnabled
+                ? L10n.Toolbar.dualPaneOff
+                : L10n.Toolbar.dualPaneOn
         default:
             return nil
         }
@@ -480,6 +484,8 @@ extension ToolbarBuiltinID {
             return .list(isActive: environment.fileListViewMode == .list)
         case .thumbnailView:
             return .layoutGrid(isActive: environment.fileListViewMode == .thumbnail)
+        case .dualPane:
+            return .columns(isActive: environment.layout.isDualPaneEnabled)
         case .thumbnailSizeSlider, .sortMenu, .browseSettingsMenu:
             return .settings
         }

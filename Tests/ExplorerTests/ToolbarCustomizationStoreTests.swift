@@ -54,6 +54,10 @@ final class ToolbarCustomizationStoreTests: XCTestCase {
         )
         XCTAssertEqual(
             mainIDs[mainIDs.firstIndex(of: ToolbarBuiltinID.thumbnailView.rawValue)! + 1],
+            ToolbarBuiltinID.dualPane.rawValue
+        )
+        XCTAssertEqual(
+            mainIDs[mainIDs.firstIndex(of: ToolbarBuiltinID.dualPane.rawValue)! + 1],
             ToolbarBuiltinID.recordOperations.rawValue
         )
 

@@ -550,6 +550,13 @@ enum L10n {
         }
     }
 
+    enum DualPane {
+        static var openInOtherPane: String { ModuleLocalization.localized("dual_pane.open_in_other", bundle: .module) }
+        static var swapPanes: String { ModuleLocalization.localized("dual_pane.swap_panes", bundle: .module) }
+        static var equalize: String { ModuleLocalization.localized("dual_pane.equalize", bundle: .module) }
+        static var openOtherPath: String { ModuleLocalization.localized("dual_pane.open_other_path", bundle: .module) }
+    }
+
     enum Toolbar {
         static var showLeftPanel: String { ModuleLocalization.localized("toolbar.show_left_panel", bundle: .module) }
         static var hideLeftPanel: String { ModuleLocalization.localized("toolbar.hide_left_panel", bundle: .module) }
@@ -575,6 +582,8 @@ enum L10n {
         static var hideHiddenFiles: String { ModuleLocalization.localized("toolbar.hide_hidden_files", bundle: .module) }
         static var listView: String { ModuleLocalization.localized("toolbar.list_view", bundle: .module) }
         static var thumbnailView: String { ModuleLocalization.localized("toolbar.thumbnail_view", bundle: .module) }
+        static var dualPaneOn: String { ModuleLocalization.localized("toolbar.dual_pane_on", bundle: .module) }
+        static var dualPaneOff: String { ModuleLocalization.localized("toolbar.dual_pane_off", bundle: .module) }
         static var thumbnailSize: String { ModuleLocalization.localized("toolbar.thumbnail_size", bundle: .module) }
         static var browseSettings: String { ModuleLocalization.localized("toolbar.browse_settings", bundle: .module) }
         static var sort: String { ModuleLocalization.localized("toolbar.sort", bundle: .module) }

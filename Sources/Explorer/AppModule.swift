@@ -242,6 +242,9 @@ private enum LucideSVG {
     static let layoutGrid = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
 """)
+    static let columns = make("""
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
+""")
     static let image = make("""
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
 """)
@@ -312,6 +315,10 @@ struct LucideIcon: View {
 
     static func layoutGrid(isActive: Bool = false) -> LucideIcon {
         LucideIcon(svgData: LucideSVG.layoutGrid, isActive: isActive)
+    }
+
+    static func columns(isActive: Bool = false) -> LucideIcon {
+        LucideIcon(svgData: LucideSVG.columns, isActive: isActive)
     }
 
     static func record(isRecording: Bool = false) -> LucideIcon {

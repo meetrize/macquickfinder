@@ -157,7 +157,7 @@ struct FileListView: View {
         .onChange(of: currentDirectoryPath) { _ in
             closeQuickSearch()
             isFileListRenaming = false
-            FileListTableController.shared?.cancelRenameIfNeededForDataUpdate()
+            FileListFocusRegistry.forEachTable { $0.cancelRenameIfNeededForDataUpdate() }
             resetTreeState(keepExpanded: false)
         }
         .onChange(of: focusToken) { _ in
@@ -177,8 +177,8 @@ struct FileListView: View {
             }
         }
         .onChange(of: pasteboardAvailability.cutItemPaths) { _ in
-            FileListTableController.shared?.refreshCutItemAppearance()
-            FileListThumbnailController.shared?.refreshCutItemAppearance()
+            FileListFocusRegistry.forEachTable { $0.refreshCutItemAppearance() }
+            FileListFocusRegistry.forEachThumbnail { $0.refreshCutItemAppearance() }
         }
     }
     
@@ -578,9 +578,9 @@ struct FileListView: View {
     private func cycleQuickSearchMatch(forward: Bool) {
         switch viewMode {
         case .list:
-            FileListTableController.shared?.cycleQuickSearchMatch(forward: forward)
+            FileListFocusRegistry.activeTable?.cycleQuickSearchMatch(forward: forward)
         case .thumbnail:
-            FileListThumbnailController.shared?.cycleQuickSearchMatch(forward: forward)
+            FileListFocusRegistry.activeThumbnail?.cycleQuickSearchMatch(forward: forward)
         }
     }
 

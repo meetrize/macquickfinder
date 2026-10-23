@@ -29,15 +29,15 @@ final class DirectoryMetadataAppKitBridge {
                 revision: revision,
                 display: { overlay.sizeDisplay(for: $0) }
             )
-            FileListTableController.shared?.refreshDirectorySizeColumnIfNeeded(provider)
-            FileListThumbnailController.shared?.refreshDirectorySizeColumnIfNeeded(provider)
+            FileListFocusRegistry.forEachTable { $0.refreshDirectorySizeColumnIfNeeded(provider) }
+            FileListFocusRegistry.forEachThumbnail { $0.refreshDirectorySizeColumnIfNeeded(provider) }
         }
         countHandlerID = overlay.addCountRevisionHandler { revision in
             let provider = DirectoryItemCountColumnProvider(
                 revision: revision,
                 display: { overlay.countDisplay(for: $0) }
             )
-            FileListThumbnailController.shared?.refreshDirectoryItemCountColumnIfNeeded(provider)
+            FileListFocusRegistry.forEachThumbnail { $0.refreshDirectoryItemCountColumnIfNeeded(provider) }
         }
     }
 }

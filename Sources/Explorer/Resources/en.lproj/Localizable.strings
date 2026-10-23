@@ -88,6 +88,10 @@
 "dialog.new_file_title" = "New File";
 "dialog.new_folder_message" = "Enter a name for the new folder:";
 "dialog.new_folder_title" = "New Folder";
+"dual_pane.equalize" = "Equalize Panes";
+"dual_pane.open_in_other" = "Open in Other Pane";
+"dual_pane.open_other_path" = "Open Other Pane Path Here";
+"dual_pane.swap_panes" = "Swap Panes";
 "error.archive.empty_listing" = "Unable to read ZIP listing";
 "error.archive.timed_out" = "Listing read timed out";
 "error.default_image_viewer.defaults_command %lld" = "defaults command failed (exit code %lld).";
@@ -1104,6 +1108,8 @@
 "toolbar.customize.reset" = "Restore Defaults";
 "toolbar.customize.title" = "Customize Toolbar";
 "toolbar.delete" = "Delete";
+"toolbar.dual_pane_off" = "Exit Dual Pane";
+"toolbar.dual_pane_on" = "Enter Dual Pane";
 "toolbar.error.app_missing" = "Application “%@” could not be found. Reconfigure it in Customize Toolbar.";
 "toolbar.error.app_missing_title" = "Application Not Found";
 "toolbar.error.no_selection" = "Select one or more items first";
