@@ -1297,8 +1297,9 @@ struct ContentView: View {
         // 始终同一套 HStack + 主栏首位，避免开关双栏时拆掉主栏 FileList 再重建（可卡数百毫秒）。
         GeometryReader { geo in
             let total = max(geo.size.width, 1)
-            let dividerHit = PanelResizeHandleMetrics.hitExtent
-            let usable = max(total - dividerHit, 1)
+            // 布局只占 1pt 细线，命中区溢出叠在两栏上，避免中间留空隙。
+            let dividerVisual = PanelResizeHandleMetrics.visualExtent
+            let usable = max(total - dividerVisual, 1)
             let leftWidth = isDualPaneActive
                 ? usable * CGFloat(liveDualPaneSplitRatio)
                 : total
@@ -1319,8 +1320,7 @@ struct ContentView: View {
                             layout.equalizeDualPaneSplit()
                         }
                     )
-                    .frame(width: dividerHit)
-                    .zIndex(1)
+                    .dualPaneSplitDividerChrome()
 
                     secondaryBrowserColumn
                         .frame(maxWidth: .infinity)
@@ -3713,6 +3713,11 @@ private extension View {
             )
             .zIndex(1)
             .frame(maxHeight: .infinity)
+    }
+
+    /// 双栏中缝：视觉占位 1pt，拖拽命中区向两侧溢出，两栏内容贴线。
+    func dualPaneSplitDividerChrome() -> some View {
+        horizontalResizeDividerChrome()
     }
 }
 

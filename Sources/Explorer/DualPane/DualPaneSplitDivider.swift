@@ -4,7 +4,7 @@ import SwiftUI
 /// 双栏中间分隔条：按鼠标位移增量改比例（与侧栏 / 预览分隔条一致），双击均分。
 struct DualPaneSplitDivider: NSViewRepresentable {
     @Binding var splitRatio: Double
-    /// 用于把像素位移换算成比例的可用宽度（总宽 − 分隔条命中宽）。
+    /// 用于把像素位移换算成比例的可用宽度（总宽 − 分隔条视觉宽 1pt）。
     var containerWidth: CGFloat
     var minRatio: Double = 0.2
     var maxRatio: Double = 0.8
