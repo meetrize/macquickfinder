@@ -15,26 +15,30 @@ final class FolderPreviewItemCountDisplayTests: XCTestCase {
         XCTAssertNil(
             FolderPreviewItemCountDisplay.resolvedCount(from: overlay, path: "/tmp/missing")
         )
+        XCTAssertNil(
+            FolderPreviewItemCountDisplay.resolvedCount(
+                from: overlay,
+                path: "/Applications/Safari.app"
+            )
+        )
     }
 
     @MainActor
     func testSummaryTextForApplicationBundle() {
-        XCTAssertEqual(
-            FolderPreviewItemCountDisplay.summaryText(count: nil, isApplicationBundle: true),
-            "— 项"
-        )
+        let text = FolderPreviewItemCountDisplay.summaryText(count: nil, isApplicationBundle: true)
+        XCTAssertEqual(text, L10n.Preview.Folder.applicationKind)
+        XCTAssertNotEqual(text, "preview.folder.application_kind")
     }
 
     @MainActor
     func testSummaryTextShowsLoadingWhenCountUnknown() {
-        XCTAssertEqual(
-            FolderPreviewItemCountDisplay.summaryText(count: nil, isApplicationBundle: false),
-            "正在统计…"
-        )
-        XCTAssertEqual(
-            FolderPreviewItemCountDisplay.summaryText(count: 5, isApplicationBundle: false),
-            "5 项"
-        )
+        let loading = FolderPreviewItemCountDisplay.summaryText(count: nil, isApplicationBundle: false)
+        XCTAssertEqual(loading, L10n.Preview.Folder.countingItems)
+        XCTAssertNotEqual(loading, "preview.folder.counting_items")
+
+        let counted = FolderPreviewItemCountDisplay.summaryText(count: 5, isApplicationBundle: false)
+        XCTAssertEqual(counted, L10n.Preview.Folder.itemCount(5))
+        XCTAssertFalse(counted.contains("preview.folder.item_count"))
     }
 
     @MainActor

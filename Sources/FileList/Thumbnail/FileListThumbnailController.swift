@@ -638,6 +638,7 @@ public final class FileListThumbnailController: FileListContentController {
                 guard indexPath.item >= 0, indexPath.item < displayRows.count else { return nil }
                 let row = displayRows[indexPath.item]
                 guard row.isDirectory, !row.isParentDirectoryEntry else { return nil }
+                guard !FileListApplicationBundle.isBundle(path: row.iconPath) else { return nil }
                 return row.iconPath
             }
         return Array(Set(paths)).sorted()

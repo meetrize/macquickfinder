@@ -43,9 +43,11 @@ enum DirectoryMetadataScheduler {
         showHiddenFiles: Bool,
         priority: DirectoryMetadataSchedulePriority = .normal
     ) async {
-        guard !paths.isEmpty else { return }
+        // 与 item count 一致：跳过 .app / 文档包，避免 /Applications 可见区 I/O 风暴。
+        let filtered = paths.filter { !FileListApplicationBundle.isBundle(path: $0) }
+        guard !filtered.isEmpty else { return }
         await DirectorySizeService.shared.schedule(
-            paths: paths,
+            paths: filtered,
             showHiddenFiles: showHiddenFiles,
             priority: priority
         )

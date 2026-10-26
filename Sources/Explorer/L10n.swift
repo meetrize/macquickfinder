@@ -1174,6 +1174,63 @@ enum L10n {
             }
         }
 
+        enum Folder {
+            static var applicationKind: String {
+                ModuleLocalization.localized("preview.folder.application_kind", bundle: .module)
+            }
+            static var countingItems: String {
+                ModuleLocalization.localized("preview.folder.counting_items", bundle: .module)
+            }
+            static func itemCount(_ count: Int) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.folder.item_count %lld", bundle: .module),
+                    Int64(count)
+                )
+            }
+            static func appVersion(_ version: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.folder.app_version %@", bundle: .module),
+                    version
+                )
+            }
+            static func modified(_ date: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.folder.modified %@", bundle: .module),
+                    date
+                )
+            }
+            static func size(_ text: String) -> String {
+                String(
+                    format: ModuleLocalization.localizedFromTable("preview.folder.size %@", bundle: .module),
+                    text
+                )
+            }
+            static var sizeCalculating: String {
+                ModuleLocalization.localized("preview.folder.size_calculating", bundle: .module)
+            }
+            static var open: String {
+                ModuleLocalization.localized("preview.folder.open", bundle: .module)
+            }
+            static var openTerminal: String {
+                ModuleLocalization.localized("preview.folder.open_terminal", bundle: .module)
+            }
+            static var copyPath: String {
+                ModuleLocalization.localized("preview.folder.copy_path", bundle: .module)
+            }
+            static var loadingContents: String {
+                ModuleLocalization.localized("preview.folder.loading_contents", bundle: .module)
+            }
+            static var empty: String {
+                ModuleLocalization.localized("preview.folder.empty", bundle: .module)
+            }
+            static var contents: String {
+                ModuleLocalization.localized("preview.folder.contents", bundle: .module)
+            }
+            static var trashUnsupported: String {
+                ModuleLocalization.localized("preview.folder.trash_unsupported", bundle: .module)
+            }
+        }
+
         enum Archive {
             static var loadingMore: String {
                 ModuleLocalization.localized("preview.archive.loading_more", bundle: .module)

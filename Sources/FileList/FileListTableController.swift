@@ -327,6 +327,8 @@ public final class FileListTableController: FileListContentController {
         for row in visible.location..<(visible.location + visible.length) {
             let item = displayRows[row]
             guard item.isDirectory, !item.isParentDirectoryEntry else { continue }
+            // 文件包不参与目录大小 / 子项数调度（见 DirectoryMetadataScheduler）。
+            guard !FileListApplicationBundle.isBundle(path: item.iconPath) else { continue }
             paths.append(item.iconPath)
         }
         return paths

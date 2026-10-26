@@ -13,12 +13,12 @@ enum FolderPreviewItemCountDisplay {
 
     static func summaryText(count: Int?, isApplicationBundle: Bool) -> String {
         if isApplicationBundle {
-            return "— 项"
+            return L10n.Preview.Folder.applicationKind
         }
         guard let count else {
-            return "正在统计…"
+            return L10n.Preview.Folder.countingItems
         }
-        return "\(count) 项"
+        return L10n.Preview.Folder.itemCount(count)
     }
 
     static func truncationCaption(maxChildren: Int, totalCount: Int?) -> String {

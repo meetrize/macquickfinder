@@ -1,3 +1,4 @@
+import AppKit
 import FileList
 import SwiftUI
 
@@ -16,20 +17,27 @@ struct FolderPreviewView: View {
     @State private var loadGeneration: UInt = 0
     @State private var loadResult: FolderPreviewLoader.LoadResult?
     @State private var isLoadingContents = false
+    @State private var appIcon: NSImage?
+    @State private var appSnapshot: AppBundlePreviewInfo.Snapshot?
+
+    private var isApplicationBundle: Bool {
+        FileListApplicationBundle.isBundle(path: folder.id)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             folderSummary
 
-            if showContentsList {
+            if showContentsList, !isApplicationBundle {
                 Divider()
                 contentsSection
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task(id: folder.id) {
+            await prepareLightweightChrome()
             await scheduleMetadata()
-            guard showContentsList else { return }
+            guard showContentsList, !isApplicationBundle else { return }
             await loadContents()
         }
     }
@@ -39,9 +47,7 @@ struct FolderPreviewView: View {
     private var folderSummary: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: folderIconName)
-                    .font(.system(size: 36))
-                    .foregroundStyle(.secondary)
+                folderGlyph
                     .frame(width: 44, height: 44)
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -57,13 +63,13 @@ struct FolderPreviewView: View {
             }
 
             HStack(spacing: 8) {
-                Button("打开", action: onOpenFolder)
+                Button(L10n.Preview.Folder.open, action: onOpenFolder)
                     .controlSize(.small)
 
-                Button("在终端中打开", action: onOpenTerminal)
+                Button(L10n.Preview.Folder.openTerminal, action: onOpenTerminal)
                     .controlSize(.small)
 
-                Button("复制路径") {
+                Button(L10n.Preview.Folder.copyPath) {
                     copyPathToPasteboard()
                 }
                 .controlSize(.small)
@@ -72,9 +78,23 @@ struct FolderPreviewView: View {
         }
     }
 
+    @ViewBuilder
+    private var folderGlyph: some View {
+        if let appIcon {
+            Image(nsImage: appIcon)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 44, height: 44)
+        } else {
+            Image(systemName: folderIconName)
+                .font(.system(size: 36))
+                .foregroundStyle(.secondary)
+                .frame(width: 44, height: 44)
+        }
+    }
+
     private var folderIconName: String {
-        let ext = folder.url.pathExtension.lowercased()
-        if folder.isDirectory, ext == "app" {
+        if isApplicationBundle {
             return "app"
         }
         return "folder.fill"
@@ -84,8 +104,12 @@ struct FolderPreviewView: View {
         var parts: [String] = []
         parts.append(itemCountText)
 
+        if isApplicationBundle, let versionLabel = appVersionLabel {
+            parts.append(versionLabel)
+        }
+
         if !folder.dateDisplay.isEmpty {
-            parts.append("修改于 \(folder.dateDisplay)")
+            parts.append(L10n.Preview.Folder.modified(folder.dateDisplay))
         }
 
         let sizeText = directorySizeText
@@ -96,6 +120,17 @@ struct FolderPreviewView: View {
         return parts.joined(separator: " · ")
     }
 
+    private var appVersionLabel: String? {
+        guard let snapshot = appSnapshot else { return nil }
+        if let short = snapshot.shortVersion {
+            return L10n.Preview.Folder.appVersion(short)
+        }
+        if let version = snapshot.version {
+            return L10n.Preview.Folder.appVersion(version)
+        }
+        return nil
+    }
+
     private var resolvedItemCount: Int? {
         FolderPreviewItemCountDisplay.resolvedCount(from: metadataOverlay, path: folder.id)
     }
@@ -103,16 +138,18 @@ struct FolderPreviewView: View {
     private var itemCountText: String {
         FolderPreviewItemCountDisplay.summaryText(
             count: resolvedItemCount,
-            isApplicationBundle: FileListApplicationBundle.isBundle(path: folder.id)
+            isApplicationBundle: isApplicationBundle
         )
     }
 
     private var directorySizeText: String {
+        // 文件包不再自动算大小，避免 /Applications 下预览卡顿。
+        guard !isApplicationBundle else { return "" }
         let display = metadataOverlay.sizeDisplay(for: folder.id)
         if display.sortableSize < 0 {
-            return autoCalculateDirectorySizes ? "大小计算中…" : ""
+            return autoCalculateDirectorySizes ? L10n.Preview.Folder.sizeCalculating : ""
         }
-        return "大小 \(display.text)"
+        return L10n.Preview.Folder.size(display.text)
     }
 
     // MARK: - Phase B: Contents
@@ -123,7 +160,7 @@ struct FolderPreviewView: View {
             HStack(spacing: 8) {
                 ProgressView()
                     .controlSize(.small)
-                Text("正在加载内容…")
+                Text(L10n.Preview.Folder.loadingContents)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -134,14 +171,14 @@ struct FolderPreviewView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if let result = loadResult, result.children.isEmpty {
-            Text("文件夹为空")
+            Text(L10n.Preview.Folder.empty)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if let result = loadResult {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("内容")
+                    Text(L10n.Preview.Folder.contents)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -172,15 +209,30 @@ struct FolderPreviewView: View {
         }
     }
 
+    private func prepareLightweightChrome() async {
+        appIcon = nil
+        appSnapshot = nil
+        guard isApplicationBundle else { return }
+        let path = folder.id
+        let prepared = await Task.detached(priority: .userInitiated) {
+            let icon = AppBundlePreviewInfo.workspaceIcon(at: path)
+            let snapshot = AppBundlePreviewInfo.loadSnapshot(at: path)
+            return (icon, snapshot)
+        }.value
+        guard path == folder.id else { return }
+        appIcon = prepared.0
+        appSnapshot = prepared.1
+    }
+
     private func scheduleMetadata() async {
         guard !TrashLoader.isTrashPath(folder.id) else { return }
-        if !FileListApplicationBundle.isBundle(path: folder.id) {
-            await DirectoryItemCountService.shared.schedule(
-                paths: [folder.id],
-                showHiddenFiles: showHiddenFiles,
-                priority: .visible
-            )
-        }
+        // 文件包：不算子项数、不算递归大小（与主列表 visibleDirectoryPaths 策略一致）。
+        guard !isApplicationBundle else { return }
+        await DirectoryItemCountService.shared.schedule(
+            paths: [folder.id],
+            showHiddenFiles: showHiddenFiles,
+            priority: .visible
+        )
         if autoCalculateDirectorySizes {
             await DirectorySizeService.shared.schedule(
                 paths: [folder.id],
@@ -195,7 +247,7 @@ struct FolderPreviewView: View {
             loadResult = FolderPreviewLoader.LoadResult(
                 children: [],
                 truncated: false,
-                errorMessage: "废纸篓中的文件夹不支持预览内容"
+                errorMessage: L10n.Preview.Folder.trashUnsupported
             )
             return
         }
@@ -213,7 +265,7 @@ struct FolderPreviewView: View {
             at: folder.id,
             showHiddenFiles: showHiddenFiles
         )
-        guard generation == loadGeneration, folder.id == folder.id else { return }
+        guard generation == loadGeneration else { return }
         loadResult = result
     }
 

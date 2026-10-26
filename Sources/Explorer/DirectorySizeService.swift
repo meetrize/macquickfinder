@@ -18,7 +18,9 @@ extension DirectoryMetadataServiceConfiguration where Entry == DirectorySizeComp
             DirectorySizePreferences.autoCalculateDirectorySizes
         },
         shouldSchedulePath: { path in
-            DirectorySizeVolumeFilter.shouldAutoCalculate(path: path)
+            // .app 等文件包内部可达数万～十万文件；列表与预览都不得自动递归算大小。
+            !FileListApplicationBundle.isBundle(path: path)
+                && DirectorySizeVolumeFilter.shouldAutoCalculate(path: path)
         },
         isCacheValid: { cached, path in
             DirectoryMetadataCache.isExactMTimeValid(cached: cached, path: path)
