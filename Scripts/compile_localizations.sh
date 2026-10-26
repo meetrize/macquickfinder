@@ -2,33 +2,15 @@
 # 将 Localizable.xcstrings 编译为 SPM 可加载的 .lproj/Localizable.strings。
 # swift build 不会自动编译 String Catalog；未同步时运行时会直接显示键名（如 snippets.ask.form_title）。
 #
-# 优先使用 Xcode 的 xcstringstool；若无则用 Scripts/xcstrings_to_strings.py 兜底。
+# 使用 Scripts/xcstrings_to_strings.py 生成经典文本 .strings。
+# 说明：完整 Xcode 的 xcstringstool 会写出 XML/binary plist，本仓库校验与历史
+# 工作流按 `"key" = "value";` 文本格式；且 SPM 若同时处理 .xcstrings 与 .lproj
+# 会 Multiple commands produce。故统一用 Python 写 .lproj，构建时再暂存 .xcstrings。
 # 禁止「只改 .xcstrings 却不更新 .lproj」。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-
-if [ -z "${Xcstringstool:-}" ]; then
-    Xcstringstool="$(xcrun --find xcstringstool 2>/dev/null || true)"
-fi
-if [ -z "$Xcstringstool" ]; then
-    for xcode_app in /Applications/Xcode.app /Applications/Xcode-beta.app; do
-        candidate="$xcode_app/Contents/Developer/usr/bin/xcstringstool"
-        if [ -x "$candidate" ]; then
-            Xcstringstool="$candidate"
-            break
-        fi
-    done
-fi
-
-compile_with_xcstringstool() {
-    local catalog="$1"
-    local output_dir="$2"
-    mkdir -p "$output_dir"
-    "$Xcstringstool" compile "$catalog" --output-directory "$output_dir"
-    echo "OK: $catalog -> $output_dir/*.lproj (xcstringstool)"
-}
 
 compile_with_python() {
     local catalog="$1"
@@ -43,12 +25,7 @@ compile_catalog() {
         echo "FAIL: 缺少 $catalog"
         exit 1
     fi
-    if [ -n "$Xcstringstool" ] && [ -x "$Xcstringstool" ]; then
-        compile_with_xcstringstool "$catalog" "$output_dir"
-    else
-        echo "INFO: 未找到 xcstringstool，使用 Python 兜底编译"
-        compile_with_python "$catalog" "$output_dir"
-    fi
+    compile_with_python "$catalog" "$output_dir"
 }
 
 compile_catalog "Sources/Explorer/Resources/Localizable.xcstrings" "Sources/Explorer/Resources"

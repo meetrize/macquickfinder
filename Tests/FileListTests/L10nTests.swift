@@ -40,6 +40,18 @@ final class FileListL10nTests: XCTestCase {
         )
     }
 
+    func testNormalizeBundleLanguageIDMatchesLprojDirectoryCase() {
+        XCTAssertEqual(ModuleLocalization.normalizeBundleLanguageID("zh-Hans-CN"), "zh-Hans")
+        XCTAssertEqual(ModuleLocalization.normalizeBundleLanguageID("zh-CN"), "zh-Hans")
+        XCTAssertEqual(ModuleLocalization.normalizeBundleLanguageID("zh"), "zh-Hans")
+        XCTAssertEqual(ModuleLocalization.normalizeBundleLanguageID("en-US"), "en")
+        XCTAssertEqual(InterfaceLanguage.zhHans.bundleLanguageID, "zh-Hans")
+
+        // Bundle.path 区分大小写：错误的 zh-hans 会找不到并导致跟随系统时回退英文
+        XCTAssertNotNil(localizedBundle(language: "zh-Hans", parent: Bundle.module))
+        XCTAssertNil(localizedBundle(language: "zh-hans", parent: Bundle.module))
+    }
+
     private func localizedBundle(language: String, parent: Bundle) -> Bundle? {
         guard let path = parent.path(forResource: language, ofType: "lproj") else {
             return nil

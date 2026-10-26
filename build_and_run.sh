@@ -19,6 +19,40 @@ filter_known_spm_warnings() {
 echo "==> 编译 String Catalog (.xcstrings -> .lproj)"
 bash Scripts/compile_localizations.sh
 
+# Xcode/SPM 会同时编译 .xcstrings 与复制 .lproj，导致同一 Localizable.strings
+# 被两个任务产出。构建期间暂存 catalog，只让 .lproj 进入 resource bundle。
+XCSTRINGS_STASH="$(pwd)/.build/xcstrings-stash-$$"
+stash_xcstrings_for_spm() {
+    mkdir -p "$XCSTRINGS_STASH"
+    local f rel
+    for f in \
+        Sources/Explorer/Resources/Localizable.xcstrings \
+        Sources/FileList/Resources/Localizable.xcstrings
+    do
+        if [ -f "$f" ]; then
+            rel="${f//\//_}"
+            mv "$f" "$XCSTRINGS_STASH/$rel"
+        fi
+    done
+}
+restore_xcstrings_after_spm() {
+    local stash="$XCSTRINGS_STASH"
+    [ -d "$stash" ] || return 0
+    local f rel
+    for f in \
+        Sources/Explorer/Resources/Localizable.xcstrings \
+        Sources/FileList/Resources/Localizable.xcstrings
+    do
+        rel="${f//\//_}"
+        if [ -f "$stash/$rel" ]; then
+            mv "$stash/$rel" "$f"
+        fi
+    done
+    rm -rf "$stash"
+}
+trap restore_xcstrings_after_spm EXIT
+stash_xcstrings_for_spm
+
 # Build the project
 build_args=(-c "$BUILD_CONFIG" --disable-automatic-resolution)
 if [ "$BUILD_CONFIG" = "debug" ] && [ "$FAST_DEBUG" = "1" ]; then
@@ -34,6 +68,8 @@ else
     swift build -c "$BUILD_CONFIG" --product DocumentOpener -q 2>&1 | filter_known_spm_warnings
 fi
 build_status=$?
+restore_xcstrings_after_spm
+trap - EXIT
 if [ "$build_status" -ne 0 ]; then
     exit "$build_status"
 fi

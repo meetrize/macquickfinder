@@ -8,12 +8,13 @@ public enum InterfaceLanguage: String, CaseIterable, Identifiable, Hashable, Sen
 
     public var id: String { rawValue }
 
-    /// SPM 资源 bundle 内 `.lproj` 目录名（小写）。
+    /// SPM 资源 bundle 内 `.lproj` 目录名（须与磁盘上 `zh-Hans.lproj` 大小写一致；
+    /// `Bundle.path(forResource:ofType:)` 对语言 ID 区分大小写）。
     public var bundleLanguageID: String? {
         switch self {
         case .system: return nil
         case .en: return "en"
-        case .zhHans: return "zh-hans"
+        case .zhHans: return "zh-Hans"
         }
     }
 
@@ -118,10 +119,13 @@ public enum ModuleLocalization {
     }
 
     /// 将系统 locale 标识映射为 bundle 内 `.lproj` 目录名。
-    private static func normalizeBundleLanguageID(_ identifier: String) -> String {
+    /// - Important: 必须返回 `zh-Hans`（非 `zh-hans`），否则 `path(forResource:)` 找不到目录并回退英文。
+    static func normalizeBundleLanguageID(_ identifier: String) -> String {
         let lower = identifier.lowercased()
         if lower.hasPrefix("zh") {
-            return "zh-hans"
+            // 简体：zh / zh-Hans / zh-Hans-CN / zh-CN / zh-SG 等均映射到仓库内的 zh-Hans.lproj
+            // 若日后增加 zh-Hant.lproj，可在此按 Hant/TW/HK/MO 分支。
+            return "zh-Hans"
         }
         if lower.hasPrefix("en") {
             return "en"
