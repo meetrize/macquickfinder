@@ -1119,6 +1119,7 @@
 "toolbar.hide_left_panel" = "隐藏左侧面板";
 "toolbar.hide_right_panel" = "隐藏右侧面板";
 "toolbar.hide_tab_bar" = "隐藏标签栏";
+"toolbar.hover_preview" = "悬停预览";
 "toolbar.list_view" = "列表视图";
 "toolbar.move_tab_to_new_window" = "将标签页移到新窗口";
 "toolbar.new_file" = "新建文件";

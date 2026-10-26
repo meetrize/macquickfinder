@@ -12,6 +12,7 @@ public struct FileListTableHost: NSViewRepresentable {
     public var directorySizeProvider: DirectorySizeColumnProvider?
     public var useIconPreview: Bool
     public var rowHoverHighlight: Bool
+    public var onHoverRowChange: ((FileListRow?, NSView?) -> Void)?
     
     public init(
         rows: [FileListRow],
@@ -22,7 +23,8 @@ public struct FileListTableHost: NSViewRepresentable {
         onVisibleDirectoryPathsChanged: (([String]) -> Void)? = nil,
         directorySizeProvider: DirectorySizeColumnProvider? = nil,
         useIconPreview: Bool = false,
-        rowHoverHighlight: Bool = false
+        rowHoverHighlight: Bool = false,
+        onHoverRowChange: ((FileListRow?, NSView?) -> Void)? = nil
     ) {
         self.rows = rows
         self.interaction = interaction
@@ -33,6 +35,7 @@ public struct FileListTableHost: NSViewRepresentable {
         self.directorySizeProvider = directorySizeProvider
         self.useIconPreview = useIconPreview
         self.rowHoverHighlight = rowHoverHighlight
+        self.onHoverRowChange = onHoverRowChange
     }
     
     public func makeCoordinator() -> FileListTableController {
@@ -40,7 +43,8 @@ public struct FileListTableHost: NSViewRepresentable {
         FileListContentHostSupport.wireCallbacks(
             controller,
             onOpenRow: onOpenRow,
-            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged
+            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged,
+            onHoverRowChange: onHoverRowChange
         )
         return controller
     }
@@ -54,7 +58,8 @@ public struct FileListTableHost: NSViewRepresentable {
         FileListContentHostSupport.wireCallbacks(
             controller,
             onOpenRow: onOpenRow,
-            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged
+            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged,
+            onHoverRowChange: onHoverRowChange
         )
         controller.update(
             rows: rows,
@@ -65,6 +70,7 @@ public struct FileListTableHost: NSViewRepresentable {
             useIconPreview: useIconPreview,
             rowHoverHighlight: rowHoverHighlight
         )
+        controller.syncRowHoverTrackingEnabled()
         controller.refreshDirectorySizeColumnIfNeeded(directorySizeProvider)
     }
 }

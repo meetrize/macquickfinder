@@ -21,6 +21,9 @@ struct FileListView: View {
     let useIconPreview: Bool
     let preferWorkspaceIconsInThumbnail: Bool
     let isLoading: Bool
+    let hoverPreviewEnabled: Bool
+    let rightPanelPreviewVisible: Bool
+    let rightPanelPreviewURL: URL?
     let onThumbnailCellSizeChange: (CGFloat) -> Void
     let onItemOpen: (FileItem, Bool) -> Void
     let onBlankDoubleClick: () -> Void
@@ -35,6 +38,7 @@ struct FileListView: View {
     
     private let preferencesStore = FileListPreferencesStore.shared
     @ObservedObject private var pasteboardAvailability = PasteboardPasteAvailability.shared
+    @StateObject private var hoverPreviewController = HoverPreviewController()
     @State private var isCurrentDirectoryDropTargeted = false
     @State private var isQuickSearchFieldFocused = false
     @State private var quickSearchAutoCloseWorkItem: DispatchWorkItem?
@@ -153,12 +157,15 @@ struct FileListView: View {
         }
         .onDisappear {
             cancelQuickSearchAutoClose()
+            hoverPreviewController.shutdown()
         }
         .onChange(of: currentDirectoryPath) { _ in
             closeQuickSearch()
             isFileListRenaming = false
             FileListFocusRegistry.forEachTable { $0.cancelRenameIfNeededForDataUpdate() }
             resetTreeState(keepExpanded: false)
+            hoverPreviewController.shutdown()
+            HoverPreviewCache.shared.trimToHalf()
         }
         .onChange(of: focusToken) { _ in
             // 全量 listing 刷新后丢弃展开子目录缓存，并重新拉取，避免子树幽灵条目。
@@ -179,6 +186,38 @@ struct FileListView: View {
         .onChange(of: pasteboardAvailability.cutItemPaths) { _ in
             FileListFocusRegistry.forEachTable { $0.refreshCutItemAppearance() }
             FileListFocusRegistry.forEachThumbnail { $0.refreshCutItemAppearance() }
+        }
+        .onAppear {
+            syncHoverPreviewController()
+        }
+        .onChange(of: hoverPreviewEnabled) { _ in
+            syncHoverPreviewController()
+        }
+        .onChange(of: rightPanelPreviewVisible) { _ in
+            syncHoverPreviewController()
+        }
+        .onChange(of: rightPanelPreviewURL) { _ in
+            syncHoverPreviewController()
+        }
+    }
+
+    private func syncHoverPreviewController() {
+        hoverPreviewController.setEnabled(hoverPreviewEnabled)
+        hoverPreviewController.updateRightPanelContext(
+            visible: rightPanelPreviewVisible,
+            previewURL: rightPanelPreviewURL
+        )
+    }
+
+    private var hoverRowChangeHandler: ((FileListRow?, NSView?) -> Void)? {
+        guard hoverPreviewEnabled else { return nil }
+        return { [hoverPreviewController] row, anchor in
+            if row != nil {
+                RailTooltipPresenter.hide()
+            }
+            hoverPreviewController.handleHoverRowChange(row, anchor: anchor) { hoveredRow in
+                tableRowItems.first(where: { $0.id == hoveredRow.id })
+            }
         }
     }
     
@@ -201,7 +240,8 @@ struct FileListView: View {
             onVisibleDirectoryPathsChanged: onScheduleVisibleDirectorySizes,
             directorySizeProvider: nil,
             useIconPreview: useIconPreview,
-            rowHoverHighlight: rowHoverHighlight
+            rowHoverHighlight: rowHoverHighlight,
+            onHoverRowChange: hoverRowChangeHandler
         )
         .onAppear {
             preferencesStore.resetToDefaultIfNeeded()
@@ -234,7 +274,8 @@ struct FileListView: View {
             directorySizeProvider: nil,
             directoryItemCountProvider: nil,
             preferWorkspaceIcons: preferWorkspaceIconsInThumbnail,
-            rowHoverHighlight: rowHoverHighlight
+            rowHoverHighlight: rowHoverHighlight,
+            onHoverRowChange: hoverRowChangeHandler
         )
         .onAppear {
             preferencesStore.resetToDefaultIfNeeded()

@@ -13397,6 +13397,23 @@
         }
       }
     },
+    "toolbar.hover_preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hover Preview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "悬停预览"
+          }
+        }
+      }
+    },
     "toolbar.browse_settings": {
       "extractionState": "manual",
       "localizations": {

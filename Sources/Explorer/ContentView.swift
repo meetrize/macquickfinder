@@ -395,6 +395,7 @@ struct ContentView: View {
     @State private var lastRecordedPath: String?
     @AppStorage(AppPreferences.Directory.autoCalculateDirectorySizes) private var autoCalculateDirectorySizes = false
     @AppStorage(AppPreferences.Directory.useIconPreview) private var useIconPreview = false
+    @AppStorage(AppPreferences.Preview.hoverPreviewEnabled) private var hoverPreviewEnabled = false
     @State private var livePreviewPanelWidth: CGFloat = 320
     @State private var activeBarField: BarTextFieldID?
     @State private var previewHostWindowID = UUID()
@@ -1372,6 +1373,9 @@ struct ContentView: View {
             viewMode: fileListViewMode,
             thumbnailCellSize: thumbnailCellSize,
             useIconPreview: useIconPreview,
+            hoverPreviewEnabled: hoverPreviewEnabled,
+            rightPanelPreviewVisible: layout.effectiveRightPanelVisibility(hasSelection: hasRealSelection).showPreview,
+            rightPanelPreviewURL: selectedItems.first(where: { !$0.isParentDirectoryEntry })?.url,
             directoryMetadataOverlay: directoryMetadataOverlay,
             contextActions: secondaryFileContextActions,
             blankMenuActions: secondaryBlankMenuActions,
@@ -1846,6 +1850,7 @@ struct ContentView: View {
             sortOrder: sortOrder,
             autoCalculateDirectorySizes: autoCalculateDirectorySizes,
             useIconPreview: useIconPreview,
+            hoverPreviewEnabled: hoverPreviewEnabled,
             fileListViewMode: fileListViewMode,
             selectedItems: selectedItems,
             deletableSelectedItems: deletableSelectedItems,
@@ -1868,6 +1873,7 @@ struct ContentView: View {
             setSortOrder: { sortOrder = $0 },
             toggleAutoCalculateDirectorySizes: { autoCalculateDirectorySizes.toggle() },
             toggleUseIconPreview: { useIconPreview.toggle() },
+            toggleHoverPreview: { hoverPreviewEnabled.toggle() },
             performOpenApp: performToolbarOpenApp,
             editOpenApp: editToolbarOpenApp,
             performOpenShortcut: performToolbarOpenShortcut,
@@ -2001,6 +2007,9 @@ struct ContentView: View {
             useIconPreview: useIconPreview && !isNetworkVolume,
             preferWorkspaceIconsInThumbnail: isNetworkVolume,
             isLoading: isLoading,
+            hoverPreviewEnabled: hoverPreviewEnabled,
+            rightPanelPreviewVisible: layout.effectiveRightPanelVisibility(hasSelection: hasRealSelection).showPreview,
+            rightPanelPreviewURL: selectedItems.first(where: { !$0.isParentDirectoryEntry })?.url,
             onThumbnailCellSizeChange: { layout.thumbnailCellSizeValue = $0 },
             onItemOpen: { item, openInDetachedPreview in
                 openItem(item, openInDetachedPreview: openInDetachedPreview)

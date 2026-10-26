@@ -96,6 +96,8 @@ final class FileListThumbnailCellView: NSView {
     
     private var tooltipTrackingArea: NSTrackingArea?
     private var hoverTooltipText: String = ""
+    /// 悬停行上报（悬停预览等）；与名字 tooltip 共用 tracking area。
+    var hoverChangeHandler: ((FileListRow?, NSView?) -> Void)?
     
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -119,7 +121,11 @@ final class FileListThumbnailCellView: NSView {
             isHoverHighlighted = true
             updateAppearanceForCurrentTheme()
         }
+        if let representedRow {
+            hoverChangeHandler?(representedRow, self)
+        }
         guard !hoverTooltipText.isEmpty else { return }
+        // 有悬停预览回调时由上层决定是否显示名字 tooltip；此处仍展示短名提示。
         RailTooltipPresenter.show(text: hoverTooltipText, anchor: self)
     }
 
@@ -129,6 +135,7 @@ final class FileListThumbnailCellView: NSView {
             isHoverHighlighted = false
             updateAppearanceForCurrentTheme()
         }
+        hoverChangeHandler?(nil, nil)
         RailTooltipPresenter.hide()
     }
     

@@ -128,6 +128,7 @@ public final class FileListTableController: FileListContentController {
             thumbnailGenerator.cancelInFlightRequests()
         }
         rowHoverHighlightEnabled = rowHoverHighlight
+        syncRowHoverTrackingEnabled()
 
         bindUpdateContext(
             interaction: interaction,

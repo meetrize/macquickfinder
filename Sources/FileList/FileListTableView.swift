@@ -37,6 +37,9 @@ final class FileListTableView: NSTableView {
         }
     }
 
+    /// 供 Host 在仅启用悬停回调（无行高亮）时打开 tracking。
+    var isRowHoverTrackingEnabled: Bool { rowHoverTrackingEnabled }
+
     override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         interactionController?.updateRowHover(at: point, in: self)

@@ -7,6 +7,7 @@ struct ExplorerToolbarEnvironment {
     var sortOrder: SortOrder
     var autoCalculateDirectorySizes: Bool
     var useIconPreview: Bool
+    var hoverPreviewEnabled: Bool
     var fileListViewMode: FileListViewMode
     var selectedItems: [FileItem]
     var deletableSelectedItems: [FileItem]
@@ -27,6 +28,7 @@ struct ExplorerToolbarEnvironment {
     var setSortOrder: (SortOrder) -> Void
     var toggleAutoCalculateDirectorySizes: () -> Void
     var toggleUseIconPreview: () -> Void
+    var toggleHoverPreview: () -> Void
     var performOpenApp: (CustomOpenAppAction) -> Void
     var editOpenApp: (CustomOpenAppAction) -> Void
     var performOpenShortcut: (CustomOpenShortcutAction) -> Void

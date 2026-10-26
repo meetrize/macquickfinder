@@ -339,6 +339,11 @@ struct ExplorerToolbarItemView: View {
                 isOn: environment.useIconPreview,
                 handler: environment.toggleUseIconPreview
             ),
+            ExplorerToolbarMenuAction(
+                title: L10n.Toolbar.hoverPreview,
+                isOn: environment.hoverPreviewEnabled,
+                handler: environment.toggleHoverPreview
+            ),
         ]
     }
 

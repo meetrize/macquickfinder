@@ -5,10 +5,15 @@ enum FileListContentHostSupport {
     static func wireCallbacks<C: FileListContentController>(
         _ controller: C,
         onOpenRow: @escaping (FileListRowOpenIntent) -> Void,
-        onVisibleDirectoryPathsChanged: (([String]) -> Void)?
+        onVisibleDirectoryPathsChanged: (([String]) -> Void)?,
+        onHoverRowChange: ((FileListRow?, NSView?) -> Void)? = nil
     ) {
         controller.onOpenRow = onOpenRow
         controller.onVisibleDirectoryPathsChanged = onVisibleDirectoryPathsChanged
+        controller.onHoverRowChange = onHoverRowChange
+        if onHoverRowChange == nil {
+            controller.lastHoverReportedRowID = nil
+        }
     }
 
     static func applyListingUpdate<C: FileListContentController>(

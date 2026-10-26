@@ -12,6 +12,9 @@ struct ExplorerBrowserColumnView: View {
     let viewMode: FileListViewMode
     let thumbnailCellSize: CGFloat
     let useIconPreview: Bool
+    let hoverPreviewEnabled: Bool
+    let rightPanelPreviewVisible: Bool
+    let rightPanelPreviewURL: URL?
     let directoryMetadataOverlay: DirectoryMetadataOverlay
     let contextActions: FileContextActions
     let blankMenuActions: FileListBlankMenuActions
@@ -132,6 +135,9 @@ struct ExplorerBrowserColumnView: View {
             useIconPreview: useIconPreview && !isNetworkVolume,
             preferWorkspaceIconsInThumbnail: isNetworkVolume,
             isLoading: pane.isLoading,
+            hoverPreviewEnabled: hoverPreviewEnabled,
+            rightPanelPreviewVisible: rightPanelPreviewVisible,
+            rightPanelPreviewURL: rightPanelPreviewURL,
             onThumbnailCellSizeChange: onThumbnailCellSizeChange,
             onItemOpen: { item, detached in
                 onActivate()

@@ -1,0 +1,47 @@
+---
+description: 悬停预览（Hover Preview）开发约束与计划索引；实现 HP-01~HP-12 时必须遵循
+alwaysApply: false
+---
+
+# 悬停预览 — Cursor 开发计划规则
+
+当用户或任务涉及**悬停预览**、**Hover Preview**、**mouseover 预览**、**HP-0x**、或 `hover-preview` 文档时，必须按本规则执行。
+
+## 权威文档
+
+| 文档 | 用途 |
+|------|------|
+| [docs/hover-preview-design.md](../../docs/hover-preview-design.md) | 命名、交互、分级加载、架构红线 |
+| [docs/hover-preview-plan.md](../../docs/hover-preview-plan.md) | Issue 拆分、验收清单 |
+
+**设计冲突时**：以 design 为准；plan 仅负责排期与 checkbox。
+
+## 范围（必须遵守）
+
+### 必须做
+
+- 入口：浏览设置齿轮菜单 toggle；文案 **悬停预览 / Hover Preview**；默认 **关闭**
+- 独立轻量管线：`HoverPreviewController` + `Loader` + `Panel` + 可选 `Cache`
+- 只读视觉预览；面板 `ignoresMouseEvents`、不抢焦点
+- 可取消加载（generation / Task cancel）；debounce 后展示
+- 硬上限：解码边长、读入字节、缓存预算、超时（见 `HoverPreviewMetrics`）
+- 音视频不建 `AVPlayer`；重类型走 Meta / 单帧 QL
+- 新 UI 文案：`Localizable.xcstrings` + `L10n` + `compile_localizations.sh` + `L10nTests`
+
+### 禁止做
+
+- 为悬停新建或复用完整 `PreviewSession` / `FilePreviewSessionHost`
+- 悬停路径启用编辑、预览工具栏、内容搜索、胶片条、弹出
+- 悬停修改当前选中或侧栏会话状态
+- 无预算的无限缓存 / 全文件读入大文本
+- 默认开启本功能
+- 在单个 PR 混合无关侧栏预览大重构
+
+## 实现顺序
+
+按 [hover-preview-plan.md](../../docs/hover-preview-plan.md)：P0（HP-01~03）→ P1（HP-04~08）→ P2（HP-09~12）。  
+完成一 Issue 后在 plan 中勾选，再进入下一 Issue。
+
+## 完成后
+
+勾选对应 checkbox；若行为与 design 有意偏差，先改 design 再改代码。

@@ -452,6 +452,9 @@ public final class FileListThumbnailController: FileListContentController {
             isCut: isCutItem(row)
         )
         item.setRowHoverHighlightEnabled(rowHoverHighlightEnabled)
+        item.setHoverChangeHandler { [weak self] row, anchor in
+            self?.notifyHoverRowChange(item: row, anchor: anchor)
+        }
         
         if let cached = memoryCached {
             let displayImage = cached.isThumbnail

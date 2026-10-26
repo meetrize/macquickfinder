@@ -15,6 +15,7 @@ public struct FileListThumbnailHost: NSViewRepresentable {
     public var directoryItemCountProvider: DirectoryItemCountColumnProvider?
     public var preferWorkspaceIcons: Bool
     public var rowHoverHighlight: Bool
+    public var onHoverRowChange: ((FileListRow?, NSView?) -> Void)?
     
     public init(
         rows: [FileListRow],
@@ -28,7 +29,8 @@ public struct FileListThumbnailHost: NSViewRepresentable {
         directorySizeProvider: DirectorySizeColumnProvider? = nil,
         directoryItemCountProvider: DirectoryItemCountColumnProvider? = nil,
         preferWorkspaceIcons: Bool = false,
-        rowHoverHighlight: Bool = false
+        rowHoverHighlight: Bool = false,
+        onHoverRowChange: ((FileListRow?, NSView?) -> Void)? = nil
     ) {
         self.rows = rows
         self.interaction = interaction
@@ -42,6 +44,7 @@ public struct FileListThumbnailHost: NSViewRepresentable {
         self.directoryItemCountProvider = directoryItemCountProvider
         self.preferWorkspaceIcons = preferWorkspaceIcons
         self.rowHoverHighlight = rowHoverHighlight
+        self.onHoverRowChange = onHoverRowChange
     }
     
     public func makeCoordinator() -> FileListThumbnailController {
@@ -49,7 +52,8 @@ public struct FileListThumbnailHost: NSViewRepresentable {
         FileListContentHostSupport.wireCallbacks(
             controller,
             onOpenRow: onOpenRow,
-            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged
+            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged,
+            onHoverRowChange: onHoverRowChange
         )
         controller.onCellSizeChange = onCellSizeChange
         return controller
@@ -64,7 +68,8 @@ public struct FileListThumbnailHost: NSViewRepresentable {
         FileListContentHostSupport.wireCallbacks(
             controller,
             onOpenRow: onOpenRow,
-            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged
+            onVisibleDirectoryPathsChanged: onVisibleDirectoryPathsChanged,
+            onHoverRowChange: onHoverRowChange
         )
         controller.onCellSizeChange = onCellSizeChange
         controller.update(

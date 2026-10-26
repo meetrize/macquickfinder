@@ -38,6 +38,17 @@ public class FileListContentController: NSObject {
 
     public var onOpenRow: ((FileListRowOpenIntent) -> Void)?
     public var onVisibleDirectoryPathsChanged: (([String]) -> Void)?
+    /// 悬停行变更（含 `nil` 清除）；`anchor` 用于浮动预览定位。
+    public var onHoverRowChange: ((FileListRow?, NSView?) -> Void)?
+    var lastHoverReportedRowID: String?
+
+    func notifyHoverRowChange(item: FileListRow?, anchor: NSView?) {
+        guard onHoverRowChange != nil else { return }
+        let nextID = item?.id
+        guard nextID != lastHoverReportedRowID else { return }
+        lastHoverReportedRowID = nextID
+        onHoverRowChange?(item, anchor)
+    }
 
     var visiblePathsNotifyWorkItem: DispatchWorkItem?
     var lastReportedVisibleDirectoryPaths: [String] = []

@@ -7,26 +7,42 @@ extension FileListTableController {
         set {
             let changed = _rowHoverHighlightEnabled != newValue
             _rowHoverHighlightEnabled = newValue
-            guard changed else { return }
-            if !newValue {
-                clearRowHoverHighlight()
+            guard changed else {
+                syncRowHoverTrackingEnabled()
+                return
             }
-            (tableView as? FileListTableView)?.updateRowHoverTrackingEnabled(newValue)
+            if !newValue {
+                clearRowHoverHighlightVisualOnly()
+            }
+            syncRowHoverTrackingEnabled()
         }
     }
 
+    var rowHoverTrackingNeeded: Bool {
+        rowHoverHighlightEnabled || onHoverRowChange != nil
+    }
+
+    func syncRowHoverTrackingEnabled() {
+        (tableView as? FileListTableView)?.updateRowHoverTrackingEnabled(rowHoverTrackingNeeded)
+    }
+
     func updateRowHover(at point: NSPoint, in tableView: NSTableView) {
-        guard rowHoverHighlightEnabled else {
+        guard rowHoverTrackingNeeded else {
             clearRowHoverHighlight()
             return
         }
         let row = tableView.row(at: point)
         let hoveredRow = isValidHoverRow(row, in: tableView) ? row : nil
-        setRowHoverHighlight(hoveredRow, in: tableView)
+        if rowHoverHighlightEnabled {
+            setRowHoverHighlight(hoveredRow, in: tableView)
+        } else if hoverHighlightRow != nil {
+            clearRowHoverHighlightVisualOnly()
+        }
+        reportHoverRow(hoveredRow, in: tableView)
     }
 
     func refreshRowHoverHighlightFromCurrentMouseLocation() {
-        guard rowHoverHighlightEnabled, let tableView, let window = tableView.window else {
+        guard rowHoverTrackingNeeded, let tableView, let window = tableView.window else {
             clearRowHoverHighlight()
             return
         }
@@ -47,12 +63,31 @@ extension FileListTableController {
     }
 
     func clearRowHoverHighlight() {
-        setRowHoverHighlight(nil)
+        clearRowHoverHighlightVisualOnly()
+        reportHoverRow(nil, in: tableView)
     }
 
     /// 列表 reload / 行数变化前丢弃悬停行号，避免用过期 index 访问 NSTableView。
     func invalidateRowHoverHighlightState() {
         hoverHighlightRow = nil
+        lastHoverReportedRowID = nil
+    }
+
+    func reportHoverRow(_ row: Int?, in tableView: NSTableView?) {
+        let item: FileListRow?
+        let anchor: NSView?
+        if let row, let tableView, isValidHoverRow(row, in: tableView) {
+            item = displayRows[row]
+            anchor = tableView.rowView(atRow: row, makeIfNecessary: false)
+        } else {
+            item = nil
+            anchor = nil
+        }
+        notifyHoverRowChange(item: item, anchor: anchor)
+    }
+
+    private func clearRowHoverHighlightVisualOnly() {
+        setRowHoverHighlight(nil)
     }
 
     private func setRowHoverHighlight(_ row: Int?) {

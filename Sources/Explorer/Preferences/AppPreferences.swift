@@ -68,6 +68,8 @@ enum AppPreferences {
         static let externalMultiImageOpen = "preview.externalMultiImageOpen"
         /// 选中目录时是否在预览面板列出子项；默认关闭。
         static let folderContents = "preview.folderContents"
+        /// 文件列表悬停时显示轻量只读预览；默认关闭。
+        static let hoverPreviewEnabled = "preview.hoverPreviewEnabled"
     }
 
     /// 目录元数据。

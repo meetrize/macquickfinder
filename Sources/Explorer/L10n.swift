@@ -590,6 +590,7 @@ enum L10n {
         static var viewPicker: String { ModuleLocalization.localized("toolbar.view_picker", bundle: .module) }
         static var autoFolderSize: String { ModuleLocalization.localized("toolbar.auto_folder_size", bundle: .module) }
         static var useIconPreview: String { ModuleLocalization.localized("toolbar.use_icon_preview", bundle: .module) }
+        static var hoverPreview: String { ModuleLocalization.localized("toolbar.hover_preview", bundle: .module) }
         static var customize: String { ModuleLocalization.localized("toolbar.customize", bundle: .module) }
         static var customizeTitle: String { ModuleLocalization.localized("toolbar.customize.title", bundle: .module) }
         static var customizeHint: String { ModuleLocalization.localized("toolbar.customize.hint", bundle: .module) }
