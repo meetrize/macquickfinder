@@ -1504,6 +1504,10 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
         ExplorerSessionRecovery.markCleanExit()
     }
 
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
+
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
         // open -R / odoc 会先问「要不要空白窗」再投递 URL。温启动若返回 true，
         // 系统会再开一个 main 窗并落到 restoredLaunchPath（常为 Desktop），
