@@ -457,6 +457,16 @@ final class WindowSnapCoordinator {
             return
         }
 
+        // 标签栏落在 contentLayoutRect 之上，会被当成标题栏；若抢拖会与系统切标签/拖排冲突。
+        if ExplorerTabBarHitTesting.isMouseInTabBar(of: leader, atScreenPoint: mouse) {
+            snapDragCandidate = nil
+            isSnapTitleBarDragSession = false
+            isTitleBarDragActive = false
+            dragLeader = nil
+            stopContinuousSync()
+            return
+        }
+
         snapDragCandidate = leader
         isSnapTitleBarDragSession = true
         startContinuousSync()

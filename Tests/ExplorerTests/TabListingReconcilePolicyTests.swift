@@ -61,6 +61,30 @@ final class TabListingReconcilePolicyTests: XCTestCase {
         )
     }
 
+    func testShouldSkipNetworkReconcileWithinGracePeriod() {
+        let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+        XCTAssertFalse(
+            TabListingReconcilePolicy.shouldReconcileListingOnClaim(
+                cachedMTime: stamp,
+                currentMTime: stamp,
+                isNetwork: true,
+                secondsSinceResign: TabListingReconcilePolicy.networkReconcileGraceSeconds - 0.1
+            )
+        )
+    }
+
+    func testShouldReconcileNetworkAfterGracePeriod() {
+        let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+        XCTAssertTrue(
+            TabListingReconcilePolicy.shouldReconcileListingOnClaim(
+                cachedMTime: stamp,
+                currentMTime: stamp,
+                isNetwork: true,
+                secondsSinceResign: TabListingReconcilePolicy.networkReconcileGraceSeconds
+            )
+        )
+    }
+
     func testFileItemListingHashEqualForSameIdsInOrder() {
         let a = makeFileItem(id: "/tmp/a", name: "a")
         let b = makeFileItem(id: "/tmp/b", name: "b")

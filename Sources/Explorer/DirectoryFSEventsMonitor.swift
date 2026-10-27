@@ -31,12 +31,31 @@ final class DirectoryFSEventsMonitor {
         onListingPatch: @escaping (DirectoryListingIncrementalPatcher.Patch) -> Void,
         onListingRefresh: @escaping () -> Void
     ) {
+        guard !directoryPath.isEmpty else {
+            stop()
+            return
+        }
+        guard DirectorySizeVolumeFilter.shouldAutoCalculate(path: directoryPath) else {
+            stop()
+            return
+        }
+
+        let normalizedPath = (directoryPath as NSString).standardizingPath
+        // 同目录仅换 key 窗回调（多标签切回）：只重绑 handler，避免 stop/start 抖动。
+        if watcher != nil,
+           let watchedDirectoryPath,
+           (watchedDirectoryPath as NSString).standardizingPath == normalizedPath {
+            self.listedFolderPaths = Set(folderPaths)
+            self.showHiddenFiles = showHiddenFiles
+            self.autoCalculateDirectorySizes = autoCalculateDirectorySizes
+            self.onListingPatch = onListingPatch
+            self.onListingRefresh = onListingRefresh
+            return
+        }
+
         // 重启会话时保留「需要全量 reload」意图，避免新建文件夹触发的 restart 吞掉待处理删除/移动。
         let shouldReplayPendingRefresh = pendingListingRefresh
         stopWatcherPreservingListingIntent()
-        
-        guard !directoryPath.isEmpty else { return }
-        guard DirectorySizeVolumeFilter.shouldAutoCalculate(path: directoryPath) else { return }
         
         self.watchedDirectoryPath = directoryPath
         self.listedFolderPaths = Set(folderPaths)

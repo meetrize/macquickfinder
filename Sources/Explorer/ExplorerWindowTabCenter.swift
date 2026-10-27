@@ -1543,16 +1543,34 @@ enum ExplorerTabBarHitTesting {
     ]
 
     static func isTabBarClick(_ event: NSEvent, in window: NSWindow) -> Bool {
+        let screenPoint = event.window?.convertPoint(toScreen: event.locationInWindow) ?? NSEvent.mouseLocation
+        return isMouseInTabBar(of: window, atScreenPoint: screenPoint, locationInWindow: event.locationInWindow)
+    }
+
+    /// 屏幕坐标版命中检测：供标题栏吸附等不经 `NSEvent.window` 的路径排除标签栏。
+    static func isMouseInTabBar(of window: NSWindow, atScreenPoint screenPoint: NSPoint) -> Bool {
+        let locationInWindow = NSPoint(
+            x: screenPoint.x - window.frame.origin.x,
+            y: screenPoint.y - window.frame.origin.y
+        )
+        return isMouseInTabBar(of: window, atScreenPoint: screenPoint, locationInWindow: locationInWindow)
+    }
+
+    private static func isMouseInTabBar(
+        of window: NSWindow,
+        atScreenPoint screenPoint: NSPoint,
+        locationInWindow: NSPoint
+    ) -> Bool {
         guard window.tabbingMode != .disallowed else { return false }
         guard let tabGroup = window.tabGroup, tabGroup.isTabBarVisible, tabGroup.windows.count > 1 else {
             return false
         }
 
-        if let hitView = hitView(at: event.locationInWindow, in: window),
+        if let hitView = hitView(at: locationInWindow, in: window),
            isInsideTabBar(hitView) {
             return true
         }
-        return isInTabBarGeometry(event, in: window)
+        return isInTabBarGeometry(screenPoint: screenPoint, in: window)
     }
 
     @discardableResult
@@ -1723,13 +1741,12 @@ enum ExplorerTabBarHitTesting {
         return false
     }
 
-    private static func isInTabBarGeometry(_ event: NSEvent, in window: NSWindow) -> Bool {
-        let screenLocation = NSEvent.mouseLocation
-        guard window.frame.contains(screenLocation) else { return false }
+    private static func isInTabBarGeometry(screenPoint: NSPoint, in window: NSWindow) -> Bool {
+        guard window.frame.contains(screenPoint) else { return false }
 
         let windowPoint = NSPoint(
-            x: screenLocation.x - window.frame.origin.x,
-            y: screenLocation.y - window.frame.origin.y
+            x: screenPoint.x - window.frame.origin.x,
+            y: screenPoint.y - window.frame.origin.y
         )
         // 标签栏紧贴 contentLayoutRect 上方；略放宽高度，覆盖上半段标签。
         let contentTop = window.contentLayoutRect.maxY

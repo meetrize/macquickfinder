@@ -303,6 +303,7 @@ extension ContentView {
     }
 
     /// 标签切换为 key 时接管共享目录监视；若曾失去 key，则按 mtime 门闩决定是否静默对账。
+    /// 首帧只重绑 FSEvents；Git / 目录尺寸 / 磁盘对账放到下一 runloop，避免切标签卡顿与误拖。
     func claimSharedDirectorySessionIfNeeded() {
         guard ownsSharedDirectorySession else { return }
         guard !isLoading, !items.isEmpty else { return }
@@ -312,26 +313,35 @@ extension ContentView {
             folderPaths: folderPaths,
             showHiddenFiles: showHiddenFiles
         )
-        updateGitWorkspaceFSEventsMonitoring(for: path)
-        rescheduleDirectorySizesIfNeeded()
-        guard needsListingReconcileOnClaim else { return }
-        needsListingReconcileOnClaim = false
-        let cachedMTime = listingDirectoryMTimeAtResign
-        listingDirectoryMTimeAtResign = nil
-        let isNetwork = DirectoryListingOptions.forPath(path).lightweightMetadata
-        let currentMTime = DirectoryMetadataCache.directoryMTime(path: path)
-        guard TabListingReconcilePolicy.shouldReconcileListingOnClaim(
-            cachedMTime: cachedMTime,
-            currentMTime: currentMTime,
-            isNetwork: isNetwork
-        ) else { return }
-        // 对账重载勿清 selection：内容搜索预览依赖选中，清空会拆掉内联 PreviewSession。
-        // 静默对账：不闪 loading，并保留已有尺寸/计数 overlay。
-        loadItems(
-            clearingSelection: false,
-            showsLoadingIndicator: false,
-            preservesMetadataSession: true
-        )
+
+        let generation = claimSessionGeneration
+        DispatchQueue.main.async {
+            guard generation == claimSessionGeneration else { return }
+            guard ownsSharedDirectorySession else { return }
+            updateGitWorkspaceFSEventsMonitoring(for: path)
+            rescheduleDirectorySizesIfNeeded()
+            guard needsListingReconcileOnClaim else { return }
+            needsListingReconcileOnClaim = false
+            let cachedMTime = listingDirectoryMTimeAtResign
+            listingDirectoryMTimeAtResign = nil
+            let secondsSinceResign = listingDirectoryResignedAt.map { Date().timeIntervalSince($0) }
+            listingDirectoryResignedAt = nil
+            let isNetwork = DirectoryListingOptions.forPath(path).lightweightMetadata
+            let currentMTime = DirectoryMetadataCache.directoryMTime(path: path)
+            guard TabListingReconcilePolicy.shouldReconcileListingOnClaim(
+                cachedMTime: cachedMTime,
+                currentMTime: currentMTime,
+                isNetwork: isNetwork,
+                secondsSinceResign: secondsSinceResign
+            ) else { return }
+            // 对账重载勿清 selection：内容搜索预览依赖选中，清空会拆掉内联 PreviewSession。
+            // 静默对账：不闪 loading，并保留已有尺寸/计数 overlay。
+            loadItems(
+                clearingSelection: false,
+                showsLoadingIndicator: false,
+                preservesMetadataSession: true
+            )
+        }
     }
 
     func noteDirectorySessionResigned() {
@@ -339,6 +349,7 @@ extension ContentView {
         claimSessionGeneration &+= 1
         needsListingReconcileOnClaim = true
         listingDirectoryMTimeAtResign = DirectoryMetadataCache.directoryMTime(path: path)
+        listingDirectoryResignedAt = Date()
     }
 
     private func applyLaunchNavigation(_ request: ExternalFolderOpenCenter.OpenRequest) {
@@ -382,6 +393,8 @@ struct ContentView: View {
     @State private var needsListingReconcileOnClaim = false
     /// resignKey 时目录 contentModificationDate；切回时与当前 mtime 比较以跳过无谓对账。
     @State private var listingDirectoryMTimeAtResign: Date?
+    /// resignKey 时刻；网络卷宽限期内跳过全量对账，减轻多标签连点卡顿。
+    @State private var listingDirectoryResignedAt: Date?
     /// 推迟 claim 的世代令牌：连点标签时只让最终 key 窗执行。
     @State private var claimSessionGeneration: UInt = 0
     @State private var searchText = ""

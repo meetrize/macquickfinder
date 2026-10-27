@@ -2,15 +2,24 @@ import Foundation
 
 /// 标签切回时的列表对账策略：mtime 门闩 + 列表签名去抖。
 enum TabListingReconcilePolicy {
+    /// 网络卷快速来回切标签时跳过全量枚举的宽限期（秒）。
+    static let networkReconcileGraceSeconds: TimeInterval = 2.5
+
     /// 切回 key 窗时是否需要磁盘对账。
-    /// - 网络卷不信任目录 mtime，一律对账。
+    /// - 网络卷不信任目录 mtime；离开不足宽限期则跳过（避免多标签连点卡顿），久置仍对账。
     /// - 本地卷：resign 快照与当前 mtime 均可用且相等 → 跳过；否则对账。
     static func shouldReconcileListingOnClaim(
         cachedMTime: Date?,
         currentMTime: Date?,
-        isNetwork: Bool
+        isNetwork: Bool,
+        secondsSinceResign: TimeInterval? = nil
     ) -> Bool {
-        if isNetwork { return true }
+        if isNetwork {
+            if let secondsSinceResign, secondsSinceResign < networkReconcileGraceSeconds {
+                return false
+            }
+            return true
+        }
         guard let cachedMTime, let currentMTime else { return true }
         return cachedMTime != currentMTime
     }
