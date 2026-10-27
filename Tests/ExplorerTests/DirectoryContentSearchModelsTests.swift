@@ -21,6 +21,7 @@ final class DirectoryContentSearchModelsTests: XCTestCase {
         XCTAssertEqual(decoded, filter)
     }
 
+    @MainActor
     func testMakeGroupsPreservesOrderAndExpansion() {
         let root = URL(fileURLWithPath: "/tmp/project")
         let fileA = root.appendingPathComponent("A.swift")

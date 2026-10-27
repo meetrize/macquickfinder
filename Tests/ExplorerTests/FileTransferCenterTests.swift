@@ -136,6 +136,8 @@ final class FileTransferCenterTests: XCTestCase {
         // 回归：旧实现会再异步 cancelAll，把刚 begin 的进度清掉。
         XCTAssertEqual(center.activeProgress?.sessionID, sessionID)
     }
+
+    func testMoveItemsCopyCompletesAsynchronously() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("transfer-async-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

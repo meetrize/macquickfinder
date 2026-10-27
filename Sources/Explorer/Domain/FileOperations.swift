@@ -168,28 +168,8 @@ enum FileOperations {
     }
     
     static func trashItems(_ sourceURLs: [URL], completion: @escaping () -> Void) {
-        var hadError = false
-        for sourceURL in sourceURLs {
-            do {
-                var resultingURL: NSURL?
-                try FileManager.default.trashItem(at: sourceURL, resultingItemURL: &resultingURL)
-                TrashRestoreStore.recordTrash(
-                    source: sourceURL,
-                    resultingTrashedURL: resultingURL as URL?
-                )
-            } catch {
-                NSAlert(error: error).runModal()
-                hadError = true
-                break
-            }
-        }
-        if !hadError {
-            recordOperation(.trash(urls: sourceURLs))
-            if let firstURL = sourceURLs.first {
-                notifyGitWorkingTreeIfNeeded(at: firstURL)
-            }
-            completion()
-        }
+        let outcome = trashURLsPreferringFileManager(sourceURLs)
+        finishTrashOutcome(outcome, completion: completion)
     }
     
     private static let emptyTrashLock = NSLock()
@@ -437,22 +417,168 @@ enum FileOperations {
         alert.window.initialFirstResponder = deleteButton
         
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        
+
         let urls = items.map(\.url)
-        for item in items {
+        var removed: [URL] = []
+        var needsPrivilege: [URL] = []
+
+        for url in urls {
             do {
-                try FileManager.default.removeItem(at: item.url)
-                TrashRestoreStore.removeRecord(forTrashedPath: item.url.path)
+                try FileManager.default.removeItem(at: url)
+                TrashRestoreStore.removeRecord(forTrashedPath: url.path)
+                removed.append(url)
             } catch {
-                NSAlert(error: error).runModal()
-                return
+                if PrivilegedFileOperations.isPrivilegeEscalationCandidate(error) {
+                    needsPrivilege.append(url)
+                } else {
+                    NSAlert(error: error).runModal()
+                    if !removed.isEmpty {
+                        recordOperation(.deleteImmediately(urls: removed))
+                        notifyGitWorkingTreeIfNeeded(at: removed[0])
+                        completion()
+                    }
+                    return
+                }
             }
         }
-        recordOperation(.deleteImmediately(urls: urls))
-        if let firstURL = urls.first {
+
+        if !needsPrivilege.isEmpty {
+            switch PrivilegedFileOperations.removeWithAdministratorPrivileges(needsPrivilege) {
+            case .success:
+                for url in needsPrivilege {
+                    TrashRestoreStore.removeRecord(forTrashedPath: url.path)
+                }
+                removed.append(contentsOf: needsPrivilege)
+            case .cancelled:
+                break
+            case .failure(let message):
+                presentPrivilegedOperationFailure(message)
+            }
+        }
+
+        guard !removed.isEmpty else { return }
+        recordOperation(.deleteImmediately(urls: removed))
+        if let firstURL = removed.first {
             notifyGitWorkingTreeIfNeeded(at: firstURL)
         }
         completion()
+    }
+
+    private enum TrashURLsOutcome {
+        case completed(trashed: [URL])
+        case cancelled(partial: [URL])
+        case failed(partial: [URL], error: Error?, message: String?)
+    }
+
+    /// 先 `FileManager.trashItem`；权限不足时先试 Finder（可弹系统密码），再管理员提权 `mv`。
+    private static func trashURLsPreferringFileManager(_ urls: [URL]) -> TrashURLsOutcome {
+        var trashed: [URL] = []
+        var needsPrivilege: [URL] = []
+
+        for url in urls {
+            do {
+                var resultingURL: NSURL?
+                try FileManager.default.trashItem(at: url, resultingItemURL: &resultingURL)
+                TrashRestoreStore.recordTrash(
+                    source: url,
+                    resultingTrashedURL: resultingURL as URL?
+                )
+                trashed.append(url)
+            } catch {
+                if PrivilegedFileOperations.isPrivilegeEscalationCandidate(error) {
+                    needsPrivilege.append(url)
+                } else {
+                    return .failed(partial: trashed, error: error, message: nil)
+                }
+            }
+        }
+
+        guard !needsPrivilege.isEmpty else {
+            return .completed(trashed: trashed)
+        }
+
+        // Finder 删除与访达同源，常会直接弹出密码框；无自动化权限时静默失败再走提权。
+        var remaining = needsPrivilege
+        if trashURLsViaFinder(remaining) {
+            for url in remaining {
+                TrashRestoreStore.recordTrash(source: url, resultingTrashedURL: nil)
+                trashed.append(url)
+            }
+            return .completed(trashed: trashed)
+        }
+        remaining = remaining.filter { FileManager.default.fileExists(atPath: $0.path) }
+        let rescued = needsPrivilege.filter { url in
+            !remaining.contains(where: { $0.path == url.path })
+        }
+        for url in rescued {
+            TrashRestoreStore.recordTrash(source: url, resultingTrashedURL: nil)
+            trashed.append(url)
+        }
+        guard !remaining.isEmpty else {
+            return .completed(trashed: trashed)
+        }
+
+        switch PrivilegedFileOperations.moveToTrashWithAdministratorPrivileges(remaining) {
+        case .success(let destinations):
+            for (source, destination) in zip(remaining, destinations) {
+                TrashRestoreStore.recordTrash(source: source, resultingTrashedURL: destination)
+                trashed.append(source)
+            }
+            return .completed(trashed: trashed)
+        case .cancelled:
+            return .cancelled(partial: trashed)
+        case .failure(let message):
+            return .failed(partial: trashed, error: nil, message: message)
+        }
+    }
+
+    private static func trashURLsViaFinder(_ urls: [URL]) -> Bool {
+        guard !urls.isEmpty else { return true }
+        let fileList = urls.map { url in
+            "(POSIX file \"\(appleScriptEscapedPath(url.path))\" as alias)"
+        }.joined(separator: ", ")
+        let script = """
+        tell application "Finder"
+            delete {\(fileList)}
+        end tell
+        """
+        guard runFinderAppleScript(script, showError: false) else { return false }
+        return urls.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    private static func finishTrashOutcome(
+        _ outcome: TrashURLsOutcome,
+        completion: @escaping () -> Void
+    ) {
+        let trashed: [URL]
+        switch outcome {
+        case .completed(let urls):
+            trashed = urls
+        case .cancelled(let partial):
+            trashed = partial
+        case .failed(let partial, let error, let message):
+            if let error {
+                NSAlert(error: error).runModal()
+            } else if let message {
+                presentPrivilegedOperationFailure(message)
+            }
+            trashed = partial
+        }
+
+        guard !trashed.isEmpty else { return }
+        recordOperation(.trash(urls: trashed))
+        if let firstURL = trashed.first {
+            notifyGitWorkingTreeIfNeeded(at: firstURL)
+        }
+        completion()
+    }
+
+    private static func presentPrivilegedOperationFailure(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = L10n.Alert.operationFailed
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.runModal()
     }
     
     private static func runFinderAppleScript(_ source: String, showError: Bool = true) -> Bool {
@@ -756,26 +882,10 @@ enum FileOperations {
         alert.window.initialFirstResponder = deleteButton
         
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        
+
         let urls = items.map(\.url)
-        for item in items {
-            do {
-                var resultingURL: NSURL?
-                try FileManager.default.trashItem(at: item.url, resultingItemURL: &resultingURL)
-                TrashRestoreStore.recordTrash(
-                    source: item.url,
-                    resultingTrashedURL: resultingURL as URL?
-                )
-            } catch {
-                NSAlert(error: error).runModal()
-                return
-            }
-        }
-        recordOperation(.trash(urls: urls))
-        if let firstURL = urls.first {
-            notifyGitWorkingTreeIfNeeded(at: firstURL)
-        }
-        completion()
+        let outcome = trashURLsPreferringFileManager(urls)
+        finishTrashOutcome(outcome, completion: completion)
     }
     
     @discardableResult
