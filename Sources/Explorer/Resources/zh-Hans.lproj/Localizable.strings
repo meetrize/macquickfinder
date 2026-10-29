@@ -1107,6 +1107,7 @@
 "sort.size_largest" = "大小 (最大优先)";
 "sort.size_smallest" = "大小 (最小优先)";
 "toolbar.auto_folder_size" = "自动计算文件夹大小（较慢）";
+"toolbar.auto_hide_right_panel" = "无选中时自动隐藏右侧栏";
 "toolbar.browse_settings" = "浏览设置";
 "toolbar.change_icon" = "更换图标…";
 "toolbar.change_icon.choose" = "选择";

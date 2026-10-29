@@ -13363,6 +13363,23 @@
         }
       }
     },
+    "toolbar.auto_hide_right_panel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-Hide Right Panel When Empty"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无选中时自动隐藏右侧栏"
+          }
+        }
+      }
+    },
     "toolbar.auto_folder_size": {
       "extractionState": "manual",
       "localizations": {

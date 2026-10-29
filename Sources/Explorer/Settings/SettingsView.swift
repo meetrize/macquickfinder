@@ -156,6 +156,10 @@ private struct GeneralSettingsTab: View {
                         Text(L10n.Settings.General.rightPanelPinned).tag(RightPanelMode.pinned.rawValue)
                     }
                     .pickerStyle(.radioGroup)
+                    .onChange(of: rightPanelModeRaw) { _ in
+                        // @AppStorage 已写入 UserDefaults；广播让已打开窗口立刻重算显隐。
+                        NotificationCenter.default.post(name: .rightPanelModeDidChange, object: nil)
+                    }
                 } footer: {
                     Text(L10n.Settings.General.rightPanelModeFooter)
                         .fixedSize(horizontal: false, vertical: true)

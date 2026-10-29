@@ -193,6 +193,8 @@ final class ExplorerL10nTests: XCTestCase {
         XCTAssertNotEqual(L10n.Settings.General.fileListRowHover, "settings.file_list.row_hover_highlight")
         XCTAssertNotEqual(L10n.Toolbar.hoverPreview, "toolbar.hover_preview")
         XCTAssertFalse(L10n.Toolbar.hoverPreview.isEmpty)
+        XCTAssertNotEqual(L10n.Toolbar.autoHideRightPanel, "toolbar.auto_hide_right_panel")
+        XCTAssertFalse(L10n.Toolbar.autoHideRightPanel.isEmpty)
         XCTAssertNotEqual(L10n.Settings.General.singleWindowMode, "settings.general.single_window_mode")
         XCTAssertNotEqual(L10n.Settings.General.singleWindowModeFooter, "settings.general.single_window_mode_footer")
         XCTAssertFalse(L10n.Settings.General.singleWindowMode.isEmpty)

@@ -62,4 +62,20 @@ struct RightPanelModeTests {
         let layout = ExplorerWindowLayoutState(defaults: defaults)
         #expect(layout.rightPanelMode == .auto)
     }
+
+    @Test func syncsModeFromDefaultsImmediately() {
+        let suiteName = "RightPanelModeTests.sync.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let layout = ExplorerWindowLayoutState(defaults: defaults)
+        #expect(layout.rightPanelMode == .auto)
+
+        defaults.set(RightPanelMode.pinned.rawValue, forKey: AppPreferences.Layout.rightPanelMode)
+        layout.syncRightPanelModeFromDefaultsIfNeeded()
+        #expect(layout.rightPanelMode == .pinned)
+
+        layout.toggleRightPanelAutoHide()
+        #expect(layout.rightPanelMode == .auto)
+        #expect(defaults.string(forKey: AppPreferences.Layout.rightPanelMode) == RightPanelMode.auto.rawValue)
+    }
 }

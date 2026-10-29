@@ -330,6 +330,11 @@ struct ExplorerToolbarItemView: View {
     private var browseSettingsMenuActions: [ExplorerToolbarMenuAction] {
         [
             ExplorerToolbarMenuAction(
+                title: L10n.Toolbar.autoHideRightPanel,
+                isOn: environment.layout.rightPanelMode == .auto,
+                handler: { environment.layout.toggleRightPanelAutoHide() }
+            ),
+            ExplorerToolbarMenuAction(
                 title: L10n.Toolbar.autoFolderSize,
                 isOn: environment.autoCalculateDirectorySizes,
                 handler: environment.toggleAutoCalculateDirectorySizes

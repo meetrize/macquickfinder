@@ -12,6 +12,11 @@ enum RightPanelMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+extension Notification.Name {
+    /// 设置页 / 工具栏切换右侧面板自动隐藏后广播，打开的窗口立刻同步。
+    static let rightPanelModeDidChange = Notification.Name("rightPanelModeDidChange")
+}
+
 @MainActor
 final class ExplorerWindowLayoutState: ObservableObject {
     @Published var showPreview: Bool {
@@ -28,7 +33,10 @@ final class ExplorerWindowLayoutState: ObservableObject {
 
     /// 期望显隐（持久化的用户偏好）；生效状态见 `effectiveRightPanelVisibility(hasSelection:)`。
     @Published var rightPanelModeRaw: String {
-        didSet { UserDefaultsStorage.set(rightPanelModeRaw, forKey: AppPreferences.Layout.rightPanelMode, in: defaults) }
+        didSet {
+            guard !isApplyingExternalRightPanelMode else { return }
+            UserDefaultsStorage.set(rightPanelModeRaw, forKey: AppPreferences.Layout.rightPanelMode, in: defaults)
+        }
     }
 
     @Published private(set) var leftPanelModeRaw: String {
@@ -163,6 +171,9 @@ final class ExplorerWindowLayoutState: ObservableObject {
 
     private let defaults: UserDefaults
     private let leftPanelConstants = LeftPanelLayoutConstants()
+    private var cancellables = Set<AnyCancellable>()
+    /// 从 UserDefaults / 其它窗同步模式时跳过回写，避免通知环。
+    private var isApplyingExternalRightPanelMode = false
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -190,6 +201,46 @@ final class ExplorerWindowLayoutState: ObservableObject {
         isDualPaneEnabled = stored.isDualPaneEnabled
         dualPaneSplitRatio = stored.dualPaneSplitRatio
         dualPaneSecondaryPath = stored.dualPaneSecondaryPath
+        observeRightPanelModeDefaultsChanges()
+    }
+
+    /// 设置页 / 其它窗口改了 `rightPanel.mode` 后，当前窗口立刻跟上。
+    private func observeRightPanelModeDefaultsChanges() {
+        NotificationCenter.default.publisher(for: .rightPanelModeDidChange)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncRightPanelModeFromDefaultsIfNeeded()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification, object: defaults)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.syncRightPanelModeFromDefaultsIfNeeded()
+            }
+            .store(in: &cancellables)
+
+        // `UserDefaults.standard` 的变更通知 object 有时为 nil，再听一份兜底。
+        if defaults === UserDefaults.standard {
+            NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification, object: nil)
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in
+                    self?.syncRightPanelModeFromDefaultsIfNeeded()
+                }
+                .store(in: &cancellables)
+        }
+    }
+
+    func syncRightPanelModeFromDefaultsIfNeeded() {
+        let stored = UserDefaultsStorage.string(
+            forKey: AppPreferences.Layout.rightPanelMode,
+            default: RightPanelMode.auto.rawValue,
+            in: defaults
+        )
+        guard rightPanelModeRaw != stored else { return }
+        isApplyingExternalRightPanelMode = true
+        rightPanelModeRaw = stored
+        isApplyingExternalRightPanelMode = false
     }
 
     func toggleDualPaneEnabled() {
@@ -287,7 +338,15 @@ final class ExplorerWindowLayoutState: ObservableObject {
     }
 
     func setRightPanelMode(_ mode: RightPanelMode) {
+        let previous = rightPanelModeRaw
         rightPanelModeRaw = mode.rawValue
+        guard previous != mode.rawValue else { return }
+        NotificationCenter.default.post(name: .rightPanelModeDidChange, object: nil)
+    }
+
+    /// 工具栏菜单：勾选 = 自动隐藏；取消勾选 = 一直显示。
+    func toggleRightPanelAutoHide() {
+        setRightPanelMode(rightPanelMode == .auto ? .pinned : .auto)
     }
 
     /// 生效的右侧显隐：pinned 直接透传期望值；auto 无选中时全部隐藏，有选中恢复期望组合。

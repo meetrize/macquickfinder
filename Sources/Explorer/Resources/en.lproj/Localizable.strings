@@ -1107,6 +1107,7 @@
 "sort.size_largest" = "Size (Largest First)";
 "sort.size_smallest" = "Size (Smallest First)";
 "toolbar.auto_folder_size" = "Calculate Folder Sizes (Slower)";
+"toolbar.auto_hide_right_panel" = "Auto-Hide Right Panel When Empty";
 "toolbar.browse_settings" = "Browse Settings";
 "toolbar.change_icon" = "Change Icon…";
 "toolbar.change_icon.choose" = "Choose";
