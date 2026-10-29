@@ -529,13 +529,12 @@ struct ContentView: View {
     }
 
     /// 真实选中（排除 `..` 父目录虚拟项）；auto 模式下决定右侧面板是否生效。
+    /// 内容搜索可选中当前列表外的子文件，也必须算真实选中，否则右侧栏不会弹出。
     private var hasRealSelection: Bool {
         if isSecondaryPaneActive {
             return secondaryPane.hasRealSelection
         }
-        return selection.contains { id in
-            items.first(where: { $0.id == id })?.isParentDirectoryEntry == false
-        }
+        return FileItem.hasRealSelection(ids: selection, in: items)
     }
 
     private var isDualPaneActive: Bool { layout.isDualPaneEnabled }

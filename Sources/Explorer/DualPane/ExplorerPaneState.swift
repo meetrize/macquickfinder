@@ -36,9 +36,7 @@ final class ExplorerPaneState: ObservableObject {
     }
 
     var hasRealSelection: Bool {
-        selection.contains { id in
-            items.first(where: { $0.id == id })?.isParentDirectoryEntry == false
-        }
+        FileItem.hasRealSelection(ids: selection, in: items)
     }
 
     /// 仅更新路径与历史；调用方需接着 `loadItems(showHiddenFiles:)`。

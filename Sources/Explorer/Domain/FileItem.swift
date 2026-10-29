@@ -174,6 +174,16 @@ struct FileItem: Identifiable, Hashable {
         return parent
     }
     
+    /// 是否存在真实选中：列表内排除 `..`；列表外路径（内容搜索命中子文件等）也算真实选中。
+    static func hasRealSelection(ids: Set<FileItem.ID>, in items: [FileItem]) -> Bool {
+        ids.contains { id in
+            if let item = items.first(where: { $0.id == id }) {
+                return !item.isParentDirectoryEntry
+            }
+            return id != parentDirectoryID
+        }
+    }
+
     /// 先用当前列表命中，再回查文件系统，保证树展开后选中的子目录文件可被预览/作用域识别。
     static func resolveSelection(
         ids: Set<String>,
