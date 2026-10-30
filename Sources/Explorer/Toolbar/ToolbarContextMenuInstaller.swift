@@ -389,6 +389,8 @@ enum ToolbarContextMenuHitTesting {
         if isWindowControlClick(event, in: window) { return false }
         // 标签栏与 unified 标题栏重叠；上半段标签会被误判成工具栏「自定义…」。
         if ExplorerTabBarHitTesting.isTabBarClick(event, in: window) { return false }
+        // 搜索框 / 路径栏等可编辑文本：放行系统「拷贝 / 粘贴…」菜单，勿抢成「自定义工具栏」。
+        if isEditableTextClick(event, in: window) { return false }
         if window.toolbar?.isVisible == false { return false }
 
         if let hitView = hitView(at: event.locationInWindow, in: window),
@@ -396,6 +398,32 @@ enum ToolbarContextMenuHitTesting {
             return true
         }
         return isInTitlebarToolbarRegion(event, in: window)
+    }
+
+    /// 点在可编辑 NSTextField / field editor 上（含顶栏搜索框）。
+    static func isEditableTextClick(_ event: NSEvent, in window: NSWindow) -> Bool {
+        if BarTextFieldFocusRegistry.isClickInside(.search, event: event) { return true }
+        if BarTextFieldFocusRegistry.isClickInside(.path, event: event) { return true }
+        guard let hitView = hitView(at: event.locationInWindow, in: window) else { return false }
+        return isInsideEditableText(hitView)
+    }
+
+    static func isInsideEditableText(_ view: NSView) -> Bool {
+        var current: NSView? = view
+        while let node = current {
+            if let textField = node as? NSTextField, textField.isEditable {
+                return true
+            }
+            if let textView = node as? NSTextView, textView.isEditable {
+                return true
+            }
+            // 正在编辑时 hitTest 常落到 field editor（NSText）。
+            if node is NSText {
+                return true
+            }
+            current = node.superview
+        }
+        return false
     }
 
     static func hitView(at locationInWindow: NSPoint, in window: NSWindow) -> NSView? {
