@@ -77,6 +77,8 @@ final class ExplorerWindowTabCenter: ObservableObject {
     private var isMergingNewTab = false
     /// 最近一次外部 Reveal 合并成功的新标签（同目录多标签时不能靠 path 查找，会命中旧标签）。
     private weak var lastMergedRevealWindow: NSWindow?
+    /// 最近一次外部 Reveal 合并完成时间；用于挡住紧随其后的系统壳「误收养为 +」。
+    private var lastExternalRevealMergedAt: Date?
     /// 合并 force 激活重试，避免外层多次 forceFrontmost 叠出几十次 orderFront。
     private var forceActivateGeneration: UInt = 0
     private var forceActivateWindowID: ObjectIdentifier?
@@ -257,6 +259,19 @@ final class ExplorerWindowTabCenter: ObservableObject {
     /// 最近一次 Reveal 合并出的新标签（同目录多开时优先激活它，勿用 path 命中旧标签）。
     func lastMergedRevealTab() -> NSWindow? {
         lastMergedRevealWindow
+    }
+
+    /// 距最近一次外部 Reveal 合并完成的秒数；从未合并过则 `nil`。
+    func secondsSinceLastExternalRevealMerge() -> TimeInterval? {
+        guard let lastExternalRevealMergedAt else { return nil }
+        return Date().timeIntervalSince(lastExternalRevealMergedAt)
+    }
+
+    /// Reveal 刚落地时，延后判决的 odoc 壳应关掉而不是收成「+」。
+    var shouldRejectOrphanAdoptAfterRecentReveal: Bool {
+        ExternalRevealPrunePolicy.shouldRejectOrphanAdoptAfterReveal(
+            secondsSinceRevealMerge: secondsSinceLastExternalRevealMerge()
+        )
     }
 
     /// 将浏览窗选为当前标签并成为 key（外部 Reveal / 同目录复用）。
@@ -701,54 +716,85 @@ final class ExplorerWindowTabCenter: ObservableObject {
     /// Reveal 合并后：关掉世代外冒出的窗，以及与锚点同路径的多余复本（untitled→Desktop）。
     func pruneDuplicateAnchorTabsForReveal(anchor: NSWindow, newTab: NSWindow) {
         pruneTabGroupAfterExternalReveal(anchor: anchor, newTab: newTab)
-        activateExplorerWindow(newTab)
+        let front = (newTab.tabGroup === anchor.tabGroup || newTab.tabGroup == nil)
+            ? newTab
+            : (lastMergedRevealWindow ?? newTab)
+        activateExplorerWindow(front)
     }
 
     private func pruneTabGroupAfterExternalReveal(anchor: NSWindow, newTab: NSWindow) {
-        guard let group = newTab.tabGroup ?? anchor.tabGroup else { return }
-        let anchorID = ObjectIdentifier(anchor)
-        let newID = ObjectIdentifier(newTab)
+        // 新标签若没并进锚点组，先重试合并；失败也绝不能以「新组」为 keeper 去清掉旧组。
+        ensureRevealTabJoinedAnchorGroup(newTab: newTab, anchor: anchor)
+
+        let anchorGroup = anchor.tabGroup
+        let keeperGroup = anchorGroup ?? newTab.tabGroup
         let generation = programmaticTabGeneration
         let targetPath = generation?.targetPath
-        let keeperGroup = group
+            ?? path(for: newTab)
+            ?? path(for: anchor)
+        let anchorID = ObjectIdentifier(anchor)
+        let newID = ObjectIdentifier(newTab)
 
-        for window in Array(group.windows) {
-            let id = ObjectIdentifier(window)
-            if id == anchorID || id == newID { continue }
-            if let generation, generation.allowedNewWindowIDs.contains(id), id != newID {
-                // 世代内只允许一个新窗；其余即便曾 allow 也关掉。
-                ExternalOpenDiagnostic.logRaw(
-                    "tab-generation prune surplus-allowed path=\(path(for: window) ?? "nil")"
+        if let keeperGroup {
+            for window in Array(keeperGroup.windows) {
+                let id = ObjectIdentifier(window)
+                let action = ExternalRevealPrunePolicy.sameGroupAction(
+                    windowPath: path(for: window),
+                    targetPath: targetPath,
+                    isAnchor: id == anchorID,
+                    isNewTab: id == newID,
+                    isPreexisting: generation?.preexistingWindowIDs.contains(id) == true,
+                    isGenerationAllowed: generation?.allowedNewWindowIDs.contains(id) == true
                 )
-                closeSurplusWindow(window, reason: "prune-after-reveal")
-                continue
+                if case .close(let reason) = action {
+                    ExternalOpenDiagnostic.logRaw(
+                        "tab-generation prune \(reason) path=\(path(for: window) ?? "nil")"
+                    )
+                    closeSurplusWindow(window, reason: "prune-after-reveal")
+                }
             }
-
-            let windowPath = path(for: window).map { ExternalSelectionPathMatcher.standardizedPath($0) }
-            let isPreexisting = generation?.preexistingWindowIDs.contains(id) == true
-
-            // 业务标签（世代前已有且 path 非空）保留；nil 壳与本世代垃圾关掉。
-            if isPreexisting, windowPath != nil { continue }
-
-            ExternalOpenDiagnostic.logRaw(
-                "tab-generation prune newcomer path=\(windowPath ?? "nil") target=\(targetPath ?? "nil")"
-            )
-            closeSurplusWindow(window, reason: "prune-after-reveal")
         }
 
-        // 关掉不在 keeper 标签组内的游离浏览窗（真正的「第二个 MeoFind 窗口」）。
+        // 其它组：只关 nil 壳与目标目录游离复本；已登记的其它目录标签一律保留。
         for window in NSApp.windows {
-            guard window !== anchor, window !== newTab else { continue }
             guard window.canBecomeKey else { continue }
             let kind = sceneKind(for: window)
             guard kind == .main || kind == .folder || windowPaths[ObjectIdentifier(window)] != nil else {
                 continue
             }
-            if window.tabGroup === keeperGroup { continue }
-            ExternalOpenDiagnostic.logRaw(
-                "tab-generation prune detached-window path=\(path(for: window) ?? "nil")"
+            let inAnchorGroup = (anchorGroup != nil && window.tabGroup === anchorGroup)
+            let action = ExternalRevealPrunePolicy.detachedWindowAction(
+                windowPath: path(for: window),
+                targetPath: targetPath,
+                isInAnchorGroup: inAnchorGroup,
+                isAnchor: window === anchor,
+                isNewTab: window === newTab
             )
-            closeSurplusWindow(window, reason: "prune-after-reveal")
+            if case .close(let reason) = action {
+                ExternalOpenDiagnostic.logRaw(
+                    "tab-generation prune \(reason) path=\(path(for: window) ?? "nil")"
+                )
+                closeSurplusWindow(window, reason: "prune-after-reveal")
+            }
+        }
+    }
+
+    /// 外部 Reveal 新标签必须留在锚点标签组；独立成组后 prune 会误伤旧窗。
+    private func ensureRevealTabJoinedAnchorGroup(newTab: NSWindow, anchor: NSWindow) {
+        guard newTab !== anchor else { return }
+        if let anchorGroup = anchor.tabGroup, newTab.tabGroup === anchorGroup {
+            return
+        }
+        ExternalOpenDiagnostic.logRaw(
+            "reveal rejoin tab group new=\(path(for: newTab) ?? "nil") anchor=\(path(for: anchor) ?? "nil")"
+        )
+        newTab.tabbingMode = .preferred
+        anchor.tabbingMode = .preferred
+        anchor.addTabbedWindow(newTab, ordered: .above)
+        if newTab.tabGroup !== anchor.tabGroup {
+            ExternalOpenDiagnostic.logRaw(
+                "reveal rejoin failed — keep both groups; skip destructive prune of anchor group"
+            )
         }
     }
 
@@ -932,6 +978,11 @@ final class ExplorerWindowTabCenter: ObservableObject {
         // 抑制期：仅当仍可能是 odoc 竞态时拒绝。Reveal 合并后已缩短抑制，用户「+」应可收养。
         if isExternalOpenSuppressionActive {
             ExternalOpenDiagnostic.logRaw("adopt orphan skipped — external suppression active")
+            return nil
+        }
+        // Reveal 刚合并完：迟到的 odoc 壳绝不能收成同目录「+」，否则会二次 merge 并 prune 掉真 Reveal 标签。
+        if shouldRejectOrphanAdoptAfterRecentReveal {
+            ExternalOpenDiagnostic.logRaw("adopt orphan skipped — recent external reveal merge")
             return nil
         }
         // 当前 Apple Event 是 Reveal/打开文档时，绝不能把 odoc 壳收成「+」。
@@ -1223,6 +1274,12 @@ final class ExplorerWindowTabCenter: ObservableObject {
             if window.tabGroup !== anchor.tabGroup || window.tabGroup == nil {
                 anchor.addTabbedWindow(window, ordered: .above)
             }
+            // 合并失败时再试一次，避免新标签独立成组后被 prune 误杀旧窗。
+            if window.tabGroup !== anchor.tabGroup {
+                window.tabbingMode = .preferred
+                anchor.tabbingMode = .preferred
+                anchor.addTabbedWindow(window, ordered: .above)
+            }
             applyLockedFrame(preservedFrame, to: anchor)
             applyLockedFrame(preservedFrame, to: window)
 
@@ -1239,12 +1296,13 @@ final class ExplorerWindowTabCenter: ObservableObject {
         }
         isRevealingMergedTab = false
         if pending.isExternalReveal {
+            lastExternalRevealMergedAt = Date()
             // 短世代即可挡叠壳；过长会让 isProgrammaticTabGenerationActive 吞掉用户「+」。
             extendProgrammaticTabGeneration(by: 0.35)
             // Reveal 已落地：结束长抑制，否则 folder 标签上点「+」会被误杀/无法收养。
-            // 留极短尾巴挡迟到的 odoc 壳。
-            suppressSurplusRestoredWindowsUntil = Date().addingTimeInterval(0.25)
-            ExternalOpenDiagnostic.logRaw("external-open suppression end-after-reveal-merge grace=0.25")
+            // 尾巴需覆盖 deferred-orphan（约 0.18s）与迟到 odoc 壳，避免误收养成第二目录标签。
+            suppressSurplusRestoredWindowsUntil = Date().addingTimeInterval(0.8)
+            ExternalOpenDiagnostic.logRaw("external-open suppression end-after-reveal-merge grace=0.8")
         } else {
             // 普通新标签：只挡紧随其后的重复壳，避免下一次「+」隔次失败。
             extendProgrammaticTabGeneration(by: 0.25)

@@ -1273,7 +1273,10 @@ final class ExternalFolderOpenCenter: ObservableObject {
             ExternalOpenDiagnostic.logRaw(
                 "close detached duplicate window path=\(path)"
             )
-            window.close()
+            ExplorerWindowTabCenter.shared.closeSurplusWindow(
+                window,
+                reason: "close-detached-same-path"
+            )
         }
     }
 
@@ -1322,8 +1325,16 @@ final class ExternalFolderOpenCenter: ObservableObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 activateNewTab(false)
                 if let newTab = ExplorerWindowTabCenter.shared.lastMergedRevealTab() {
+                    // keeper 必须是锚点组：若新标签短暂落在独立组，以锚点为准收游离复本，避免误清旧窗。
+                    let keeperForDetach: NSWindow = {
+                        if let anchorGroup = anchorRef.tabGroup,
+                           newTab.tabGroup === anchorGroup {
+                            return newTab
+                        }
+                        return anchorRef
+                    }()
                     DuplicateExplorerWindowCloser.closeDetachedBrowserWindows(
-                        keepingTabGroupOf: newTab
+                        keepingTabGroupOf: keeperForDetach
                     )
                     ExplorerWindowTabCenter.shared.pruneDuplicateAnchorTabsForReveal(
                         anchor: anchorRef,

@@ -1759,8 +1759,12 @@ struct ContentView: View {
         let revealRace = center.isExternalOpenSuppressionActive
             && center.pendingNewTabIsExternalReveal != false
             && (center.isProgrammaticTabGenerationActive || center.pendingNewTabIsExternalReveal == true)
-        if revealRace {
-            ExternalOpenDiagnostic.logRaw("deferred orphan → reject (external reveal race)")
+        if revealRace || center.shouldRejectOrphanAdoptAfterRecentReveal {
+            ExternalOpenDiagnostic.logRaw(
+                revealRace
+                    ? "deferred orphan → reject (external reveal race)"
+                    : "deferred orphan → reject (recent reveal merge)"
+            )
             if let window = hostWindow {
                 center.closeSurplusWindow(window, reason: "deferred-odoc-reject")
             } else {

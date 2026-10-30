@@ -39,6 +39,7 @@ final class FileItemRealSelectionTests: XCTestCase {
         )
     }
 
+    @MainActor
     func testAutoModeShowsPanelWhenContentSearchSelectsOutOfListFile() {
         let defaults = UserDefaults(suiteName: "FileItemRealSelection.\(UUID().uuidString)")!
         let layout = ExplorerWindowLayoutState(defaults: defaults)

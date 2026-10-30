@@ -42,16 +42,20 @@ enum DuplicateExplorerWindowCloser {
             let isNilShell = path == nil
             let duplicatesKeeperPath = path.map { keeperPaths.contains($0) } ?? false
 
-            // suppression 期间：只关 nil 壳 + 与 keeper 组同路径的游离复本。
-            // 旧逻辑在 suppressing 时关掉「全部」其它浏览窗，会误杀前台 /tmp 组或把用户正在看的窗拆掉。
-            guard isNilShell || duplicatesKeeperPath || (suppressing && window.tabbingMode == .disallowed) else {
+            // 只关 nil 壳 + 与 keeper 组同路径的游离复本。
+            // 禁止因 tabbingMode=.disallowed 关掉其它目录的已登记窗（拆组后的旧标签仍可能是用户内容）。
+            guard isNilShell || duplicatesKeeperPath else {
+                ExternalOpenDiagnostic.logRaw(
+                    "coalesce skip detached browser path=\(path ?? "nil") suppressing=\(suppressing) disallowed=\(window.tabbingMode == .disallowed)"
+                )
                 continue
             }
 
             ExternalOpenDiagnostic.logRaw(
                 "coalesce close detached browser path=\(path ?? "nil") suppressing=\(suppressing) disallowed=\(window.tabbingMode == .disallowed)"
             )
-            window.close()
+            // 走统一关窗路径，避免与 merge/selectedWindow 同步打架。
+            ExplorerWindowTabCenter.shared.closeSurplusWindow(window, reason: "coalesce-detached")
         }
     }
 
@@ -76,7 +80,7 @@ enum DuplicateExplorerWindowCloser {
             ExternalOpenDiagnostic.logRaw(
                 "coalesce close generation-spurious path=\(ExplorerWindowTabCenter.shared.path(for: window) ?? "nil")"
             )
-            window.close()
+            ExplorerWindowTabCenter.shared.closeSurplusWindow(window, reason: "coalesce-generation-spurious")
         }
 
         // 同窗口组内：不再收掉「相同目录」的多余标签（Reveal 允许同目录多标签）。
@@ -88,28 +92,13 @@ enum DuplicateExplorerWindowCloser {
         if let keeper = ExplorerWindowTabCenter.shared.windowShowingDirectory(expectedDirectory)
             ?? preferredKeeper(among: NSApp.windows.filter(isExplorerBrowserWindow), expectedDirectory: expectedDirectory)
         {
-            // tabsOnly 也要关掉游离第二窗，只保留 keeper 所在标签组。
+            // 只关 nil 壳与同目录游离复本；绝不因「保留 keeper」关掉其它目录标签组。
             closeDetachedBrowserWindows(keepingTabGroupOf: keeper)
             ExplorerWindowTabCenter.shared.activateExplorerWindow(keeper)
         }
 
-        guard !tabsOnly else { return }
-
-        let remaining = NSApp.windows.filter(isExplorerBrowserWindow)
-        guard remaining.count > 1 else { return }
-
-        let keeper = preferredKeeper(
-            among: remaining,
-            expectedDirectory: expectedDirectory
-        )
-
-        for window in remaining where window !== keeper {
-            window.close()
-        }
-
-        if let keeper {
-            ExplorerWindowTabCenter.shared.activateExplorerWindow(keeper)
-        }
+        // 历史上 tabsOnly=false 会关掉「所有非 keeper 浏览窗」，会把多标签/多窗用户内容一并拆掉。
+        // 外部 Reveal 只需要 detached 清理；此处不再做整窗收束。
     }
 
     private static func coalesceDuplicateTabs(
@@ -139,7 +128,7 @@ enum DuplicateExplorerWindowCloser {
                 ExternalOpenDiagnostic.logRaw(
                     "coalesce close duplicate tab path=\(expectedDirectory)"
                 )
-                tab.close()
+                ExplorerWindowTabCenter.shared.closeSurplusWindow(tab, reason: "coalesce-duplicate-tab")
             }
             if let keeper {
                 ExplorerWindowTabCenter.shared.activateExplorerWindow(keeper)
