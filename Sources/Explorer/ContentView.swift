@@ -1161,7 +1161,7 @@ struct ContentView: View {
             sortOrder = mapped
             isSyncingSortFromPreferences = false
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didUnmountNotification)) { notification in
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didUnmountNotification)) { notification in
             guard let volumeURL = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else {
                 return
             }

@@ -19585,6 +19585,23 @@
         }
       }
     },
+    "action.manage_storage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Storage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理存储空间"
+          }
+        }
+      }
+    },
     "toolbar.dual_pane_on": {
       "extractionState": "manual",
       "localizations": {

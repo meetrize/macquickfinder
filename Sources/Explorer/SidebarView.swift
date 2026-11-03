@@ -15,6 +15,11 @@ struct SidebarVolume: Identifiable, Equatable {
         return isExternal ? "externaldrive" : "internaldrive"
     }
 
+    /// 系统自带的内置磁盘才提供「管理储存空间」入口。
+    var canManageStorage: Bool {
+        !isExternal && !isNetworkVolume
+    }
+
     var ejectActionTitle: String {
         if isNetworkVolume {
             return L10n.Sidebar.disconnectDevice(name)
@@ -155,11 +160,12 @@ private struct FavoritesSidebarRows: View {
 struct SidebarView: View {
     @Binding var path: String
     @ObservedObject private var favoritesStore = FavoritesStore.shared
-    @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
-    @State private var devices: [SidebarVolume] = []
+    @ObservedObject private var devicesStore = SidebarDevicesStore.shared
     var onNavigateToDirectory: (String) -> Void = { _ in }
     var onItemsChanged: () -> Void = {}
     var onReload: () -> Void = {}
+    
+    private var devices: [SidebarVolume] { devicesStore.devices }
     
     var body: some View {
         ScrollView {
@@ -209,6 +215,13 @@ struct SidebarView: View {
                             }
                         }
                     )
+                    .contextMenu {
+                        Button {
+                            SidebarSystemActions.showInfo(forPath: trashPath)
+                        } label: {
+                            Label(L10n.Action.showFinderInfo, systemImage: "info.circle")
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 8)
@@ -217,17 +230,8 @@ struct SidebarView: View {
         .onAppear {
             // 挂载卷枚举会碰磁盘；延后到下一帧，避免拖慢新建标签首屏。
             DispatchQueue.main.async {
-                refreshDevices()
+                devicesStore.start()
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didMountNotification)) { _ in
-            refreshDevices()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didUnmountNotification)) { _ in
-            refreshDevices()
-        }
-        .onChange(of: connectServerCenter.devicesRefreshToken) { _ in
-            refreshDevices()
         }
     }
     
@@ -246,7 +250,7 @@ struct SidebarView: View {
     }
     
     private func refreshDevices() {
-        devices = SidebarVolumeLoader.load()
+        devicesStore.reload()
     }
     
     private var trashPath: String {
@@ -331,10 +335,30 @@ private struct SidebarDeviceRow: View {
                 }
             }
         )
+        .background {
+            // 右键设备时先选中它（与 Finder 侧栏一致），再弹菜单。
+            SidebarRowRightClickSelection(onRightClick: onSelect)
+        }
         .contextMenu {
+            Button {
+                SidebarSystemActions.showInfo(forPath: device.path)
+            } label: {
+                Label(L10n.Action.showFinderInfo, systemImage: "info.circle")
+            }
+
             if device.canEject {
+                Divider()
                 Button(action: onEject) {
                     Label(device.ejectActionTitle, systemImage: "eject.fill")
+                }
+            }
+
+            if device.canManageStorage {
+                Divider()
+                Button {
+                    SidebarSystemActions.openStorageManagement()
+                } label: {
+                    Label(L10n.Action.manageStorage, systemImage: "internaldrive")
                 }
             }
         }
@@ -344,11 +368,12 @@ private struct SidebarDeviceRow: View {
 struct SidebarRailView: View {
     @Binding var path: String
     @ObservedObject private var favoritesStore = FavoritesStore.shared
-    @ObservedObject private var connectServerCenter = ConnectServerCenter.shared
-    @State private var devices: [SidebarVolume] = []
+    @ObservedObject private var devicesStore = SidebarDevicesStore.shared
     var onNavigateToDirectory: (String) -> Void = { _ in }
     var onItemsChanged: () -> Void = {}
     var onReload: () -> Void = {}
+    
+    private var devices: [SidebarVolume] { devicesStore.devices }
     
     var body: some View {
         ScrollView {
@@ -399,6 +424,13 @@ struct SidebarRailView: View {
                     },
                     showsTitle: false
                 )
+                .contextMenu {
+                    Button {
+                        SidebarSystemActions.showInfo(forPath: trashPath)
+                    } label: {
+                        Label(L10n.Action.showFinderInfo, systemImage: "info.circle")
+                    }
+                }
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 10)
@@ -406,22 +438,13 @@ struct SidebarRailView: View {
         .onAppear {
             // 挂载卷枚举会碰磁盘；延后到下一帧，避免拖慢新建标签首屏。
             DispatchQueue.main.async {
-                refreshDevices()
+                devicesStore.start()
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didMountNotification)) { _ in
-            refreshDevices()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSWorkspace.didUnmountNotification)) { _ in
-            refreshDevices()
-        }
-        .onChange(of: connectServerCenter.devicesRefreshToken) { _ in
-            refreshDevices()
         }
     }
     
     private func refreshDevices() {
-        devices = SidebarVolumeLoader.load()
+        devicesStore.reload()
     }
     
     private var trashPath: String {

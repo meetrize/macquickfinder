@@ -175,6 +175,16 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         guard let item = item(at: row) else { return nil }
         
         let menu = NSMenu()
+        let infoItem = menu.addItem(
+            withTitle: L10n.Action.showFinderInfo,
+            action: #selector(showInfo(_:)),
+            keyEquivalent: ""
+        )
+        infoItem.target = self
+        infoItem.representedObject = item.path
+        
+        menu.addItem(.separator())
+        
         let removeItem = menu.addItem(
             withTitle: L10n.Action.removeFavorite,
             action: #selector(removeFavorite(_:)),
@@ -206,6 +216,11 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
         let point = tableView.convert(event.locationInWindow, from: nil)
         let row = tableView.row(at: point)
         return makeContextMenu(for: row)
+    }
+    
+    @objc private func showInfo(_ sender: NSMenuItem) {
+        guard let path = sender.representedObject as? String else { return }
+        SidebarSystemActions.showInfo(forPath: path)
     }
     
     @objc private func removeFavorite(_ sender: NSMenuItem) {

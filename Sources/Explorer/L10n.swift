@@ -58,6 +58,7 @@ enum L10n {
         static var calculateFolderSize: String { ModuleLocalization.localized("action.calculate_folder_size", bundle: .module) }
         static var showInfo: String { ModuleLocalization.localized("action.show_info", bundle: .module) }
         static var showFinderInfo: String { ModuleLocalization.localized("action.show_finder_info", bundle: .module) }
+        static var manageStorage: String { ModuleLocalization.localized("action.manage_storage", bundle: .module) }
         static var services: String { ModuleLocalization.localized("action.services", bundle: .module) }
         static var openTerminalHere: String { ModuleLocalization.localized("action.open_terminal_here", bundle: .module) }
         static var openClipboardPath: String { ModuleLocalization.localized("action.open_clipboard_path", bundle: .module) }

@@ -18,6 +18,7 @@
 "action.extract_downloads" = "Extract to Downloads";
 "action.extract_here" = "Extract Here";
 "action.extract_to" = "Extract To…";
+"action.manage_storage" = "Manage Storage";
 "action.ok" = "OK";
 "action.open" = "Open";
 "action.open_clipboard_path" = "Open Path from Clipboard";

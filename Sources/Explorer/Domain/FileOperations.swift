@@ -921,8 +921,13 @@ enum FileOperations {
 
     /// Opens Finder's Get Info (显示简介) windows for the given items via AppleScript.
     static func showFinderInfo(_ items: [FileItem]) {
-        let urls = items
-            .map(\.url)
+        showFinderInfo(atPaths: items.map(\.url.path))
+    }
+
+    /// Opens Finder's Get Info (显示简介) windows for the given paths via AppleScript.
+    static func showFinderInfo(atPaths paths: [String]) {
+        let urls = paths
+            .map { URL(fileURLWithPath: $0) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
         guard !urls.isEmpty else { return }
 

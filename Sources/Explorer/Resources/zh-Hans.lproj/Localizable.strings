@@ -18,6 +18,7 @@
 "action.extract_downloads" = "解压到「下载」";
 "action.extract_here" = "解压到此处";
 "action.extract_to" = "解压到…";
+"action.manage_storage" = "管理存储空间";
 "action.ok" = "好";
 "action.open" = "打开";
 "action.open_clipboard_path" = "打开剪贴板中的路径";

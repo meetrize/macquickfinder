@@ -41,4 +41,37 @@ final class SidebarVolumeLoaderTests: XCTestCase {
             )
         )
     }
+
+    func testInternalVolumeOffersStorageManagement() {
+        let device = SidebarVolume(
+            id: "/",
+            name: "Macintosh HD",
+            path: "/",
+            isExternal: false,
+            isNetworkVolume: false,
+            canEject: false
+        )
+        XCTAssertTrue(device.canManageStorage)
+    }
+
+    func testExternalAndNetworkVolumesDoNotOfferStorageManagement() {
+        let external = SidebarVolume(
+            id: "/Volumes/Backup",
+            name: "Backup",
+            path: "/Volumes/Backup",
+            isExternal: true,
+            isNetworkVolume: false,
+            canEject: true
+        )
+        let network = SidebarVolume(
+            id: "/Volumes/Share",
+            name: "Share",
+            path: "/Volumes/Share",
+            isExternal: true,
+            isNetworkVolume: true,
+            canEject: true
+        )
+        XCTAssertFalse(external.canManageStorage)
+        XCTAssertFalse(network.canManageStorage)
+    }
 }
