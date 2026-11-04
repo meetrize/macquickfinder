@@ -51,6 +51,17 @@ final class ContentSearchGlobMatcherTests: XCTestCase {
         )
     }
 
+    func testCompiledGlobPrunesExcludedDirectories() {
+        let glob = ContentSearchGlobMatcher.Compiled(
+            includePatterns: [],
+            excludePatterns: ["node_modules/**", "**/DerivedData/**"]
+        )
+
+        XCTAssertTrue(glob.excludesDirectory(relativePath: "node_modules"))
+        XCTAssertTrue(glob.excludesDirectory(relativePath: "Sources/DerivedData"))
+        XCTAssertFalse(glob.excludesDirectory(relativePath: "Sources/App"))
+    }
+
     func testExcludeWinsOverInclude() {
         XCTAssertFalse(
             ContentSearchGlobMatcher.matches(

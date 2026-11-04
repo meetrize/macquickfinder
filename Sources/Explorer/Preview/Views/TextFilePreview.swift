@@ -135,6 +135,7 @@ struct TextFilePreview: NSViewRepresentable {
             context.coordinator.searchCurrentIndex = 0
             context.coordinator.lastHighlightKey = nil
             context.coordinator.lastHighlightedSearchRanges = []
+            context.coordinator.invalidateSearchRangeCache()
             context.coordinator.lineNumberRuler?.updateRuleThickness(for: text)
             context.coordinator.lineNumberRuler?.needsDisplay = true
         }
@@ -326,6 +327,9 @@ struct TextFilePreview: NSViewRepresentable {
         var searchCurrentIndex: Int = 0
         var searchMatchRanges: [NSRange] = []
         var lastHighlightedSearchRanges: [NSRange] = []
+        /// 缓存上一次搜索命中的位置，避免每次跳转/重绘都重新扫描全文。
+        private var cachedSearchRangeQuery = ""
+        private var cachedSearchRangeTextLength = -1
         private var cachedSyntaxHighlight: NSAttributedString?
         private var renderWorkItem: DispatchWorkItem?
         private var generation: UInt64 = 0
@@ -396,7 +400,7 @@ struct TextFilePreview: NSViewRepresentable {
         ) {
             renderWorkItem?.cancel()
             lastHighlightedSearchRanges = []
-            searchMatchRanges = []
+            invalidateSearchRangeCache()
             if searchMatchCount != 0 { searchMatchCount = 0 }
             publishSearchCurrentIndex()
 
@@ -478,7 +482,10 @@ struct TextFilePreview: NSViewRepresentable {
                 return false
             }
 
-            applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+            // 命中范围为空时才扫描一次；后续同文件点击直接复用缓存，不再全文重扫。
+            if searchMatchRanges.isEmpty {
+                applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+            }
             if let matchIndex = PreviewTextSearchHighlighter.matchIndex(
                 lineNumber: lineNumber,
                 columnUTF16: columnUTF16,
@@ -486,14 +493,22 @@ struct TextFilePreview: NSViewRepresentable {
                 matchRanges: searchMatchRanges
             ) {
                 searchCurrentIndex = matchIndex
-                applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
-            } else {
+            }
+            // 只做一次全量着色（带滚动），避免原来的「扫三遍 + 着色三遍」。
+            applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
+            if searchMatchRanges.isEmpty {
                 PreviewTextSearchHighlighter.scrollToLine(lineNumber, in: textView)
             }
 
             // 布局未完成时 scrollRangeToVisible 可能无效，下一帧再滚一次。
             scheduleDeferredScroll(toLine: lineNumber, columnUTF16: columnUTF16, textView: textView)
             return true
+        }
+
+        func invalidateSearchRangeCache() {
+            cachedSearchRangeQuery = ""
+            cachedSearchRangeTextLength = -1
+            searchMatchRanges = []
         }
 
         func retryPendingContentSearchJumpIfNeeded(textView: NSTextView) {
@@ -537,6 +552,8 @@ struct TextFilePreview: NSViewRepresentable {
             let query = lastSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !query.isEmpty else {
                 searchMatchRanges = []
+                cachedSearchRangeQuery = ""
+                cachedSearchRangeTextLength = -1
                 searchCurrentIndex = 0
                 if searchMatchCount != 0 { searchMatchCount = 0 }
                 publishSearchCurrentIndex()
@@ -544,7 +561,12 @@ struct TextFilePreview: NSViewRepresentable {
                 return
             }
 
-            searchMatchRanges = PreviewTextSearchHighlighter.findMatchRanges(of: query, in: storage.string)
+            let textLength = storage.length
+            if cachedSearchRangeQuery != query || cachedSearchRangeTextLength != textLength {
+                searchMatchRanges = PreviewTextSearchHighlighter.findMatchRanges(of: query, in: storage.string)
+                cachedSearchRangeQuery = query
+                cachedSearchRangeTextLength = textLength
+            }
             if searchMatchRanges.isEmpty {
                 searchCurrentIndex = 0
             } else {
@@ -564,6 +586,7 @@ struct TextFilePreview: NSViewRepresentable {
             let result = PreviewTextSearchHighlighter.applyHighlights(
                 in: storage,
                 query: query,
+                matchRanges: searchMatchRanges,
                 currentIndex: searchCurrentIndex,
                 textView: textView,
                 scrollToCurrent: scrollToCurrent

@@ -1025,6 +1025,8 @@ struct ContentView: View {
         .onDisappear {
             OperationRecordingHub.unregister(operationRecorder)
             operationRecordingCloseGuard.detach()
+            // 标签页切走/窗口关闭时停止后台全文扫描，避免旧搜索继续占 CPU 与内存。
+            contentSearchSession.cancelInFlightSearch()
         }
         .onReceive(externalFolderOpenCenter.$openRequestGeneration) { generation in
             guard generation > lastHandledOpenRequestGeneration else { return }
@@ -1129,6 +1131,7 @@ struct ContentView: View {
         .onAppear {
             loadPersistedContentSearchFilter()
             syncContentSearchContext()
+            contentSearchSession.resumeSearchIfNeeded()
             liveDualPaneSplitRatio = layout.dualPaneSplitRatio
             if layout.isDualPaneEnabled {
                 let remembered = layout.dualPaneSecondaryPath
@@ -1273,7 +1276,8 @@ struct ContentView: View {
             fileID: match.fileURL.path,
             lineNumber: match.lineNumber,
             query: contentQuery,
-            matchStartUTF16: match.matchStartUTF16
+            // 列表里保存的是裁剪片段，跳转必须用原始行内列号。
+            matchStartUTF16: match.lineColumnUTF16
         )
         // 等 selection → previewSelection 同步、预览宿主切到目标文件后再发 reveal，
         // 避免通知落在旧文件宿主上被丢弃。

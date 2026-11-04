@@ -23,8 +23,11 @@ final class DirectoryContentSearchSession: ObservableObject {
     private var userExpansionOverrides: [String: Bool] = [:]
 
     func updateSearchContext(root: URL, showHiddenFiles: Bool) {
+        let changed = currentRoot != root || currentShowHiddenFiles != showHiddenFiles
         currentRoot = root
         currentShowHiddenFiles = showHiddenFiles
+        // 路径/隐藏选项未变化时不要重复触发整轮搜索。
+        guard changed else { return }
         scheduleSearchIfNeeded()
     }
 
@@ -88,10 +91,20 @@ final class DirectoryContentSearchSession: ObservableObject {
         toggleGroupExpansion(fileID: match.fileURL.path)
     }
 
+    /// 标签页重新可见时，续跑被切走时中断的搜索。
+    func resumeSearchIfNeeded() {
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard progress.wasCancelled, currentRoot != nil else { return }
+        scheduleSearchIfNeeded()
+    }
+
     func cancelInFlightSearch() {
         searchGeneration &+= 1
         searchTask?.cancel()
         searchTask = nil
+        // 同时取消尚未触发的防抖，避免标签页隐藏后 300ms 又重新起一轮扫描。
+        debounceTask?.cancel()
+        debounceTask = nil
         if progress.isComplete == false {
             progress = ContentSearchProgress(
                 scannedFileCount: progress.scannedFileCount,
@@ -147,20 +160,46 @@ final class DirectoryContentSearchSession: ObservableObject {
                 generation: generation
             )
 
-            let result = await engine.runSearch(request: request) {
-                Task.isCancelled
-            }
+            let result = await engine.runSearch(
+                request: request,
+                isCancelled: { Task.isCancelled },
+                onPartial: { partial in
+                    // 引擎在后台线程回调；把快照交给主线程，apply 内部会丢弃过期结果。
+                    Task { @MainActor in
+                        self.apply(result: partial, isFinal: false, generation: generation)
+                    }
+                }
+            )
 
             guard !Task.isCancelled, generation == self.searchGeneration else { return }
+            apply(result: result, isFinal: true, generation: generation)
+        }
+    }
 
+    private func apply(result: ContentSearchScanResult, isFinal: Bool, generation: UInt64) {
+        guard generation == searchGeneration else { return }
+        // 最终结果可能先于后台 partial 的 MainActor 任务落地；不要让旧 partial 覆盖完整结果。
+        guard isFinal || !progress.isComplete else { return }
+        guard isFinal || result.progress.scannedFileCount >= progress.scannedFileCount else { return }
+
+        if isFinal || result.matches.count != flattenedMatches.count {
             flattenedMatches = result.matches
             groups = Self.makeGroups(
                 from: result.matches,
                 userExpansionOverrides: userExpansionOverrides,
                 defaultExpandedCount: 5
             )
-            progress = result.progress
-            selectedMatchID = result.matches.first?.id
+        }
+        progress = result.progress
+
+        if isFinal {
+            // 只保留当前命中文件的手动展开状态，避免多次搜索后字典无限增长。
+            let liveFileIDs = Set(result.matches.map(\.fileURL.path))
+            userExpansionOverrides = userExpansionOverrides.filter { liveFileIDs.contains($0.key) }
+
+            if selectedMatchID == nil || !result.matches.contains(where: { $0.id == selectedMatchID }) {
+                selectedMatchID = result.matches.first?.id
+            }
             if let selectedMatchID {
                 expandGroupContaining(matchID: selectedMatchID)
             }

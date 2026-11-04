@@ -1,6 +1,6 @@
 import Foundation
 
-struct ContentSearchFilter: Equatable, Codable {
+struct ContentSearchFilter: Equatable, Codable, Sendable {
     var includePatterns: [String]
     var excludePatterns: [String]
     var includesSubdirectories: Bool

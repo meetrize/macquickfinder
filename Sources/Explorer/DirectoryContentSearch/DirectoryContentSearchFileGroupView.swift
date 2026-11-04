@@ -1,5 +1,23 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
+
+/// 搜索结果里数百个文件组会反复请求图标；按扩展名缓存，避免主线程反复做磁盘图标解析。
+@MainActor
+private enum ContentSearchFileIconCache {
+    private static var cache: [String: NSImage] = [:]
+
+    static func icon(for url: URL) -> NSImage {
+        let ext = url.pathExtension.lowercased()
+        let key = ext.isEmpty ? "<none>" : ext
+        if let cached = cache[key] { return cached }
+
+        let type = UTType(filenameExtension: ext) ?? .data
+        let image = NSWorkspace.shared.icon(for: type)
+        cache[key] = image
+        return image
+    }
+}
 
 struct DirectoryContentSearchMatchRowView: View {
     let match: ContentSearchMatch
@@ -46,6 +64,44 @@ struct DirectoryContentSearchMatchRowView: View {
     }
 }
 
+/// 只注册一个单击手势：单击立即选中，用系统双击间隔自行判定双击。
+/// 同时注册 `onTapGesture(count: 2)` 与 `count: 1` 会让单击等待双击超时（约 0.5s）。
+private struct ContentSearchMatchRow: View {
+    let match: ContentSearchMatch
+    let query: String
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onOpen: () -> Void
+
+    @State private var lastClickUptime: TimeInterval = 0
+
+    var body: some View {
+        DirectoryContentSearchMatchRowView(
+            match: match,
+            query: query,
+            isSelected: isSelected
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            handleTap()
+        }
+    }
+
+    private func handleTap() {
+        let now = ProcessInfo.processInfo.systemUptime
+        let isDoubleClick = lastClickUptime > 0
+            && now - lastClickUptime <= NSEvent.doubleClickInterval
+
+        if isDoubleClick {
+            lastClickUptime = 0
+            onOpen()
+        } else {
+            lastClickUptime = now
+            onSelect()
+        }
+    }
+}
+
 struct DirectoryContentSearchFileGroupView: View {
     let group: ContentSearchFileGroup
     let query: String
@@ -63,7 +119,7 @@ struct DirectoryContentSearchFileGroupView: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 12)
 
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: group.fileURL.path))
+                    Image(nsImage: ContentSearchFileIconCache.icon(for: group.fileURL))
                         .resizable()
                         .frame(width: 16, height: 16)
 
@@ -96,18 +152,14 @@ struct DirectoryContentSearchFileGroupView: View {
             if group.isExpanded {
                 VStack(spacing: 0) {
                     ForEach(group.matches) { match in
-                        DirectoryContentSearchMatchRowView(
+                        ContentSearchMatchRow(
                             match: match,
                             query: query,
-                            isSelected: selectedMatchID == match.id
+                            isSelected: selectedMatchID == match.id,
+                            onSelect: { onSelectMatch(match) },
+                            onOpen: { onOpenMatch(match) }
                         )
                         .id(match.id)
-                        .onTapGesture(count: 2) {
-                            onOpenMatch(match)
-                        }
-                        .onTapGesture(count: 1) {
-                            onSelectMatch(match)
-                        }
                     }
                 }
                 .padding(.leading, 20)

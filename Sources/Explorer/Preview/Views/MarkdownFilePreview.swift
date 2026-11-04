@@ -1000,7 +1000,9 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 return false
             }
 
-            applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+            if searchMatchRanges.isEmpty {
+                applySearchHighlightsInPlace(textView: textView, scrollToCurrent: false)
+            }
             if let matchIndex = PreviewTextSearchHighlighter.matchIndex(
                 lineNumber: lineNumber,
                 columnUTF16: columnUTF16,
@@ -1008,8 +1010,9 @@ struct MarkdownFilePreview: NSViewRepresentable {
                 matchRanges: searchMatchRanges
             ) {
                 searchCurrentIndex = matchIndex
-                applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
-            } else {
+            }
+            applySearchHighlightsInPlace(textView: textView, scrollToCurrent: true)
+            if searchMatchRanges.isEmpty {
                 PreviewTextSearchHighlighter.scrollToLine(lineNumber, in: textView)
             }
             scheduleDeferredScroll(toLine: lineNumber, columnUTF16: columnUTF16, textView: textView)
@@ -1080,6 +1083,7 @@ struct MarkdownFilePreview: NSViewRepresentable {
             let result = PreviewTextSearchHighlighter.applyHighlights(
                 in: storage,
                 query: query,
+                matchRanges: searchMatchRanges,
                 currentIndex: searchCurrentIndex,
                 textView: textView,
                 scrollToCurrent: scrollToCurrent

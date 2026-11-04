@@ -107,6 +107,57 @@ final class DirectoryContentSearchEngineTests: XCTestCase {
         XCTAssertTrue(cancelledResult.progress.wasCancelled)
     }
 
+    func testLongLineMatchStoresBoundedSnippet() async throws {
+        let file = tempDirectory.appendingPathComponent("minified.js")
+        let prefix = String(repeating: "a", count: 2_500)
+        let suffix = String(repeating: "b", count: 2_500)
+        try "\(prefix)TODO\(suffix)".write(to: file, atomically: true, encoding: .utf8)
+
+        let matches = ContentSearchFileScanner.scanFileContents(
+            url: file,
+            relativePath: "minified.js",
+            query: "TODO",
+            filter: .default
+        )
+
+        let match = try XCTUnwrap(matches.first)
+        XCTAssertLessThanOrEqual(match.lineText.utf16.count, ContentSearchFileScanner.maxSnippetUTF16Length + 4)
+        XCTAssertTrue(match.lineText.contains("TODO"))
+        XCTAssertEqual(match.lineColumnUTF16, 2_500)
+
+        let snippetText = match.lineText as NSString
+        let highlighted = snippetText.substring(with: NSRange(location: match.matchStartUTF16, length: match.matchLengthUTF16))
+        XCTAssertEqual(highlighted, "TODO")
+    }
+
+    func testExcludedDirectoriesAreNotScanned() async throws {
+        let nested = tempDirectory.appendingPathComponent("node_modules/pkg", isDirectory: true)
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+        try "// TODO excluded".write(
+            to: nested.appendingPathComponent("index.js"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "// TODO included".write(
+            to: tempDirectory.appendingPathComponent("app.swift"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let engine = DirectoryContentSearchEngine()
+        let request = ContentSearchRequest(
+            root: tempDirectory,
+            query: "TODO",
+            filter: .default,
+            showHiddenFiles: false,
+            generation: 1
+        )
+
+        let result = await engine.runSearch(request: request, isCancelled: { false })
+        XCTAssertEqual(result.matches.count, 1)
+        XCTAssertEqual(result.matches.first?.fileURL.lastPathComponent, "app.swift")
+    }
+
     func testSkipsBinaryNULFile() async throws {
         let file = tempDirectory.appendingPathComponent("binary.txt")
         var data = Data("TODO before".utf8)

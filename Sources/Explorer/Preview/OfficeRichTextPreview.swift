@@ -215,6 +215,7 @@ struct OfficeRichTextPreview: NSViewRepresentable {
             let result = PreviewTextSearchHighlighter.applyHighlights(
                 in: storage,
                 query: query,
+                matchRanges: searchMatchRanges,
                 currentIndex: searchCurrentIndex,
                 textView: textView,
                 scrollToCurrent: scrollToCurrent
