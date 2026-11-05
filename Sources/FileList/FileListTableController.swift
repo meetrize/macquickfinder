@@ -22,6 +22,20 @@ public final class FileListTableController: FileListContentController {
     var skipRenameArmOnCurrentMouseUp = false
     /// 重命名进行中收到的最新 listing；改名结束后再应用，避免刷新拆掉输入框或自动提交默认名。
     private var deferredRowsWhileRenaming: [FileListRow]?
+    /// 非选中标签期间积压的 listing；切回该标签时再应用到 NSTableView。
+    private var suspendedInactiveListing: (
+        rows: [FileListRow],
+        interaction: FileListTableInteraction,
+        useIconPreview: Bool,
+        rowHoverHighlight: Bool
+    )?
+
+    /// 宿主窗是否为当前选中标签；尚未挂上 window 时视为可更新（首帧）。
+    public var isInSelectedTabWindow: Bool {
+        let window = tableView?.window ?? scrollView?.window
+        guard let window else { return true }
+        return FileListFocusRegistry.isSelectedTabWindow(window)
+    }
 
     var columnResizeObserver: NSObjectProtocol?
     var columnMoveObserver: NSObjectProtocol?
@@ -122,14 +136,6 @@ public final class FileListTableController: FileListContentController {
         useIconPreview: Bool = false,
         rowHoverHighlight: Bool = false
     ) {
-        let iconPreviewChanged = self.useIconPreview != useIconPreview
-        self.useIconPreview = useIconPreview
-        if iconPreviewChanged && !useIconPreview {
-            thumbnailGenerator.cancelInFlightRequests()
-        }
-        rowHoverHighlightEnabled = rowHoverHighlight
-        syncRowHoverTrackingEnabled()
-
         bindUpdateContext(
             interaction: interaction,
             selectionGet: selectionGet,
@@ -137,6 +143,26 @@ public final class FileListTableController: FileListContentController {
             preferencesStore: preferencesStore
         )
         (tableView as? FileListTableView)?.servicesRequestor = interaction.servicesRequestor
+
+        // 后台标签仍会收到 SwiftUI updateNSView；延后重活，避免多标签时主线程被 N 份列表拖垮。
+        guard isInSelectedTabWindow else {
+            suspendedInactiveListing = (
+                rows: rows,
+                interaction: interaction,
+                useIconPreview: useIconPreview,
+                rowHoverHighlight: rowHoverHighlight
+            )
+            return
+        }
+        suspendedInactiveListing = nil
+
+        let iconPreviewChanged = self.useIconPreview != useIconPreview
+        self.useIconPreview = useIconPreview
+        if iconPreviewChanged && !useIconPreview {
+            thumbnailGenerator.cancelInFlightRequests()
+        }
+        rowHoverHighlightEnabled = rowHoverHighlight
+        syncRowHoverTrackingEnabled()
 
         let structureToken = columnStructureToken(from: preferencesStore.configuration)
         if structureToken != lastColumnStructureToken {
@@ -236,6 +262,28 @@ public final class FileListTableController: FileListContentController {
             scheduleVisibleIconPreviewLoad()
         }
         consumePendingRenameIfNeeded()
+    }
+
+    /// 标签重新成为 key 时：应用后台积压的 listing，或至少补一次可见区元数据通知。
+    func flushSuspendedListingIfNeeded() {
+        guard isInSelectedTabWindow else { return }
+        guard let suspended = suspendedInactiveListing,
+              let selectionGet,
+              let selectionSet,
+              let preferencesStore else {
+            scheduleVisibleDirectoryPathsNotify(debounce: 0.05)
+            return
+        }
+        suspendedInactiveListing = nil
+        update(
+            rows: suspended.rows,
+            interaction: suspended.interaction,
+            selectionGet: selectionGet,
+            selectionSet: selectionSet,
+            preferencesStore: preferencesStore,
+            useIconPreview: suspended.useIconPreview,
+            rowHoverHighlight: suspended.rowHoverHighlight
+        )
     }
 
     func clearDeferredListingUpdateWhileRenaming() {

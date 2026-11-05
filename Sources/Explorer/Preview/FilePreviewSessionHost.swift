@@ -16,12 +16,14 @@ struct FilePreviewSessionHost: View {
     let onNavigate: (String) -> Void
     let onOpenItem: (FileItem) -> Void
     let onOpenTerminalAtPath: (String) -> Void
-    @ObservedObject var detachCoordinator: PreviewDetachCoordinator
+    /// 不用 `@ObservedObject`：仅跟踪 placement，避免其它 revision 重绘预览内容。
+    let detachCoordinator: PreviewDetachCoordinator
 
     @Environment(\.openWindow) private var openWindow
     @AppStorage(AppPreferences.Preview.folderContents)
     private var previewFolderContents = false
     @StateObject private var session: PreviewSession
+    @State private var detachPlacement: PreviewPlacement
 
     init(
         hostWindowID: UUID,
@@ -53,6 +55,7 @@ struct FilePreviewSessionHost: View {
         self.onOpenItem = onOpenItem
         self.onOpenTerminalAtPath = onOpenTerminalAtPath
         self.detachCoordinator = detachCoordinator
+        _detachPlacement = State(initialValue: detachCoordinator.placement)
         let session = PreviewSessionStore.shared.existingInlineSession(
             hostWindowID: hostWindowID,
             fileID: selectedItem.id
@@ -95,7 +98,7 @@ struct FilePreviewSessionHost: View {
         .focusedValue(\.previewDetachCommands, PreviewDetachCommands(
             canDetach: canDetachPreview,
             canDock: {
-                if case .detached(let sessionID, _) = detachCoordinator.placement {
+                if case .detached(let sessionID, _) = detachPlacement {
                     return sessionID == session.id
                 }
                 return false
@@ -103,6 +106,7 @@ struct FilePreviewSessionHost: View {
             detachPreview: detachPreview,
             dockPreview: dockPreview
         ))
+        .onReceive(detachCoordinator.$placement) { detachPlacement = $0 }
         .onDisappear {
             guard !session.location.isDetached else { return }
             PreviewSessionStore.shared.remove(session.id)

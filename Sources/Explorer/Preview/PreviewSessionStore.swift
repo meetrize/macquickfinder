@@ -56,6 +56,29 @@ final class PreviewSessionStore: ObservableObject {
         ids.forEach { remove($0) }
     }
 
+    /// 切走标签时：保留会话对象，但释放已解码的大图/PDF/文本，避免多标签常驻占内存与主线程。
+    /// 有未保存文本编辑时不清理，以免丢草稿。
+    func suspendInlineLoadedContent(forHostWindowID hostWindowID: UUID) {
+        for session in sessions.values where session.hostWindowID == hostWindowID && !session.location.isDetached {
+            if session.text.isEditing && session.text.hasUnsavedChanges {
+                continue
+            }
+            session.browseContentPrefetcher.cancel()
+            session.cancelLoad()
+            session.clearLoadedContent()
+            session.needsReloadAfterTabSuspend = true
+        }
+    }
+
+    /// 标签重新成为 key：为已挂起的内联预览重新加载内容。
+    func reloadSuspendedInlineSessions(forHostWindowID hostWindowID: UUID) {
+        for session in sessions.values where session.hostWindowID == hostWindowID && !session.location.isDetached {
+            guard session.needsReloadAfterTabSuspend else { continue }
+            session.needsReloadAfterTabSuspend = false
+            session.beginLoadTask(customPreviewRevision: Int(CustomPreviewRuleStore.shared.revision))
+        }
+    }
+
     func existingInlineSession(hostWindowID: UUID, fileID: FileItem.ID) -> PreviewSession? {
         sessions.values.first { session in
             session.hostWindowID == hostWindowID

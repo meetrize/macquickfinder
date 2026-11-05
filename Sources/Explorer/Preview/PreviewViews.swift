@@ -16,7 +16,9 @@ struct FilePreviewView: View {
     let onNavigate: (String) -> Void
     let onOpenItem: (FileItem) -> Void
     let onOpenTerminalAtPath: (String) -> Void
-    @ObservedObject private var detachCoordinator = PreviewDetachCoordinator.shared
+    /// 不用 `@ObservedObject`：invalidate/reveal revision 不应重绘整个预览面板。
+    private let detachCoordinator = PreviewDetachCoordinator.shared
+    @State private var detachPlacement: PreviewPlacement = PreviewDetachCoordinator.shared.placement
     @State private var previewSelection: Set<FileItem.ID> = []
 
     private var resolvedSelection: Set<FileItem.ID> {
@@ -37,8 +39,8 @@ struct FilePreviewView: View {
     var body: some View {
         Group {
             if let selectedItem {
-                if detachCoordinator.placement.showsPlaceholder(forSelectedFileID: selectedItem.id),
-                   case .detached(let sessionID, _) = detachCoordinator.placement,
+                if detachPlacement.showsPlaceholder(forSelectedFileID: selectedItem.id),
+                   case .detached(let sessionID, _) = detachPlacement,
                    let session = PreviewSessionStore.shared.session(for: sessionID) {
                     PreviewPlaceholderView(
                         fileName: session.previewContentItem?.name ?? selectedItem.name,
@@ -87,7 +89,9 @@ struct FilePreviewView: View {
                 FilePreviewEmptyChrome(showPreview: $showPreview, layout: layout)
             }
         }
+        .onReceive(detachCoordinator.$placement) { detachPlacement = $0 }
         .onAppear {
+            detachPlacement = detachCoordinator.placement
             previewSelection = selection
         }
         .onChange(of: directoryPath) { _ in

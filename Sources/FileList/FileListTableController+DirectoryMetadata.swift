@@ -6,6 +6,7 @@ import Foundation
 extension FileListTableController {
     public func refreshDirectorySizeColumnIfNeeded(_ provider: DirectorySizeColumnProvider?) {
         directorySizeDisplay = provider?.display
+        guard isInSelectedTabWindow else { return }
         guard let provider else { return }
         guard provider.revision != lastDirectorySizeRevision else {
             flushPendingDirectorySizeRefreshIfNeeded()

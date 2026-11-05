@@ -290,6 +290,14 @@ extension ContentView {
         return !ExplorerWindowTabCenter.shared.hasRegisteredWindows
     }
 
+    /// 当前是否为应处理 listing / 元数据 / 通知的活动浏览标签（多标签时仅选中标签）。
+    var isActiveExplorerTab: Bool {
+        guard let hostWindow else {
+            return !ExplorerWindowTabCenter.shared.hasRegisteredWindows
+        }
+        return FileListFocusRegistry.isSelectedTabWindow(hostWindow)
+    }
+
     /// 标签切换为 key 时：先让系统画出新标签内容，再在下一 runloop 接管共享目录监视。
     /// 快速连点多个标签时只让最终 key 窗执行（generation 作废中间调度）。
     func scheduleClaimSharedDirectorySessionIfNeeded() {
@@ -421,7 +429,8 @@ struct ContentView: View {
     /// 工具栏/自定义面板/右键菜单各自观察 store。
     private let toolbarStore = ToolbarCustomizationStore.shared
     /// 不直接 `@ObservedObject` TabCenter：revision 变化会重绘整棵 ContentView，新建标签时整窗闪一下。
-    @ObservedObject private var detachCoordinator = PreviewDetachCoordinator.shared
+    /// 也不 `@ObservedObject` DetachCoordinator：placement/revision 变化会重绘所有标签的整棵 ContentView。
+    private let detachCoordinator = PreviewDetachCoordinator.shared
     @State private var explorerTabBarState = ExplorerTabBarState.unavailable
     @State private var pendingExternalSelectionPath: String?
     @State private var pendingInlineRenamePath: String?
@@ -852,6 +861,7 @@ struct ContentView: View {
             updateGitWorkspaceFSEventsMonitoring()
         }
         .onReceive(NotificationCenter.default.publisher(for: .gitWorkingTreeMayHaveChanged)) { notification in
+            guard isActiveExplorerTab else { return }
             guard layout.effectiveRightPanelVisibility(hasSelection: hasRealSelection).showGit else { return }
             guard let changedPath = notification.userInfo?[GitWorkingTreeRefreshCenter.pathUserInfoKey] as? String,
                   let currentRoot = GitRepositoryDetector.findRepoRoot(from: path),
@@ -860,6 +870,7 @@ struct ContentView: View {
             gitStatusStore.scheduleRefresh(cwd: path)
         }
         .onReceive(NotificationCenter.default.publisher(for: .directoryListingItemDidChange)) { notification in
+            guard isActiveExplorerTab else { return }
             guard let changedPath = notification.userInfo?[DirectoryListingItemRefreshCenter.pathUserInfoKey] as? String else {
                 return
             }
@@ -869,12 +880,26 @@ struct ContentView: View {
             guard let keyWindow = notification.object as? NSWindow,
                   keyWindow == hostWindow else { return }
             OperationRecordingHub.register(operationRecorder)
+            // 先亮出右栏占位，下一帧再挂重面板，避免切标签首帧被预览/Git 拖住。
+            if deferHeavyRightPanels {
+                DispatchQueue.main.async {
+                    guard hostWindow?.isKeyWindow == true else { return }
+                    deferHeavyRightPanels = false
+                }
+            }
             scheduleClaimSharedDirectorySessionIfNeeded()
+            PreviewSessionStore.shared.reloadSuspendedInlineSessions(forHostWindowID: previewHostWindowID)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { notification in
             guard let resigned = notification.object as? NSWindow,
                   resigned == hostWindow else { return }
             noteDirectorySessionResigned()
+            // 切走标签时释放内联预览已解码内容，降低多标签内存与主线程压力。
+            PreviewSessionStore.shared.suspendInlineLoadedContent(forHostWindowID: previewHostWindowID)
+            // 无未保存预览编辑时卸掉右侧重面板，避免 N 个标签同时挂预览树。
+            if PreviewSessionStore.shared.inlineSessionWithUnsavedTextEdits(hostWindowID: previewHostWindowID) == nil {
+                deferHeavyRightPanels = true
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             guard let closingWindow = notification.object as? NSWindow,
@@ -1175,17 +1200,18 @@ struct ContentView: View {
             showTransientNotice(message)
         }
         .onReceive(NotificationCenter.default.publisher(for: .archiveOperationCompleted)) { notification in
+            guard isActiveExplorerTab else { return }
             guard let paths = notification.userInfo?[ArchiveOperationNotifications.resultPathsKey] as? [String] else {
                 return
             }
             let navigateIntoResult = notification.userInfo?[ArchiveOperationNotifications.navigateIntoResultKey] as? Bool ?? false
             handleArchiveOperationCompleted(paths: paths, navigateIntoResult: navigateIntoResult)
         }
-        .onChange(of: detachCoordinator.directoryItemsInvalidatedRevision) { _ in
+        .onReceive(detachCoordinator.$directoryItemsInvalidatedRevision) { _ in
             guard let event = detachCoordinator.lastDirectoryItemsInvalidatedEvent else { return }
             handleDirectoryItemsInvalidatedFromDetachedPreview(event)
         }
-        .onChange(of: detachCoordinator.revealInHostRevision) { _ in
+        .onReceive(detachCoordinator.$revealInHostRevision) { _ in
             guard let event = detachCoordinator.lastRevealInHostEvent else { return }
             handleRevealInHostFromDetachedPreview(event)
         }
@@ -2476,6 +2502,7 @@ struct ContentView: View {
     }
     
     private func scheduleVisibleDirectorySizes(_ visiblePaths: [String]) {
+        guard isActiveExplorerTab else { return }
         guard shouldAutoCalculateDirectorySizes(for: path) else { return }
         Task {
             await DirectoryMetadataScheduler.scheduleVisibleMetadata(
@@ -2488,6 +2515,7 @@ struct ContentView: View {
     }
 
     private func scheduleVisibleDirectoryItemCounts(_ visiblePaths: [String]) {
+        guard isActiveExplorerTab else { return }
         guard fileListViewMode == .thumbnail,
               !TrashLoader.isTrashPath(path) else { return }
         Task {

@@ -29,15 +29,16 @@ final class DirectoryMetadataAppKitBridge {
                 revision: revision,
                 display: { overlay.sizeDisplay(for: $0) }
             )
-            FileListFocusRegistry.forEachTable { $0.refreshDirectorySizeColumnIfNeeded(provider) }
-            FileListFocusRegistry.forEachThumbnail { $0.refreshDirectorySizeColumnIfNeeded(provider) }
+            // 多标签时每个窗口各自有 Table/Thumbnail；只刷新当前选中标签，避免 O(N) 主线程列刷新。
+            FileListFocusRegistry.forEachSelectedTabTable { $0.refreshDirectorySizeColumnIfNeeded(provider) }
+            FileListFocusRegistry.forEachSelectedTabThumbnail { $0.refreshDirectorySizeColumnIfNeeded(provider) }
         }
         countHandlerID = overlay.addCountRevisionHandler { revision in
             let provider = DirectoryItemCountColumnProvider(
                 revision: revision,
                 display: { overlay.countDisplay(for: $0) }
             )
-            FileListFocusRegistry.forEachThumbnail { $0.refreshDirectoryItemCountColumnIfNeeded(provider) }
+            FileListFocusRegistry.forEachSelectedTabThumbnail { $0.refreshDirectoryItemCountColumnIfNeeded(provider) }
         }
     }
 }

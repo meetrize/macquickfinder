@@ -184,8 +184,8 @@ struct FileListView: View {
             }
         }
         .onChange(of: pasteboardAvailability.cutItemPaths) { _ in
-            FileListFocusRegistry.forEachTable { $0.refreshCutItemAppearance() }
-            FileListFocusRegistry.forEachThumbnail { $0.refreshCutItemAppearance() }
+            FileListFocusRegistry.forEachSelectedTabTable { $0.refreshCutItemAppearance() }
+            FileListFocusRegistry.forEachSelectedTabThumbnail { $0.refreshCutItemAppearance() }
         }
         .onAppear {
             syncHoverPreviewController()

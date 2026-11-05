@@ -444,6 +444,7 @@ extension FileListTableController {
             guard let self,
                   let window = notification.object as? NSWindow,
                   window === self.tableView?.window else { return }
+            self.flushSuspendedListingIfNeeded()
             self.scheduleVisibleIconPreviewLoad(coalesce: false)
         }
     }

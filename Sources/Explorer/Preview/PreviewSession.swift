@@ -40,6 +40,8 @@ final class PreviewSession: ObservableObject, Identifiable {
     var imageResolutionUpgradeTask: Task<Void, Never>?
     /// 当前 `content` 所对应的文件 ID；用于避免同一文件重复整页重载。
     @Published var contentLoadedItemID: String?
+    /// 标签切走时释放了解码内容；切回后需重新 `beginLoadTask`。
+    var needsReloadAfterTabSuspend = false
     private var browseContextCancellable: AnyCancellable?
     private var nestedStateCancellables = Set<AnyCancellable>()
     let browseContentPrefetcher = PreviewBrowserContentPrefetcher()

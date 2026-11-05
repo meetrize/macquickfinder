@@ -1,9 +1,11 @@
+import AppKit
 import Foundation
 
 /// 多文件列表并存时的焦点与广播注册表。
 ///
 /// - **active**：接收全局动作（重命名、快搜循环等）的当前栏控制器
-/// - **all**：元数据刷新、剪切外观等需同步到所有可见列表
+/// - **selected tab**：当前选中标签（或无标签组时的可见窗）内的列表；元数据刷新应只打这里
+/// - **all**：仅用于确需跨标签同步的少数场景
 ///
 /// 单栏时行为与旧 `FileListTableController.shared` 一致（后创建 / 获焦者成为 active）。
 /// 约定：仅在主线程读写（与 AppKit 列表生命周期一致）。
@@ -35,6 +37,15 @@ public enum FileListFocusRegistry {
     public static var allThumbnails: [FileListThumbnailController] {
         prune()
         return thumbnailBoxes.compactMap(\.value)
+    }
+
+    /// 判断窗口是否为当前应刷新 UI 的标签页（多标签时仅 `selectedWindow`）。
+    public static func isSelectedTabWindow(_ window: NSWindow?) -> Bool {
+        guard let window else { return false }
+        if let group = window.tabGroup {
+            return group.selectedWindow === window
+        }
+        return window.isVisible || window.isKeyWindow
     }
 
     // MARK: - Registration
@@ -93,6 +104,19 @@ public enum FileListFocusRegistry {
 
     public static func forEachThumbnail(_ body: (FileListThumbnailController) -> Void) {
         for thumbnail in allThumbnails {
+            body(thumbnail)
+        }
+    }
+
+    /// 仅刷新当前选中标签内的列表（含双栏同窗的两个表）；跳过后台标签以避免 O(标签数) 主线程开销。
+    public static func forEachSelectedTabTable(_ body: (FileListTableController) -> Void) {
+        for table in allTables where table.isInSelectedTabWindow {
+            body(table)
+        }
+    }
+
+    public static func forEachSelectedTabThumbnail(_ body: (FileListThumbnailController) -> Void) {
+        for thumbnail in allThumbnails where thumbnail.isInSelectedTabWindow {
             body(thumbnail)
         }
     }

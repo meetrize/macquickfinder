@@ -33,6 +33,22 @@ public final class FileListThumbnailController: FileListContentController {
     var pendingRenameItemID: String?
     /// 重命名进行中收到的最新 listing；改名结束后再应用，避免刷新拆掉输入框或自动提交默认名。
     private var deferredRowsWhileRenaming: [FileListRow]?
+    /// 非选中标签期间积压的 listing；切回该标签时再应用到 NSCollectionView。
+    private var suspendedInactiveListing: (
+        rows: [FileListRow],
+        interaction: FileListTableInteraction,
+        cellSize: CGFloat,
+        preferWorkspaceIcons: Bool,
+        rowHoverHighlight: Bool
+    )?
+
+    /// 宿主窗是否为当前选中标签；尚未挂上 window 时视为可更新（首帧）。
+    public var isInSelectedTabWindow: Bool {
+        let window = collectionView?.window ?? scrollView?.window
+        guard let window else { return true }
+        return FileListFocusRegistry.isSelectedTabWindow(window)
+    }
+
     var dropHighlightIndexPath: IndexPath?
     var pendingDropTargetIndexPath: IndexPath?
     var activeDragURLs: [URL]?
@@ -100,6 +116,26 @@ public final class FileListThumbnailController: FileListContentController {
         preferWorkspaceIcons: Bool = false,
         rowHoverHighlight: Bool = false
     ) {
+        bindUpdateContext(
+            interaction: interaction,
+            selectionGet: selectionGet,
+            selectionSet: selectionSet,
+            preferencesStore: preferencesStore
+        )
+        collectionView?.servicesRequestor = interaction.servicesRequestor
+
+        guard isInSelectedTabWindow else {
+            suspendedInactiveListing = (
+                rows: rows,
+                interaction: interaction,
+                cellSize: cellSize,
+                preferWorkspaceIcons: preferWorkspaceIcons,
+                rowHoverHighlight: rowHoverHighlight
+            )
+            return
+        }
+        suspendedInactiveListing = nil
+
         let preferIconsChanged = self.preferWorkspaceIcons != preferWorkspaceIcons
         self.preferWorkspaceIcons = preferWorkspaceIcons
         if preferIconsChanged {
@@ -110,13 +146,6 @@ public final class FileListThumbnailController: FileListContentController {
         if hoverChanged, !rowHoverHighlight {
             refreshVisibleItemAppearance()
         }
-        bindUpdateContext(
-            interaction: interaction,
-            selectionGet: selectionGet,
-            selectionSet: selectionSet,
-            preferencesStore: preferencesStore
-        )
-        collectionView?.servicesRequestor = interaction.servicesRequestor
         
         let normalizedCellSize = FileListThumbnailMetrics.steppedCellSize(from: cellSize)
         let cellSizeChanged = self.cellSize != normalizedCellSize
@@ -178,6 +207,7 @@ public final class FileListThumbnailController: FileListContentController {
     
     public func refreshDirectorySizeColumnIfNeeded(_ provider: DirectorySizeColumnProvider?) {
         directorySizeDisplay = provider?.display
+        guard isInSelectedTabWindow else { return }
         guard let provider else { return }
         guard provider.revision != lastDirectorySizeRevision else {
             flushPendingDirectorySizeRefreshIfNeeded()
@@ -189,6 +219,7 @@ public final class FileListThumbnailController: FileListContentController {
     
     public func refreshDirectoryItemCountColumnIfNeeded(_ provider: DirectoryItemCountColumnProvider?) {
         directoryItemCountDisplay = provider?.display
+        guard isInSelectedTabWindow else { return }
         guard let provider else { return }
         guard provider.revision != lastDirectoryItemCountRevision else {
             flushPendingDirectoryItemCountRefreshIfNeeded()
@@ -196,6 +227,30 @@ public final class FileListThumbnailController: FileListContentController {
         }
         lastDirectoryItemCountRevision = provider.revision
         applyDirectoryItemCountDisplayUpdates()
+    }
+
+    /// 标签重新成为 key 时：应用后台积压的 listing，或补一次可见区加载。
+    func flushSuspendedListingIfNeeded() {
+        guard isInSelectedTabWindow else { return }
+        guard let suspended = suspendedInactiveListing,
+              let selectionGet,
+              let selectionSet,
+              let preferencesStore else {
+            scheduleVisibleDirectoryPathsNotify(debounce: 0.05)
+            scheduleVisibleThumbnailLoad(coalesce: false)
+            return
+        }
+        suspendedInactiveListing = nil
+        update(
+            rows: suspended.rows,
+            interaction: suspended.interaction,
+            selectionGet: selectionGet,
+            selectionSet: selectionSet,
+            preferencesStore: preferencesStore,
+            cellSize: suspended.cellSize,
+            preferWorkspaceIcons: suspended.preferWorkspaceIcons,
+            rowHoverHighlight: suspended.rowHoverHighlight
+        )
     }
 
     private func applyDirectorySizeDisplayUpdates() {
@@ -722,6 +777,7 @@ public final class FileListThumbnailController: FileListContentController {
             guard let self,
                   let window = notification.object as? NSWindow,
                   window === self.collectionView?.window else { return }
+            self.flushSuspendedListingIfNeeded()
             self.scheduleVisibleThumbnailLoad(coalesce: false)
         }
     }

@@ -72,6 +72,13 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     }
     
     func syncFromParent() {
+        // 多标签时每个标签各自有侧栏；后台标签的 updateNSView 仍会进来，跳过避免 O(N×收藏数) 刷新。
+        // window 尚未挂上时（首帧）仍同步一次。
+        if let window = tableView?.window,
+           !FileListFocusRegistry.isSelectedTabWindow(window) {
+            return
+        }
+
         let paths = parent.favoritesStore.items.map(\.path)
         let showsTitle = parent.showsTitle
         let layoutChanged = showsTitle != lastShowsTitle
@@ -113,10 +120,22 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
     
     func refreshRowHighlighting() {
         guard let tableView else { return }
-        for row in 0..<tableView.numberOfRows {
+        if let window = tableView.window,
+           !FileListFocusRegistry.isSelectedTabWindow(window) {
+            return
+        }
+        // 优先只刷新可见行；避免 makeIfNecessary:true 把全部 cell 建出来。
+        let visible = tableView.rows(in: tableView.visibleRect)
+        let rowRange: Range<Int>
+        if visible.length > 0 {
+            rowRange = visible.location..<(visible.location + visible.length)
+        } else {
+            rowRange = 0..<tableView.numberOfRows
+        }
+        for row in rowRange {
             guard let item = item(at: row) else { continue }
             let selected = parent.isSelected(item.path)
-            
+
             if let rowView = tableView.rowView(atRow: row, makeIfNecessary: false) as? FavoriteSidebarRowView {
                 rowView.isFavoriteSelected = selected
                 rowView.isDropTargetRow = row == dropHighlightRow
@@ -124,7 +143,7 @@ final class FavoritesSidebarController: NSObject, NSTableViewDataSource, NSTable
                 rowView.updateTooltip(parent.showsTitle ? nil : item.displayName)
                 rowView.needsDisplay = true
             }
-            if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: true) as? FavoriteSidebarCellView {
+            if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: false) as? FavoriteSidebarCellView {
                 cell.configure(item: item, showsTitle: parent.showsTitle, isSelected: selected)
                 cell.isDropTargetRow = row == dropHighlightRow
             }
@@ -1160,6 +1179,10 @@ struct FavoritesSidebarHost: NSViewRepresentable {
         let previousShowsTitle = tableView.configuredShowsTitle
         context.coordinator.parent = self
         tableView.installIfNeeded(showsTitle: showsTitle)
+        // 后台标签跳过 sync / 宽度刷，减少切标签时 SwiftUI 连带刷新。
+        let isActiveTab = FileListFocusRegistry.isSelectedTabWindow(tableView.window)
+            || tableView.window == nil
+        guard isActiveTab else { return }
         context.coordinator.syncFromParent()
         if availableWidth > 0 {
             tableView.applyAvailableContentWidth(availableWidth)
