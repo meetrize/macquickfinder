@@ -1509,6 +1509,7 @@ private final class ExplorerAppDelegate: NSObject, NSApplicationDelegate {
         AppMemoryPressure.installHandler()
         PasteboardPasteAvailability.shared.install()
         GlobalHotkeyService.shared.start()
+        ExplorerTabBarActiveAppearance.installIfNeeded()
     }
 
     func applicationWillTerminate(_ notification: Notification) {

@@ -286,6 +286,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
             if tabGroup.selectedWindow !== window {
                 tabGroup.selectedWindow = window
             }
+            ExplorerTabBarActiveAppearance.scheduleApply()
         }
 
         let needsForce = forceFrontmost || !NSApp.isActive
@@ -1551,6 +1552,7 @@ final class ExplorerWindowTabCenter: ObservableObject {
 
     private func bumpTabBarRevision() {
         tabBarRevision &+= 1
+        ExplorerTabBarActiveAppearance.scheduleApply()
     }
 
     private func installTabDoubleClickMonitor() {
@@ -1744,6 +1746,16 @@ enum ExplorerTabBarHitTesting {
         return nil
     }
 
+    /// 供活动标签样式与命中检测共用。
+    static func findTabBarView(in window: NSWindow) -> NSView? {
+        findTabBar(in: window)
+    }
+
+    /// 供活动标签样式与命中检测共用（未排序）。
+    static func tabButtonViews(in tabBar: NSView) -> [NSView] {
+        tabButtons(in: tabBar)
+    }
+
     private static func findTabBar(in window: NSWindow) -> NSView? {
         guard let root = window.contentView?.superview else { return nil }
         return findSubview(in: root) { view in
@@ -1768,6 +1780,10 @@ enum ExplorerTabBarHitTesting {
 
     private static func collectTabButtons(from view: NSView, into result: inout [NSView]) {
         let name = String(describing: type(of: view))
+        // 「+」按钮类名也含 TabButton，必须排除，否则下标与 tabGroup.windows 错位。
+        if name.contains("NewTab") {
+            return
+        }
         if name.contains("TabButton") || name.contains("NSTabButton") {
             result.append(view)
             return

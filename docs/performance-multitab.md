@@ -50,6 +50,14 @@
 4. 期望：切标签后首帧可点；滚动无明显掉帧；后台标签不拖垮前台  
 5. 可选：`sample <pid> 3 1` 中不应再出现「每个元数据 revision × 全部标签 table reload」或「全标签侧栏 refreshRowHighlighting」尖峰  
 
+## 标签栏选中样式（macOS 26+）
+
+Tahoe liquid glass 下系统 `NSTabBar` 选中/未选中常几乎无差别。`ExplorerTabBarActiveAppearance` 会：
+
+- 给当前标签加强调色玻璃 tint + 描边 + 半粗标题  
+- 未选中标签保持淡底与次要标题色  
+- 在 key/update/resize 与 `bumpTabBarRevision` 时重绘  
+
 ## 后续可选
 
 - `DirectoryMetadataOverlay` 按窗口/会话隔离（彻底消除跨标签 size 串扰）  
