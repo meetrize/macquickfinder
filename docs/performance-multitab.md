@@ -32,6 +32,10 @@
 6. **`FilePreviewView` / `FilePreviewSessionHost`**：仅跟踪 `placement`，避免其它 revision 重绘预览  
 7. **收藏侧栏**：后台标签跳过 `syncFromParent` / `refreshRowHighlighting`；高亮只刷可见行（不再 `makeIfNecessary: true` 全建 cell）  
 8. **右侧重面板**：失焦且无未保存预览编辑时 `deferHeavyRightPanels = true`，切回 key 后再挂载，避免 N 套预览树常驻  
+9. **标签栏样式死循环（2026-11）**：`ExplorerTabBarActiveAppearance` 曾订阅 `NSWindow.didUpdateNotification`；写 tint/`attributedTitle` 会再触发 update → 主线程空闲也在 DFS 整棵标题栏树。多标签 + 选中/预览体感「半秒～一秒」且越用越慢。已改为仅 key/resize/occlusion + revision 合并调度，样式未变则跳过写入；`findTabBar` 缓存 + `NSClassFromString`  
+10. **预览观察面**：`FilePreviewView` / `FilePreviewSessionHost` 不再 `@ObservedObject` 全局 `DirectoryMetadataOverlay`；文件夹预览只在本路径 size/count 变化时刷新  
+11. **选中弹出右栏**：auto 模式首次因选中显栏时先占位一帧，让列表高亮先上屏再挂预览树  
+12. **粘贴板**：`PasteboardPasteAvailability.refreshNow` 无变化时不再 `objectWillChange`（避免 N 份 `FileListView` 同步重绘）  
 
 ## 实测（Release → `/Applications/MeoFind.app`）
 
@@ -41,6 +45,8 @@
 | 切标签期间 `sample` | `FavoritesSidebar` / `refreshRowHighlighting` / `DirectoryMetadata` / `makeListRows` 命中为 0 |
 | 多标签常驻 RSS | 约 130MB 量级，切标签不再明显暴涨 |
 | 列表方向键导航 | 单次开销约数毫秒级 |
+| 多标签空闲 `sample`（修前） | 主线程大量 `ExplorerTabBarActiveAppearance.apply` + `findSubview`（didUpdate 死循环） |
+| 多标签空闲 `sample`（修后期望） | 不应再出现连续 `applyToVisibleExplorerWindows` / 深层 `findSubview` 尖峰 |
 
 ## 验收建议
 
@@ -54,12 +60,13 @@
 
 Tahoe liquid glass 下系统 `NSTabBar` 选中/未选中常几乎无差别。`ExplorerTabBarActiveAppearance` 会：
 
-- 给当前标签加强调色玻璃 tint + 描边 + 半粗标题  
+- 给当前标签加强调色玻璃 tint + 半粗标题  
 - 未选中标签保持淡底与次要标题色  
-- 在 key/update/resize 与 `bumpTabBarRevision` 时重绘  
+- **仅**在 key / resignKey / resize / occlusion 与 `bumpTabBarRevision` 时合并重绘  
+- **禁止**订阅 `didUpdate`（写样式会触发 update，形成主线程死循环）  
 
 ## 后续可选
 
 - `DirectoryMetadataOverlay` 按窗口/会话隔离（彻底消除跨标签 size 串扰）  
 - `FileListPreferencesStore` 的 `@ObservedObject` 进一步下沉，避免偏好变更时 N 次 SwiftUI body  
-- 粘贴板 `PasteboardPasteAvailability` 轮询在多标签下可再降频（当前尖峰已很小）  
+- 选中切换时复用 `PreviewSession`（减少 `.id(file)` 整树拆建）  

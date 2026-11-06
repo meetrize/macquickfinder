@@ -1602,6 +1602,24 @@ enum ExplorerTabBarHitTesting {
         "TabButton",
     ]
 
+    /// 类名字符串匹配很贵；优先用 `NSClassFromString` + `isKind(of:)`。
+    private static let tabBarClassTypes: [AnyClass] = [
+        NSClassFromString("NSTabBar"),
+        NSClassFromString("NSThemeTabBar"),
+    ].compactMap { $0 }
+
+    private static let tabButtonClassTypes: [AnyClass] = [
+        NSClassFromString("NSTabButton"),
+        NSClassFromString("NSThemeTabBarButton"),
+    ].compactMap { $0 }
+
+    private static var cachedTabBarByWindow = [ObjectIdentifier: WeakNSViewBox]()
+
+    private final class WeakNSViewBox {
+        weak var view: NSView?
+        init(_ view: NSView) { self.view = view }
+    }
+
     static func isTabBarClick(_ event: NSEvent, in window: NSWindow) -> Bool {
         let screenPoint = event.window?.convertPoint(toScreen: event.locationInWindow) ?? NSEvent.mouseLocation
         return isMouseInTabBar(of: window, atScreenPoint: screenPoint, locationInWindow: event.locationInWindow)
@@ -1757,13 +1775,34 @@ enum ExplorerTabBarHitTesting {
     }
 
     private static func findTabBar(in window: NSWindow) -> NSView? {
-        guard let root = window.contentView?.superview else { return nil }
-        return findSubview(in: root) { view in
-            let name = String(describing: type(of: view))
-            return tabBarMarkers.contains(where: { name.contains($0) && !$0.contains("Button") })
-                || name.contains("NSTabBar")
-                || name.contains("NSThemeTabBar")
+        let windowID = ObjectIdentifier(window)
+        if let cached = cachedTabBarByWindow[windowID]?.view,
+           cached.window === window {
+            return cached
         }
+        guard let root = window.contentView?.superview else { return nil }
+        let found = findSubview(in: root, matching: isTabBarView(_:))
+        if let found {
+            cachedTabBarByWindow[windowID] = WeakNSViewBox(found)
+        } else {
+            cachedTabBarByWindow.removeValue(forKey: windowID)
+        }
+        // 顺带清掉已释放窗口的缓存，避免字典随标签数无限涨。
+        if cachedTabBarByWindow.count > 16 {
+            cachedTabBarByWindow = cachedTabBarByWindow.filter { $0.value.view != nil }
+        }
+        return found
+    }
+
+    private static func isTabBarView(_ view: NSView) -> Bool {
+        for type in tabBarClassTypes where view.isKind(of: type) {
+            return true
+        }
+        // 私有类名随系统版本可能变化；仅作后备，避免热路径上无谓 String(describing:)。
+        let name = String(describing: type(of: view))
+        return tabBarMarkers.contains(where: { name.contains($0) && !$0.contains("Button") })
+            || name.contains("NSTabBar")
+            || name.contains("NSThemeTabBar")
     }
 
     private static func tabButtons(in tabBar: NSView) -> [NSView] {
@@ -1773,6 +1812,9 @@ enum ExplorerTabBarHitTesting {
 
         // 退化：用可点的子视图近似标签按钮。
         return tabBar.subviews.filter { subview in
+            if tabButtonClassTypes.contains(where: { subview.isKind(of: $0) }) {
+                return true
+            }
             let name = String(describing: type(of: subview))
             return name.contains("Tab") || subview is NSButton || subview.gestureRecognizers.isEmpty == false
         }
@@ -1784,7 +1826,9 @@ enum ExplorerTabBarHitTesting {
         if name.contains("NewTab") {
             return
         }
-        if name.contains("TabButton") || name.contains("NSTabButton") {
+        if tabButtonClassTypes.contains(where: { view.isKind(of: $0) })
+            || name.contains("TabButton")
+            || name.contains("NSTabButton") {
             result.append(view)
             return
         }
@@ -1806,6 +1850,10 @@ enum ExplorerTabBarHitTesting {
     private static func isInsideTabBar(_ view: NSView) -> Bool {
         var current: NSView? = view
         while let node = current {
+            if isTabBarView(node) { return true }
+            for type in tabButtonClassTypes where node.isKind(of: type) {
+                return true
+            }
             let name = String(describing: type(of: node))
             if tabBarMarkers.contains(where: { name.contains($0) }) {
                 return true

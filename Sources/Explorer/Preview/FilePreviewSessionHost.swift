@@ -12,7 +12,8 @@ struct FilePreviewSessionHost: View {
     let sortOrder: SortOrder
     let showHiddenFiles: Bool
     let autoCalculateDirectorySizes: Bool
-    @ObservedObject var metadataOverlay: DirectoryMetadataOverlay
+    /// 不用 `@ObservedObject`：全局元数据 revision 不应重绘整棵预览宿主。
+    let metadataOverlay: DirectoryMetadataOverlay
     let onNavigate: (String) -> Void
     let onOpenItem: (FileItem) -> Void
     let onOpenTerminalAtPath: (String) -> Void

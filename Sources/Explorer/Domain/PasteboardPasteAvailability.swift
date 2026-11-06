@@ -63,18 +63,31 @@ final class PasteboardPasteAvailability: ObservableObject {
 
     func refreshNow() {
         lastChangeCount = NSPasteboard.general.changeCount
-        cachedState = FileOperations.pasteboardState()
-        hasCreatableContent = ClipboardFileCreation.contentKind() != nil
-        let nextCutPaths: Set<String>
-        if let state = cachedState, state.isCut {
-            nextCutPaths = FileListCutAppearance.pathSet(from: state.urls)
-        } else {
-            nextCutPaths = []
-        }
+        let nextState = FileOperations.pasteboardState()
+        let nextHasCreatable = ClipboardFileCreation.contentKind() != nil
+        let nextCutPaths: Set<String> = nextState.isCut
+            ? FileListCutAppearance.pathSet(from: nextState.urls)
+            : []
+
+        let stateChanged = !Self.pasteboardStateEqual(cachedState, nextState)
+            || hasCreatableContent != nextHasCreatable
+            || cutItemPaths != nextCutPaths
+        cachedState = nextState
+        hasCreatableContent = nextHasCreatable
         if nextCutPaths != cutItemPaths {
             cutItemPaths = nextCutPaths
         }
+        // 多标签下每个 FileListView 都 @ObservedObject 本单例；无变化时禁止广播，否则 N 份列表同步重绘。
+        guard stateChanged else { return }
         objectWillChange.send()
+    }
+
+    private static func pasteboardStateEqual(
+        _ lhs: FileOperations.PasteboardState?,
+        _ rhs: FileOperations.PasteboardState
+    ) -> Bool {
+        guard let lhs else { return false }
+        return lhs.isCut == rhs.isCut && lhs.urls == rhs.urls
     }
 
     func canPaste(to destinationDirectory: URL) -> Bool {

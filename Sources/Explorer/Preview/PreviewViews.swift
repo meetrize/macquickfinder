@@ -12,7 +12,8 @@ struct FilePreviewView: View {
     let sortOrder: SortOrder
     let showHiddenFiles: Bool
     let autoCalculateDirectorySizes: Bool
-    @ObservedObject var metadataOverlay: DirectoryMetadataOverlay
+    /// 不用 `@ObservedObject`：全局 size/count revision 会拖垮选中切换；仅文件夹预览叶子订阅。
+    let metadataOverlay: DirectoryMetadataOverlay
     let onNavigate: (String) -> Void
     let onOpenItem: (FileItem) -> Void
     let onOpenTerminalAtPath: (String) -> Void

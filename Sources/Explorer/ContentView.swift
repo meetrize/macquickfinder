@@ -457,6 +457,10 @@ struct ContentView: View {
     private let bootstrappedWithListingSnapshot: Bool
     /// 新建标签首帧先占位右侧栏，下一帧再挂预览/片段/Git，缩短可交互时间。
     @State private var deferHeavyRightPanels: Bool
+    /// auto 模式从「无选中」变为「有选中」时先让列表高亮上屏，下一帧再挂预览树。
+    @State private var deferRightPanelForSelectionReveal = false
+    /// 上一帧右栏是否已生效可见；用于识别「刚因选中弹出」。
+    @State private var lastRightPanelEffectivelyVisible = false
     /// 世代内拒绝 restored 时，hostWindow 可能尚未挂上，挂上后立刻关闭。
     @State private var closeWhenHostWindowAppears = false
     /// 无参 main 壳延后判决中：先隐藏，等 odoc/Reveal 抑制或收养为「+」。
@@ -695,7 +699,7 @@ struct ContentView: View {
                         explorerMainBrowserArea
 
                         if layout.isRightPanelEffectivelyVisible(hasSelection: hasRealSelection) {
-                            if deferHeavyRightPanels {
+                            if deferHeavyRightPanels || deferRightPanelForSelectionReveal {
                                 Color.clear
                                     .frame(width: livePreviewPanelWidth)
                                     .frame(maxHeight: .infinity)
@@ -857,8 +861,12 @@ struct ContentView: View {
             updateGitWorkspaceFSEventsMonitoring()
         }
         .onChange(of: selection) { _ in
+            scheduleDeferredRightPanelRevealIfNeeded()
             scheduleGitRefreshIfPanelVisible(cwd: path)
             updateGitWorkspaceFSEventsMonitoring()
+        }
+        .onChange(of: secondaryPane.selection) { _ in
+            scheduleDeferredRightPanelRevealIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: .gitWorkingTreeMayHaveChanged)) { notification in
             guard isActiveExplorerTab else { return }
@@ -916,6 +924,9 @@ struct ContentView: View {
         )
         .onAppear {
             toolbarStore.loadIfNeeded()
+            lastRightPanelEffectivelyVisible = layout.isRightPanelEffectivelyVisible(
+                hasSelection: hasRealSelection
+            )
 
             if let mapped = fileListPreferences.sort.explorerSortOrder {
                 sortOrder = mapped
@@ -1878,6 +1889,27 @@ struct ContentView: View {
         let applied = layout.setPreviewVisible(visible, hasSelection: hasRealSelection)
         if !applied && visible {
             showTransientNotice(L10n.Settings.General.rightPanelAutoHiddenNotice)
+        }
+    }
+
+    /// auto 模式首次因选中弹出右栏时：先占位宽度，让列表选中高亮先上屏，再挂预览/片段/Git。
+    private func scheduleDeferredRightPanelRevealIfNeeded() {
+        let visible = layout.isRightPanelEffectivelyVisible(hasSelection: hasRealSelection)
+        let newlyVisible = visible && !lastRightPanelEffectivelyVisible
+        lastRightPanelEffectivelyVisible = visible
+        guard newlyVisible, !deferHeavyRightPanels else {
+            if !visible {
+                deferRightPanelForSelectionReveal = false
+            }
+            return
+        }
+        deferRightPanelForSelectionReveal = true
+        DispatchQueue.main.async {
+            guard layout.isRightPanelEffectivelyVisible(hasSelection: hasRealSelection) else {
+                deferRightPanelForSelectionReveal = false
+                return
+            }
+            deferRightPanelForSelectionReveal = false
         }
     }
 

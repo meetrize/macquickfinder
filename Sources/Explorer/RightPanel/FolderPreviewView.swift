@@ -6,7 +6,8 @@ struct FolderPreviewView: View {
     let folder: FileItem
     let showHiddenFiles: Bool
     let autoCalculateDirectorySizes: Bool
-    @ObservedObject var metadataOverlay: DirectoryMetadataOverlay
+    /// 不用 `@ObservedObject`：全局 size/count revision 会拖垮所有订阅者；只跟踪本文件夹字段。
+    let metadataOverlay: DirectoryMetadataOverlay
     let showContentsList: Bool
     let onNavigate: (String) -> Void
     let onOpenFolder: () -> Void
@@ -19,6 +20,8 @@ struct FolderPreviewView: View {
     @State private var isLoadingContents = false
     @State private var appIcon: NSImage?
     @State private var appSnapshot: AppBundlePreviewInfo.Snapshot?
+    @State private var resolvedItemCount: Int?
+    @State private var directorySizeDisplay: DirectorySizeDisplayInfo = .unknown
 
     private var isApplicationBundle: Bool {
         FileListApplicationBundle.isBundle(path: folder.id)
@@ -34,12 +37,41 @@ struct FolderPreviewView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onAppear {
+            syncFolderMetadataFromOverlay()
+        }
+        .onChange(of: folder.id) { _ in
+            syncFolderMetadataFromOverlay()
+        }
+        .onReceive(metadataOverlay.$sizeRevision) { _ in
+            let next = metadataOverlay.sizeDisplay(for: folder.id)
+            if next != directorySizeDisplay {
+                directorySizeDisplay = next
+            }
+        }
+        .onReceive(metadataOverlay.$countRevision) { _ in
+            let next = FolderPreviewItemCountDisplay.resolvedCount(
+                from: metadataOverlay,
+                path: folder.id
+            )
+            if next != resolvedItemCount {
+                resolvedItemCount = next
+            }
+        }
         .task(id: folder.id) {
             await prepareLightweightChrome()
             await scheduleMetadata()
             guard showContentsList, !isApplicationBundle else { return }
             await loadContents()
         }
+    }
+
+    private func syncFolderMetadataFromOverlay() {
+        directorySizeDisplay = metadataOverlay.sizeDisplay(for: folder.id)
+        resolvedItemCount = FolderPreviewItemCountDisplay.resolvedCount(
+            from: metadataOverlay,
+            path: folder.id
+        )
     }
 
     // MARK: - Phase A: Summary
@@ -131,10 +163,6 @@ struct FolderPreviewView: View {
         return nil
     }
 
-    private var resolvedItemCount: Int? {
-        FolderPreviewItemCountDisplay.resolvedCount(from: metadataOverlay, path: folder.id)
-    }
-
     private var itemCountText: String {
         FolderPreviewItemCountDisplay.summaryText(
             count: resolvedItemCount,
@@ -145,11 +173,10 @@ struct FolderPreviewView: View {
     private var directorySizeText: String {
         // 文件包不再自动算大小，避免 /Applications 下预览卡顿。
         guard !isApplicationBundle else { return "" }
-        let display = metadataOverlay.sizeDisplay(for: folder.id)
-        if display.sortableSize < 0 {
+        if directorySizeDisplay.sortableSize < 0 {
             return autoCalculateDirectorySizes ? L10n.Preview.Folder.sizeCalculating : ""
         }
-        return L10n.Preview.Folder.size(display.text)
+        return L10n.Preview.Folder.size(directorySizeDisplay.text)
     }
 
     // MARK: - Phase B: Contents
